@@ -12,14 +12,21 @@ powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-orchestrator.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test 2: subagent via orchestrator dispatch" -ForegroundColor Cyan
+Write-Host "Test 2: plan orchestrator (custom prompt)" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-plan.ps1"
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Test 3: subagent via orchestrator dispatch" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-subagent.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test 3: default build agent (baseline)" -ForegroundColor Cyan
+Write-Host "Test 4: default build agent (baseline)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-default.ps1"
