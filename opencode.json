@@ -31,7 +31,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 80,
-      "prompt": "{file:./agents/orchestrator.md}"
+      "prompt": "{file:~/.config/opencode/agents/orchestrator.md}"
     },
     "plan": {
       "description": "Plan orchestrator — read-only coordinator that dispatches analysis tasks to specialist agents. Use for architecture review, code audit, security assessment, refactoring planning, and pre-implementation design.",
@@ -39,7 +39,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 60,
-      "prompt": "{file:./agents/plan-orchestrator.md}"
+      "prompt": "{file:~/.config/opencode/agents/plan-orchestrator.md}"
     }
   }
 }
