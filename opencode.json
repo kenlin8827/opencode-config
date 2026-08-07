@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "llm-router/default",
+  "permission": "allow",
+  "provider": {
+    "llm-router": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llm-router",
+      "options": {
+        "baseURL": "{env:LLM_ROUTER_BASE_URL}",
+        "apiKey": "{env:LLM_ROUTER_API_KEY}"
+      },
+      "models": {
+        "default":     { "name": "LLM Router default",     "id": "default",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "code":        { "name": "LLM Router code",        "id": "code",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "vision":      { "name": "LLM Router vision",      "id": "vision",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "advisor":     { "name": "LLM Router advisor",     "id": "advisor",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "auto":        { "name": "LLM Router auto",        "id": "auto",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "ultimate":    { "name": "LLM Router ultimate",    "id": "ultimate",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "performance": { "name": "LLM Router performance", "id": "performance", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "efficient":   { "name": "LLM Router efficient",   "id": "efficient",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "lite":        { "name": "LLM Router lite",        "id": "lite",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
+      }
+    }
+  },
+  "agent": {
+    "orchestrator": {
+      "description": "Orchestrator — coordinates a team of specialist agents. Use as the primary entry point for complex, multi-step tasks. For simple tasks, it dispatches directly to the right specialist.",
+      "mode": "primary",
+      "model": "llm-router/default",
+      "temperature": 0.3,
+      "steps": 80,
+      "prompt": "{file:./agents/orchestrator.md}"
+    },
+    "plan": {
+      "description": "Plan orchestrator — read-only coordinator that dispatches analysis tasks to specialist agents. Use for architecture review, code audit, security assessment, refactoring planning, and pre-implementation design.",
+      "mode": "primary",
+      "model": "llm-router/default",
+      "temperature": 0.3,
+      "steps": 60,
+      "prompt": "{file:./agents/plan-orchestrator.md}"
+    }
+  }
+}
