@@ -10,9 +10,6 @@ package-lock.json
 # Advisor plugin state (runtime, not source)
 .advisor-mode
 
-# Install scripts (host setup, not project source)
-install/
-
 # OS files
 Thumbs.db
 .DS_Store
