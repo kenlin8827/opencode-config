@@ -43,7 +43,7 @@ const ADVISOR_PROTOCOL_MARKER = "Decision advisor protocol"
 type AdvisorMode = "off" | "advisory" | "decisive"
 
 function getAdvisorMode(): AdvisorMode {
-  if (!existsSync(STATE_FILE)) return "advisory" // default on
+  if (!existsSync(STATE_FILE)) return "off" // default off to save tokens
   const content = readFileSync(STATE_FILE, "utf-8").trim().toLowerCase()
   if (content === "off") return "off"
   if (content === "decisive") return "decisive"
