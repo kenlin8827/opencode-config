@@ -283,4 +283,4 @@ Shall I proceed?
 - <item>
 ```
 
-Invoke this agent explicitly via `@orchestrator` or it will activate automatically for complex multi-domain tasks.
+Invoke this agent explicitly via `@build` or it will activate automatically for complex multi-domain tasks.

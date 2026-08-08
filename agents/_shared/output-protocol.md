@@ -1,44 +1,58 @@
 ## Output protocol (mandatory)
 
-Applies to all explanation, summary, and analysis output (not code itself).
+Applies to all explanation, summary, and analysis output (not code).
 
 ### Conclusion first
-First sentence states the core conclusion with confidence level and one-line rationale.
-Format: `**Conclusion**: <one sentence> (Confidence: High/Medium/Low — <reason>)`
+First sentence: `**Conclusion**: <one sentence> (Confidence: High/Medium/Low — <reason>)`
 
-### Visual overview
-Prefer diagrams over prose. Architecture → Mermaid structure diagrams, flows → Mermaid flowcharts, comparisons → tables, data → charts.
+### Visual overview (mandatory)
+Diagrams REQUIRED. Any explanation involving structure, relationships, or flow MUST include a diagram.
+
+**Triggers** — include diagram when response involves:
+- Architecture/structure → box diagram
+- Data flow/process → flowchart
+- Component relationships → box diagram + arrows
+- Comparisons → table (not prose)
+- Sequential logic/state → flowchart
+
+**Format:**
+- Terminal → ASCII/Unicode boxes, tables. No Mermaid.
+- `.md` files → Mermaid fenced blocks.
+- Both → ASCII inline + Mermaid in `.md` when complex.
+
+**Minimum:** Every 3+ sentence response needs ≥1 visual element.
 
 ### Layered exposition
-Organize body in three layers, each independently readable:
+Three independently readable layers:
 - **Summary** (1-3 sentences: conclusion + key numbers)
 - **Key points** (one sentence each, numbered)
 - **Details** (expansion, skippable)
 
 ### Content labeling
-Label all key content as one of three types:
 - [Fact] — verifiable (code, docs, test results)
-- [Inference] — derived from known information
+- [Inference] — derived from known info
 - [Assumption] — unverified, needs validation
 
-Assumptions get their own section: `## Assumptions (to confirm)`
+Assumptions get own section: `## Assumptions (to confirm)`
 
 ### Counterargument
-Each key conclusion gets one line: `> Counter: This conclusion fails when <condition>, because <reason>.`
+Each key conclusion: `> Counter: This fails when <condition>, because <reason>.`
 
-### Decision checklist
-End with:
-```
-## Decisions to confirm
-1. [ ] <decision point> — Agree/Modify?
-```
-User replies Agree or Modify per item.
+### Decision confirmation
+When output contains decision points needing sign-off:
+
+- **Primary agents** (have `question` tool): call `question` tool actively. Batch decisions. Options: ≥`Agree` + `Modify` (+ `Reject` when appropriate).
+- **Subagents** (no `question` tool): two-tier strategy:
+  - **Non-blocking** (wrong = easy fix): state assumption, proceed, list in `## Decisions to confirm`.
+  - **Blocking** (wrong = significant waste): STOP. Output `## ⛔ Blocking decision` with options + recommendation. End turn. Orchestrator re-dispatches with answer.
+
+No decision points → skip section. NEVER invent trivial decisions.
 
 ### Verifiable data
-Cite sources for all data (file paths, URLs, test output). Show calculation steps, not just results.
+Cite sources (file paths, URLs, test output). Show calculation steps.
 
 ### Concise language
-Max 30 words per sentence. One idea per paragraph. Explain jargon on first use in one sentence.
+Max 30 words/sentence. One idea/paragraph. Explain jargon on first use.
 
 ### Optional analogy
-Complex concepts may include an analogy in a `> 💡 Analogy: ...` callout, not in the main body.
+Complex concepts: `> 💡 Analogy: ...` callout, not in main body.

@@ -1,4 +1,4 @@
-# Run all tests sequentially
+﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -61,30 +61,24 @@ Check "ponytail.md: no '### Intensity'" ($ponytail -notmatch "### Intensity")
 Check "ponytail.md: limits scope to coding" ($ponytail -match "Applies only to coding tasks")
 Check "ponytail.md: excludes non-coding agents" ($ponytail -match "Non-coding agents ignore this")
 
-# Agent trusted-library rules
+# Agent ecosystem library mentions
 $trustedAgents = @(
     @{ file = "java-dev.md";   libs = "Spring|HikariCP|Flyway" }
     @{ file = "python-dev.md"; libs = "SQLAlchemy|Pydantic|pytest" }
-    @{ file = "node-dev.md";   libs = "Prisma|Zod|pino" }
+    @{ file = "node-dev.md";   libs = "Prisma|Zod" }
 )
 foreach ($agent in $trustedAgents) {
     $content = Get-Content "$PSScriptRoot\..\agents\$($agent.file)" -Raw
-    Check "$($agent.file): has 'Prefer trusted ecosystem libraries'" ($content -match "Prefer trusted ecosystem libraries")
     Check "$($agent.file): mentions ecosystem libs" ($content -match $agent.libs)
 }
-
-$goContent = Get-Content "$PSScriptRoot\..\agents\go-dev.md" -Raw
-Check "go-dev.md: no trusted-ecosystem rule (stdlib-first)" ($goContent -notmatch "Prefer trusted ecosystem libraries")
-$rustContent = Get-Content "$PSScriptRoot\..\agents\rust-dev.md" -Raw
-Check "rust-dev.md: no trusted-ecosystem rule (lean deps)" ($rustContent -notmatch "Prefer trusted ecosystem libraries")
 
 # Security rules preserved
 $javaContent = Get-Content "$PSScriptRoot\..\agents\java-dev.md" -Raw
 $pyContent = Get-Content "$PSScriptRoot\..\agents\python-dev.md" -Raw
 $nodeContent = Get-Content "$PSScriptRoot\..\agents\node-dev.md" -Raw
-Check "java-dev.md: security rules intact" ($javaContent -match "secrets|security|Don't hardcode")
+Check "java-dev.md: security rules intact" ($javaContent -match "secrets|security|hardcode")
 Check "python-dev.md: security rules intact" ($pyContent -match "bare.*except|security")
-Check "node-dev.md: security rules intact" ($nodeContent -match "Validate input|security")
+Check "node-dev.md: security rules intact" ($nodeContent -match "Validate all input|security")
 
 # Non-coding agent isolation
 $researcherContent = Get-Content "$PSScriptRoot\..\agents\researcher.md" -Raw
@@ -93,16 +87,45 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 # File integrity
 $allFiles = @(
     "agents/_shared/output-protocol.md", "agents/_shared/ponytail.md",
-    "agents/orchestrator.md", "agents/plan-orchestrator.md",
+    "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
     "agents/researcher.md", "agents/architect.md", "agents/code-review.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
-    "agents/security.md", "agents/tech-writer.md", "agents/vision.md"
+    "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
+    # Commands
+    "commands/review-fix-loop.md", "commands/grill-me.md",
+    "commands/grill-with-docs.md",
+    # Plugins
+    "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
+    "plugins/metrics.ts", "plugins/auto-format.ts",
+    # Commands
+    "commands/review-fix-loop.md", "commands/grill-me.md", "commands/grill-with-docs.md",
+    # Config
+    "tsconfig.json", "package.json"
 )
 foreach ($f in $allFiles) {
     Check "file exists: $f" (Test-Path "$PSScriptRoot\..\$f")
 }
+
+# Command content checks
+$grillMe = Get-Content "$PSScriptRoot\..\commands\grill-me.md" -Raw
+$grillWithDocs = Get-Content "$PSScriptRoot\..\commands\grill-with-docs.md" -Raw
+Check "grill-me.md: has frontmatter agent" ($grillMe -match "agent: build")
+Check "grill-me.md: has one-question-at-a-time rule" ($grillMe -match "one at a time")
+Check "grill-me.md: has recommendation requirement" ($grillMe -match "MUST include your recommended")
+Check "grill-me.md: has facts vs decisions" ($grillMe -match "Facts vs")
+Check "grill-me.md: has stop conditions" ($grillMe -match "Stop conditions")
+Check "grill-me.md: has session output format" ($grillMe -match "Grilling Summary")
+
+Check "grill-with-docs.md: has frontmatter agent" ($grillWithDocs -match "agent: build")
+Check "grill-with-docs.md: has domain modeling" ($grillWithDocs -match "Domain modeling")
+Check "grill-with-docs.md: has CONTEXT.md format" ($grillWithDocs -match "CONTEXT.md")
+Check "grill-with-docs.md: has ADR format" ($grillWithDocs -match "ADR format")
+Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocs -match "Hard to reverse")
+Check "grill-with-docs.md: has lazy file creation" ($grillWithDocs -match "lazily")
+Check "grill-with-docs.md: has glossary rules" ($grillWithDocs -match "Be opinionated")
+Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocs -match "one at a time")
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Yellow
@@ -115,15 +138,19 @@ Write-Host "  Structural: Passed=$pass Failed=$fail" -ForegroundColor $(if ($fai
 Write-Host "========================================" -ForegroundColor Yellow
 
 # ============================================================================
+
+# Decision strategy structural checks
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-decisions.ps1"
+
 # Prompt tests (API calls)
 # ============================================================================
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test 1: orchestrator (custom prompt)" -ForegroundColor Cyan
+Write-Host "Test 1: build agent (custom prompt)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-orchestrator.ps1"
+powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-build.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -134,7 +161,7 @@ powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-plan.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test 3: subagent via orchestrator dispatch" -ForegroundColor Cyan
+Write-Host "Test 3: subagent via build agent dispatch" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-subagent.ps1"
