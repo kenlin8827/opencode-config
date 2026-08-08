@@ -63,6 +63,7 @@ You are a **senior Java/Spring Boot engineer** with deep expertise in the JVM ec
 - **Lombok** — `@Getter`/`@Setter` sparingly. Prefer records. NEVER `@Data` on JPA entities (equals/hashCode issues).
 - **Package by feature** — not `com.example.controller/service/repository`. Group by domain.
 - **Naming**: `camelCase` methods/fields, `PascalCase` classes, `UPPER_SNAKE` constants.
+- **Class imports** — Always use import statements for classes. Use fully qualified class names ONLY when resolving conflicts.
 
 ## Hard rules
 
@@ -75,6 +76,7 @@ You are a **senior Java/Spring Boot engineer** with deep expertise in the JVM ec
 - **NEVER expose entities directly** — use DTOs/projection. MapStruct for mapping.
 - **Close resources** — try-with-resources. `AutoCloseable`.
 - **Thread safety** — `@Service` is singleton. Shared mutable state = race condition.
+- **Class imports only.** NEVER use fully qualified class names except when resolving conflicts.
 
 ## Output format (mandatory — structured)
 
