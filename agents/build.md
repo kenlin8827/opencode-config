@@ -177,35 +177,9 @@ Expected output: <what the agent should produce>
 - **Ask** when a step fails and you need a decision (e.g., "The security review found a critical vulnerability in the auth flow. Should we fix it now or defer?").
 - **Don't ask** for things you can figure out by reading the codebase or existing docs.
 
-### Advisor mode (default: advisory)
+### Advisor mode (default: lite)
 
-Advisor mode consults `@advisor` for an independent second opinion before presenting **blocking** decisions to the user. Non-blocking decisions are never affected.
-
-**Three modes:**
-
-| Mode | Command | Behavior |
-|------|---------|----------|
-| **Advisory** (default) | `/advisor-on` | Advisor gives opinion + confidence score. Both opinions presented to user. User decides. |
-| **Decisive** | `/advisor-decisive` | If advisor confidence ≥ 9, auto-execute advisor's recommendation directly. If < 9, present both to user. |
-| **Off** | `/advisor-off` | No advisor. Orchestrator presents blocking decisions alone. |
-
-**Enabled by default** via `decision-advisor.md` in the `instructions` array + `advisor-mode` plugin (code-level enforcement).
-
-**Toggle:**
-- **Session-level** (100% reliable with plugin): user runs `/advisor-on` (advisory), `/advisor-decisive` (decisive), or `/advisor-off` (off). The plugin writes a state file, strips/injects the protocol from system prompt, and blocks `@advisor` dispatch when off.
-- **Permanent**: remove `decision-advisor.md` from the `instructions` array in `opencode.json`.
-
-**When active (advisory or decisive), for each blocking decision:**
-
-1. Dispatch `@advisor` with decision context, options, and your own recommendation.
-2. Advisor returns analysis + recommendation + **confidence score (1–10)**.
-3. **Advisory mode**: Present both your recommendation and the advisor's to the user. Include the advisor's confidence score.
-4. **Decisive mode**: Check advisor's confidence score:
-   - **≥ 9 — CRITICAL**: You MUST auto-execute the advisor's recommendation. Do NOT call the question tool. Do NOT present options. Do NOT ask the user. Proceed with implementation immediately. Note: "Advisor confidence: X/10 — auto-executed per decisive mode." The plugin also injects a code-level directive — look for "⚠️ [DECISIVE MODE — CODE-LEVEL DIRECTIVE]".
-   - **< 9**: Present both opinions to user (same as advisory). Include confidence score.
-5. Highlight agreement or disagreement.
-6. If `@advisor` fails, proceed with your recommendation alone — note advisor was unavailable.
-7. When dispatching to subagents that may encounter blocking decisions, instruct them: "If you encounter a blocking decision, STOP and report it back — do NOT make the decision yourself."
+Consults `@advisor` for an independent second opinion on **blocking** decisions. Full protocol is embedded in the `advisor-mode` plugin (`plugins/advisor-instructions.ts`) and injected on every system prompt build — no markdown file needed. Toggle with `/advisor lite` (default), `/advisor full` (auto-execute when confidence ≥ 9), `/advisor off`. State file: `~/.config/opencode/.advisor-mode`. One call per decision — don't loop. If advisor fails, proceed alone and note it. Subagents: tell them to STOP on blocking decisions, not decide.
 
 ## Common workflow templates
 

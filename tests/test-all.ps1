@@ -39,9 +39,12 @@ Check "instructions contains output-protocol.md" `
     ($config.instructions -contains "~/.config/opencode/agents/_shared/output-protocol.md")
 Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
-Check "instructions contains decision-advisor.md (advisor mode default on)" `
-    ($config.instructions -contains "~/.config/opencode/agents/_shared/decision-advisor.md")
-Check "instructions count = 2" ($config.instructions.Count -eq 2)
+# decision-advisor.md was removed in the split-into-plugins refactor — protocol
+# now lives embedded in plugins/advisor/advisor-instructions.ts. The
+# instructions array is intentionally size 1 (just output-protocol.md).
+Check "instructions count = 1" ($config.instructions.Count -eq 1)
+Check "instructions does NOT include decision-advisor.md" `
+    (-not ($config.instructions -contains "~/.config/opencode/agents/_shared/decision-advisor.md"))
 
 # Ponytail config (official plugin)
 $ponytailConfigPath = Join-Path $env:APPDATA "ponytail\config.json"
@@ -78,7 +81,6 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 # File integrity
 $allFiles = @(
     "agents/_shared/output-protocol.md",
-    "agents/_shared/decision-advisor.md",
     "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
@@ -88,11 +90,19 @@ $allFiles = @(
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands
     "commands/review-fix-loop.md", "commands/grill-me.md",
-    "commands/grill-with-docs.md", "commands/advisor-on.md", "commands/advisor-off.md",
-    # Plugins
+    "commands/grill-with-docs.md",
+    "commands/advisor.md",
+    # Plugins (advisor-mode + helpers)
+    "plugins/advisor-mode.ts",
+    "plugins/advisor/advisor-config.ts",
+    "plugins/advisor/advisor-runtime.ts",
+    "plugins/advisor/advisor-instructions.ts",
+    "plugins/advisor/advisor-mode-tracker.ts",
+    "plugins/advisor/advisor-system-inject.ts",
+    "plugins/advisor/advisor-tool-guard.ts",
+    "plugins/advisor/advisor-full-inject.ts",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
-    "plugins/advisor-mode.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -119,21 +129,16 @@ Check "grill-with-docs.md: has lazy file creation" ($grillWithDocs -match "lazil
 Check "grill-with-docs.md: has glossary rules" ($grillWithDocs -match "Be opinionated")
 Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocs -match "one at a time")
 
-# Advisor command checks
-$advisorOn = Get-Content "$PSScriptRoot\..\commands\advisor-on.md" -Raw
-$advisorOff = Get-Content "$PSScriptRoot\..\commands\advisor-off.md" -Raw
-$advisorDecisive = Get-Content "$PSScriptRoot\..\commands\advisor-decisive.md" -Raw
-Check "advisor-on.md: has frontmatter agent" ($advisorOn -match "agent: build")
-Check "advisor-on.md: activates advisory mode" ($advisorOn -match "advisory")
-Check "advisor-on.md: references @advisor dispatch" ($advisorOn -match "@advisor")
-Check "advisor-on.md: mentions blocking decisions" ($advisorOn -match "blocking")
-Check "advisor-off.md: has frontmatter agent" ($advisorOff -match "agent: build")
-Check "advisor-off.md: deactivates advisor mode" ($advisorOff -match "advisor mode")
-Check "advisor-off.md: mentions re-enable options" ($advisorOff -match "advisor-decisive")
-Check "advisor-decisive.md: has frontmatter agent" ($advisorDecisive -match "agent: build")
-Check "advisor-decisive.md: references confidence score" ($advisorDecisive -match "confidence")
-Check "advisor-decisive.md: mentions threshold 9" ($advisorDecisive -match "9")
-Check "advisor-decisive.md: mentions auto-execute" ($advisorDecisive -match "auto-execute" -or $advisorDecisive -match "directly")
+# Advisor command checks (single file, $ARGUMENTS selects mode)
+$advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
+Check "advisor.md: has description frontmatter" ($advisorCmd -match "description:")
+Check "advisor.md: lists all 3 modes (off/lite/full)" `
+    (($advisorCmd -match "lite") -and ($advisorCmd -match "full") -and ($advisorCmd -match "off"))
+Check "advisor.md: references @advisor dispatch" ($advisorCmd -match "@advisor")
+Check "advisor.md: mentions blocking decisions" ($advisorCmd -match "blocking")
+Check "advisor.md: references confidence score" ($advisorCmd -match "confidence")
+Check "advisor.md: mentions threshold 9" ($advisorCmd -match "9")
+Check "advisor.md: mentions auto-execute" ($advisorCmd -match "auto-execute" -or $advisorCmd -match "directly")
 
 # Advisor agent checks
 $advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
@@ -146,20 +151,34 @@ Check "advisor.md: states recommendation requirement" ($advisorAgent -match "ALW
 Check "advisor.md: has confidence score" ($advisorAgent -match "confidence score")
 Check "advisor.md: has confidence in output format" ($advisorAgent -match "Confidence.*1-10")
 
-# Advisor mode plugin checks
+# Advisor mode plugin checks (split into multiple files under plugins/advisor/)
 $advisorPlugin = Get-Content "$PSScriptRoot\..\plugins\advisor-mode.ts" -Raw
 Check "advisor-mode.ts: imports Plugin type" ($advisorPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
 Check "advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -match "command.execute.before")
 Check "advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
 Check "advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
-Check "advisor-mode.ts: references state file" ($advisorPlugin -match "STATE_FILE" -or $advisorPlugin -match "advisor-mode")
-Check "advisor-mode.ts: has isAdvisorModeOn function" ($advisorPlugin -match "isAdvisorModeOn")
-Check "advisor-mode.ts: has setAdvisorMode function" ($advisorPlugin -match "setAdvisorMode")
-Check "advisor-mode.ts: defaults to advisory" ($advisorPlugin -match "advisory.*default")
-Check "advisor-mode.ts: supports decisive mode" ($advisorPlugin -match "decisive")
-Check "advisor-mode.ts: has getAdvisorMode function" ($advisorPlugin -match "getAdvisorMode")
-Check "advisor-mode.ts: handles advisor-decisive command" ($advisorPlugin -match "advisor-decisive")
-Check "advisor-mode.ts: blocks advisor when off" ($advisorPlugin -match "Advisor mode is currently OFF" -or $advisorPlugin -match "throw.*Error.*advisor")
+Check "advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
+Check "advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
+
+$advisorConfig = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-config.ts" -Raw
+Check "advisor-config.ts: has COMMAND_NAME constant" ($advisorConfig -match "COMMAND_NAME")
+Check "advisor-config.ts: has getMode function" ($advisorConfig -match "getMode")
+Check "advisor-config.ts: has setMode function" ($advisorConfig -match "setMode")
+Check "advisor-config.ts: has isOn function" ($advisorConfig -match "isOn")
+Check "advisor-config.ts: defaults to lite" ($advisorConfig -match "lite.*default" -or $advisorConfig -match "DEFAULT_MODE.*lite")
+Check "advisor-config.ts: has parseModeArg" ($advisorConfig -match "parseModeArg")
+
+$advisorToolGuard = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-tool-guard.ts" -Raw
+Check "advisor-tool-guard.ts: blocks advisor when off" `
+    ($advisorToolGuard -match "Advisor mode is OFF" -or $advisorToolGuard -match "throw.*Error.*advisor")
+Check "advisor-tool-guard.ts: has makeToolGuardHook" ($advisorToolGuard -match "makeToolGuardHook")
+
+$advisorInstructions = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-instructions.ts" -Raw
+Check "advisor-instructions.ts: embeds PROTOCOL string" ($advisorInstructions -match "PROTOCOL")
+Check "advisor-instructions.ts: has MODE_MARKER for 3 modes (off/lite/full)" `
+    (($advisorInstructions -match "lite") -and ($advisorInstructions -match "full") -and ($advisorInstructions -match "off"))
+Check "advisor-instructions.ts: has getAdvisorPrompt" ($advisorInstructions -match "getAdvisorPrompt")
+Check "advisor-instructions.ts: has fullDirective" ($advisorInstructions -match "fullDirective")
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Yellow
@@ -202,75 +221,12 @@ powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-subagent.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Test 4: default build agent (baseline)" -ForegroundColor Cyan
+Write-Host "Test 4: default agent (no custom prompt)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-default.ps1"
 
-if ($IncludePrompts) {
-    Write-Host ""
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "Test 5: ponytail plugin (official, lite default)" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host ""
-
-    $env:LLM_ROUTER_BASE_URL = [System.Environment]::GetEnvironmentVariable("LLM_ROUTER_BASE_URL","User")
-    $env:LLM_ROUTER_API_KEY = [System.Environment]::GetEnvironmentVariable("LLM_ROUTER_API_KEY","User")
-
-    if (-not $env:LLM_ROUTER_BASE_URL -or -not $env:LLM_ROUTER_API_KEY) {
-        Write-Host "  LLM_ROUTER env vars not found. Skipping." -ForegroundColor Yellow
-    } else {
-        $tmpDir = Join-Path $env:TEMP "ponytail-test-$(Get-Random)"
-        New-Item -ItemType Directory -Path "$tmpDir/src" -Force | Out-Null
-        @"
-package main
-import "fmt"
-func FormatDate(input string) string {
-	if len(input) != 10 { return input }
-	return fmt.Sprintf("%s/%s/%s", input[8:10], input[5:7], input[0:4])
-}
-func main() { fmt.Println(FormatDate("2024-01-15")) }
-"@ | Set-Content "$tmpDir/src/main.go" -Encoding UTF8
-        @"
-module test-project
-go 1.22
-"@ | Set-Content "$tmpDir/go.mod" -Encoding UTF8
-
-        $prompt = "Add a date formatter to convert YYYY-MM-DD to DD/MM/YYYY. Also add a locale factory interface for future US/EU/ISO support."
-        Push-Location $tmpDir
-        $output = opencode run --auto $prompt 2>&1
-        Pop-Location
-        $outputStr = $output -join "`n"
-
-        Write-Host $outputStr
-        Write-Host ""
-        Write-Host "  Behavioral checks:" -ForegroundColor DarkCyan
-        if ($outputStr -match "FYI|lazier|not needed|skip|ponytail") {
-            Write-Host "    [PASS] Suggests lazier alternative" -ForegroundColor Green
-        } else {
-            Write-Host "    [FAIL] Suggests lazier alternative" -ForegroundColor Red
-        }
-        if ($outputStr -match "FormatDate|already exist|reuse") {
-            Write-Host "    [PASS] Reuses existing FormatDate" -ForegroundColor Green
-        } else {
-            Write-Host "    [FAIL] Reuses existing FormatDate" -ForegroundColor Red
-        }
-        if ($outputStr -match "FYI|lazier|ponytail") {
-            Write-Host "    [PASS] References ponytail lite suggestion" -ForegroundColor Green
-        } else {
-            Write-Host "    [FAIL] References ponytail lite suggestion" -ForegroundColor Red
-        }
-
-        Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
-    }
-} else {
-    Write-Host ""
-    Write-Host "========================================" -ForegroundColor DarkGray
-    Write-Host "Test 5: ponytail behavioral SKIPPED (use -IncludePrompts)" -ForegroundColor DarkGray
-    Write-Host "========================================" -ForegroundColor DarkGray
-}
-
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "All tests complete." -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "  ALL TESTS COMPLETE" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow

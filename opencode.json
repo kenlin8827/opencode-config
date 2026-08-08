@@ -4,8 +4,7 @@
   "permission": "allow",
   "default_agent": "build",
   "instructions": [
-    "~/.config/opencode/agents/_shared/output-protocol.md",
-    "~/.config/opencode/agents/_shared/decision-advisor.md"
+    "~/.config/opencode/agents/_shared/output-protocol.md"
   ],
   "plugin": ["@dietrichgebert/ponytail"],
   "provider": {
