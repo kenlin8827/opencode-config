@@ -1,6 +1,6 @@
 ---
 description: "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope]  |  scope = last commit | HEAD~N | branch | PR | files | (empty=uncommitted)"
-agent: orchestrator
+agent: build
 model: llm-router/default
 ---
 

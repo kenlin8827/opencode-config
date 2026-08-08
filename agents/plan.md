@@ -20,6 +20,7 @@ You are the **plan orchestrator** — read-only coordinator dispatching analysis
 | **DevOps** | `@devops` | Infrastructure review, CI/CD analysis, deployment planning |
 | **Documentation** | `@tech-writer` | Documentation gap analysis, doc structure planning |
 | **Vision** | `@vision` | Screenshot/UI analysis, design reference review |
+| **Advisor** | `@advisor` | Independent second opinion on blocking decisions (advisor mode only) |
 
 ## Operating loop
 

@@ -21,6 +21,7 @@ User
  │                                   ├── @frontend-dev (React/Vue, Design System)
  │                                   ├── @qa           (test strategy, coverage)
  │                                   ├── @code-review  (diff/PR review)
+ │                                   ├── @advisor      (second opinion on blocking decisions)
  │                                   ├── @devops       (Docker/K8s/CI-CD)
  │                                   ├── @tech-writer  (docs, README, ADR)
  │                                   └── @vision       (image/screenshot analysis)
@@ -28,8 +29,9 @@ User
  ├── @plan (primary) ── read-only analysis coordinator
  │
  └── Shared instructions (injected into all agents)
-     ├── output-protocol.md   — structured output format
-     └── ponytail.md          — lazy coding protocol (coding agents only)
+     ├── output-protocol.md     — structured output format
+     ├── ponytail.md            — lazy coding protocol (coding agents only)
+     └── decision-advisor.md    — advisor mode protocol (default on)
 ```
 
 ## Prompt design conventions
@@ -112,6 +114,7 @@ All agents follow `output-protocol.md`:
 - **Layered exposition** — Summary → Key points → Details
 - **Content labeling** — [Fact] / [Inference] / [Assumption]
 - **Decision confirmation** — two-tier: non-blocking (state assumption, proceed) vs blocking (STOP, output options)
+- **Decision mode** — `advisor` (default, consults `@advisor` on blocking decisions) or `direct` (orchestrator alone). Toggle via `/advisor-on`/`/advisor-off` commands or `instructions` array in `opencode.json`
 - **Verifiable data** — cite `file:line`, show calculation steps
 
 ### 5. Ponytail protocol (shared, coding only)
@@ -133,7 +136,7 @@ Non-coding agents ignore this entirely.
 | `default` | General purpose, strong reasoning | `high` | architect, security |
 | `default` | General purpose, strong reasoning | `medium` | researcher, tech-writer (low) |
 | `code` | Code generation, implementation | `medium` | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | Analysis, review, feedback | `high` | code-review |
+| `advisor` | Analysis, review, feedback | `high` | code-review, advisor |
 | `explorer` | Fast, cheap, high-volume | `low` | explorer |
 | `vision` | Image understanding | `low` | vision |
 
@@ -193,6 +196,25 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 - **plan** = read-only analysis coordinator (review, audit, design)
 - Separation prevents analysis agents from accidentally modifying code.
 
+### Why advisor mode by default?
+- **Advisor mode** (default) consults `@advisor` for a second opinion on **blocking** decisions only. Two perspectives reduce groupthink risk on irreversible choices.
+- **Non-blocking decisions are never affected** — they always proceed with stated assumptions.
+
+**Three toggle mechanisms, three reliability levels:**
+
+| Mechanism | How | Reliability | Scope |
+|-----------|-----|-------------|-------|
+| **Session command + plugin** | `/advisor-on` / `/advisor-off` | **100%** — code-level enforcement via `advisor-mode.ts` plugin (3 layers: state file, system prompt transform, tool blocking) | Current session |
+| **Permanent** | Add/remove `decision-advisor.md` in `instructions` array | **100%** — system prompt injection, affects all agents | Cross-session |
+| **Session command only** (no plugin) | `/advisor-on` / `/advisor-off` | **Medium** — relies on LLM respecting user message over system prompt | Current session |
+
+The `advisor-mode.ts` plugin provides three-layer enforcement:
+1. `command.execute.before` — writes state file before command reaches LLM
+2. `experimental.chat.system.transform` — strips/injects advisor protocol from system prompt on each LLM call
+3. `tool.execute.before` — blocks `@advisor` dispatch with error if mode is off
+
+State file: `~/.config/opencode/.advisor-mode` (`on` / `off`, absent = on)
+
 ### Why explorer.md uses `explorer` model?
 Exploration is high-volume, low-complexity. Cheaper model + read-only + 30 steps = fast and cheap context gathering before dispatching specialists.
 
@@ -213,6 +235,7 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, etc). Logs warnings. |
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
+| `advisor-mode.ts` | `command.execute.before` + `experimental.chat.system.transform` + `tool.execute.before` | 100% reliable session-level toggle for advisor mode. Three-layer enforcement: state file, system prompt stripping, dispatch blocking. |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 
@@ -222,11 +245,13 @@ Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 agents/
 ├── _shared/
 │   ├── output-protocol.md    # Shared output format (all agents)
-│   └── ponytail.md           # Lazy coding protocol (coding agents only)
+│   ├── ponytail.md           # Lazy coding protocol (coding agents only)
+│   └── decision-advisor.md   # Advisor mode protocol (default on)
 ├── build.md                  # Primary: execution coordinator
 ├── plan.md                   # Primary: read-only analysis coordinator
 ├── explorer.md                 # Read-only explorer (efficient model)
 ├── architect.md              # System design, ADR
+├── advisor.md                # Decision advisor (second opinion)
 ├── code-review.md            # Diff/PR review
 ├── dba.md                    # Database, SQL, migrations
 ├── devops.md                 # Docker, K8s, CI/CD
@@ -246,12 +271,15 @@ plugins/
 ├── design-token-guard.ts     # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts        # Hook: scan for AI anti-patterns
 ├── metrics.ts                # Hook: auto-collect tool metrics
-└── auto-format.ts            # Hook: auto-run formatters
+├── auto-format.ts            # Hook: auto-run formatters
+└── advisor-mode.ts           # Hook: 100% reliable advisor mode toggle (3-layer enforcement)
 
 commands/
 ├── review-fix-loop.md        # Automated review→fix→re-review loop
 ├── grill-me.md               # Relentless interview to sharpen a plan or design
-└── grill-with-docs.md         # Grilling + domain modeling (CONTEXT.md & ADRs)
+├── grill-with-docs.md         # Grilling + domain modeling (CONTEXT.md & ADRs)
+├── advisor-on.md             # Enable advisor mode (session-level)
+└── advisor-off.md            # Disable advisor mode (session-level)
 
 tests/
 ├── test-all.ps1              # Main test runner
@@ -263,4 +291,4 @@ tests/
 └── README.md                 # Test documentation
 ```
 
-20 agent files + 2 shared protocols + 3 commands + 4 plugins + 7 test files + tsconfig.json.
+21 agent files + 3 shared protocols + 5 commands + 5 plugins + 7 test files + tsconfig.json.
