@@ -5,7 +5,8 @@
   "default_agent": "build",
   "instructions": [
     "~/.config/opencode/agents/_shared/output-protocol.md",
-    "~/.config/opencode/agents/_shared/ponytail.md"
+    "~/.config/opencode/agents/_shared/ponytail.md",
+    "~/.config/opencode/agents/_shared/decision-advisor.md"
   ],
   "provider": {
     "llm-router": {
@@ -40,6 +41,152 @@
       "temperature": 0.3,
       "steps": 60,
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
+    },
+    "advisor": {
+      "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
+      "mode": "subagent",
+      "model": "llm-router/advisor",
+      "temperature": 0.3,
+      "steps": 20,
+      "prompt": "{file:~/.config/opencode/agents/advisor.md}",
+      "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
+    },
+    "explorer": {
+      "description": "Fast read-only codebase explorer. Use for rapid code search, pattern discovery, architecture overview, and locating relevant files before dispatching a specialist.",
+      "mode": "subagent",
+      "model": "llm-router/explorer",
+      "temperature": 0.2,
+      "steps": 30,
+      "prompt": "{file:~/.config/opencode/agents/explorer.md}",
+      "permission": { "edit": "deny", "webfetch": "deny", "websearch": "deny" }
+    },
+    "researcher": {
+      "description": "Tech researcher — evaluates technologies, compares alternatives, produces feasibility studies and trade-off reports. Invoke for research, compare, evaluate, benchmark, or 'which should we use?' questions.",
+      "mode": "subagent",
+      "model": "llm-router/default",
+      "temperature": 0.3,
+      "steps": 40,
+      "prompt": "{file:~/.config/opencode/agents/researcher.md}",
+      "permission": { "edit": "deny" }
+    },
+    "architect": {
+      "description": "Tech lead / software architect — system design, ADRs, task decomposition, trade-off analysis, API contract design. Invoke for architecture, system design, task breakdown, or 'how should we design this?'",
+      "mode": "subagent",
+      "model": "llm-router/default",
+      "temperature": 0.4,
+      "steps": 60,
+      "prompt": "{file:~/.config/opencode/agents/architect.md}",
+      "permission": { "edit": "deny" }
+    },
+    "dba": {
+      "description": "Database architect — schema design, SQL optimization, index strategy, query analysis, migration planning, sharding/partitioning. Invoke for database, SQL, schema, migration, index, or query optimization.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.2,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/dba.md}"
+    },
+    "security": {
+      "description": "Security engineer — vulnerability assessment, security architecture review, OWASP analysis, dependency scanning, compliance. Invoke for security, vulnerability, OWASP, encryption, or 'is this secure?'",
+      "mode": "subagent",
+      "model": "llm-router/default",
+      "temperature": 0.2,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/security.md}",
+      "permission": { "edit": "deny" }
+    },
+    "java-dev": {
+      "description": "Java/Spring Boot engineer — Java, Spring Boot, Spring Security, JPA/Hibernate, Maven/Gradle, JUnit. Invoke for Java, Spring, JPA, Hibernate, Maven, Gradle, or JVM tasks.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/java-dev.md}"
+    },
+    "python-dev": {
+      "description": "Python engineer — FastAPI, Django, Flask, async Python, pandas/numpy, scripting, pytest. Invoke for Python, FastAPI, Django, Flask, pandas, numpy, or pip tasks.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/python-dev.md}"
+    },
+    "go-dev": {
+      "description": "Go engineer — Gin, Echo, Fiber, gRPC, protobuf, Cobra, microservices, goroutines. Invoke for Go, Golang, Gin, gRPC, protobuf, or Cobra tasks.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/go-dev.md}"
+    },
+    "rust-dev": {
+      "description": "Rust engineer — Cargo, Axum, Actix, Tokio, serde, WASM, systems programming. Invoke for Rust, Cargo, Tokio, Axum, Actix, serde, or wasm tasks.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/rust-dev.md}"
+    },
+    "node-dev": {
+      "description": "Node.js/TypeScript engineer — NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm. Invoke for Node.js, NestJS, Express, Fastify, Prisma, or npm tasks.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/node-dev.md}"
+    },
+    "frontend-dev": {
+      "description": "Frontend engineer — React/Vue/Svelte/Next.js, TypeScript, CSS/Tailwind, accessibility, performance. Invoke for frontend, React, Vue, Svelte, CSS, Tailwind, UI, or component work.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}"
+    },
+    "qa": {
+      "description": "QA engineer — test planning, test generation, coverage analysis, E2E strategy, quality gates. Invoke for testing, QA, coverage, E2E, integration tests, or regression.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/qa.md}",
+      "permission": { "webfetch": "ask" }
+    },
+    "code-review": {
+      "description": "Code reviewer — reviews git diffs, PRs, staged/unstaged changes, specific files. Invoke for code review, PR review, or feedback on code quality and correctness.",
+      "mode": "subagent",
+      "model": "llm-router/advisor",
+      "temperature": 0.3,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/code-review.md}",
+      "permission": { "edit": "deny", "webfetch": "ask", "websearch": "ask" }
+    },
+    "devops": {
+      "description": "DevOps/SRE engineer — Docker, Kubernetes, CI/CD, Terraform, monitoring, deployment. Invoke for Docker, K8s, deploy, CI/CD, pipeline, Terraform, or infrastructure.",
+      "mode": "subagent",
+      "model": "llm-router/code",
+      "temperature": 0.2,
+      "steps": 50,
+      "prompt": "{file:~/.config/opencode/agents/devops.md}"
+    },
+    "tech-writer": {
+      "description": "Technical writer — README, API docs, architecture docs, ADRs, changelogs, user guides. Invoke for documentation, README, changelog, ADR, or developer guide tasks.",
+      "mode": "subagent",
+      "model": "llm-router/default",
+      "temperature": 0.3,
+      "steps": 40,
+      "prompt": "{file:~/.config/opencode/agents/tech-writer.md}"
+    },
+    "vision": {
+      "description": "Visual / vision analyst — screenshot analysis, UI critique, OCR, diagram interpretation. Invoke for image, screenshot, OCR, or visual analysis tasks.",
+      "mode": "subagent",
+      "model": "llm-router/vision",
+      "temperature": 0.2,
+      "steps": 25,
+      "prompt": "{file:~/.config/opencode/agents/vision.md}",
+      "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
     }
   }
 }
+
+

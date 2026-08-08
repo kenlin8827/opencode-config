@@ -48,6 +48,41 @@ When output contains decision points needing sign-off:
 
 No decision points → skip section. NEVER invent trivial decisions.
 
+### Decision mode: 3 advisor modes
+
+Three modes control how blocking decisions are handled:
+
+| Mode | Behavior | How to enable | Reliability |
+|------|----------|---------------|-------------|
+| **advisory** (default) | Orchestrator consults `@advisor`, presents both opinions to user | `decision-advisor.md` in `instructions` array (default) | **High** — system prompt injection |
+| **decisive** | If advisor confidence ≥ 9, auto-execute; otherwise present both to user | `/advisor-decisive` | **High** — plugin-enforced |
+| **off** (direct) | Orchestrator presents own recommendation only | `/advisor-off` or remove `decision-advisor.md` from `instructions` | **High** |
+
+**Toggle mechanisms:**
+
+| Mechanism | How | Reliability | Scope |
+|-----------|-----|-------------|-------|
+| **Session command + plugin** | `/advisor-on` (advisory) / `/advisor-decisive` / `/advisor-off` | **100% — code-level enforcement** | Current session |
+| **Permanent** | Add/remove `decision-advisor.md` in `instructions` array | **100% — system prompt** | Cross-session |
+
+When the `advisor-mode` plugin is active (default), commands are enforced at three layers:
+1. `command.execute.before` — writes state file before command reaches LLM
+2. `experimental.chat.system.transform` — strips/injects advisor protocol from system prompt
+3. `tool.execute.before` — blocks `@advisor` dispatch with error if mode is off
+
+In **advisory mode**, for each blocking decision:
+1. Dispatch `@advisor` with decision context + options + orchestrator's recommendation.
+2. Receive advisor's independent analysis + recommendation + confidence score (1–10).
+3. Present **both** recommendations to the user via `question` tool. Highlight agreement or disagreement.
+4. If `@advisor` fails or times out, proceed with orchestrator's recommendation alone. Note advisor was unavailable.
+
+In **decisive mode**, for each blocking decision:
+1. Dispatch `@advisor` with decision context + options + orchestrator's recommendation.
+2. Receive advisor's independent analysis + recommendation + confidence score (1–10).
+3. If confidence **≥ 9**: follow advisor's recommendation directly. Proceed with implementation. Note: "Advisor confidence: X/10 — auto-executed per decisive mode."
+4. If confidence **< 9**: present both recommendations to user (same as advisory). Include confidence score.
+5. If `@advisor` fails or times out, proceed with orchestrator's recommendation alone.
+
 ### Verifiable data
 Cite sources (file paths, URLs, test output). Show calculation steps.
 

@@ -41,7 +41,9 @@ Check "instructions contains output-protocol.md" `
     ($config.instructions -contains "~/.config/opencode/agents/_shared/output-protocol.md")
 Check "instructions contains ponytail.md" `
     ($config.instructions -contains "~/.config/opencode/agents/_shared/ponytail.md")
-Check "instructions count = 2" ($config.instructions.Count -eq 2)
+Check "instructions contains decision-advisor.md (advisor mode default on)" `
+    ($config.instructions -contains "~/.config/opencode/agents/_shared/decision-advisor.md")
+Check "instructions count = 3" ($config.instructions.Count -eq 3)
 
 # ponytail.md content
 Check "ponytail.md: has frontmatter source" ($ponytail -match "source: https://github.com/DietrichGebert/ponytail")
@@ -87,20 +89,21 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 # File integrity
 $allFiles = @(
     "agents/_shared/output-protocol.md", "agents/_shared/ponytail.md",
+    "agents/_shared/decision-advisor.md",
     "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
     "agents/researcher.md", "agents/architect.md", "agents/code-review.md",
+    "agents/advisor.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands
     "commands/review-fix-loop.md", "commands/grill-me.md",
-    "commands/grill-with-docs.md",
+    "commands/grill-with-docs.md", "commands/advisor-on.md", "commands/advisor-off.md",
     # Plugins
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
-    # Commands
-    "commands/review-fix-loop.md", "commands/grill-me.md", "commands/grill-with-docs.md",
+    "plugins/advisor-mode.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -126,6 +129,48 @@ Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocs -match "Hard 
 Check "grill-with-docs.md: has lazy file creation" ($grillWithDocs -match "lazily")
 Check "grill-with-docs.md: has glossary rules" ($grillWithDocs -match "Be opinionated")
 Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocs -match "one at a time")
+
+# Advisor command checks
+$advisorOn = Get-Content "$PSScriptRoot\..\commands\advisor-on.md" -Raw
+$advisorOff = Get-Content "$PSScriptRoot\..\commands\advisor-off.md" -Raw
+$advisorDecisive = Get-Content "$PSScriptRoot\..\commands\advisor-decisive.md" -Raw
+Check "advisor-on.md: has frontmatter agent" ($advisorOn -match "agent: build")
+Check "advisor-on.md: activates advisory mode" ($advisorOn -match "advisory")
+Check "advisor-on.md: references @advisor dispatch" ($advisorOn -match "@advisor")
+Check "advisor-on.md: mentions blocking decisions" ($advisorOn -match "blocking")
+Check "advisor-off.md: has frontmatter agent" ($advisorOff -match "agent: build")
+Check "advisor-off.md: deactivates advisor mode" ($advisorOff -match "advisor mode")
+Check "advisor-off.md: mentions re-enable options" ($advisorOff -match "advisor-decisive")
+Check "advisor-decisive.md: has frontmatter agent" ($advisorDecisive -match "agent: build")
+Check "advisor-decisive.md: references confidence score" ($advisorDecisive -match "confidence")
+Check "advisor-decisive.md: mentions threshold 9" ($advisorDecisive -match "9")
+Check "advisor-decisive.md: mentions auto-execute" ($advisorDecisive -match "auto-execute" -or $advisorDecisive -match "directly")
+
+# Advisor agent checks
+$advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
+Check "advisor.md: has frontmatter mode subagent" ($advisorAgent -match "mode: subagent")
+Check "advisor.md: uses advisor model" ($advisorAgent -match "model: llm-router/advisor")
+Check "advisor.md: read-only (edit deny)" ($advisorAgent -match "edit: deny")
+Check "advisor.md: no ask-user language" (-not ($advisorAgent -match "ask the user" -or $advisorAgent -match "ask a focused question"))
+Check "advisor.md: has output format" ($advisorAgent -match "Output format")
+Check "advisor.md: states recommendation requirement" ($advisorAgent -match "ALWAYS state your recommendation")
+Check "advisor.md: has confidence score" ($advisorAgent -match "confidence score")
+Check "advisor.md: has confidence in output format" ($advisorAgent -match "Confidence.*1-10")
+
+# Advisor mode plugin checks
+$advisorPlugin = Get-Content "$PSScriptRoot\..\plugins\advisor-mode.ts" -Raw
+Check "advisor-mode.ts: imports Plugin type" ($advisorPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -match "command.execute.before")
+Check "advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
+Check "advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
+Check "advisor-mode.ts: references state file" ($advisorPlugin -match "STATE_FILE" -or $advisorPlugin -match "advisor-mode")
+Check "advisor-mode.ts: has isAdvisorModeOn function" ($advisorPlugin -match "isAdvisorModeOn")
+Check "advisor-mode.ts: has setAdvisorMode function" ($advisorPlugin -match "setAdvisorMode")
+Check "advisor-mode.ts: defaults to advisory" ($advisorPlugin -match "advisory.*default")
+Check "advisor-mode.ts: supports decisive mode" ($advisorPlugin -match "decisive")
+Check "advisor-mode.ts: has getAdvisorMode function" ($advisorPlugin -match "getAdvisorMode")
+Check "advisor-mode.ts: handles advisor-decisive command" ($advisorPlugin -match "advisor-decisive")
+Check "advisor-mode.ts: blocks advisor when off" ($advisorPlugin -match "Advisor mode is currently OFF" -or $advisorPlugin -match "throw.*Error.*advisor")
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Yellow
