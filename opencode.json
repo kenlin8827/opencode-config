@@ -5,9 +5,9 @@
   "default_agent": "build",
   "instructions": [
     "~/.config/opencode/agents/_shared/output-protocol.md",
-    "~/.config/opencode/agents/_shared/ponytail.md",
     "~/.config/opencode/agents/_shared/decision-advisor.md"
   ],
+  "plugin": ["@dietrichgebert/ponytail"],
   "provider": {
     "llm-router": {
       "npm": "@ai-sdk/openai-compatible",

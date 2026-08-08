@@ -27,7 +27,7 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 # Structural checks + prompt tests (requires API)
 powershell -ExecutionPolicy Bypass -File tests/test-all.ps1
 
-# Include ponytail behavioral tests (YAGNI + reuse)
+# Include ponytail behavioral tests (lite: build + suggest)
 powershell -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
 
 # Or run individually
@@ -38,7 +38,7 @@ powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
 
 ### Structural (no API calls)
 - `opencode.json` instructions array contains both protocols
-- `ponytail.md` content: frontmatter, ladder, YAGNI, rules, off switch
+- `ponytail.md` content: frontmatter, advisory checklist, lazier alternative, rules, off switch
 - `ponytail.md` is language-agnostic (no Java/Node-specific content)
 - `ponytail.md` has no Output/Intensity sections (orthogonality with output-protocol)
 - `ponytail.md` limits scope to coding tasks
@@ -48,8 +48,8 @@ powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
 - All 20 agent files exist (including explorer.md)
 
 ### Behavioral (opt-in via `-IncludePrompts`)
-- Prompt with speculative need → agent challenges it (YAGNI)
-- Prompt with existing utility → agent reuses it (ladder rung 2)
+- Prompt with speculative need → agent builds it, suggests lazier alternative
+- Prompt with existing utility → agent reuses it
 - Non-coding prompt → agent ignores ponytail
 
 ## Expected results

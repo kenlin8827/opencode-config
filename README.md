@@ -117,15 +117,15 @@ All agents follow `output-protocol.md`:
 - **Decision mode** — `advisor` (default, consults `@advisor` on blocking decisions) or `direct` (orchestrator alone). Toggle via `/advisor-on`/`/advisor-off` commands or `instructions` array in `opencode.json`
 - **Verifiable data** — cite `file:line`, show calculation steps
 
-### 5. Ponytail protocol (shared, coding only)
+### 5. Ponytail protocol (shared, coding only, lite mode)
 
-Lazy coding ladder — climb before writing:
-1. Need to exist? (YAGNI)
-2. Already in codebase? (Reuse)
-3. Framework/stdlib provides it?
-4. Trusted ecosystem lib for complex domain?
-5. One line?
-6. Minimum code that works.
+Build what was asked, then name the lazier alternative in one line. User picks.
+
+Advisory checklist (apply only when obviously better):
+1. Already in codebase? (Reuse)
+2. Framework/stdlib provides it?
+3. One line suffices?
+4. Deletion > addition. Fewest files. Shortest working diff.
 
 Non-coding agents ignore this entirely.
 
@@ -181,7 +181,7 @@ powershell -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
 | Decision strategy | Two-tier decision strategy, subagent no-ask rule, blocking markers |
 | build.md | Routing table, team table, workflow templates, identity |
 | plan.md | Analysis plan, read-only rule, team table |
-| Ponytail behavioral | YAGNI challenge, code reuse, ladder reference |
+| Ponytail behavioral | lite suggestion, code reuse, ponytail reference |
 
 ## Design decisions
 

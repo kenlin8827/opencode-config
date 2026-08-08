@@ -35,33 +35,22 @@ Write-Host "Structural: config & protocols" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $config = Get-Content "$PSScriptRoot\..\opencode.json" -Raw | ConvertFrom-Json
-$ponytail = Get-Content "$PSScriptRoot\..\agents\_shared\ponytail.md" -Raw
-
 Check "instructions contains output-protocol.md" `
     ($config.instructions -contains "~/.config/opencode/agents/_shared/output-protocol.md")
-Check "instructions contains ponytail.md" `
-    ($config.instructions -contains "~/.config/opencode/agents/_shared/ponytail.md")
+Check "plugin includes @dietrichgebert/ponytail" `
+    ($config.plugin -contains "@dietrichgebert/ponytail")
 Check "instructions contains decision-advisor.md (advisor mode default on)" `
     ($config.instructions -contains "~/.config/opencode/agents/_shared/decision-advisor.md")
-Check "instructions count = 3" ($config.instructions.Count -eq 3)
+Check "instructions count = 2" ($config.instructions.Count -eq 2)
 
-# ponytail.md content
-Check "ponytail.md: has frontmatter source" ($ponytail -match "source: https://github.com/DietrichGebert/ponytail")
-Check "ponytail.md: has 'Lazy coding protocol'" ($ponytail -match "Lazy coding protocol")
-Check "ponytail.md: has 'The ladder'" ($ponytail -match "### The ladder")
-Check "ponytail.md: has 'Rules'" ($ponytail -match "### Rules")
-Check "ponytail.md: has YAGNI" ($ponytail -match "YAGNI")
-Check "ponytail.md: has 'ponytail:' comment convention" ($ponytail -match "ponytail:")
-Check "ponytail.md: has root cause rule" ($ponytail -match "root cause")
-Check "ponytail.md: has 'no unrequested abstractions'" ($ponytail -match "No unrequested abstractions")
-Check "ponytail.md: has off switch" ($ponytail -match "stop ponytail" -and $ponytail -match "normal mode")
-Check "ponytail.md: no Java-specific content" ($ponytail -notmatch "Spring IS")
-Check "ponytail.md: no Node-specific content" ($ponytail -notmatch "NestJS/Express IS")
-Check "ponytail.md: defers to each agent" ($ponytail -match "defer to each agent")
-Check "ponytail.md: no '### Output' (output-protocol owns this)" ($ponytail -notmatch "### Output")
-Check "ponytail.md: no '### Intensity'" ($ponytail -notmatch "### Intensity")
-Check "ponytail.md: limits scope to coding" ($ponytail -match "Applies only to coding tasks")
-Check "ponytail.md: excludes non-coding agents" ($ponytail -match "Non-coding agents ignore this")
+# Ponytail config (official plugin)
+$ponytailConfigPath = Join-Path $env:APPDATA "ponytail\config.json"
+if (Test-Path $ponytailConfigPath) {
+    $ponytailConfig = Get-Content $ponytailConfigPath -Raw | ConvertFrom-Json
+    Check "ponytail config: defaultMode is lite" ($ponytailConfig.defaultMode -eq "lite")
+} else {
+    Check "ponytail config: config.json exists" $false
+}
 
 # Agent ecosystem library mentions
 $trustedAgents = @(
@@ -88,7 +77,7 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 
 # File integrity
 $allFiles = @(
-    "agents/_shared/output-protocol.md", "agents/_shared/ponytail.md",
+    "agents/_shared/output-protocol.md",
     "agents/_shared/decision-advisor.md",
     "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
@@ -221,7 +210,7 @@ powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-default.ps1"
 if ($IncludePrompts) {
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "Test 5: ponytail behavioral (YAGNI + reuse)" -ForegroundColor Cyan
+    Write-Host "Test 5: ponytail plugin (official, lite default)" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
 
@@ -256,20 +245,20 @@ go 1.22
         Write-Host $outputStr
         Write-Host ""
         Write-Host "  Behavioral checks:" -ForegroundColor DarkCyan
-        if ($outputStr -match "speculative|YAGNI|skip|not needed|don't need") {
-            Write-Host "    [PASS] YAGNI challenges speculative need" -ForegroundColor Green
+        if ($outputStr -match "FYI|lazier|not needed|skip|ponytail") {
+            Write-Host "    [PASS] Suggests lazier alternative" -ForegroundColor Green
         } else {
-            Write-Host "    [FAIL] YAGNI challenges speculative need" -ForegroundColor Red
+            Write-Host "    [FAIL] Suggests lazier alternative" -ForegroundColor Red
         }
-        if ($outputStr -match "FormatDate|already exist|rung 2") {
+        if ($outputStr -match "FormatDate|already exist|reuse") {
             Write-Host "    [PASS] Reuses existing FormatDate" -ForegroundColor Green
         } else {
             Write-Host "    [FAIL] Reuses existing FormatDate" -ForegroundColor Red
         }
-        if ($outputStr -match "rung|ladder|ponytail") {
-            Write-Host "    [PASS] References ponytail ladder" -ForegroundColor Green
+        if ($outputStr -match "FYI|lazier|ponytail") {
+            Write-Host "    [PASS] References ponytail lite suggestion" -ForegroundColor Green
         } else {
-            Write-Host "    [FAIL] References ponytail ladder" -ForegroundColor Red
+            Write-Host "    [FAIL] References ponytail lite suggestion" -ForegroundColor Red
         }
 
         Remove-Item -Recurse -Force $tmpDir -ErrorAction SilentlyContinue
