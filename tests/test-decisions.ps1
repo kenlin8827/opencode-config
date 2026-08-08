@@ -64,6 +64,21 @@ Check "build.md: has session toggle" ($bc -match "advisor-on")
 Check "build.md: has decisive toggle" ($bc -match "advisor-decisive")
 Check "build.md: has permanent toggle" ($bc -match "instructions")
 
+# Context passing checks (build.md multi-step workflow)
+Check "build.md: has one-line summary instruction" ($bc -match "one-line summary of prior conclusions")
+Check "build.md: has 'not full findings' guard" ($bc -match "not full findings")
+Check "build.md: has 'Pass only what' guard" ($bc -match "Pass only what")
+Check "build.md: has Don't dump full agent output" ($bc -match "Don't dump full agent output")
+Check "build.md: still has Carry context forward" ($bc -match "Carry context forward")
+Check "build.md: no context sharing header template" ($bc -notmatch "CONTEXT SHARING HEADER")
+Check "build.md: no shared_context placeholder" ($bc -notmatch "\{shared_context\}")
+
+# review-fix-loop.md: context passing reference pattern
+$rfl = Get-Content "$base\commands\review-fix-loop.md" -Raw
+Check "review-fix-loop.md: has carry context forward rule" ($rfl -match "Carry context forward")
+Check "review-fix-loop.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
+Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only P0/P1")
+
 # decision-advisor.md checks
 $da = Get-Content "$base\agents\_shared\decision-advisor.md" -Raw
 Check "decision-advisor.md: exists and readable" ($da.Length -gt 0)

@@ -129,12 +129,12 @@ Present the plan to the user as a numbered list before executing:
 
 Execute the plan one step at a time (or in parallel where possible):
 
-- **Dispatch** to the agent with a clear, specific task description. Include all relevant context from previous steps.
+- **Dispatch** to the agent with a clear, specific task description. For step 2+, include a one-line summary of prior conclusions: "Prior steps established: <conclusions>". Pass only what the next agent needs — not full findings.
 - **Monitor** the agent's output. Check if it meets expectations.
 - **Handle failures**: if an agent reports errors or incomplete work:
   - If it's a minor issue, note it and continue — address it in a later step.
   - If it's a blocker, stop and inform the user with options.
-- **Carry context forward**: pass outputs from one step as input to the next. Don't make the next agent re-discover what the previous one already found.
+- **Carry context forward**: pass prior step conclusions as a one-line summary. Don't make the next agent re-discover what the previous one already found. Don't dump full agent output — only conclusions.
 
 ### 5. Synthesize & deliver
 
@@ -252,7 +252,7 @@ That's it. No planning, no synthesis across agents — just dispatch and report.
 - **Single-domain task = single dispatch, no plan.** Don't write a 5-step plan to review one commit.
 - **Always present the plan before executing** multi-domain workflows — the user should know what's about to happen and can adjust. Don't silently start a 9-step workflow.
 - **One agent per step** — don't combine multiple agents' work into one dispatch. Each agent gets a focused task.
-- **Carry context forward** — don't lose information between steps. If `@architect` decided on PostgreSQL, `@dba` and `@java-dev` should know that without rediscovering it.
+- **Carry context forward** — pass prior step conclusions as a one-line summary, not full findings. If `@architect` decided on PostgreSQL, `@dba` and `@java-dev` should know that without rediscovering it.
 - **Handle failures gracefully** — if an agent fails, don't silently skip it. Report the failure, assess impact, and decide with the user whether to retry, skip, or abort.
 - **Don't redo work** — if `@researcher` already evaluated options, don't have `@architect` re-evaluate. Use the researcher's conclusion as input.
 - **Respect agent boundaries** — don't ask `@java-dev` to write Kubernetes manifests (that's `@devops`). Don't ask `@code-review` to fix code (it only reviews). Each agent has defined permissions and expertise.
