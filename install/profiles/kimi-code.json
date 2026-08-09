@@ -1,0 +1,10 @@
+{
+  "description": "Kimi For Coding (official Kimi Code subscription) — k3-256k carries the high-traffic default tier at half the quota of k3 1M, kimi-for-coding codes, k3 flagship judges on the low-frequency advisor slot, highspeed explores, k3-256k doubles as vision (image-capable). Requires `opencode auth login` with Kimi For Coding and an Allegretto-tier plan for k3/highspeed.",
+  "tiers": {
+    "default": "kimi-for-coding/k3-256k",
+    "code": "kimi-for-coding/kimi-for-coding",
+    "advisor": "kimi-for-coding/k3",
+    "explorer": "kimi-for-coding/kimi-for-coding-highspeed",
+    "vision": "kimi-for-coding/k3-256k"
+  }
+}

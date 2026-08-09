@@ -149,6 +149,7 @@ same provider).
 | `opencode-go-lite` | Lightweight — cheapest usable | qwen3.7-plus / mimo-v2.5-pro / glm-5.2 / mimo-v2.5 / qwen3.8-max |
 | `opencode-go-qwen` | All-Qwen family fallback | qwen3.7-plus / qwen3.8-max / qwen3.7-max / qwen3.6-plus / qwen3.8-max |
 | `opencode-go-kimi` | All-Kimi family fallback | kimi-k2.6 / kimi-k2.7-code / kimi-k3 / kimi-k2.6 / qwen3.8-max |
+| `kimi-code` | Kimi For Coding (official Kimi Code plan) | k3-256k / kimi-for-coding / k3 / kimi-for-coding-highspeed / k3-256k |
 | `opencode-go-deepseek` | All-DeepSeek family fallback | deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / qwen3.8-max |
 | `opencode-go-glm` | All-GLM family fallback | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.1 / qwen3.8-max |
 
