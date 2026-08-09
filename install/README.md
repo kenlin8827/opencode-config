@@ -113,19 +113,20 @@ Profiles live in `install/profiles/<name>.json`:
 ```json
 {
   "description": "human-readable summary shown by `profile list`",
-  "provider": "opencode-go",
   "tiers": {
-    "default": "kimi-k3",
-    "code": "kimi-k2.7-code",
-    "advisor": "other-provider/some-model"
+    "default": "opencode-go/kimi-k3",
+    "code": "opencode-go/kimi-k2.7-code",
+    "advisor": "opencode-go/gpt-5.6-luna"
   }
 }
 ```
 
 Semantics:
 
-- A tier value is either a bare model id (prefixed with the profile's
-  `provider`) or a full `<provider>/<model_id>` ref that overrides it.
+- Tier values are full `<provider>/<model_id>` refs, applied verbatim.
+- A profile is **single-provider**: every ref must share the same provider
+  part — mixed providers (or refs missing `/`) are rejected. Split mixed
+  setups into separate profiles.
 - Tiers not listed by the profile are left untouched (e.g. the bundled
   `opencode-go-*` profiles omit `vision` — it needs a multimodal pick).
 - Unknown tier names in a profile are rejected; every agent of a tier is

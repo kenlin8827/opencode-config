@@ -1,10 +1,9 @@
 {
   "description": "opencode-go cost-optimized picks: fast plus/flash-class models on high-volume tiers. vision tier left untouched — pick a multimodal model manually.",
-  "provider": "opencode-go",
   "tiers": {
-    "default": "qwen3.7-plus",
-    "code": "mimo-v2.5-pro",
-    "advisor": "glm-5.1",
-    "explorer": "mimo-v2.5"
+    "default": "opencode-go/qwen3.7-plus",
+    "code": "opencode-go/mimo-v2.5-pro",
+    "advisor": "opencode-go/glm-5.1",
+    "explorer": "opencode-go/mimo-v2.5"
   }
 }

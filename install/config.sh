@@ -171,10 +171,10 @@ relink_tier() {
 
 # --- profiles ------------------------------------------------------------
 
-# Profiles are presets in install/profiles/<name>.json: a provider plus a
-# tier -> model-id map, applied in one shot (`profile apply <name>`). A tier
-# value is either a bare model id (prefixed with the profile's provider) or a
-# full "<provider>/<id>" ref. Tiers not listed by the profile are untouched.
+# Profiles are presets in install/profiles/<name>.json: a tier -> full
+# "<provider>/<model_id>" ref map, applied in one shot (`profile apply <name>`).
+# A profile is single-provider: every ref must share the same provider part,
+# mixed providers are rejected. Tiers not listed by the profile are untouched.
 
 profile_path() {
     local name="$1"
@@ -206,11 +206,10 @@ list_profiles() {
         echo "[$name]"
         desc="$($JQ -r '.description // empty' "$p")"
         [[ -n "$desc" ]] && echo "  $desc"
-        provider="$($JQ -r '.provider // "(none)"' "$p")"
+        provider="$($JQ -r '(.tiers // {} | to_entries)[0].value // "" | if test("/") then split("/")[0] else "(none)" end' "$p")"
         printf '  %-9s %s\n' "provider" "$provider"
-        while IFS=$'\t' read -r tier id; do
+        while IFS=$'\t' read -r tier ref; do
             [[ -z "$tier" ]] && continue
-            if [[ "$id" == */* ]]; then ref="$id"; else ref="$provider/$id"; fi
             printf '  %-9s %s\n' "tier.$tier" "$ref"
         done < <($JQ -r '.tiers // {} | to_entries[] | [.key, .value] | @tsv' "$p")
         echo
@@ -225,23 +224,38 @@ apply_profile() {
         echo "profile not found: $name (available: $(profile_names | paste -sd ', ' -))" >&2
         exit 1
     fi
-    local provider
-    provider="$($JQ -r '.provider // empty' "$p")"
-    [[ -z "$provider" ]] && { echo "profile $name has no provider field" >&2; exit 1; }
     if ! $JQ -e '.tiers' "$p" >/dev/null 2>&1; then
         echo "profile $name has no tiers field" >&2
         exit 1
     fi
-    local tier id ref n total=0
-    while IFS=$'\t' read -r tier id; do
+    # Pass 1: validate everything before writing anything (no partial apply).
+    local provider="" tier ref prov n
+    while IFS=$'\t' read -r tier ref; do
         [[ -z "$tier" ]] && continue
         if [[ " ${TIER_NAMES[*]} " != *" $tier "* ]]; then
             echo "profile $name: unknown tier $tier (one of: ${TIER_NAMES[*]})" >&2
             exit 1
         fi
-        if [[ "$id" == */* ]]; then ref="$id"; else ref="$provider/$id"; fi
-        n="$(relink_tier "$f" "$tier" "$ref")"
+        if [[ "$ref" != */* || "$ref" == /* || "$ref" == */ ]]; then
+            echo "profile $name: tier $tier value '$ref' must be a full '<provider>/<model_id>' ref" >&2
+            exit 1
+        fi
+        prov="${ref%%/*}"
+        if [[ -z "$provider" ]]; then
+            provider="$prov"
+        elif [[ "$prov" != "$provider" ]]; then
+            echo "profile $name: mixed providers ($provider vs $prov) — a profile supports a single provider" >&2
+            exit 1
+        fi
+        n="$($JQ --arg t "$tier" \
+            '[.agent | to_entries[] | select(.value.tier == $t)] | length' "$f")"
         [[ "$n" -eq 0 ]] && { echo "no agent currently uses tier $tier" >&2; exit 1; }
+    done < <($JQ -r '.tiers | to_entries[] | [.key, .value] | @tsv' "$p")
+    # Pass 2: relink.
+    local total=0
+    while IFS=$'\t' read -r tier ref; do
+        [[ -z "$tier" ]] && continue
+        n="$(relink_tier "$f" "$tier" "$ref")"
         echo "tier.$tier -> $ref ($n agent(s) updated)"
         total=$((total + n))
     done < <($JQ -r '.tiers | to_entries[] | [.key, .value] | @tsv' "$p")
@@ -260,7 +274,7 @@ pick_profile() {
     for name in "${names[@]}"; do
         p="$(profile_path "$name")"
         desc="$($JQ -r '.description // empty' "$p")"
-        refs="$($JQ -r '.tiers // {} | to_entries[] | .key + "=" + .value' "$p" | paste -sd ', ' -)"
+        refs="$($JQ -r '.tiers // {} | to_entries[] | .value' "$p" | paste -sd ', ' -)"
         printf '  %2d) %s\n' "$i" "$name"
         [[ -n "$desc" ]] && echo "       $desc"
         echo "       $refs"

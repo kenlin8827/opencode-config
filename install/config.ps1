@@ -330,10 +330,10 @@ function Set-LlmRouterCredentials($obj) {
 
 # --- profiles ---------------------------------------------------------------
 
-# Profiles are presets in install/profiles/<name>.json: a provider plus a
-# tier -> model-id map, applied in one shot (`profile apply <name>`). A tier
-# value is either a bare model id (prefixed with the profile's provider) or a
-# full "<provider>/<id>" ref. Tiers not listed by the profile are untouched.
+# Profiles are presets in install/profiles/<name>.json: a tier -> full
+# "<provider>/<model_id>" ref map, applied in one shot (`profile apply <name>`).
+# A profile is single-provider: every ref must share the same provider part,
+# mixed providers are rejected. Tiers not listed by the profile are untouched.
 
 function Get-ProfilePath([string]$name) {
     if (-not $name.EndsWith('.json')) { $name = "$name.json" }
@@ -355,12 +355,11 @@ function Show-Profiles {
         $p = Get-Content -Raw (Get-ProfilePath $name) | ConvertFrom-Json -AsHashtable
         Write-Output "[$name]"
         if ($p.description) { Write-Output "  $($p.description)" }
-        $provider = $p.provider ?? '(none)'
+        $first = @($p.tiers.Values)[0] ?? ''
+        $provider = if ($first -match '^[^/]+/') { ($first -split '/', 2)[0] } else { '(none)' }
         Write-Output ("  {0,-9} {1}" -f 'provider', $provider)
         foreach ($tier in ($p.tiers.Keys | Sort-Object)) {
-            $id = $p.tiers[$tier]
-            $ref = if ($id -match '/') { $id } else { "$provider/$id" }
-            Write-Output ("  {0,-9} {1}" -f "tier.$tier", $ref)
+            Write-Output ("  {0,-9} {1}" -f "tier.$tier", $p.tiers[$tier])
         }
         Write-Output ''
     }
@@ -373,16 +372,23 @@ function Apply-Profile($obj, [string]$name) {
         throw "profile not found: $name (available: $available)"
     }
     $p = Get-Content -Raw $file | ConvertFrom-Json -AsHashtable
-    if (-not $p.provider) { throw "profile $name has no provider field" }
     if (-not $p.tiers) { throw "profile $name has no tiers field" }
-    $updated = 0
+    # Pass 1: validate everything before writing anything (no partial apply).
+    $provider = $null
     foreach ($tier in $p.tiers.Keys) {
         if ($tier -notin $TIER_NAMES) { throw "profile ${name}: unknown tier $tier (one of: $($TIER_NAMES -join ', '))" }
-        $id = $p.tiers[$tier]
-        $ref = if ($id -match '/') { $id } else { "$($p.provider)/$id" }
+        $ref = $p.tiers[$tier]
+        if ($ref -notmatch '^[^/]+/.+') { throw "profile ${name}: tier $tier value '$ref' must be a full '<provider>/<model_id>' ref" }
+        $prov = ($ref -split '/', 2)[0]
+        if (-not $provider) { $provider = $prov }
+        elseif ($prov -ne $provider) { throw "profile ${name}: mixed providers ($provider vs $prov) — a profile supports a single provider" }
+        if (@($obj.agent.Values | Where-Object { $_.tier -eq $tier }).Count -eq 0) { throw "no agent currently uses tier $tier" }
+    }
+    # Pass 2: rewrite.
+    $updated = 0
+    foreach ($tier in $p.tiers.Keys) {
+        $ref = $p.tiers[$tier]
         $n = Update-TierModels $obj $tier $ref
-        if ($n -eq 0) { throw "no agent currently uses tier $tier" }
-        # Write-Host (not Write-Output) so the return value stays a clean scalar.
         Write-Host "tier.$tier -> $ref ($n agent(s) updated)"
         $updated += $n
     }
@@ -399,10 +405,7 @@ function Pick-Profile {
     $idx = 1
     foreach ($name in $names) {
         $p = Get-Content -Raw (Get-ProfilePath $name) | ConvertFrom-Json -AsHashtable
-        $provider = $p.provider ?? '(none)'
-        $refs = @($p.tiers.Keys | Sort-Object | ForEach-Object {
-            $id = $p.tiers[$_]; if ($id -match '/') { $id } else { "$provider/$id" }
-        }) -join ', '
+        $refs = @($p.tiers.Keys | Sort-Object | ForEach-Object { $p.tiers[$_] }) -join ', '
         Write-Host ("  {0,2}) {1}" -f $idx, $name)
         if ($p.description) { Write-Host "       $($p.description)" }
         Write-Host "       $refs"
