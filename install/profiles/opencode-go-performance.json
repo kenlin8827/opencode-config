@@ -1,0 +1,10 @@
+{
+  "description": "Performance tier — daily driver: previous-gen flagship orchestrates (default is dispatch-heavy, flagship stays off it), -code variant for coding, flagship spend concentrated on the low-frequency advisor slot, flash exploration; vision goes to qwen3.8-max — the only vision-capable model on this gateway.",
+  "tiers": {
+    "default": "opencode-go/kimi-k2.6",
+    "code": "opencode-go/kimi-k2.7-code",
+    "advisor": "opencode-go/gpt-5.6-luna",
+    "explorer": "opencode-go/deepseek-v4-flash",
+    "vision": "opencode-go/qwen3.8-max"
+  }
+}

@@ -57,7 +57,7 @@ pwsh install/config.ps1 set apiKey  sk-xxxx
 pwsh install/config.ps1 set model  advisor my-advisor-v2
 pwsh install/config.ps1 profile                        # numbered menu, pick one to apply
 pwsh install/config.ps1 profile list                   # list presets in install/profiles/
-pwsh install/config.ps1 profile apply opencode-go-balanced
+pwsh install/config.ps1 profile apply opencode-go-performance
 pwsh install/config.ps1 get
 pwsh install/config.ps1 reset
 ```
@@ -72,7 +72,7 @@ pwsh install/config.ps1 reset
 ./install/config.sh set model advisor my-advisor-v2
 ./install/config.sh profile                            # numbered menu, pick one to apply
 ./install/config.sh profile list                       # list presets in install/profiles/
-./install/config.sh profile apply opencode-go-balanced
+./install/config.sh profile apply opencode-go-performance
 ./install/config.sh reset
 ```
 
@@ -127,15 +127,30 @@ Semantics:
 - A profile is **single-provider**: every ref must share the same provider
   part — mixed providers (or refs missing `/`) are rejected. Split mixed
   setups into separate profiles.
-- Tiers not listed by the profile are left untouched (e.g. the bundled
-  `opencode-go-*` profiles omit `vision` — it needs a multimodal pick).
+- Tiers not listed by a profile are left untouched; all bundled profiles
+  cover all five tiers, `vision` included.
 - Unknown tier names in a profile are rejected; every agent of a tier is
   rewritten in lockstep, and the root `model` tracks the `default` tier.
 - Apply validates everything up front per tier and backs up the target
   (`opencode.jsonc.bak`) before writing, same as `set`.
 
-Bundled profiles: `llm-router` (template baseline, equivalent to `reset`),
-`opencode-go-balanced`, `opencode-go-budget`.
+Bundled profiles.
+Cost tiers mirror the IDE model-tier vocabulary (Auto / Ultimate / Performance / Economy / Lightweight).
+Every profile fills `vision`: on this gateway only Qwen accepts image input,
+so all opencode-go profiles route vision to `qwen3.8-max` (mixed families,
+same provider).
+
+| Profile | Tier | default / code / advisor / explorer / vision |
+| --- | --- | --- |
+| `llm-router` | Auto — server-side routing baseline (equivalent to `reset`) | its five router slots |
+| `opencode-go-ultimate` | Ultimate — quality first, cost no object | kimi-k3 / minimax-m3 / gpt-5.6-luna / kimi-k2.6 / qwen3.8-max |
+| `opencode-go-performance` | Performance — daily driver | kimi-k2.6 / kimi-k2.7-code / gpt-5.6-luna / deepseek-v4-flash / qwen3.8-max |
+| `opencode-go-economy` | Economy — cost-performance | kimi-k2.6 / kimi-k2.7-code / glm-5.2 / deepseek-v4-flash / qwen3.8-max |
+| `opencode-go-lite` | Lightweight — cheapest usable | qwen3.7-plus / mimo-v2.5-pro / glm-5.2 / mimo-v2.5 / qwen3.8-max |
+| `opencode-go-qwen` | All-Qwen family fallback | qwen3.7-plus / qwen3.8-max / qwen3.7-max / qwen3.6-plus / qwen3.8-max |
+| `opencode-go-kimi` | All-Kimi family fallback | kimi-k2.6 / kimi-k2.7-code / kimi-k3 / kimi-k2.6 / qwen3.8-max |
+| `opencode-go-deepseek` | All-DeepSeek family fallback | deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / qwen3.8-max |
+| `opencode-go-glm` | All-GLM family fallback | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.1 / qwen3.8-max |
 
 ## Files
 

@@ -1,0 +1,10 @@
+{
+  "description": "All-DeepSeek family picks — DeepSeek ships only pro/flash here, so pro carries every quality slot and flash handles exploration. Family fallback profile. vision goes to qwen3.8-max — DeepSeek is not vision-capable here; only Qwen is.",
+  "tiers": {
+    "default": "opencode-go/deepseek-v4-pro",
+    "code": "opencode-go/deepseek-v4-pro",
+    "advisor": "opencode-go/deepseek-v4-pro",
+    "explorer": "opencode-go/deepseek-v4-flash",
+    "vision": "opencode-go/qwen3.8-max"
+  }
+}

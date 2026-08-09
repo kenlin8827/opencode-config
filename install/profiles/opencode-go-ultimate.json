@@ -1,0 +1,10 @@
+{
+  "description": "Ultimate tier — quality first, cost no object: flagships across the board for critical refactors and pre-release audits; vision goes to qwen3.8-max — the only vision-capable model on this gateway.",
+  "tiers": {
+    "default": "opencode-go/kimi-k3",
+    "code": "opencode-go/minimax-m3",
+    "advisor": "opencode-go/gpt-5.6-luna",
+    "explorer": "opencode-go/kimi-k2.6",
+    "vision": "opencode-go/qwen3.8-max"
+  }
+}

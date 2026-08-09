@@ -15,7 +15,7 @@
 #   ./install/config.sh set model code claude-sonnet-4-5 [-p anthropic]
 #   ./install/config.sh profile                         # pick a profile by number and apply it
 #   ./install/config.sh profile list                    # list profiles in install/profiles/
-#   ./install/config.sh profile apply opencode-go-balanced
+#   ./install/config.sh profile apply opencode-go-performance
 #   ./install/config.sh reset                           # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.sh set ... -t FILE                     # target a different file
 #
@@ -363,7 +363,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }
+# `profile list` only reads install/profiles/ — it must work before the
+# target exists (fresh machine). Everything else touches $TARGET.
+if [[ ! ( "$ACTION" == "profile" && "$KEY" == "list" ) ]]; then
+    [[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }
+fi
 
 command -v jq >/dev/null 2>&1 || { echo "jq is required: https://jqlang.github.io/jq/" >&2; exit 1; }
 load_template_tiers

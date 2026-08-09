@@ -1,0 +1,10 @@
+{
+  "description": "All-GLM family picks — GLM ships only two tiers, so they are reused across slots. Family fallback profile. vision goes to qwen3.8-max — GLM is not vision-capable here; only Qwen is.",
+  "tiers": {
+    "default": "opencode-go/glm-5.1",
+    "code": "opencode-go/glm-5.2",
+    "advisor": "opencode-go/glm-5.2",
+    "explorer": "opencode-go/glm-5.1",
+    "vision": "opencode-go/qwen3.8-max"
+  }
+}

@@ -15,7 +15,7 @@
 #   ./install/config.ps1 set model code claude-sonnet-4-5 [-p anthropic]
 #   ./install/config.ps1 profile                        # pick a profile by number and apply it
 #   ./install/config.ps1 profile list                   # list profiles in install/profiles/
-#   ./install/config.ps1 profile apply opencode-go-balanced
+#   ./install/config.ps1 profile apply opencode-go-performance
 #   ./install/config.ps1 reset                          # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.ps1 set ... -t FILE                # target a different file
 #
@@ -512,9 +512,17 @@ while ($i -lt $CommandArgs.Count) {
 
 # --- main --------------------------------------------------------------------
 
-if (-not (Test-Path $Target)) { throw "not found: $Target" }
+# `profile list` only reads install/profiles/ — it must work before the
+# target exists (fresh machine). Everything else touches $Target.
+if (-not ($Action -eq 'profile' -and $Key -eq 'list')) {
+    if (-not (Test-Path $Target)) { throw "not found: $Target" }
+}
 
 if ($Action) {
+    if ($Action -eq 'profile' -and $Key -eq 'list') {
+        Show-Profiles
+        exit 0
+    }
     $obj = Read-Jsonc $Target
     $backfilled = Backfill-Tier $obj
     if ($backfilled -gt 0) {
@@ -577,8 +585,6 @@ if ($Action) {
                 } else {
                     Write-Output 'cancelled'
                 }
-            } elseif ($Key -eq 'list') {
-                Show-Profiles
             } elseif ($Key -eq 'apply') {
                 $n = Apply-Profile $obj $Value
                 Write-JsoncAtomic $Target $obj

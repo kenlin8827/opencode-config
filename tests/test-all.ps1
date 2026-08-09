@@ -254,6 +254,16 @@ Write-Host "========================================" -ForegroundColor Yellow
 
 # Decision strategy structural checks
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-decisions.ps1"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+
+# Profile presets: apply each to a fresh template copy and assert refs
+# (no API calls; model existence check auto-skips without the opencode CLI)
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Profiles: install/profiles stress test" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-profiles.ps1"
+if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)
 # ============================================================================

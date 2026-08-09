@@ -1,0 +1,10 @@
+{
+  "description": "All-Qwen family picks — switch to wholesale when other families are rate-limited, repriced, or underperforming. vision uses qwen3.8-max — the only vision-capable model on this gateway.",
+  "tiers": {
+    "default": "opencode-go/qwen3.7-plus",
+    "code": "opencode-go/qwen3.8-max",
+    "advisor": "opencode-go/qwen3.7-max",
+    "explorer": "opencode-go/qwen3.6-plus",
+    "vision": "opencode-go/qwen3.8-max"
+  }
+}
