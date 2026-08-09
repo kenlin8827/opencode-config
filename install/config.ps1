@@ -13,6 +13,7 @@
 #   ./install/config.ps1 set baseURL https://api...
 #   ./install/config.ps1 set apiKey sk-xxx
 #   ./install/config.ps1 set model code claude-sonnet-4-5 [-p anthropic]
+#   ./install/config.ps1 profile                        # pick a profile by number and apply it
 #   ./install/config.ps1 profile list                   # list profiles in install/profiles/
 #   ./install/config.ps1 profile apply opencode-go-balanced
 #   ./install/config.ps1 reset                          # restore baseURL/apiKey and model refs from repo template
@@ -60,6 +61,7 @@ commands:
   set baseURL <url>        set provider.<Provider>.options.baseURL
   set apiKey <key>         set provider.<Provider>.options.apiKey
   set model <name> <id>    set agent.model for tier <name> to <id> on provider <Provider>
+  profile                  interactive: numbered profile menu, pick one by number to apply
   profile list             list available profiles in install/profiles/
   profile apply <name>     apply a profile (provider + per-tier model picks) in one shot
   reset                    restore baseURL/apiKey and model refs from repo template (default: llm-router)
@@ -380,10 +382,44 @@ function Apply-Profile($obj, [string]$name) {
         $ref = if ($id -match '/') { $id } else { "$($p.provider)/$id" }
         $n = Update-TierModels $obj $tier $ref
         if ($n -eq 0) { throw "no agent currently uses tier $tier" }
-        Write-Output "tier.$tier -> $ref ($n agent(s) updated)"
+        # Write-Host (not Write-Output) so the return value stays a clean scalar.
+        Write-Host "tier.$tier -> $ref ($n agent(s) updated)"
         $updated += $n
     }
     return $updated
+}
+
+# Interactive numbered menu: show every profile, pick one by number to apply.
+# Enter or 0 cancels. Sets $script:PickedProfileName ($null when cancelled).
+function Pick-Profile {
+    $names = @(Get-ProfileNames | Sort-Object)
+    if ($names.Count -eq 0) { throw "no profiles found in $ProfilesDir" }
+    Write-Host '[profiles]'
+    Write-Host '   0) cancel'
+    $idx = 1
+    foreach ($name in $names) {
+        $p = Get-Content -Raw (Get-ProfilePath $name) | ConvertFrom-Json -AsHashtable
+        $provider = $p.provider ?? '(none)'
+        $refs = @($p.tiers.Keys | Sort-Object | ForEach-Object {
+            $id = $p.tiers[$_]; if ($id -match '/') { $id } else { "$provider/$id" }
+        }) -join ', '
+        Write-Host ("  {0,2}) {1}" -f $idx, $name)
+        if ($p.description) { Write-Host "       $($p.description)" }
+        Write-Host "       $refs"
+        $idx++
+    }
+    Write-Host ''
+    $v = Read-Host "pick profile to apply (1-$($names.Count), Enter=cancel)"
+    $v = Strip-Quotes $v
+    if ([string]::IsNullOrWhiteSpace($v) -or $v -eq '0') {
+        $script:PickedProfileName = $null
+        return
+    }
+    if ($v -match '^\d+$' -and [int]$v -ge 1 -and [int]$v -le $names.Count) {
+        $script:PickedProfileName = $names[[int]$v - 1]
+        return
+    }
+    throw "invalid selection: $v (must be 0-$($names.Count))"
 }
 
 # --- arg parse ---------------------------------------------------------------
@@ -438,10 +474,13 @@ while ($i -lt $CommandArgs.Count) {
         'reset' { $Action = 'reset'; $i++ }
         'profile' {
             $Action = 'profile'; $i++
-            if ($i -lt $CommandArgs.Count) { $Key = $CommandArgs[$i]; $i++ }
-            if ($Key -eq 'apply') {
-                if ($i -ge $CommandArgs.Count) { throw "profile apply requires <name>" }
-                $Value = $CommandArgs[$i]; $i++
+            # Only a non-option token is the subcommand — leave -t/-p alone.
+            if ($i -lt $CommandArgs.Count -and -not $CommandArgs[$i].StartsWith('-')) {
+                $Key = $CommandArgs[$i]; $i++
+                if ($Key -eq 'apply') {
+                    if ($i -ge $CommandArgs.Count) { throw "profile apply requires <name>" }
+                    $Value = $CommandArgs[$i]; $i++
+                }
             }
         }
         'set' {
@@ -526,7 +565,16 @@ if ($Action) {
             }
         }
         'profile' {
-            if (-not $Key -or $Key -eq 'list') {
+            if (-not $Key) {
+                Pick-Profile
+                if ($script:PickedProfileName) {
+                    $n = Apply-Profile $obj $script:PickedProfileName
+                    Write-JsoncAtomic $Target $obj
+                    Write-Output "profile $($script:PickedProfileName) applied ($n agent ref(s) updated)"
+                } else {
+                    Write-Output 'cancelled'
+                }
+            } elseif ($Key -eq 'list') {
                 Show-Profiles
             } elseif ($Key -eq 'apply') {
                 $n = Apply-Profile $obj $Value

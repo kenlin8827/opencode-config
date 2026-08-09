@@ -13,6 +13,7 @@
 #   ./install/config.sh set baseURL https://api...
 #   ./install/config.sh set apiKey sk-xxx
 #   ./install/config.sh set model code claude-sonnet-4-5 [-p anthropic]
+#   ./install/config.sh profile                         # pick a profile by number and apply it
 #   ./install/config.sh profile list                    # list profiles in install/profiles/
 #   ./install/config.sh profile apply opencode-go-balanced
 #   ./install/config.sh reset                           # restore baseURL/apiKey and model refs from repo template
@@ -247,6 +248,38 @@ apply_profile() {
     echo "profile $name applied ($total agent ref(s) updated)"
 }
 
+# Interactive numbered menu: show every profile, pick one by number to apply.
+# Enter or 0 cancels. Sets PICKED_PROFILE (empty when cancelled).
+pick_profile() {
+    local names=()
+    mapfile -t names < <(profile_names)
+    [[ ${#names[@]} -eq 0 ]] && { echo "no profiles found in $PROFILES_DIR" >&2; exit 1; }
+    echo "[profiles]"
+    echo "   0) cancel"
+    local i=1 name p desc refs
+    for name in "${names[@]}"; do
+        p="$(profile_path "$name")"
+        desc="$($JQ -r '.description // empty' "$p")"
+        refs="$($JQ -r '.tiers // {} | to_entries[] | .key + "=" + .value' "$p" | paste -sd ', ' -)"
+        printf '  %2d) %s\n' "$i" "$name"
+        [[ -n "$desc" ]] && echo "       $desc"
+        echo "       $refs"
+        i=$((i+1))
+    done
+    echo
+    printf 'pick profile to apply (1-%d, Enter=cancel): ' "${#names[@]}"
+    local v
+    PICKED_PROFILE=""
+    if ! read -r v; then echo; return; fi
+    if [[ -z "$v" || "$v" == "0" ]]; then return; fi
+    if [[ "$v" =~ ^[0-9]+$ ]] && (( 10#$v >= 1 && 10#$v <= ${#names[@]} )); then
+        PICKED_PROFILE="${names[$((10#$v-1))]}"
+        return
+    fi
+    echo "invalid selection: $v (must be 0-${#names[@]})" >&2
+    exit 1
+}
+
 # --- show ---------------------------------------------------------------
 
 show_current() {
@@ -289,16 +322,19 @@ TARGET_PROVIDER="llm-router"  # -p override for `set`/`reset`
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
-            sed -n '2,30p' "$0"; exit 0 ;;
+            sed -n '2,31p' "$0"; exit 0 ;;
         -t|--target) TARGET="$2"; shift 2 ;;
         -p|--provider) TARGET_PROVIDER="$2"; shift 2 ;;
         -n|--name) NAME="$2"; shift 2 ;;
         get|reset) ACTION="$1"; shift ;;
         profile)
             ACTION="profile"; shift
-            KEY="${1:-}"; [[ $# -gt 0 ]] && shift
-            if [[ "$KEY" == "apply" ]]; then
-                VALUE="${1:-}"; [[ $# -gt 0 ]] && shift
+            # Only a non-option token is the subcommand — leave -t/-p alone.
+            if [[ $# -gt 0 && "$1" != -* ]]; then
+                KEY="$1"; shift
+                if [[ "$KEY" == "apply" ]]; then
+                    VALUE="${1:-}"; [[ $# -gt 0 ]] && shift
+                fi
             fi
             ;;
         set)
@@ -483,7 +519,14 @@ case "$ACTION" in
         echo "reset credentials and model refs from template"
         ;;
     profile)
-        if [[ -z "$KEY" || "$KEY" == "list" ]]; then
+        if [[ -z "$KEY" ]]; then
+            pick_profile
+            if [[ -n "$PICKED_PROFILE" ]]; then
+                apply_profile "$TARGET" "$PICKED_PROFILE"
+            else
+                echo "cancelled"
+            fi
+        elif [[ "$KEY" == "list" ]]; then
             list_profiles
         elif [[ "$KEY" == "apply" ]]; then
             [[ -z "$VALUE" ]] && { echo "profile apply requires <name>" >&2; exit 1; }

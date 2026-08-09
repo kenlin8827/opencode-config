@@ -55,6 +55,7 @@ pwsh install/config.ps1
 pwsh install/config.ps1 set baseURL https://router.example.com/v1
 pwsh install/config.ps1 set apiKey  sk-xxxx
 pwsh install/config.ps1 set model  advisor my-advisor-v2
+pwsh install/config.ps1 profile                        # numbered menu, pick one to apply
 pwsh install/config.ps1 profile list                   # list presets in install/profiles/
 pwsh install/config.ps1 profile apply opencode-go-balanced
 pwsh install/config.ps1 get
@@ -69,6 +70,7 @@ pwsh install/config.ps1 reset
 ./install/config.sh set baseURL https://router.example.com/v1
 ./install/config.sh set apiKey sk-xxxx
 ./install/config.sh set model advisor my-advisor-v2
+./install/config.sh profile                            # numbered menu, pick one to apply
 ./install/config.sh profile list                       # list presets in install/profiles/
 ./install/config.sh profile apply opencode-go-balanced
 ./install/config.sh reset
@@ -97,11 +99,13 @@ repo template.
 ## Profiles
 
 A profile is a named preset bundling a provider with a per-tier model pick,
-applied in one shot instead of one `set model` per tier:
+applied in one shot instead of one `set model` per tier. Bare `profile`
+shows a numbered menu — pick a number to apply it (Enter/`0` cancels):
 
 ```pwsh
-pwsh install/config.ps1 profile list
-pwsh install/config.ps1 profile apply <name>   # same on bash: ./install/config.sh
+pwsh install/config.ps1 profile                 # same on bash: ./install/config.sh
+pwsh install/config.ps1 profile list            # plain listing, no prompt
+pwsh install/config.ps1 profile apply <name>    # scripted, no prompt
 ```
 
 Profiles live in `install/profiles/<name>.json`:
