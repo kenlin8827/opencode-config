@@ -212,9 +212,11 @@ $TIER_NAMES = @($TemplateObj.agent.Values |
 if ($TIER_NAMES.Count -eq 0) { throw "template $Template defines no tiers" }
 
 $AGENT_TIERS = @{}
-foreach ($name in $TemplateObj.agent.Keys) {
-    $t = $TemplateObj.agent[$name].tier
-    if ($t) { $AGENT_TIERS[$name] = $t }
+# Loop var must not be $name — PowerShell vars are case-insensitive, so a
+# leftover $name would silently pre-fill the -Name parameter (last agent wins).
+foreach ($agentName in $TemplateObj.agent.Keys) {
+    $t = $TemplateObj.agent[$agentName].tier
+    if ($t) { $AGENT_TIERS[$agentName] = $t }
 }
 
 # --- migration: backfill agent.tier on legacy opencode.jsonc -----------------
@@ -223,11 +225,11 @@ foreach ($name in $TemplateObj.agent.Keys) {
 # (keyed by agent name). Returns the count of agents backfilled.
 function Backfill-Tier($obj) {
     $count = 0
-    foreach ($name in $obj.agent.Keys) {
-        $a = $obj.agent[$name]
+    foreach ($agentName in $obj.agent.Keys) {
+        $a = $obj.agent[$agentName]
         if ($a.Contains('tier')) { continue }
-        if ($AGENT_TIERS.ContainsKey($name)) {
-            $a['tier'] = $AGENT_TIERS[$name]
+        if ($AGENT_TIERS.ContainsKey($agentName)) {
+            $a['tier'] = $AGENT_TIERS[$agentName]
             $count++
         }
     }
@@ -374,8 +376,9 @@ while ($i -lt $CommandArgs.Count) {
             if ($i -ge $CommandArgs.Count) { throw "set requires <key> <value>" }
             $Key = $CommandArgs[$i]; $i++
             if ($Key -eq 'model') {
-                if ($Name) {
-                    if ($i -ge $CommandArgs.Count) { throw "set model $Name requires <id>" }
+                # -n/-Name overrides the positional tier name; consumed here (not
+                # earlier) so `set model <tier> <id>` works either way
+                if ($Name -and $i -lt $CommandArgs.Count -and $CommandArgs[$i] -notin $TIER_NAMES) {
                     $Value = $CommandArgs[$i]; $i++
                 } else {
                     if ($i -ge $CommandArgs.Count) { throw "set model requires <name>" }
@@ -417,11 +420,11 @@ if ($Action) {
             # Restore model refs from the template (source of truth for tier -> model mapping).
             if ($TemplateObj.model) { $obj['model'] = $TemplateObj.model }
             if ($TemplateObj.agent) {
-                foreach ($name in $TemplateObj.agent.Keys) {
-                    $src = $TemplateObj.agent[$name]
+                foreach ($agentName in $TemplateObj.agent.Keys) {
+                    $src = $TemplateObj.agent[$agentName]
                     if (-not $src.model) { continue }
-                    if (-not $obj.agent[$name]) { continue }
-                    $obj.agent[$name]['model'] = $src.model
+                    if (-not $obj.agent[$agentName]) { continue }
+                    $obj.agent[$agentName]['model'] = $src.model
                 }
             }
             Write-JsoncAtomic $Target $obj

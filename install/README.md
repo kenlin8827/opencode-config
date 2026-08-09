@@ -140,17 +140,26 @@ manifest listed it) — it is always rewritten at the end of each install.
 
 ## Preserved fields
 
-When the manifest contains `opencode.jsonc`, both scripts preserve any
-user-supplied credentials under `provider.*.options`:
+When the manifest contains `opencode.jsonc`, both scripts snapshot the user's
+state from the target file **before** overwriting it with the repo template,
+then write it back afterwards:
 
 | Field                      | Why preserved                         |
 | -------------------------- | ------------------------------------- |
 | `provider.<name>.options.baseURL` | User's API endpoint          |
 | `provider.<name>.options.apiKey`  | User's API key (secret)      |
+| `model` (root)             | User's model pick for `tier.default`  |
+| `agent.<name>.model`       | User's per-tier model picks           |
+
+Model picks are preserved **per tier** (the same semantics `config.ps1` /
+`config.sh` use — every agent of a tier shares one `provider/model_id` ref):
+a reinstall rewrites all agents of a tier to the user's ref, including agents
+that the newer template added. Tiers with no prior pick keep the template
+default. To discard the preserved picks, run `config.ps1 reset`.
 
 Everything else in `opencode.jsonc` is overwritten from the repo. To add more
-preserved fields, extend `$preserveJsonKeys` (PowerShell) or `PRESERVE_KEYS`
-(Bash).
+preserved credential fields, extend `$preserveJsonKeys` (PowerShell) or
+`PRESERVE_KEYS` (Bash).
 
 **Note on the shipped template.** The repo's `opencode.jsonc` ships with
 `{env:LLM_ROUTER_BASE_URL}` / `{env:LLM_ROUTER_API_KEY}` as

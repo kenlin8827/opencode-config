@@ -85,20 +85,22 @@ generate_manifest() {
     unset gen_ver gen_out gen_rel gen_include gen_n
 }
 
-# removes every file listed in $1 from $TARGET (skips the marker itself)
+# removes every file listed on stdin from $TARGET (skips the marker itself)
 remove_manifest_files() {
     rm_label="$1"; shift
     rm_base="$1"; shift
-    [[ $# -eq 0 || "$1" == "" ]] && { echo "[$rm_label] no files to remove"; return; }
+    rm_any=0
     while IFS= read -r f; do
         [[ -z "$f" || "$f" == "$MARKER" ]] && continue
         rm_p="$rm_base/$f"
         if [[ -e "$rm_p" ]]; then
             rm -rf "$rm_p"
             echo "[$rm_label] rm $f"
+            rm_any=1
         fi
     done
-    unset rm_label rm_base rm_p
+    [[ $rm_any -eq 0 ]] && echo "[$rm_label] no files to remove"
+    unset rm_label rm_base rm_any rm_p
 }
 
 # copies every file in $1 from $2 to $3
@@ -121,44 +123,56 @@ copy_manifest_files() {
     unset cp_from cp_to cp_label cp_src cp_dst
 }
 
-# preserves provider.*.options.{baseURL,apiKey} for every provider in the
-# target's existing opencode.jsonc before the copy overwrites it
-# outputs a JSON array: [{"provider":"llm-router","key":"baseURL","value":"..."}, ...]
+# snapshots user state from the target's existing opencode.jsonc before the
+# copy overwrites it: provider credentials, root model, and per-tier model
+# refs (agents of a tier share one ref — same tier semantics as config.sh).
+# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {"code": "..."}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
     [[ -f "$rp_f" ]] || { unset rp_f; return 0; }
     jq -c '
-        [ .provider // {} | to_entries[] as $p |
-          ($p.value.options // {}) | to_entries[] |
-          select(.key == "baseURL" or .key == "apiKey") |
-          {provider: $p.key, key: .key, value: .value}
-        ]
-    ' "$rp_f" 2>/dev/null || echo "[]"
+        {
+          creds: [ .provider // {} | to_entries[] as $p |
+                   ($p.value.options // {}) | to_entries[] |
+                   select(.key == "baseURL" or .key == "apiKey") |
+                   {provider: $p.key, key: .key, value: .value} ],
+          rootModel: (.model // null),
+          tiers: ([ .agent // {} | to_entries[] |
+                    select((.value.tier // null) != null and (.value.model // null) != null) |
+                    {(.value.tier): .value.model} ] | add // {})
+        }
+    ' "$rp_f" 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{}}'
     unset rp_f
 }
 
-# restores preserved baseURL/apiKey into the freshly-copied opencode.jsonc
-# reads JSON array from stdin
+# restores preserved credentials + model picks into the freshly-copied opencode.jsonc
+# reads the JSON object from stdin
 restore_preserve() {
     rp_dst="$1"
     rp_f="$rp_dst/opencode.jsonc"
     rp_bag_file="$(mktemp)"
     cat > "$rp_bag_file"
-    rp_size=$(wc -c < "$rp_bag_file" | tr -d ' ')
-    [[ "$rp_size" -le 3 ]] && { rm -f "$rp_bag_file"; unset rp_dst rp_f rp_bag_file rp_size; return 0; }
     rp_tmp="$(mktemp)"
     jq --slurpfile b "$rp_bag_file" '
-        reduce ($b[0][] | .provider) as $pn (.;
+        ($b[0].creds // []) as $c |
+        ($b[0].tiers // {}) as $t |
+        reduce ($c[] | .provider) as $pn (.;
             .provider[$pn] //= {} |
             .provider[$pn].options //= {} |
-            reduce ($b[0][] | select(.provider == $pn) | .key) as $k (.;
-                .provider[$pn].options[$k] = ($b[0] | map(select(.provider == $pn and .key == $k))[0].value)
+            reduce ($c[] | select(.provider == $pn) | .key) as $k (.;
+                .provider[$pn].options[$k] = ($c | map(select(.provider == $pn and .key == $k))[0].value)
             )
         )
+        | (if ($b[0].rootModel // null) != null then .model = $b[0].rootModel else . end)
+        | (if ($t | length) > 0 and ((.agent // {}) | length) > 0 then
+             .agent |= with_entries(
+                 (.value.tier // "") as $tier
+                 | if ($t | has($tier)) then .value.model = $t[$tier] else . end)
+           else . end)
     ' "$rp_f" > "$rp_tmp"
     mv "$rp_tmp" "$rp_f"
     rm -f "$rp_bag_file"
-    unset rp_dst rp_f rp_bag_file rp_size rp_tmp
+    unset rp_dst rp_f rp_bag_file rp_tmp
 }
 
 # --- install orchestration ----------------------------------------------
@@ -176,22 +190,20 @@ remove_old_files() {
     fi
 }
 
-# 2) copy current manifest over target (preserve credentials)
+# 2) copy current manifest over target (preserve credentials + model picks)
 copy_current_files() {
-    local cur_count preserve_bag n
+    local cur_count n
     cur_count="$(read_manifest "$CUR_MAN" | wc -l | tr -d ' ')"
     echo "[cur: $VER] copying $cur_count files"
-    # snapshot existing credentials BEFORE overwriting
-    preserve_bag="$(mktemp)"
-    read_preserve "$TARGET" > "$preserve_bag" || true
     read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
-    # restore them into the freshly-copied opencode.jsonc
+    # restore the snapshot taken before removal (only if there is anything)
     if [[ -s "$preserve_bag" ]]; then
-        restore_preserve "$TARGET" < "$preserve_bag"
-        n="$(jq 'length' "$preserve_bag" 2>/dev/null || echo 0)"
-        echo "[cur: $VER] preserved $n credential field(s) in opencode.jsonc"
+        n="$(jq '(.creds | length) + (.tiers | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
+        if [[ "$n" -gt 0 ]]; then
+            restore_preserve "$TARGET" < "$preserve_bag"
+            echo "[cur: $VER] preserved $n field(s) (credentials + models) in opencode.jsonc"
+        fi
     fi
-    rm -f "$preserve_bag"
 }
 
 # 3) write the new version marker
@@ -209,10 +221,16 @@ do_install() {
         cp "$TARGET/$MARKER" "$prev_marker_backup"
     fi
 
+    # Snapshot user state in opencode.jsonc BEFORE anything gets removed —
+    # remove_old_files deletes it as part of the previous manifest
+    preserve_bag="$(mktemp)"
+    read_preserve "$TARGET" > "$preserve_bag" || true
+
     remove_old_files
     copy_current_files
     write_new_marker
 
+    rm -f "$preserve_bag"
     if [[ -n "$prev_marker_backup" ]]; then
         rm -f "$prev_marker_backup"
     fi

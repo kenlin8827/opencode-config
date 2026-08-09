@@ -131,12 +131,15 @@ function Copy-ManifestFiles([string[]]$files, [string]$from, [string]$to, [strin
     }
 }
 
-# Only the two credential fields under provider.*.options are preserved across reinstalls;
-# every other field in opencode.jsonc comes from the repo (current behavior)
+# Preserved across reinstalls: the two credential fields under provider.*.options,
+# the root `model`, and one model ref per tier (agents of a tier share one ref —
+# same tier semantics as config.ps1). Everything else comes from the repo.
 $preserveJsonKeys = @('baseURL', 'apiKey')
 
 function Read-Preserve([string]$dst) {
-    # returns hashtable of "provider.<name>.options.<key>" => value, or $null if no prior opencode.jsonc
+    # returns hashtable of "provider.<name>.options.<key>" => value,
+    # "model" => root model, "tier.<name>" => tier model ref;
+    # or $null if no prior opencode.jsonc
     $f = Join-Path $dst 'opencode.jsonc'
     if (-not (Test-Path $f)) { return $null }
     try {
@@ -151,6 +154,19 @@ function Read-Preserve([string]$dst) {
                 }
             }
         }
+        # Root model + per-tier refs: first hit per tier wins (all agents of a
+        # tier share one ref when managed via config.ps1).
+        if ($obj.PSObject.Properties.Name -contains 'model' -and $obj.model) {
+            $bag['model'] = [string]$obj.model
+        }
+        if ($obj.agent) {
+            foreach ($aname in $obj.agent.PSObject.Properties.Name) {
+                $a = $obj.agent.$aname
+                if ($a.tier -and $a.model -and -not $bag.ContainsKey("tier.$($a.tier)")) {
+                    $bag["tier.$($a.tier)"] = [string]$a.model
+                }
+            }
+        }
         return $bag
     } catch { return $null }
 }
@@ -160,6 +176,16 @@ function Restore-Preserve([string]$dst, $bag) {
     $f = Join-Path $dst 'opencode.jsonc'
     $obj = Get-Content $f -Raw | ConvertFrom-Json
     foreach ($key in $bag.Keys) {
+        if ($key -eq 'model') {
+            # root model — tracks the user's default-tier choice
+            if ($obj.PSObject.Properties.Name -contains 'model') {
+                $obj.model = $bag[$key]
+            } else {
+                $obj | Add-Member -NotePropertyName 'model' -NotePropertyValue $bag[$key] -Force
+            }
+            continue
+        }
+        if ($key -like 'tier.*') { continue }  # applied after this loop
         # dotted path: provider.<name>.options.<field>
         $parts = $key -split '\.'
         if ($parts.Count -ne 4 -or $parts[0] -ne 'provider' -or $parts[2] -ne 'options') { continue }
@@ -179,6 +205,18 @@ function Restore-Preserve([string]$dst, $bag) {
             $opts.$field = $bag[$key]
         } else {
             $opts | Add-Member -NotePropertyName $field -NotePropertyValue $bag[$key] -Force
+        }
+    }
+    # Tier refs: rewrite every agent of the tier in lockstep (same semantics as
+    # config.ps1's Update-TierModels) — also covers agents a newer template added.
+    if ($obj.agent) {
+        foreach ($key in $bag.Keys) {
+            if ($key -notlike 'tier.*') { continue }
+            $tier = $key -replace '^tier\.', ''
+            $ref = $bag[$key]
+            foreach ($name in $obj.agent.PSObject.Properties.Name) {
+                if ($obj.agent.$name.tier -eq $tier) { $obj.agent.$name.model = $ref }
+            }
         }
     }
     $obj | ConvertTo-Json -Depth 20 | Set-Content -Path $f -Encoding UTF8
@@ -222,6 +260,10 @@ switch ($Mode) {
         }
 
         try {
+            # Snapshot user state in opencode.jsonc BEFORE anything gets removed —
+            # step 1 deletes it as part of the previous manifest
+            $preserve = Read-Preserve $Target
+
             # 1) remove files listed by previous version's manifest
             if ($installed) {
                 $prevMan = Join-Path $instDir "$installed.manifest.txt"
@@ -232,14 +274,13 @@ switch ($Mode) {
                 Write-Host "[prev: none] skipping removal"
             }
 
-            # 2) copy current manifest over target (preserve user credentials in opencode.jsonc)
+            # 2) copy current manifest over target (preserve credentials + model picks in opencode.jsonc)
             $curFiles = Read-Manifest $curMan
             Write-Host ("[cur: {0}] copying {1} files" -f $ver, $curFiles.Count)
-            $preserve = Read-Preserve $Target
             Copy-ManifestFiles $curFiles $RepoRoot $Target "cur"
             if ($preserve) {
                 Restore-Preserve $Target $preserve
-                Write-Host ("[cur: {0}] preserved {1} credential field(s) in opencode.jsonc" -f $ver, $preserve.Count)
+                Write-Host ("[cur: {0}] preserved {1} field(s) (credentials + models) in opencode.jsonc" -f $ver, $preserve.Count)
             }
 
             # 3) marker goes last — only success reaches here
