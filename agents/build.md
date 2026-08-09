@@ -176,10 +176,11 @@ Expected output: <what the agent should produce>
 - **Ask** when there's a genuine ambiguity that affects the plan direction (e.g., "Should we use Kafka or RabbitMQ?" — if the user hasn't expressed a preference and `@researcher` found both viable).
 - **Ask** when a step fails and you need a decision (e.g., "The security review found a critical vulnerability in the auth flow. Should we fix it now or defer?").
 - **Don't ask** for things you can figure out by reading the codebase or existing docs.
+- **How to ask**: via the `question` tool — put your recommended option FIRST in the option list and mark it (e.g. `A) Fix now (recommended)`), with a one-line rationale. See the output protocol's decision-confirmation section.
 
 ### Advisor mode (default: lite)
 
-Consults `@advisor` for an independent second opinion on **blocking** decisions. Full protocol is embedded in the `advisor-mode` plugin (`plugins/advisor-instructions.ts`) and injected on every system prompt build — no markdown file needed. Toggle with `/advisor lite` (default), `/advisor full` (auto-execute when confidence ≥ 9), `/advisor off`. State file: `~/.config/opencode/.advisor-mode`. One call per decision — don't loop. If advisor fails, proceed alone and note it. Subagents: tell them to STOP on blocking decisions, not decide.
+Consults `@advisor` for an independent second opinion on **blocking** decisions. Full protocol (including the optional red-team stance for adversarial design review) is embedded in the `advisor-mode` plugin (`plugins/advisor/advisor-instructions.ts`) and injected on every system prompt build — no markdown file needed. Toggle with `/advisor lite` (default), `/advisor full` (auto-execute when confidence ≥ 9), `/advisor off`. State file: `~/.config/opencode/.advisor-mode`. One call per decision — don't loop. If advisor fails, proceed alone and note it. Subagents: tell them to STOP on blocking decisions, not decide.
 
 ## Common workflow templates
 

@@ -49,11 +49,39 @@ My recommendation: <letter> — <reasoning>
 Provide your independent analysis, recommendation, and confidence score (1-10).
 \`\`\`
 
+### Red-team stance (optional)
+
+A dispatch variant where \`@advisor\` argues AGAINST a design instead of balancing options. Same agent, same mode gating — only the stance changes.
+
+**When to use it:**
+- The user explicitly asks to stress-test / red-team / devil's-advocate a proposal.
+- Before committing to an irreversible design decision: schema migration, public API contract, auth/permission redesign, destructive data operations.
+- NOT for routine single-domain tasks, bug fixes, or documentation.
+
+**Dispatch template:**
+
+\`\`\`
+@advisor
+
+Stance: red-team — argue against this proposal.
+Proposal: <the design/plan, with its key decisions>
+Context: <goals, constraints>
+Attack its weak points, failure modes, hidden assumptions, and risks.
+Output your verdict (HOLDS / HOLDS WITH CAVEATS / FAILS). No confidence score.
+\`\`\`
+
+**Rules:**
+- Red-team output carries a verdict, never a confidence score — it can NEVER trigger full-mode auto-execute.
+- Present the verdict prominently. FAILS → re-dispatch the design owner (\`@architect\`, or whoever produced the proposal) with the attacks attached for rebuttal or revision, then present attacks + rebuttal to the user; do not continue silently. If still torn, consult \`@advisor\` (neutral stance) as tie-breaker.
+- One red-team call per proposal — don't loop attacks. No blue team: the design owner defends; never dispatch a separate defender.
+- Subagents never dispatch red-team themselves; they escalate to the orchestrator.
+
 ### Rules
 
 - Only blocking decisions. Non-blocking decisions proceed as normal.
 - One advisor call per decision — don't loop.
 - Present both opinions. Highlight disagreement.
+- Question tool: put the recommended option FIRST in the option list, marked \`(recommended)\`. On disagreement, mark the advisor-backed option and state the disagreement in the question header, not via option order.
 - Full mode ≥ 9 is final: do NOT call question, do NOT present options.
 - If \`@advisor\` fails, proceed with your recommendation alone; note advisor was unavailable.
 - Subagents: tell them to STOP on blocking decisions, not decide.`

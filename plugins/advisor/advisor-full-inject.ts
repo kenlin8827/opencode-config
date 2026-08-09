@@ -3,6 +3,8 @@
  * Parses confidence, detects model fallback, appends the right directive.
  *
  * Rules:
+ *   - Red-team stance output? Suppress ALL directives and stop — adversarial
+ *     verdicts must never auto-execute, regardless of mode or stray scores.
  *   - Model fallback (OpenCode couldn't reach the dedicated advisor model)?
  *     Confidence is untrustworthy → append fallback warning, never auto-execute.
  *   - Full + confidence ≥ 9 + no fallback → append the auto-execute directive.
@@ -17,6 +19,7 @@ import {
   extractResponseText,
   isAdvisorDispatch,
   isModelFallback,
+  isRedTeamOutput,
   makeLogger,
   parseConfidence,
 } from "./advisor-runtime"
@@ -31,7 +34,15 @@ export function makeFullInjectHook(client: PluginInput["client"]) {
     if (mode === "off") return
     if (!isAdvisorDispatch(input.args) && !isAdvisorDispatch(output)) return
 
-    const confidence = parseConfidence(extractResponseText(output))
+    const text = extractResponseText(output)
+
+    // Hard guard: adversarial verdicts never auto-execute — in any mode.
+    if (isRedTeamOutput(text)) {
+      await log("info", "red-team output detected — directives suppressed")
+      return
+    }
+
+    const confidence = parseConfidence(text)
     const fallback = isModelFallback(output)
     await log("info", `advisor returned: confidence=${confidence}/10, fallback=${fallback}`)
 

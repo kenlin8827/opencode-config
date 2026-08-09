@@ -2,11 +2,13 @@
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File tests/test-all.ps1                # all tests
-#   powershell -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts # include ponytail behavioral
+#   pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1                       # all tests
+#   pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts       # include ponytail behavioral
+#   pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly       # no API calls; CI-safe, exits non-zero on failure
 
 param(
-    [switch]$IncludePrompts
+    [switch]$IncludePrompts,
+    [switch]$StructuralOnly
 )
 
 Set-Location "$PSScriptRoot\.."
@@ -46,13 +48,18 @@ Check "instructions count = 2" ($config.instructions.Count -eq 2)
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
-# Ponytail config (official plugin)
-$ponytailConfigPath = Join-Path $env:APPDATA "ponytail\config.json"
-if (Test-Path $ponytailConfigPath) {
-    $ponytailConfig = Get-Content $ponytailConfigPath -Raw | ConvertFrom-Json
-    Check "ponytail config: defaultMode is lite" ($ponytailConfig.defaultMode -eq "lite")
+# Ponytail config (official plugin) — environment-dependent: SKIP when the
+# config file doesn't exist (fresh machine / CI), only assert when present.
+if ($env:APPDATA) {
+    $ponytailConfigPath = Join-Path $env:APPDATA "ponytail\config.json"
+    if (Test-Path $ponytailConfigPath) {
+        $ponytailConfig = Get-Content $ponytailConfigPath -Raw | ConvertFrom-Json
+        Check "ponytail config: defaultMode is lite" ($ponytailConfig.defaultMode -eq "lite")
+    } else {
+        Write-Host "  [SKIP] ponytail config check (config.json not present on this machine)" -ForegroundColor DarkGray
+    }
 } else {
-    Check "ponytail config: config.json exists" $false
+    Write-Host "  [SKIP] ponytail config check (no APPDATA — non-Windows host)" -ForegroundColor DarkGray
 }
 
 # Agent ecosystem library mentions
@@ -144,7 +151,8 @@ Check "advisor.md: mentions auto-execute" ($advisorCmd -match "auto-execute" -or
 # Advisor agent checks
 $advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
 Check "advisor.md: has frontmatter mode subagent" ($advisorAgent -match "mode: subagent")
-Check "advisor.md: uses advisor model" ($advisorAgent -match "model: llm-router/advisor")
+# Model binding lives in opencode.jsonc (agent registry), not in the markdown prompt.
+Check "opencode.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/advisor")
 Check "advisor.md: read-only (edit deny)" ($advisorAgent -match "edit: deny")
 Check "advisor.md: no ask-user language" (-not ($advisorAgent -match "ask the user" -or $advisorAgent -match "ask a focused question"))
 Check "advisor.md: has output format" ($advisorAgent -match "Output format")
@@ -180,6 +188,34 @@ Check "advisor-instructions.ts: has MODE_MARKER for 3 modes (off/lite/full)" `
     (($advisorInstructions -match "lite") -and ($advisorInstructions -match "full") -and ($advisorInstructions -match "off"))
 Check "advisor-instructions.ts: has getAdvisorPrompt" ($advisorInstructions -match "getAdvisorPrompt")
 Check "advisor-instructions.ts: has fullDirective" ($advisorInstructions -match "fullDirective")
+Check "advisor-instructions.ts: question puts recommended option first" ($advisorInstructions -match "recommended option FIRST")
+
+# Red-team stance (optional adversarial mode on @advisor)
+Check "advisor.md: has red-team stance section" ($advisorAgent -match "Stance: red-team")
+Check "advisor.md: red-team forbids confidence score" ($advisorAgent -match "NEVER output a confidence score in red-team")
+Check "advisor.md: has verdict vocabulary" `
+    (($advisorAgent -match "HOLDS") -and ($advisorAgent -match "FAILS"))
+Check "advisor-instructions.ts: has red-team stance rules" ($advisorInstructions -match "Red-team stance")
+Check "advisor-instructions.ts: red-team never auto-executes" ($advisorInstructions -match "NEVER trigger full-mode auto-execute")
+Check "advisor-instructions.ts: FAILS verdict requires user" ($advisorInstructions -match "FAILS")
+Check "advisor-instructions.ts: FAILS routes rebuttal to design owner" ($advisorInstructions -match "design owner")
+Check "advisor-instructions.ts: no blue team rule" ($advisorInstructions -match "No blue team")
+
+# Red-team auto-execute hard guard (code-level, not prompt-level)
+$advisorRuntime = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-runtime.ts" -Raw
+Check "advisor-runtime.ts: has isRedTeamOutput guard" ($advisorRuntime -match "isRedTeamOutput")
+Check "advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match "Verdict")
+
+$advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-full-inject.ts" -Raw
+Check "advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
+Check "advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
+
+# Advisor e2e test aligns with the current command surface
+$advisorE2e = Get-Content "$PSScriptRoot\test-advisor-e2e.ps1" -Raw
+Check "test-advisor-e2e.ps1: uses /advisor <mode> form" ($advisorE2e -match "/advisor ")
+Check "test-advisor-e2e.ps1: no legacy advisor-on/off/decisive commands" `
+    (($advisorE2e -notmatch "advisor-on") -and ($advisorE2e -notmatch "advisor-decisive") -and ($advisorE2e -notmatch "--command advisor-"))
+Check "test-advisor-e2e.ps1: covers invalid-argument no-op" ($advisorE2e -match "banana")
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Yellow
@@ -194,40 +230,52 @@ Write-Host "========================================" -ForegroundColor Yellow
 # ============================================================================
 
 # Decision strategy structural checks
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-decisions.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-decisions.ps1"
 
-# Prompt tests (API calls)
+# Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)
 # ============================================================================
+
+if (-not $StructuralOnly) {
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test 1: build agent (custom prompt)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-build.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-build.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test 2: plan orchestrator (custom prompt)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-plan.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-plan.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test 3: subagent via build agent dispatch" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-subagent.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-subagent.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test 4: default agent (no custom prompt)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\test-default.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-default.ps1"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Yellow
 Write-Host "  ALL TESTS COMPLETE" -ForegroundColor Yellow
 Write-Host "========================================" -ForegroundColor Yellow
+
+} else {
+    Write-Host ""
+    Write-Host "  StructuralOnly: API-based prompt tests skipped" -ForegroundColor DarkGray
+}
+
+# Exit code reflects structural + decision check results (API prompt tests
+# run as child scripts and report their own output).
+if ($fail -gt 0) { exit 1 }
+exit 0

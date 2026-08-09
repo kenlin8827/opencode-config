@@ -8,10 +8,27 @@ import type { PluginInput } from "@opencode-ai/plugin"
 
 /**
  * Detect advisor dispatch in tool args. Looks for the agent name.
+ *
+ * Known limitation: substring-based on purpose — the exact shape of the
+ * task-tool args is not contractually known, and a false negative here is
+ * worse than a false positive (off-mode guard wouldn't fire, full-mode
+ * directive wouldn't inject). Tighten only once e2e coverage proves the
+ * real arg shape.
  */
 export function isAdvisorDispatch(args: unknown): boolean {
   const s = JSON.stringify(args || {})
   return s.includes('"advisor"') || s.includes("@advisor")
+}
+
+/**
+ * Detect red-team stance output by its mandatory markers (verdict header /
+ * Verdict line). Hard code-level guard: red-team verdicts must NEVER trigger
+ * full-mode auto-execute — enforced here regardless of whether the model
+ * obeyed the "no confidence score" rule in the prompt.
+ */
+export function isRedTeamOutput(text: string): boolean {
+  const s = String(text || "")
+  return s.includes("Red-team analysis") || /\*\*Verdict\*\*\s*:/.test(s)
 }
 
 /**

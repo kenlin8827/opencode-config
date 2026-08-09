@@ -27,6 +27,8 @@ Check "output-protocol: subagents no question tool" ($op -match "no.*question.*t
 Check "output-protocol: non-blocking says state assumption" ($op -match "state assumption")
 Check "output-protocol: orchestrator re-dispatches" ($op -match "re-dispatch")
 Check "output-protocol: skip trivial decisions" ($op -match "skip.*trivial" -or $op -match "NEVER invent")
+Check "output-protocol: recommended option first in question" ($op -match "recommended option FIRST")
+Check "output-protocol: blocking options recommended first" ($op -match "recommended first")
 
 # Decision mode: 3 advisor modes (off/lite/full)
 Check "output-protocol: has decision mode section" ($op -match "3 advisor modes")

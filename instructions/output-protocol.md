@@ -42,9 +42,10 @@ Each key conclusion: `> Counter: This fails when <condition>, because <reason>.`
 When output contains decision points needing sign-off:
 
 - **Primary agents** (have `question` tool): call `question` tool actively. Batch decisions. Options: ≥`Agree` + `Modify` (+ `Reject` when appropriate).
+- **Option ordering**: put the recommended option FIRST in the option list and mark it (e.g. `A) Use Redis (recommended)`). One-line rationale only — full reasoning stays outside the question.
 - **Subagents** (no `question` tool): two-tier strategy:
   - **Non-blocking** (wrong = easy fix): state assumption, proceed, list in `## Decisions to confirm`.
-  - **Blocking** (wrong = significant waste): STOP. Output `## ⛔ Blocking decision` with options + recommendation. End turn. Orchestrator re-dispatches with answer.
+  - **Blocking** (wrong = significant waste): STOP. Output `## ⛔ Blocking decision` with options (recommended first, marked) + recommendation. End turn. Orchestrator re-dispatches with answer.
 
 No decision points → skip section. NEVER invent trivial decisions.
 
