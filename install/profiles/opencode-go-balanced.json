@@ -1,0 +1,10 @@
+{
+  "description": "opencode-go balanced picks: flagship for review, -code variant for coding, flash for exploration. vision tier left untouched — pick a multimodal model manually.",
+  "provider": "opencode-go",
+  "tiers": {
+    "default": "kimi-k3",
+    "code": "kimi-k2.7-code",
+    "advisor": "gpt-5.6-luna",
+    "explorer": "deepseek-v4-flash"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Repo-template baseline: every tier maps to its llm-router slot (server-side routing). Same result as `reset`.",
+  "provider": "llm-router",
+  "tiers": {
+    "default": "default",
+    "code": "code",
+    "advisor": "advisor",
+    "explorer": "explorer",
+    "vision": "vision"
+  }
+}

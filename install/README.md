@@ -55,6 +55,8 @@ pwsh install/config.ps1
 pwsh install/config.ps1 set baseURL https://router.example.com/v1
 pwsh install/config.ps1 set apiKey  sk-xxxx
 pwsh install/config.ps1 set model  advisor my-advisor-v2
+pwsh install/config.ps1 profile list                   # list presets in install/profiles/
+pwsh install/config.ps1 profile apply opencode-go-balanced
 pwsh install/config.ps1 get
 pwsh install/config.ps1 reset
 ```
@@ -67,6 +69,8 @@ pwsh install/config.ps1 reset
 ./install/config.sh set baseURL https://router.example.com/v1
 ./install/config.sh set apiKey sk-xxxx
 ./install/config.sh set model advisor my-advisor-v2
+./install/config.sh profile list                       # list presets in install/profiles/
+./install/config.sh profile apply opencode-go-balanced
 ./install/config.sh reset
 ```
 
@@ -89,6 +93,44 @@ Non-interactive `set` commands target a single provider (default
 `llm-router`, override with `-p <name>`) and edit one field at a time.
 `reset` restores that provider's `baseURL` / `apiKey` / model ids from the
 repo template.
+
+## Profiles
+
+A profile is a named preset bundling a provider with a per-tier model pick,
+applied in one shot instead of one `set model` per tier:
+
+```pwsh
+pwsh install/config.ps1 profile list
+pwsh install/config.ps1 profile apply <name>   # same on bash: ./install/config.sh
+```
+
+Profiles live in `install/profiles/<name>.json`:
+
+```json
+{
+  "description": "human-readable summary shown by `profile list`",
+  "provider": "opencode-go",
+  "tiers": {
+    "default": "kimi-k3",
+    "code": "kimi-k2.7-code",
+    "advisor": "other-provider/some-model"
+  }
+}
+```
+
+Semantics:
+
+- A tier value is either a bare model id (prefixed with the profile's
+  `provider`) or a full `<provider>/<model_id>` ref that overrides it.
+- Tiers not listed by the profile are left untouched (e.g. the bundled
+  `opencode-go-*` profiles omit `vision` — it needs a multimodal pick).
+- Unknown tier names in a profile are rejected; every agent of a tier is
+  rewritten in lockstep, and the root `model` tracks the `default` tier.
+- Apply validates everything up front per tier and backs up the target
+  (`opencode.jsonc.bak`) before writing, same as `set`.
+
+Bundled profiles: `llm-router` (template baseline, equivalent to `reset`),
+`opencode-go-balanced`, `opencode-go-budget`.
 
 ## Files
 

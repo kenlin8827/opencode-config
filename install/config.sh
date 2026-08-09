@@ -13,6 +13,8 @@
 #   ./install/config.sh set baseURL https://api...
 #   ./install/config.sh set apiKey sk-xxx
 #   ./install/config.sh set model code claude-sonnet-4-5 [-p anthropic]
+#   ./install/config.sh profile list                    # list profiles in install/profiles/
+#   ./install/config.sh profile apply opencode-go-balanced
 #   ./install/config.sh reset                           # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.sh set ... -t FILE                     # target a different file
 #
@@ -32,6 +34,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE="$REPO_ROOT/opencode.jsonc"
+PROFILES_DIR="$SCRIPT_DIR/profiles"
 TARGET="${HOME}/.config/opencode/opencode.jsonc"
 
 # Tier names and agent -> tier mapping are derived from the repo template
@@ -165,6 +168,85 @@ relink_tier() {
     echo "$n"
 }
 
+# --- profiles ------------------------------------------------------------
+
+# Profiles are presets in install/profiles/<name>.json: a provider plus a
+# tier -> model-id map, applied in one shot (`profile apply <name>`). A tier
+# value is either a bare model id (prefixed with the profile's provider) or a
+# full "<provider>/<id>" ref. Tiers not listed by the profile are untouched.
+
+profile_path() {
+    local name="$1"
+    [[ "$name" == *.json ]] || name="$name.json"
+    echo "$PROFILES_DIR/$name"
+}
+
+profile_names() {
+    [[ -d "$PROFILES_DIR" ]] || return 0
+    local f
+    for f in "$PROFILES_DIR"/*.json; do
+        [[ -e "$f" ]] || continue
+        f="$(basename "$f")"
+        echo "${f%.json}"
+    done
+}
+
+list_profiles() {
+    local names
+    names="$(profile_names)"
+    if [[ -z "$names" ]]; then
+        echo "no profiles found in $PROFILES_DIR"
+        return
+    fi
+    local name p desc provider tier id ref
+    while IFS= read -r name; do
+        [[ -z "$name" ]] && continue
+        p="$(profile_path "$name")"
+        echo "[$name]"
+        desc="$($JQ -r '.description // empty' "$p")"
+        [[ -n "$desc" ]] && echo "  $desc"
+        provider="$($JQ -r '.provider // "(none)"' "$p")"
+        printf '  %-9s %s\n' "provider" "$provider"
+        while IFS=$'\t' read -r tier id; do
+            [[ -z "$tier" ]] && continue
+            if [[ "$id" == */* ]]; then ref="$id"; else ref="$provider/$id"; fi
+            printf '  %-9s %s\n' "tier.$tier" "$ref"
+        done < <($JQ -r '.tiers // {} | to_entries[] | [.key, .value] | @tsv' "$p")
+        echo
+    done < <(echo "$names" | sort)
+}
+
+apply_profile() {
+    local f="$1" name="$2"
+    local p
+    p="$(profile_path "$name")"
+    if [[ ! -f "$p" ]]; then
+        echo "profile not found: $name (available: $(profile_names | paste -sd ', ' -))" >&2
+        exit 1
+    fi
+    local provider
+    provider="$($JQ -r '.provider // empty' "$p")"
+    [[ -z "$provider" ]] && { echo "profile $name has no provider field" >&2; exit 1; }
+    if ! $JQ -e '.tiers' "$p" >/dev/null 2>&1; then
+        echo "profile $name has no tiers field" >&2
+        exit 1
+    fi
+    local tier id ref n total=0
+    while IFS=$'\t' read -r tier id; do
+        [[ -z "$tier" ]] && continue
+        if [[ " ${TIER_NAMES[*]} " != *" $tier "* ]]; then
+            echo "profile $name: unknown tier $tier (one of: ${TIER_NAMES[*]})" >&2
+            exit 1
+        fi
+        if [[ "$id" == */* ]]; then ref="$id"; else ref="$provider/$id"; fi
+        n="$(relink_tier "$f" "$tier" "$ref")"
+        [[ "$n" -eq 0 ]] && { echo "no agent currently uses tier $tier" >&2; exit 1; }
+        echo "tier.$tier -> $ref ($n agent(s) updated)"
+        total=$((total + n))
+    done < <($JQ -r '.tiers | to_entries[] | [.key, .value] | @tsv' "$p")
+    echo "profile $name applied ($total agent ref(s) updated)"
+}
+
 # --- show ---------------------------------------------------------------
 
 show_current() {
@@ -207,11 +289,18 @@ TARGET_PROVIDER="llm-router"  # -p override for `set`/`reset`
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
-            sed -n '2,28p' "$0"; exit 0 ;;
+            sed -n '2,30p' "$0"; exit 0 ;;
         -t|--target) TARGET="$2"; shift 2 ;;
         -p|--provider) TARGET_PROVIDER="$2"; shift 2 ;;
         -n|--name) NAME="$2"; shift 2 ;;
         get|reset) ACTION="$1"; shift ;;
+        profile)
+            ACTION="profile"; shift
+            KEY="${1:-}"; [[ $# -gt 0 ]] && shift
+            if [[ "$KEY" == "apply" ]]; then
+                VALUE="${1:-}"; [[ $# -gt 0 ]] && shift
+            fi
+            ;;
         set)
             ACTION="set"; shift
             KEY="${1:-}"; [[ $# -gt 0 ]] && shift
@@ -392,6 +481,17 @@ case "$ACTION" in
                 '.agent[$n].model = $v' "$TARGET" | atomic_write "$TARGET"
         done < <($JQ -r '.agent | to_entries[] | [.key, .value.model // ""] | @tsv' "$TEMPLATE")
         echo "reset credentials and model refs from template"
+        ;;
+    profile)
+        if [[ -z "$KEY" || "$KEY" == "list" ]]; then
+            list_profiles
+        elif [[ "$KEY" == "apply" ]]; then
+            [[ -z "$VALUE" ]] && { echo "profile apply requires <name>" >&2; exit 1; }
+            apply_profile "$TARGET" "$VALUE"
+        else
+            echo "unknown profile command: $KEY (use: profile list | profile apply <name>)" >&2
+            exit 1
+        fi
         ;;
     set)
         [[ -z "$KEY" ]] && { echo "set requires <key> <value>" >&2; exit 1; }

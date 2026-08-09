@@ -13,6 +13,8 @@
 #   ./install/config.ps1 set baseURL https://api...
 #   ./install/config.ps1 set apiKey sk-xxx
 #   ./install/config.ps1 set model code claude-sonnet-4-5 [-p anthropic]
+#   ./install/config.ps1 profile list                   # list profiles in install/profiles/
+#   ./install/config.ps1 profile apply opencode-go-balanced
 #   ./install/config.ps1 reset                          # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.ps1 set ... -t FILE                # target a different file
 #
@@ -41,6 +43,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir '..')).Path
 $Template = Join-Path $RepoRoot 'opencode.jsonc'
+$ProfilesDir = Join-Path $ScriptDir 'profiles'
 $OPENCODE_BIN = $env:OPENCODE_BIN ? $env:OPENCODE_BIN : 'opencode'
 
 $script:CommentsWarned = $false
@@ -57,6 +60,8 @@ commands:
   set baseURL <url>        set provider.<Provider>.options.baseURL
   set apiKey <key>         set provider.<Provider>.options.apiKey
   set model <name> <id>    set agent.model for tier <name> to <id> on provider <Provider>
+  profile list             list available profiles in install/profiles/
+  profile apply <name>     apply a profile (provider + per-tier model picks) in one shot
   reset                    restore baseURL/apiKey and model refs from repo template (default: llm-router)
 
 options:
@@ -321,6 +326,66 @@ function Set-LlmRouterCredentials($obj) {
     return $n
 }
 
+# --- profiles ---------------------------------------------------------------
+
+# Profiles are presets in install/profiles/<name>.json: a provider plus a
+# tier -> model-id map, applied in one shot (`profile apply <name>`). A tier
+# value is either a bare model id (prefixed with the profile's provider) or a
+# full "<provider>/<id>" ref. Tiers not listed by the profile are untouched.
+
+function Get-ProfilePath([string]$name) {
+    if (-not $name.EndsWith('.json')) { $name = "$name.json" }
+    return (Join-Path $ProfilesDir $name)
+}
+
+function Get-ProfileNames {
+    if (-not (Test-Path $ProfilesDir)) { return @() }
+    return @(Get-ChildItem $ProfilesDir -Filter '*.json' | ForEach-Object { $_.BaseName })
+}
+
+function Show-Profiles {
+    $names = Get-ProfileNames
+    if ($names.Count -eq 0) {
+        Write-Output "no profiles found in $ProfilesDir"
+        return
+    }
+    foreach ($name in ($names | Sort-Object)) {
+        $p = Get-Content -Raw (Get-ProfilePath $name) | ConvertFrom-Json -AsHashtable
+        Write-Output "[$name]"
+        if ($p.description) { Write-Output "  $($p.description)" }
+        $provider = $p.provider ?? '(none)'
+        Write-Output ("  {0,-9} {1}" -f 'provider', $provider)
+        foreach ($tier in ($p.tiers.Keys | Sort-Object)) {
+            $id = $p.tiers[$tier]
+            $ref = if ($id -match '/') { $id } else { "$provider/$id" }
+            Write-Output ("  {0,-9} {1}" -f "tier.$tier", $ref)
+        }
+        Write-Output ''
+    }
+}
+
+function Apply-Profile($obj, [string]$name) {
+    $file = Get-ProfilePath $name
+    if (-not (Test-Path $file)) {
+        $available = (Get-ProfileNames) -join ', '
+        throw "profile not found: $name (available: $available)"
+    }
+    $p = Get-Content -Raw $file | ConvertFrom-Json -AsHashtable
+    if (-not $p.provider) { throw "profile $name has no provider field" }
+    if (-not $p.tiers) { throw "profile $name has no tiers field" }
+    $updated = 0
+    foreach ($tier in $p.tiers.Keys) {
+        if ($tier -notin $TIER_NAMES) { throw "profile ${name}: unknown tier $tier (one of: $($TIER_NAMES -join ', '))" }
+        $id = $p.tiers[$tier]
+        $ref = if ($id -match '/') { $id } else { "$($p.provider)/$id" }
+        $n = Update-TierModels $obj $tier $ref
+        if ($n -eq 0) { throw "no agent currently uses tier $tier" }
+        Write-Output "tier.$tier -> $ref ($n agent(s) updated)"
+        $updated += $n
+    }
+    return $updated
+}
+
 # --- arg parse ---------------------------------------------------------------
 
 $Action = $null
@@ -371,6 +436,14 @@ while ($i -lt $CommandArgs.Count) {
         }
         'get' { $Action = 'get'; $i++ }
         'reset' { $Action = 'reset'; $i++ }
+        'profile' {
+            $Action = 'profile'; $i++
+            if ($i -lt $CommandArgs.Count) { $Key = $CommandArgs[$i]; $i++ }
+            if ($Key -eq 'apply') {
+                if ($i -ge $CommandArgs.Count) { throw "profile apply requires <name>" }
+                $Value = $CommandArgs[$i]; $i++
+            }
+        }
         'set' {
             $Action = 'set'; $i++
             if ($i -ge $CommandArgs.Count) { throw "set requires <key> <value>" }
@@ -450,6 +523,17 @@ if ($Action) {
                 Write-JsoncAtomic $Target $obj
                 $extra = if ($Key -eq 'apiKey') { " ($(Mask-Key $Value))" } else { '' }
                 Write-Output "$Key set$extra"
+            }
+        }
+        'profile' {
+            if (-not $Key -or $Key -eq 'list') {
+                Show-Profiles
+            } elseif ($Key -eq 'apply') {
+                $n = Apply-Profile $obj $Value
+                Write-JsoncAtomic $Target $obj
+                Write-Output "profile $Value applied ($n agent ref(s) updated)"
+            } else {
+                throw "unknown profile command: $Key (use: profile list | profile apply <name>)"
             }
         }
     }
