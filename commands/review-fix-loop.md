@@ -1,7 +1,6 @@
 ---
 description: "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope]  |  scope = last commit | HEAD~N | branch | PR | files | (empty=uncommitted)"
 agent: build
-model: llm-router/default
 ---
 
 Execute the **review-fix-loop** workflow — an iterative review-and-fix cycle that coordinates between `@code-review` (for finding issues) and domain specialists (for fixing them), looping until no P0/P1 issues remain.

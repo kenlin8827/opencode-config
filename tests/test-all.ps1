@@ -40,9 +40,9 @@ Check "instructions contains output-protocol.md" `
 Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
-# now lives embedded in plugins/advisor/advisor-instructions.ts. The
-# instructions array is intentionally size 1 (just output-protocol.md).
-Check "instructions count = 1" ($config.instructions.Count -eq 1)
+# now lives embedded in plugins/advisor/advisor-instructions.ts.
+# instructions array: output-protocol.md + instructions/test-scope.md
+Check "instructions count = 2" ($config.instructions.Count -eq 2)
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
@@ -81,6 +81,7 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
+    "instructions/test-scope.md",
     "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",

@@ -26,12 +26,14 @@ User
  │                                   ├── @tech-writer  (docs, README, ADR)
  │                                   └── @vision       (image/screenshot analysis)
  │
- ├── @plan (primary) ── read-only analysis coordinator
- │
- └── Shared instructions (injected into all agents, lives in `instructions/`)
-     ├── output-protocol.md     — structured output format
-     ├── ponytail.md            — lazy coding protocol (coding agents only)
-     └── decision-advisor.md    — advisor mode protocol (default on)
+  ├── @plan (primary) ── read-only analysis coordinator
+  │
+  └── Shared instructions (injected into all agents via `opencode.jsonc:instructions`)
+      ├── output-protocol.md       — structured output format (in `~/.config/opencode/instructions/`)
+      └── instructions/test-scope.md  — tiered test scope policy (in this repo)
+  │
+  └── Plugins (injected into all agents via `opencode.jsonc:plugin`)
+      └── @dietrichgebert/ponytail    — lazy coding protocol + advisor mode (npm plugin, not a file)
 ```
 
 ## Prompt design conventions
@@ -77,7 +79,6 @@ Every agent file follows this structure:
 ---
 description: <when to invoke — used by build.md routing>
 mode: subagent
-model: llm-router/<model>
 variant: <low|medium|high>
 temperature: <0.0-0.4>
 steps: <max tool calls>
@@ -142,7 +143,40 @@ Non-coding agents ignore this entirely.
 
 > **Variant** controls thinking/reasoning effort. `high` = deep reasoning (architecture, security, review), `medium` = balanced (coding, testing), `low` = fast/lightweight (exploration, vision, docs). If the backend model doesn't support a variant, it's silently ignored.
 
-## How to add a new agent
+## Test scope policy (default — lazy)
+
+> **Top principle**: minimize wasted time and resources, find the best balance point with quality. Test depth is matched to change size — full suite and E2E are exceptions, not the baseline.
+
+**Single source of truth**: [`instructions/test-scope.md`](instructions/test-scope.md) — injected into all agent system prompts via `opencode.jsonc:instructions`. Applies to `@build` dispatch, `@qa` execution, and `@code-review` reporting. Don't duplicate the table in agent files — they reference the policy file.
+
+### Quick reference (tier table)
+
+| Change size | Default tests to run |
+|---|---|
+| Docs / config comments only (no code change) | none — no code run |
+| ≤ 1 file (tweak / rename / comment) | `compile` + `lint`/`type-check` |
+| 2–5 files in one module | unit tests for changed files + direct callers |
+| > 5 files OR cross-module | + integration tests for touched modules |
+| Schema / contract / shared infra / cross-service | + E2E on the boundary |
+
+Full table including the 6th row ("User explicitly asks run all tests" → full suite), escalation rules, skip rules, transparency rule, and coverage tiering: see the policy file.
+
+### Usage notes (注意事项)
+
+- **Default to the smallest tier.** If you only changed one line in one file, `compile` + `lint`/`type-check` is the run — not the full suite.
+- **E2E is a last resort.** Slow, flaky, expensive. Only when the user asked, or the diff crosses a service boundary / critical user journey / auth / payment / data-mutation.
+- **Full suite is opt-in.** Only when the user asked, on release branches, or when the change is genuinely cross-cutting and module-scoped tests give no confidence.
+- **Bug fixes start at the 2–5-file tier**, regardless of file count. A bug fix with zero tests is not a real bug fix.
+- **Flaky failures → root cause, not retry.** Mock time/random/network; find the order-dependence. Escalating tier on a flake is retry-in-disguise.
+- **Public API / schema / shared infra changes** auto-promote one tier, even if the diff is small.
+- **The agent decides the tier from the diff, not you.** Pass `diff size + touched modules` in the dispatch; the agent looks up the tier. Don't prescribe.
+- **Transparency rule.** `@qa` and `@code-review` reports must state which tier they ran and why. Silent "all green" is a bug in the report.
+
+### What this policy is NOT
+
+- **Not a replacement for CI.** CI still runs the full suite on PR/merge. This policy is for **local / per-change** execution.
+- **Not a coverage waiver.** Coverage targets are **tiered**, not removed: critical paths 100%, business core ≥80%, other code ≥60% recommended. Tiering is about *when* tests run, not *whether* they exist.
+- **Not agent discretion on bug fixes.** Bug fixes have a floor (2–5-file tier). Discretion applies to other tiers.
 
 1. **Create `agents/<name>.md`** — follow the structural template above.
 2. **Add to `build.md` routing table** — add row to `## Your team` and trigger words table.

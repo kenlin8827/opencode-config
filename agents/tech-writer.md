@@ -1,8 +1,6 @@
 ---
 description: Technical writer. Use for writing or improving README files, API documentation, architecture docs, ADRs, changelogs, user guides, inline code documentation, and contributing guides. Always invoke when the user mentions docs, documentation, README, changelog, ADR, API docs, user guide, or asks to "document this".
 mode: subagent
-model: llm-router/default
-variant: low
 temperature: 0.3
 steps: 40
 permission:

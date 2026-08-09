@@ -1,7 +1,6 @@
 ---
 description: "Grill me — relentless one-question-at-a-time interview to sharpen a plan or design. Usage: /grill-me <topic>"
 agent: build
-model: llm-router/default
 source: https://github.com/mattpocock/skills
 author: Matt Pocock
 license: MIT

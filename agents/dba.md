@@ -1,8 +1,6 @@
 ---
 description: Database architect. Use for schema design, SQL optimization, index strategy, query analysis, migration planning, data modeling, sharding/partitioning strategy, replication, and ORM optimization. Always invoke when the user mentions database, SQL, schema, migration, index, query optimization, Postgres, MySQL, MongoDB, Redis, or asks about data storage.
 mode: subagent
-model: llm-router/code
-variant: medium
 temperature: 0.2
 steps: 50
 permission:

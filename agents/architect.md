@@ -1,7 +1,6 @@
 ---
 description: Tech Lead / Software Architect. Use for technical architecture design, system design decisions, technology selection, task decomposition, dependency analysis, risk assessment, API contract design, or evaluating trade-offs between architectural approaches. Always invoke when the user mentions architecture, system design, tech lead, task breakdown, dependency analysis, risk assessment, ADR, or asks "how should we design/build this?".
 mode: subagent
-model: llm-router/default
 variant: high
 temperature: 0.4
 steps: 60

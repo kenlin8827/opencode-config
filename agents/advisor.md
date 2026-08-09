@@ -1,7 +1,6 @@
 ---
 description: Decision advisor. Use for providing independent second-opinion analysis on blocking decisions — architecture trade-offs, technology selection, risk assessment, scope decisions. Always invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.
 mode: subagent
-model: llm-router/advisor
 temperature: 0.3
 steps: 20
 permission:

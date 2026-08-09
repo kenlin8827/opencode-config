@@ -1,8 +1,6 @@
 ---
 description: Visual / vision analyst. Use for any task involving images — screenshots, UI mockups, diagrams, photos, scanned documents, error dialogs, design references, OCR. Always invoke when the user mentions an image file (PNG, JPG, GIF, WebP, BMP) or pastes a screenshot.
 mode: subagent
-model: llm-router/vision
-variant: low
 temperature: 0.2
 steps: 25
 permission:

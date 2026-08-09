@@ -183,19 +183,30 @@ Consults `@advisor` for an independent second opinion on **blocking** decisions.
 
 ## Common workflow templates
 
+### Test scope by change size (orchestrator policy)
+
+Full policy: see `instructions/test-scope.md` (injected via system prompt — `opencode.jsonc:instructions`).
+
+**Orchestrator-specific dispatch rules:**
+- Do **not** dispatch `@qa` with "run the full suite" unless the user asked, or the change is on a release branch / cross-cutting / schema migration.
+- Do **not** dispatch `@qa` for E2E unless the user asked OR the diff touches a critical user journey / auth / payment / data-mutation.
+- When in doubt, pass the diff size + touched modules to `@qa`/`@code-review` and let them tier it from the policy file.
+- Bug fixes start at the 2–5-file tier (unit tests for changed file + direct callers), regardless of file count.
+
 ### New feature (full cycle)
 ```
 @architect → @dba → @<backend-dev> → @frontend-dev → @qa → @code-review → @security → @devops → @tech-writer
 ```
+@qa here writes tests at the tier the feature needs (usually unit + integration for the new module; E2E only if it's a user-visible critical journey).
 
 ### Bug fix (single pass)
 ```
-@<domain-dev> (fix) → @qa (regression test) → @code-review (review)
+@<domain-dev> (fix) → @qa (regression test — min. 2–5-file tier per policy, i.e. unit tests for changed file + direct callers) → @code-review (review)
 ```
 
 ### Bug fix loop (review → fix → re-review until no P0/P1)
 ```
-@code-review (find P0/P1) → @<domain-dev> (fix blocking issues) → @code-review (recheck) → repeat until no P0/P1 remain → @qa (regression test)
+@code-review (find P0/P1, scope = diff) → @<domain-dev> (fix blocking issues) → @code-review (recheck) → repeat until no P0/P1 remain → @qa (regression test, min. 2–5-file tier per policy)
 ```
 For automated iterative review-fix cycles, run `/review-fix-loop` instead of managing the loop manually.
 

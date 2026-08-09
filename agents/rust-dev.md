@@ -1,8 +1,6 @@
 ---
 description: Rust engineer. Use for Rust, Cargo, Axum, Actix, Tokio, serde, WASM (wasm-bindgen), systems programming, and Rust ecosystem tasks. Always invoke when the user mentions Rust, Cargo, Tokio, Axum, Actix, serde, or wasm.
 mode: subagent
-model: llm-router/code
-variant: medium
 temperature: 0.3
 steps: 50
 permission:

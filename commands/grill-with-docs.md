@@ -1,7 +1,6 @@
 ---
 description: "Grill me with docs — relentless interview + domain modeling (CONTEXT.md glossary & ADRs created inline). Usage: /grill-with-docs <topic>"
 agent: build
-model: llm-router/default
 source: https://github.com/mattpocock/skills
 author: Matt Pocock
 license: MIT
