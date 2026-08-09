@@ -6,9 +6,14 @@
  *   /advisor full  → state=full
  *   /advisor off   → state=off
  *   /advisor       → no-op (no mode given)
+ *
+ * Every successful switch also gets user-visible feedback (TUI toast,
+ * degrading to log in headless environments) — the state file alone is
+ * silent and the user must see the confirmation.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
+import { announceSwitch } from "./advisor-announce"
 import { COMMAND_NAME, parseModeArg, setMode } from "./advisor-config"
 import { makeLogger } from "./advisor-runtime"
 
@@ -23,5 +28,6 @@ export function makeCommandHook(client: PluginInput["client"]) {
     if (!mode) return
     setMode(mode)
     await log("info", `mode=${mode.toUpperCase()} — state file written`)
+    await announceSwitch(client, mode)
   }
 }

@@ -109,6 +109,7 @@ $allFiles = @(
     "plugins/advisor/advisor-system-inject.ts",
     "plugins/advisor/advisor-tool-guard.ts",
     "plugins/advisor/advisor-full-inject.ts",
+    "plugins/advisor/advisor-announce.ts",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -167,6 +168,7 @@ Check "advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -match 
 Check "advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
 Check "advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
 Check "advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
+Check "advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
 Check "advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
 
 $advisorConfig = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-config.ts" -Raw
@@ -219,6 +221,17 @@ $advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-full-
 Check "advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
 Check "advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
 Check "advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "isFactualClass")
+
+# Session-created announce + /advisor switch feedback (user visibility)
+$advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-announce.ts" -Raw
+Check "advisor-announce.ts: has makeAnnounceHook" ($advisorAnnounce -match "makeAnnounceHook")
+Check "advisor-announce.ts: listens on session.created" ($advisorAnnounce -match "session.created")
+Check "advisor-announce.ts: filters subagent sessions via parentID" ($advisorAnnounce -match "parentID")
+Check "advisor-announce.ts: full-mode message names auto-answer risk" ($advisorAnnounce -match "answer blocking questions on your")
+Check "advisor-announce.ts: toast via tui.showToast" ($advisorAnnounce -match "showToast")
+Check "advisor-announce.ts: degrades to log without TUI" ($advisorAnnounce -match "no TUI")
+$advisorTracker = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-mode-tracker.ts" -Raw
+Check "advisor-mode-tracker.ts: switch gives user-visible feedback" ($advisorTracker -match "announceSwitch")
 
 # Advisor e2e test aligns with the current command surface
 $advisorE2e = Get-Content "$PSScriptRoot\test-advisor-e2e.ps1" -Raw

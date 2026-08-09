@@ -16,11 +16,14 @@
  *   advisor-system-inject.ts     — system-transform hook (injects prompt)
  *   advisor-tool-guard.ts        — tool.before hook (blocks @advisor when off)
  *   advisor-full-inject.ts       — tool.after hook (auto-answer FACTUAL ≥ 9 in full mode)
+ *   advisor-announce.ts          — event hook (session-created mode notice,
+ *                                  toast → log fallback; also switch feedback)
  *
  * State file: ~/.config/opencode/.advisor-mode
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
+import { makeAnnounceHook } from "./advisor/advisor-announce"
 import { makeCommandHook } from "./advisor/advisor-mode-tracker"
 import { makeSystemHook } from "./advisor/advisor-system-inject"
 import { makeToolGuardHook } from "./advisor/advisor-tool-guard"
@@ -31,4 +34,5 @@ export const AdvisorModePlugin: Plugin = async ({ client }) => ({
   "experimental.chat.system.transform": makeSystemHook(client),
   "tool.execute.before": makeToolGuardHook(client),
   "tool.execute.after": makeFullInjectHook(client),
+  event: makeAnnounceHook(client),
 })
