@@ -7,7 +7,9 @@
  *     verdicts must never auto-execute, regardless of mode or stray scores.
  *   - Model fallback (OpenCode couldn't reach the dedicated advisor model)?
  *     Confidence is untrustworthy → append fallback warning, never auto-execute.
- *   - Full + confidence ≥ 9 + no fallback → append the auto-execute directive.
+ *   - Question not classified FACTUAL? Never auto-answer — PREFERENCE
+ *     questions always go back to the user, no confidence score unlocks them.
+ *   - Full + FACTUAL + confidence ≥ 9 + no fallback → auto-answer directive.
  *   - Otherwise: no injection (lite flow handles it itself).
  */
 
@@ -18,6 +20,7 @@ import {
   appendDirective,
   extractResponseText,
   isAdvisorDispatch,
+  isFactualClass,
   isModelFallback,
   isRedTeamOutput,
   makeLogger,
@@ -44,13 +47,18 @@ export function makeFullInjectHook(client: PluginInput["client"]) {
 
     const confidence = parseConfidence(text)
     const fallback = isModelFallback(output)
-    await log("info", `advisor returned: confidence=${confidence}/10, fallback=${fallback}`)
+    const factual = isFactualClass(text)
+    await log("info", `advisor returned: confidence=${confidence}/10, class=${factual ? "FACTUAL" : "PREFERENCE"}, fallback=${fallback}`)
 
     if (fallback) appendDirective(output, fallbackWarning())
 
-    if (mode === "full" && confidence >= 9 && !fallback) {
+    if (mode === "full" && confidence >= 9 && factual && !fallback) {
       appendDirective(output, fullDirective(confidence))
-      await log("info", `full directive injected (confidence=${confidence})`)
+      await log("info", `full directive injected (confidence=${confidence}, class=FACTUAL)`)
+      return
+    }
+    if (mode === "full" && confidence >= 9 && !factual) {
+      await log("info", "confidence ≥ 9 but question class is not FACTUAL — no auto-answer, back to user")
     }
   }
 }

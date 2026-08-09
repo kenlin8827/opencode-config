@@ -32,6 +32,22 @@ export function isRedTeamOutput(text: string): boolean {
 }
 
 /**
+ * Detect the advisor's question-class marker. Every blocking question is
+ * classified by the advisor itself:
+ *   FACTUAL    — answer derivable from code/docs/context, no unstated user
+ *                preference → eligible for full-mode auto-answer.
+ *   PREFERENCE — depends on user taste/goals/priorities → ALWAYS back to
+ *                the user, no confidence score unlocks it.
+ * Code-level gate: only an explicit "Question class: FACTUAL" marker unlocks
+ * auto-answer — a missing or PREFERENCE classification never does.
+ */
+export function isFactualClass(text: string): boolean {
+  return /question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(
+    String(text || ""),
+  )
+}
+
+/**
  * Best-effort extraction of advisor's response text from whatever shape
  * OpenCode gives us. Order: known string fields → state.output → JSON.stringify.
  */

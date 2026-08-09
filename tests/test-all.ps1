@@ -206,9 +206,19 @@ $advisorRuntime = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-runtime.
 Check "advisor-runtime.ts: has isRedTeamOutput guard" ($advisorRuntime -match "isRedTeamOutput")
 Check "advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match "Verdict")
 
+# Question-class gate: full-mode auto-answer requires FACTUAL classification;
+# PREFERENCE questions always return to the user, in any mode.
+Check "advisor-runtime.ts: has isFactualClass gate" ($advisorRuntime -match "isFactualClass")
+Check "advisor-instructions.ts: defines question class" ($advisorInstructions -match "FACTUAL")
+Check "advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE questions ALWAYS go back to the user")
+Check "advisor-instructions.ts: lite never answers for user" ($advisorInstructions -match "NEVER answers on the user's behalf")
+Check "advisor.md: outputs question class" ($advisorAgent -match "Question class")
+Check "advisor.md: classifies every question" ($advisorAgent -match "ALWAYS classify the question")
+
 $advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-full-inject.ts" -Raw
 Check "advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
 Check "advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
+Check "advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "isFactualClass")
 
 # Advisor e2e test aligns with the current command surface
 $advisorE2e = Get-Content "$PSScriptRoot\test-advisor-e2e.ps1" -Raw
