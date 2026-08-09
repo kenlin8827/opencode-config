@@ -17,13 +17,15 @@
 #   ./install/config.ps1 set ... -t FILE                # target a different file
 #
 # Interactive flow:
-#   1. Pick provider from `opencode models` output.
-#   2. If the chosen provider is `llm-router`, prompt for baseURL + apiKey
-#      (Enter=keep current). Other providers rely on the opencode CLI's auth.
-#   3. For each tier (in template order), pick a
-#      model from `opencode models <provider>`. Enter keeps the current id.
-#   4. Every agent whose `.model` matches `<old_provider>/<tier_name>` (current
-#      value) is rewritten to `<selected_provider>/<new_model_id>` in lockstep.
+#   1. Multi-select providers (0 or Enter = all) from the providers visible
+#      in `opencode models` plus llm-router (custom provider from the config).
+#   2. Shows only the models of the selected providers; for each tier (in
+#      template order), pick one of them. Enter keeps the current id, even
+#      when it belongs to a provider that wasn't selected.
+#   3. If the selected providers include llm-router, baseURL/apiKey are
+#      prompted before the model picks. Other providers rely on the
+#      opencode CLI's auth.
+#   4. Every agent of a tier is rewritten to the chosen ref in lockstep.
 
 [CmdletBinding()]
 param(
@@ -50,7 +52,7 @@ function Show-Usage {
 usage: config.ps1 [-Target <file>] [-Provider <name>] [-Name <name>] [-Help] <command>
 
 commands:
-  (none)                   interactive: pick provider, then pick model for each tier
+  (none)                   interactive: pick providers, then pick a model per tier
   get                      show current state (provider creds + tier → provider/model_id)
   set baseURL <url>        set provider.<Provider>.options.baseURL
   set apiKey <key>         set provider.<Provider>.options.apiKey
@@ -177,46 +179,21 @@ function Test-OpencodeAvailable {
     return $LASTEXITCODE -eq 0
 }
 
-function Get-ProviderModels([string]$p) {
-    if (-not (Test-OpencodeAvailable)) { return @() }
-    $output = & $OPENCODE_BIN models $p 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { return @() }
-    $out = @()
-    foreach ($line in ($output -split "`r?`n")) {
-        $line = $line.Trim()
-        if ($line -match "^$([regex]::Escape($p))/") {
-            $out += $line.Substring($p.Length + 1)
-        }
-    }
-    return $out
-}
-
-# Parse `opencode models` output into a unique, sorted list of provider names.
-# Each output line has the form "<provider>/<model_id>"; we split on the first
-# slash and dedupe.
-function Get-Providers-From-Opencode {
+# Parse `opencode models` output into full "<provider>/<model_id>" refs.
+function Get-All-ProviderModels {
     if (-not (Test-OpencodeAvailable)) { return @() }
     $output = & $OPENCODE_BIN models 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { return @() }
-    # Preserve first-seen order from `opencode models`, then move llm-router
-    # to the top (custom provider; most likely target for this repo).
-    $ordered = [System.Collections.Generic.List[string]]::new()
+    $out = [System.Collections.Generic.List[string]]::new()
     $seen = @{}
     foreach ($line in ($output -split "`r?`n")) {
         $line = $line.Trim()
-        if ($line -match '^([^/]+)/') {
-            $p = $Matches[1]
-            if (-not $seen.ContainsKey($p)) {
-                $seen[$p] = $true
-                [void]$ordered.Add($p)
-            }
+        if ($line -match '^[^/]+/' -and -not $seen.ContainsKey($line)) {
+            $seen[$line] = $true
+            [void]$out.Add($line)
         }
     }
-    if ($ordered -contains 'llm-router') {
-        [void]$ordered.Remove('llm-router')
-        $ordered.Insert(0, 'llm-router')
-    }
-    return $ordered.ToArray()
+    return $out.ToArray()
 }
 
 # --- template-derived constants ----------------------------------------------
@@ -316,6 +293,30 @@ function Show-Current($obj) {
         Write-Output "  apiKey:  $(Mask-Key ($opts.apiKey ?? ''))"
     }
     Write-Output ''
+}
+
+# Prompt for llm-router baseURL/apiKey (Enter=keep). Returns the count of
+# fields actually updated. Write-Host (not Write-Output) so the return value
+# stays a clean scalar when used in an assignment.
+function Set-LlmRouterCredentials($obj) {
+    Write-Host ''
+    Write-Host '[llm-router credentials]'
+    if (-not $obj.provider['llm-router']) {
+        [Console]::Error.WriteLine('warning: provider.llm-router is missing from opencode.jsonc — please re-install')
+        exit 1
+    }
+    if (-not $obj.provider['llm-router'].options) { $obj.provider['llm-router'].options = @{} }
+    $n = 0
+    foreach ($k in @('baseURL', 'apiKey')) {
+        $existing = $obj.provider['llm-router'].options[$k] ?? ''
+        $shown = if ($k -eq 'apiKey') { Mask-Key $existing } else { Mask-Url-If-Sensitive $existing }
+        $v = Read-Host "$k ($shown) (Enter=keep)"
+        $v = Strip-Quotes $v
+        if ([string]::IsNullOrEmpty($v)) { continue }
+        $obj.provider['llm-router'].options[$k] = $v
+        $n++
+    }
+    return $n
 }
 
 # --- arg parse ---------------------------------------------------------------
@@ -467,93 +468,100 @@ if ($backfilled -gt 0) {
 # Show current state up front so the user knows what they're about to change.
 Show-Current $obj
 
-# Provider menu: single source = `opencode models`. We always include llm-router
-# in the menu even if opencode CLI doesn't list it (custom provider; opencode
-# doesn't know about it because it's defined in opencode.jsonc, not models.dev).
-$providers = @(Get-Providers-From-Opencode)
-if (($providers -notcontains 'llm-router') -and $obj.provider['llm-router']) {
-    $providers = @('llm-router') + $providers
-}
+Write-Output ''
 
-if ($providers.Count -eq 0) {
-    Write-Error 'no providers available — run `opencode` first to authenticate, then re-run'
+$changed = 0
+$relinked = 0
+
+# Model menu across all providers: single source = `opencode models`.
+# llm-router is a custom provider; the opencode CLI may not list its
+# models, so append them from the config.
+$allModels = @(Get-All-ProviderModels)
+$lr = $obj.provider['llm-router']
+if ($lr -and $lr.models) {
+    foreach ($id in $lr.models.Keys) {
+        $ref = "llm-router/$id"
+        if ($allModels -notcontains $ref) { $allModels += $ref }
+    }
+}
+if ($allModels.Count -eq 0) {
+    Write-Error 'no models available — run `opencode` first to authenticate, then re-run'
     exit 1
 }
 
+# Step 1: multi-select providers.
+$providers = @($allModels | ForEach-Object { ($_ -split '/', 2)[0] } | Select-Object -Unique)
 Write-Output '[providers]'
+Write-Output '   0) all'
 for ($idx = 0; $idx -lt $providers.Count; $idx++) {
     Write-Output ("  {0,2}) {1}" -f ($idx + 1), $providers[$idx])
 }
-
-$defaultIdx = [Array]::IndexOf($providers, $Provider)
-if ($defaultIdx -lt 0) { $defaultIdx = 0 }
-
-$pick = Read-Host "pick provider (1-$($providers.Count)) [Enter=$($providers[$defaultIdx])]"
-$pick = Strip-Quotes $pick
-if ([string]::IsNullOrEmpty($pick)) {
-    $selected = $providers[$defaultIdx]
-} elseif ($pick -match '^\d+$' -and [int]$pick -ge 1 -and [int]$pick -le $providers.Count) {
-    $selected = $providers[[int]$pick - 1]
-} else {
-    Write-Error "invalid selection: $pick"
-    exit 1
-}
-
-# Credentials: only ask for llm-router. Other providers rely on opencode CLI auth.
-$changed = 0
-if ($selected -eq 'llm-router') {
-    Write-Output ''
-    Write-Output '[llm-router credentials]'
-    if (-not $obj.provider['llm-router']) {
-        [Console]::Error.WriteLine('warning: provider.llm-router is missing from opencode.jsonc — please re-install')
-        exit 1
-    }
-    if (-not $obj.provider['llm-router'].options) { $obj.provider['llm-router'].options = @{} }
-    foreach ($k in @('baseURL', 'apiKey')) {
-        $existing = $obj.provider['llm-router'].options[$k] ?? ''
-        $shown = if ($k -eq 'apiKey') { Mask-Key $existing } else { Mask-Url-If-Sensitive $existing }
-        $v = Read-Host "$k ($shown) (Enter=keep)"
-        $v = Strip-Quotes $v
-        if ([string]::IsNullOrEmpty($v)) { continue }
-        $obj.provider['llm-router'].options[$k] = $v
-        $changed++
-    }
-}
-
-# per-tier model picker for the selected provider.
-$providerModels = @(Get-ProviderModels $selected)
-if ($providerModels.Count -eq 0) {
-    Write-Error "`opencode models $selected` returned nothing — choose a different provider"
-    exit 1
-}
 Write-Output ''
-Write-Output "[models for provider: $selected]"
-$relinked = 0
+$sel = Read-Host "pick providers to use (e.g. 1 3, 0=all, Enter=all)"
+$sel = Strip-Quotes $sel
+
+$selProviders = [System.Collections.Generic.List[string]]::new()
+if ([string]::IsNullOrWhiteSpace($sel)) {
+    foreach ($p in $providers) { [void]$selProviders.Add($p) }
+} else {
+    foreach ($tok in ($sel -split '[,\s]+')) {
+        if (-not $tok) { continue }
+        if ($tok -eq '0') {
+            $selProviders.Clear()
+            foreach ($p in $providers) { [void]$selProviders.Add($p) }
+            break
+        }
+        if ($tok -match '^\d+$' -and [int]$tok -ge 1 -and [int]$tok -le $providers.Count) {
+            $p = $providers[[int]$tok - 1]
+            if ($selProviders -notcontains $p) { [void]$selProviders.Add($p) }
+        } else {
+            Write-Error "invalid selection: $tok (must be 0-$($providers.Count))"
+            exit 1
+        }
+    }
+}
+
+# Credentials: ask up front when llm-router is among the selected providers.
+# Other providers rely on opencode CLI auth.
+if ($selProviders -contains 'llm-router') { $changed += Set-LlmRouterCredentials $obj }
+
+# Step 2: models of the selected providers only; every tier picks from them.
+$candidate = [System.Collections.Generic.List[string]]::new()
+foreach ($m in ($allModels | Where-Object { $selProviders -contains ($_ -split '/', 2)[0] })) {
+    [void]$candidate.Add($m)
+}
+
 $tierMap = Get-TierMapping $obj
+
+Write-Output ''
+Write-Output "[models for: $($selProviders -join ', ')]"
 foreach ($tier in $TIER_NAMES) {
     Write-Output ''
     Write-Output "--- tier.$tier ---"
-    # current value: first agent with this tier
     $currentRef = $tierMap[$tier]
-    $currentStr = if ($currentRef) { $currentRef } else { '(unset)' }
-    Write-Output "current: $currentStr"
-
-    for ($idx = 0; $idx -lt $providerModels.Count; $idx++) {
-        Write-Output ("  {0,2}) {1}" -f ($idx + 1), $providerModels[$idx])
+    if ($currentRef) {
+        $note = if ($candidate -notcontains $currentRef) { '  (outside selection — Enter keeps it)' } else { '' }
+        Write-Output "current: $currentRef$note"
+    } else {
+        Write-Output 'current: (unset)'
     }
-    $prompt = "pick model for tier.$tier (1-$($providerModels.Count), Enter=keep)"
-    $v = Read-Host $prompt
+
+    for ($idx = 0; $idx -lt $candidate.Count; $idx++) {
+        Write-Output ("  {0,2}) {1}" -f ($idx + 1), $candidate[$idx])
+    }
+    Write-Output ''
+    $v = Read-Host "pick model for tier.$tier (1-$($candidate.Count), Enter=keep)"
     $v = Strip-Quotes $v
+
     if ([string]::IsNullOrEmpty($v)) { continue }
 
-    if ($v -match '^\d+$' -and [int]$v -ge 1 -and [int]$v -le $providerModels.Count) {
-        $newId = $providerModels[[int]$v - 1]
+    if ($v -match '^\d+$' -and [int]$v -ge 1 -and [int]$v -le $candidate.Count) {
+        $newRef = $candidate[[int]$v - 1]
     } else {
-        Write-Error "invalid selection: $v (must be 1-$($providerModels.Count))"
+        Write-Error "invalid selection: $v (must be 1-$($candidate.Count))"
         exit 1
     }
 
-    $newRef = "$selected/$newId"
     if ($currentRef -ne $newRef) {
         $relinked += Update-TierModels $obj $tier $newRef
     }

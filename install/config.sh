@@ -17,13 +17,15 @@
 #   ./install/config.sh set ... -t FILE                     # target a different file
 #
 # Interactive flow:
-#   1. Pick provider from `opencode models` output.
-#   2. If the chosen provider is `llm-router`, prompt for baseURL + apiKey
-#      (Enter=keep current). Other providers rely on the opencode CLI's auth.
-#   3. For each tier (in template order), pick a
-#      model from `opencode models <provider>`. Enter keeps the current id.
-#   4. Every agent whose `.model` matches `<old_provider>/<tier_name>` (current
-#      value) is rewritten to `<selected_provider>/<new_model_id>` in lockstep.
+#   1. Multi-select providers (0 or Enter = all) from the providers visible
+#      in `opencode models` plus llm-router (custom provider from the config).
+#   2. Shows only the models of the selected providers; for each tier (in
+#      template order), pick one of them. Enter keeps the current id, even
+#      when it belongs to a provider that wasn't selected.
+#   3. If the selected providers include llm-router, baseURL/apiKey are
+#      prompted before the model picks. Other providers rely on the
+#      opencode CLI's auth.
+#   4. Every agent of a tier is rewritten to the chosen ref in lockstep.
 
 set -eo pipefail
 
@@ -33,19 +35,19 @@ TEMPLATE="$REPO_ROOT/opencode.jsonc"
 TARGET="${HOME}/.config/opencode/opencode.jsonc"
 
 # Tier names and agent -> tier mapping are derived from the repo template
-# (../opencode.jsonc). The template is the single source of truth.
-[[ -f "$TEMPLATE" ]] || { echo "not found: $TEMPLATE" >&2; exit 1; }
-
-readarray -t TIER_NAMES < <(
-    jq -r '.agent | to_entries[] | .value.tier' "$TEMPLATE" | awk '!seen[$0]++'
-)
-
-[[ ${#TIER_NAMES[@]} -gt 0 ]] || { echo "template $TEMPLATE defines no tiers" >&2; exit 1; }
-
-declare -A AGENT_TIERS=()
-while IFS=$'\t' read -r name tier; do
-    [[ -n "$tier" ]] && AGENT_TIERS[$name]="$tier"
-done < <(jq -r '.agent | to_entries[] | [.key, .value.tier] | @tsv' "$TEMPLATE")
+# (../opencode.jsonc). The template is the single source of truth; derived
+# after arg parse so `-h` works without jq installed.
+load_template_tiers() {
+    [[ -f "$TEMPLATE" ]] || { echo "not found: $TEMPLATE" >&2; exit 1; }
+    readarray -t TIER_NAMES < <(
+        jq -r '.agent | to_entries[] | .value.tier' "$TEMPLATE" | awk '!seen[$0]++'
+    )
+    [[ ${#TIER_NAMES[@]} -gt 0 ]] || { echo "template $TEMPLATE defines no tiers" >&2; exit 1; }
+    declare -gA AGENT_TIERS=()
+    while IFS=$'\t' read -r name tier; do
+        [[ -n "$tier" ]] && AGENT_TIERS[$name]="$tier"
+    done < <(jq -r '.agent | to_entries[] | [.key, .value.tier] | @tsv' "$TEMPLATE")
+}
 
 JQ="jq"
 OPENCODE_BIN="${OPENCODE_BIN:-opencode}"
@@ -76,27 +78,42 @@ opencode_available() {
     command -v "$OPENCODE_BIN" >/dev/null 2>&1 && "$OPENCODE_BIN" models >/dev/null 2>&1
 }
 
-# Print one model id per line for provider $1 via `opencode models <provider>`.
-provider_models() {
-    local p="$1"
+# Print one "<provider>/<model_id>" ref per line from `opencode models`.
+all_provider_models() {
     opencode_available || return 0
-    "$OPENCODE_BIN" models "$p" 2>/dev/null | awk -v p="$p/" '$1 ~ "^"p { sub("^"p"", ""); print }'
+    "$OPENCODE_BIN" models 2>/dev/null | awk '{
+        gsub(/^[ \t]+|[ \t]+$/, "")
+        if ($0 ~ /^[^\/]+\// && !seen[$0]++) print
+    }'
 }
 
-# Parse `opencode models` output: each line "<provider>/<model_id>". Print
-# distinct provider names, sorted, one per line.
-providers_from_opencode() {
-    opencode_available || return 1
-    # Preserve first-seen order from `opencode models`, then move llm-router
-    # to the top (custom provider; most likely target for this repo).
-    "$OPENCODE_BIN" models 2>/dev/null | awk -F/ '
-        !seen[$1]++ { order[++n] = $1 }
-        END {
-            for (i = 1; i <= n; i++) if (order[i] == "llm-router") { first = i; break }
-            if (first) { print order[first]; for (i = 1; i <= n; i++) if (i != first) print order[i] }
-            else for (i = 1; i <= n; i++) print order[i]
-        }
-    '
+# Prompt for llm-router baseURL/apiKey (Enter=keep). Sets
+# LL_ROUTER_CRED_CHANGED=1 when at least one field was updated.
+llm_router_credentials() {
+    echo
+    echo "[llm-router credentials]"
+    LL_ROUTER_CRED_CHANGED=0
+    if ! $JQ -e '.provider["llm-router"]' "$TARGET" >/dev/null 2>&1; then
+        echo "warning: provider.llm-router is missing from opencode.jsonc — please re-install" >&2
+        exit 1
+    fi
+    if ! $JQ -e '.provider["llm-router"].options' "$TARGET" >/dev/null 2>&1; then
+        $JQ '.provider["llm-router"].options = {}' "$TARGET" | atomic_write "$TARGET"
+    fi
+    local k existing shown v
+    for k in baseURL apiKey; do
+        existing="$($JQ -r --arg k "$k" '.provider["llm-router"].options[$k] // ""' "$TARGET")"
+        if [[ "$k" == "apiKey" ]]; then
+            shown="$(mask_key "$existing")"
+        else
+            shown="$(mask_url_if_sensitive "$existing")"
+        fi
+        printf '%s (%s) (Enter=keep): ' "$k" "$shown"
+        if ! read -r v; then echo; continue; fi
+        [[ -z "$v" ]] && continue
+        $JQ --arg k "$k" --arg v "$v" '.provider["llm-router"].options[$k] = $v' "$TARGET" | atomic_write "$TARGET"
+        LL_ROUTER_CRED_CHANGED=1
+    done
 }
 
 # --- migration: backfill agent.tier on legacy opencode.jsonc -----------
@@ -190,7 +207,7 @@ TARGET_PROVIDER="llm-router"  # -p override for `set`/`reset`
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
-            sed -n '2,30p' "$0"; exit 0 ;;
+            sed -n '2,28p' "$0"; exit 0 ;;
         -t|--target) TARGET="$2"; shift 2 ;;
         -p|--provider) TARGET_PROVIDER="$2"; shift 2 ;;
         -n|--name) NAME="$2"; shift 2 ;;
@@ -209,9 +226,12 @@ done
 
 [[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }
 
+command -v jq >/dev/null 2>&1 || { echo "jq is required: https://jqlang.github.io/jq/" >&2; exit 1; }
+load_template_tiers
+
 # --- main ---------------------------------------------------------------
 if [[ -z "$ACTION" ]]; then
-    # interactive: pick provider, then model for each tier
+    # interactive: pick providers, then pick a model per tier
 
     # Backfill `tier` on any agent missing it (legacy opencode.jsonc). Persist
     # immediately so subsequent operations see the right group membership.
@@ -223,81 +243,78 @@ if [[ -z "$ACTION" ]]; then
     # Show current state up front so the user knows what they're about to change.
     show_current "$TARGET"
 
-    # Provider menu: single source = `opencode models`. llm-router is a custom
-    # provider (not in models.dev); always include it if it's in the config.
-    if providers_raw="$(providers_from_opencode)"; then
-        mapfile -t providers < <(printf '%s\n' "$providers_raw" | awk '!seen[$0]++')
-    else
-        providers=()
-    fi
-    if ! printf '%s\n' "${providers[@]}" | grep -Fxq "llm-router"; then
-        if $JQ -e '.provider["llm-router"]' "$TARGET" >/dev/null 2>&1; then
-            providers=("llm-router" "${providers[@]}")
-        fi
-    fi
+    changed=0
+    relinked=0
 
-    if [[ ${#providers[@]} -eq 0 ]]; then
-        echo "no providers available — run 'opencode' first to authenticate, then re-run" >&2
+    # Model menu across all providers: single source = `opencode models`.
+    # llm-router is a custom provider; the opencode CLI may not list its
+    # models, so append them from the config.
+    mapfile -t all_models < <(all_provider_models)
+    while IFS= read -r mid; do
+        [[ -z "$mid" ]] && continue
+        ref="llm-router/$mid"
+        if ! printf '%s\n' "${all_models[@]}" | grep -Fxq "$ref"; then
+            all_models+=("$ref")
+        fi
+    done < <($JQ -r '.provider["llm-router"].models // {} | keys[]' "$TARGET" 2>/dev/null)
+
+    if [[ ${#all_models[@]} -eq 0 ]]; then
+        echo "no models available — run 'opencode' first to authenticate, then re-run" >&2
         exit 1
     fi
 
+    # Step 1: multi-select providers.
+    mapfile -t providers < <(printf '%s\n' "${all_models[@]}" | awk -F/ '!seen[$1]++ { print $1 }')
     echo "[providers]"
+    echo "   0) all"
     for i in "${!providers[@]}"; do
-        printf "  %2d) %s\n" "$((i+1))" "${providers[$i]}"
+        printf '  %2d) %s\n' "$((i+1))" "${providers[$i]}"
     done
+    echo
+    printf 'pick providers to use (e.g. 1 3, 0=all, Enter=all): '
+    if ! read -r sel; then echo; exit 0; fi
 
-    default_idx=0
-    for i in "${!providers[@]}"; do
-        [[ "${providers[$i]}" == "$TARGET_PROVIDER" ]] && { default_idx="$i"; break; }
-    done
-
-    # Use plain read (no subshell) so trailing whitespace and Ctrl-D propagate correctly
-    printf 'pick provider (1-%d) [Enter=%s]: ' "${#providers[@]}" "${providers[$default_idx]}"
-    if ! read -r pick; then echo; exit 0; fi
-    if [[ -z "$pick" ]]; then
-        selected="${providers[$default_idx]}"
-    elif [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#providers[@]} )); then
-        selected="${providers[$((pick-1))]}"
+    sel_providers=()
+    if [[ -z "${sel// }" ]]; then
+        sel_providers=("${providers[@]}")
     else
-        echo "invalid selection: $pick" >&2; exit 1
-    fi
-
-    # Credentials: only ask for llm-router. Other providers rely on opencode CLI auth.
-    changed=0
-    if [[ "$selected" == "llm-router" ]]; then
-        echo
-        echo "[llm-router credentials]"
-        if ! $JQ -e '.provider["llm-router"]' "$TARGET" >/dev/null 2>&1; then
-            echo "warning: provider.llm-router is missing from opencode.jsonc — please re-install" >&2
-            exit 1
-        fi
-        if ! $JQ -e '.provider["llm-router"].options' "$TARGET" >/dev/null 2>&1; then
-            $JQ '.provider["llm-router"].options = {}' "$TARGET" | atomic_write "$TARGET"
-        fi
-        for k in baseURL apiKey; do
-            existing="$($JQ -r --arg k "$k" '.provider["llm-router"].options[$k] // ""' "$TARGET")"
-            if [[ "$k" == "apiKey" ]]; then
-                shown="$(mask_key "$existing")"
-            else
-                shown="$(mask_url_if_sensitive "$existing")"
+        IFS=', ' read -ra toks <<< "$sel"
+        for tok in "${toks[@]}"; do
+            [[ -z "$tok" ]] && continue
+            if [[ "$tok" == "0" ]]; then
+                sel_providers=("${providers[@]}")
+                break
             fi
-            printf '%s (%s) (Enter=keep): ' "$k" "$shown"
-            if ! read -r v; then echo; continue; fi
-            [[ -z "$v" ]] && continue
-            $JQ --arg k "$k" --arg v "$v" '.provider["llm-router"].options[$k] = $v' "$TARGET" | atomic_write "$TARGET"
-            changed=1
+            if [[ "$tok" =~ ^[0-9]+$ ]] && (( 10#$tok >= 1 && 10#$tok <= ${#providers[@]} )); then
+                p="${providers[$((10#$tok-1))]}"
+                if ! printf '%s\n' "${sel_providers[@]}" | grep -Fxq "$p"; then
+                    sel_providers+=("$p")
+                fi
+            else
+                echo "invalid selection: $tok (must be 0-${#providers[@]})" >&2
+                exit 1
+            fi
         done
     fi
 
-    # per-tier model picker for the selected provider.
-    mapfile -t provider_models_list < <(provider_models "$selected")
-    if [[ ${#provider_models_list[@]} -eq 0 ]]; then
-        echo "'opencode models $selected' returned nothing — choose a different provider" >&2
-        exit 1
+    # Credentials: ask up front when llm-router is among the selected providers.
+    # Other providers rely on opencode CLI auth.
+    if printf '%s\n' "${sel_providers[@]}" | grep -Fxq "llm-router"; then
+        llm_router_credentials
+        [[ "$LL_ROUTER_CRED_CHANGED" == "1" ]] && changed=1
     fi
+
+    # Step 2: models of the selected providers only; every tier picks from them.
+    candidate=()
+    for ref in "${all_models[@]}"; do
+        p="${ref%%/*}"
+        if printf '%s\n' "${sel_providers[@]}" | grep -Fxq "$p"; then
+            candidate+=("$ref")
+        fi
+    done
+
     echo
-    echo "[models for provider: $selected]"
-    relinked=0
+    echo "[models for: $(IFS=', '; echo "${sel_providers[*]}")]"
     for tier in "${TIER_NAMES[@]}"; do
         echo
         echo "--- tier.$tier ---"
@@ -305,26 +322,33 @@ if [[ -z "$ACTION" ]]; then
             '[.agent | to_entries[] | select(.value.tier == $t)] | first.value.model // empty' \
             "$TARGET")"
         if [[ -n "$current_ref" ]]; then
-            echo "current: $current_ref"
+            note=""
+            if ! printf '%s\n' "${candidate[@]}" | grep -Fxq "$current_ref"; then
+                note="  (outside selection — Enter keeps it)"
+            fi
+            echo "current: $current_ref$note"
         else
             echo "current: (unset)"
         fi
 
-        for i in "${!provider_models_list[@]}"; do
-            printf '  %2d) %s\n' "$((i+1))" "${provider_models_list[$i]}"
+        for i in "${!candidate[@]}"; do
+            printf '  %2d) %s\n' "$((i+1))" "${candidate[$i]}"
         done
-        printf 'pick model for tier.%s (1-%d, Enter=keep): ' "$tier" "${#provider_models_list[@]}"
+        echo
+        printf 'pick model for tier.%s (1-%d, Enter=keep): ' "$tier" "${#candidate[@]}"
         if ! read -r v; then echo; continue; fi
-        [[ -z "$v" ]] && continue
 
-        if [[ "$v" =~ ^[0-9]+$ ]] && (( v >= 1 && v <= ${#provider_models_list[@]} )); then
-            new_id="${provider_models_list[$((v-1))]}"
+        if [[ -z "$v" ]]; then
+            continue
+        fi
+
+        if [[ "$v" =~ ^[0-9]+$ ]] && (( 10#$v >= 1 && 10#$v <= ${#candidate[@]} )); then
+            new_ref="${candidate[$((10#$v-1))]}"
         else
-            echo "invalid selection: $v (must be 1-${#provider_models_list[@]})" >&2
+            echo "invalid selection: $v (must be 1-${#candidate[@]})" >&2
             exit 1
         fi
 
-        new_ref="$selected/$new_id"
         if [[ "$current_ref" != "$new_ref" ]]; then
             relinked=$((relinked + $(relink_tier "$TARGET" "$tier" "$new_ref")))
         fi

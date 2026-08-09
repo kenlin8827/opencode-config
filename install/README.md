@@ -48,7 +48,7 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 ## Configuring credentials (PowerShell)
 
 ```pwsh
-# Interactive (pick provider, then pick model for each tier):
+# Interactive (pick providers, then pick a model per tier):
 pwsh install/config.ps1
 
 # Scripted (target the default `llm-router` provider; use -p <name> for others):
@@ -70,12 +70,20 @@ pwsh install/config.ps1 reset
 ./install/config.sh reset
 ```
 
-The interactive flow in both versions does the same thing: first pick a
-provider from the union of `provider.*` (already in `opencode.jsonc`) and
-`opencode models` (CLI-authenticated), then pick a model id for each
-tier defined in the repo template. Empty input keeps the current value.
-field that pointed at the old `provider/old_id` gets rewritten to the new
-one in lockstep.
+The interactive flow in both versions works the same way:
+
+1. Multi-select providers (e.g. `1 3`). The list is the union of
+   `opencode models` (CLI-authenticated) and `llm-router` (custom provider
+   defined in `opencode.jsonc`, not in models.dev). `0` or Enter keeps all.
+2. For each tier defined in the repo template, pick a model from the
+   selected providers' models only. Empty input keeps the current value,
+   even when it belongs to a provider that wasn't selected (a note is
+   shown in that case).
+
+`baseURL` / `apiKey` for `llm-router` are prompted right after provider
+selection when `llm-router` is among the selected providers, before the
+tier model picks. Every agent of a tier gets rewritten to the
+chosen `provider/model_id` in lockstep.
 
 Non-interactive `set` commands target a single provider (default
 `llm-router`, override with `-p <name>`) and edit one field at a time.
