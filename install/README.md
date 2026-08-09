@@ -48,10 +48,10 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 ## Configuring credentials (PowerShell)
 
 ```pwsh
-# Interactive (prompts for all 7 fields, Enter=skip):
+# Interactive (pick provider, then pick model for each tier):
 pwsh install/config.ps1
 
-# Scripted:
+# Scripted (target the default `llm-router` provider; use -p <name> for others):
 pwsh install/config.ps1 set baseURL https://router.example.com/v1
 pwsh install/config.ps1 set apiKey  sk-xxxx
 pwsh install/config.ps1 set model  advisor my-advisor-v2
@@ -70,9 +70,17 @@ pwsh install/config.ps1 reset
 ./install/config.sh reset
 ```
 
-Both versions edit only `provider.llm-router.options.{baseURL,apiKey}` and
-`provider.llm-router.models.<name>.id`. Press Enter / pass empty value to
-skip a field.
+The interactive flow in both versions does the same thing: first pick a
+provider from the union of `provider.*` (already in `opencode.jsonc`) and
+`opencode models` (CLI-authenticated), then pick a model id for each
+tier defined in the repo template. Empty input keeps the current value.
+field that pointed at the old `provider/old_id` gets rewritten to the new
+one in lockstep.
+
+Non-interactive `set` commands target a single provider (default
+`llm-router`, override with `-p <name>`) and edit one field at a time.
+`reset` restores that provider's `baseURL` / `apiKey` / model ids from the
+repo template.
 
 ## Files
 

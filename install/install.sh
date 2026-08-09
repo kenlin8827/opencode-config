@@ -23,10 +23,9 @@ VERSION_FILE="$SCRIPT_DIR/VERSION"
 INST_DIR="$SCRIPT_DIR/versions"
 MARKER=".CONFIG_VERSION"
 
-# ponytail: whitelist of 5 runtime paths; nothing else ships
+# Whitelist of runtime paths; nothing else ships.
 INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc")
 PRESERVE_KEYS=("baseURL" "apiKey")
-MODEL_NAMES=("default" "code" "advisor" "explorer" "vision")
 
 # --- arg parse ----------------------------------------------------------
 MODE="install"
@@ -52,7 +51,7 @@ read_version() {
 
 read_manifest() {
     [[ -f "$1" ]] || return 0
-    grep -v '^\s*#' "$1" | grep -v '^\s*$' | sed 's/\\/\//g'
+    grep -v '^\s*#' "$1" | grep -v '^\s*$' | sed 's/\\/\//g' | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 read_installed_version() {
@@ -162,13 +161,75 @@ restore_preserve() {
     unset rp_dst rp_f rp_bag_file rp_size rp_tmp
 }
 
-mask_key() {
-    local k="$1"
-    [[ -z "$k" || "${#k}" -le 6 ]] && { echo "***"; return; }
-    echo "${k:0:3}***${k: -3}"
+# --- install orchestration ----------------------------------------------
+
+# 1) remove files listed by previous version's manifest
+remove_old_files() {
+    if [[ -n "$installed" ]]; then
+        local prev_man prev_count
+        prev_man="$INST_DIR/$installed.manifest.txt"
+        prev_count="$(read_manifest "$prev_man" | wc -l | tr -d ' ')"
+        echo "[prev: $installed] removing $prev_count files"
+        read_manifest "$prev_man" | remove_manifest_files "prev" "$TARGET"
+    else
+        echo "[prev: none] skipping removal"
+    fi
 }
 
-# --- main ---------------------------------------------------------------
+# 2) copy current manifest over target (preserve credentials)
+copy_current_files() {
+    local cur_count preserve_bag n
+    cur_count="$(read_manifest "$CUR_MAN" | wc -l | tr -d ' ')"
+    echo "[cur: $VER] copying $cur_count files"
+    # snapshot existing credentials BEFORE overwriting
+    preserve_bag="$(mktemp)"
+    read_preserve "$TARGET" > "$preserve_bag" || true
+    read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
+    # restore them into the freshly-copied opencode.jsonc
+    if [[ -s "$preserve_bag" ]]; then
+        restore_preserve "$TARGET" < "$preserve_bag"
+        n="$(jq 'length' "$preserve_bag" 2>/dev/null || echo 0)"
+        echo "[cur: $VER] preserved $n credential field(s) in opencode.jsonc"
+    fi
+    rm -f "$preserve_bag"
+}
+
+# 3) write the new version marker
+write_new_marker() {
+    write_marker "$VER"
+    echo "installed $VER"
+}
+
+do_install() {
+    # Snapshot the existing marker before any destructive work so a partial
+    # failure leaves the target referencing the version that's actually still on disk
+    prev_marker_backup=""
+    if [[ -n "$installed" ]]; then
+        prev_marker_backup="$(mktemp)"
+        cp "$TARGET/$MARKER" "$prev_marker_backup"
+    fi
+
+    remove_old_files
+    copy_current_files
+    write_new_marker
+
+    if [[ -n "$prev_marker_backup" ]]; then
+        rm -f "$prev_marker_backup"
+    fi
+}
+
+restore_marker_on_error() {
+    local rc=$?
+    if [[ -n "$prev_marker_backup" && -f "$prev_marker_backup" ]]; then
+        cp "$prev_marker_backup" "$TARGET/$MARKER"
+        rm -f "$prev_marker_backup"
+        echo "install failed; restored marker to $installed" >&2
+    else
+        echo "install failed; target may be in a partial state. Re-run with -f." >&2
+    fi
+    exit "$rc"
+}
+
 VER="$(read_version)"
 CUR_MAN="$INST_DIR/$VER.manifest.txt"
 
@@ -201,33 +262,8 @@ case "$MODE" in
             exit 0
         fi
 
-        # 1) remove files listed by previous version's manifest
-        if [[ -n "$installed" ]]; then
-            prev_man="$INST_DIR/$installed.manifest.txt"
-            prev_count="$(read_manifest "$prev_man" | wc -l | tr -d ' ')"
-            echo "[prev: $installed] removing $prev_count files"
-            read_manifest "$prev_man" | remove_manifest_files "prev" "$TARGET"
-        else
-            echo "[prev: none] skipping removal"
-        fi
-
-        # 2) copy current manifest over target (preserve credentials)
-        cur_count="$(read_manifest "$CUR_MAN" | wc -l | tr -d ' ')"
-        echo "[cur: $VER] copying $cur_count files"
-        # snapshot existing credentials BEFORE overwriting
-        preserve_bag="$(mktemp)"
-        read_preserve "$TARGET" > "$preserve_bag" || true
-        read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
-        # restore them into the freshly-copied opencode.jsonc
-        if [[ -s "$preserve_bag" ]]; then
-            restore_preserve "$TARGET" < "$preserve_bag"
-            n="$(jq 'length' "$preserve_bag" 2>/dev/null || echo 0)"
-            echo "[cur: $VER] preserved $n credential field(s) in opencode.jsonc"
-        fi
-        rm -f "$preserve_bag"
-
-        # 3) write the new version marker
-        write_marker "$VER"
-        echo "installed $VER"
+        trap 'restore_marker_on_error' ERR
+        do_install
+        trap - ERR
         ;;
 esac

@@ -49,12 +49,12 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if (-not $Target) { $Target = Join-Path $HOME '.config/opencode' }
 
-# ponytail: whitelist the 5 paths opencode actually reads at runtime — nothing else ships
+# Whitelist the paths opencode actually reads at runtime — nothing else ships.
 $includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc')
 $markerRel = '.CONFIG_VERSION'  # active-version marker written into $Target (source is install/VERSION)
 
 function Read-Version {
-    # ponytail: VERSION lives next to the script (install/VERSION); never inside $skipDirs scan,
+    # VERSION lives next to the script (install/VERSION); never inside $skipDirs scan,
     # never in the manifest — its content is shipped as $markerRel via Write-Marker instead
     $f = Join-Path $PSScriptRoot 'VERSION'
     if (-not (Test-Path $f)) {
@@ -106,7 +106,7 @@ function Remove-ManifestFiles([string[]]$files, [string]$base, [string]$label) {
         return
     }
     foreach ($f in $files) {
-        # ponytail: never delete the marker itself, even if a stale manifest listed it
+        # Never delete the marker itself, even if a stale manifest listed it
         if ($f -eq $markerRel) { continue }
         $p = Join-Path $base $f
         if (Test-Path $p) {
@@ -131,7 +131,7 @@ function Copy-ManifestFiles([string[]]$files, [string]$from, [string]$to, [strin
     }
 }
 
-# ponytail: only the two credential fields under provider.*.options are preserved across reinstalls;
+# Only the two credential fields under provider.*.options are preserved across reinstalls;
 # every other field in opencode.jsonc comes from the repo (current behavior)
 $preserveJsonKeys = @('baseURL', 'apiKey')
 
@@ -165,7 +165,7 @@ function Restore-Preserve([string]$dst, $bag) {
         if ($parts.Count -ne 4 -or $parts[0] -ne 'provider' -or $parts[2] -ne 'options') { continue }
         $pname = $parts[1]; $field = $parts[3]
         if (-not $obj.provider.$pname) {
-            # ponytail: bag references a provider that's missing after the copy step
+            # Bag references a provider that's missing after the copy step
             # (e.g. user added a custom provider we don't ship). Re-create it so the user's
             # credentials aren't silently dropped — the next reinstall will hit the same path.
             $obj.provider | Add-Member -NotePropertyName $pname -NotePropertyValue ([pscustomobject]@{}) -Force
@@ -213,7 +213,7 @@ switch ($Mode) {
         }
         if (-not (Test-Path $Target)) { New-Item -ItemType Directory -Path $Target -Force | Out-Null }
 
-        # ponytail: snapshot the existing marker before any destructive work so a partial
+        # Snapshot the existing marker before any destructive work so a partial
         # failure leaves the target referencing the version that's actually still on disk
         $prevMarkerBackup = $null
         if ($installed) {
