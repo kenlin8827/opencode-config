@@ -86,12 +86,13 @@ skip a field.
 
 The manifest whitelists exactly the paths opencode reads at runtime:
 
-| Path           | Why                                           |
-| -------------- | --------------------------------------------- |
-| `agents/`      | Agent definitions (20 files)                  |
-| `commands/`    | Slash commands (4 files)                      |
-| `plugins/`     | TypeScript plugins (12 files)                 |
-| `opencode.json`| Main config                                   |
+| Path             | Why                                           |
+| ---------------- | --------------------------------------------- |
+| `agents/`        | Agent definitions (20 files)                  |
+| `commands/`      | Slash commands (4 files)                      |
+| `plugins/`       | TypeScript plugins (12 files)                 |
+| `instructions/`  | Shared protocols injected into all agents     |
+| `opencode.jsonc` | Main config                                   |
 
 Everything else stays in the repo and never reaches the target:
 
@@ -123,7 +124,7 @@ manifest listed it) — it is always rewritten at the end of each install.
 
 ## Preserved fields
 
-When the manifest contains `opencode.json`, both scripts preserve any
+When the manifest contains `opencode.jsonc`, both scripts preserve any
 user-supplied credentials under `provider.*.options`:
 
 | Field                      | Why preserved                         |
@@ -131,11 +132,11 @@ user-supplied credentials under `provider.*.options`:
 | `provider.<name>.options.baseURL` | User's API endpoint          |
 | `provider.<name>.options.apiKey`  | User's API key (secret)      |
 
-Everything else in `opencode.json` is overwritten from the repo. To add more
+Everything else in `opencode.jsonc` is overwritten from the repo. To add more
 preserved fields, extend `$preserveJsonKeys` (PowerShell) or `PRESERVE_KEYS`
 (Bash).
 
-**Note on the shipped template.** The repo's `opencode.json` ships with
+**Note on the shipped template.** The repo's `opencode.jsonc` ships with
 `{env:LLM_ROUTER_BASE_URL}` / `{env:LLM_ROUTER_API_KEY}` as
 [opencode-style env-var substitution tokens](https://opencode.ai/docs/providers#environment-variables).
 This is the **recommended** setup: keep the token in the config, set the

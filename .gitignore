@@ -13,3 +13,6 @@ package-lock.json
 # OS files
 Thumbs.db
 .DS_Store
+
+# Repo snapshot copy (whole tree duplicated, never meant to be tracked)
+" 2"/

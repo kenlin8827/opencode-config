@@ -1,5 +1,5 @@
 # Test: plan orchestrator (primary agent with custom prompt)
-# Verifies that `instructions` in opencode.json injects Output Protocol into the plan agent's context.
+# Verifies that `instructions` in opencode.jsonc injects Output Protocol into the plan agent's context.
 # Expected: response contains "**Conclusion**:" and suggests switching to Build mode.
 
 # Load env vars from User-level

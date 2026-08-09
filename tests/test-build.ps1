@@ -1,5 +1,5 @@
 # Test: orchestrator (primary agent with custom prompt)
-# Verifies that `instructions` in opencode.json injects Output Protocol into the orchestrator's context.
+# Verifies that `instructions` in opencode.jsonc injects Output Protocol into the orchestrator's context.
 # Expected: response contains "**Conclusion**:" and "> Counter:"
 
 # Load env vars from User-level (set via [System.Environment]::SetEnvironmentVariable)

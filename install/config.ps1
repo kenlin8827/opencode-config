@@ -1,13 +1,13 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Configure ~/.config/opencode/opencode.json — baseURL, apiKey, and 5 model IDs.
+    Configure ~/.config/opencode/opencode.jsonc — baseURL, apiKey, and 5 model IDs.
 
 .DESCRIPTION
     Reads/writes only the credentials and model IDs under
     provider.llm-router.{options.baseURL, options.apiKey, models.<name>.id}.
     All other fields stay as-is. Defaults are pulled from the repo's
-    opencode.json (the template) — use 'reset' to restore them.
+    opencode.jsonc (the template) — use 'reset' to restore them.
 
     With no -Action, runs in interactive mode: prompts for each of the 7
     fields in order; pressing Enter on an empty value skips that field.
@@ -26,7 +26,7 @@
     For 'set model <name> <id>': one of default|code|advisor|explorer|vision
 
 .PARAMETER Target
-    opencode.json to edit. Defaults to $HOME/.config/opencode/opencode.json.
+    opencode.jsonc to edit. Defaults to $HOME/.config/opencode/opencode.jsonc.
 
 .EXAMPLE
     # Interactive (first-time setup or batch update):
@@ -54,8 +54,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot   = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Template   = Join-Path $RepoRoot 'opencode.json'
-if (-not $Target) { $Target = Join-Path $HOME '.config/opencode/opencode.json' }
+$Template   = Join-Path $RepoRoot 'opencode.jsonc'
+if (-not $Target) { $Target = Join-Path $HOME '.config/opencode/opencode.jsonc' }
 
 # ponytail: only these 7 fields are editable; everything else is preserved untouched
 $providerName = 'llm-router'
@@ -87,7 +87,7 @@ function Get-Template-Values {
     $t = Load-Json $Template
     $bag = @{}
     foreach ($k in $credKeys) { $bag[$k] = (Get-Options $t)[$k] }
-    foreach ($m in $modelNames) { $bag["model.$m"] = (Get-Model $t $m)['id'] }
+    foreach ($m in $modelNames) { $bag["model.$m"] = (Get-Model $t $m).id }
     return $bag
 }
 
@@ -96,23 +96,29 @@ function Mask-Key([string]$k) {
     return $k.Substring(0,3) + '***' + $k.Substring($k.Length-3)
 }
 
+# ponytail: baseURL is usually clean — only mask when a query string carries a token
+function Mask-Url-If-Sensitive([string]$u) {
+    if (-not $u -or -not $u.Contains('?')) { return $u }
+    return Mask-Key $u
+}
+
 function Show-Current($obj) {
     $opts = Get-Options $obj
-    "baseURL: $($opts['baseURL'])"
-    "apiKey:  $(Mask-Key $opts['apiKey'])"
+    "baseURL: $(Mask-Url-If-Sensitive $opts.baseURL)"
+    "apiKey:  $(Mask-Key $opts.apiKey)"
     foreach ($m in $modelNames) {
-        "model.$m`: $((Get-Model $obj $m)['id'])"
+        "model.$m`: $((Get-Model $obj $m).id)"
     }
 }
 
 function Apply-Set($obj, [string]$k, [string]$v, [string]$name) {
     if ([string]::IsNullOrEmpty($v)) { return $false }  # empty = skip
     if (-not (Get-Provider $obj)) {
-        throw "opencode.json missing provider.$providerName — cannot edit"
+        throw "opencode.jsonc missing provider.$providerName — cannot edit"
     }
     if ($k -in $credKeys) {
         if (-not (Get-Options $obj)) {
-            throw "opencode.json missing provider.$providerName.options — cannot edit credentials"
+            throw "opencode.jsonc missing provider.$providerName.options — cannot edit credentials"
         }
         Set-Cred $obj $k $v
         return $true
@@ -121,7 +127,7 @@ function Apply-Set($obj, [string]$k, [string]$v, [string]$name) {
         if (-not $name) { throw "set model requires -Name (one of: $($modelNames -join ', '))" }
         if ($name -notin $modelNames) { throw "unknown model: $name" }
         if (-not (Get-Model $obj $name)) {
-            throw "opencode.json missing provider.$providerName.models.$name — cannot edit"
+            throw "opencode.jsonc missing provider.$providerName.models.$name — cannot edit"
         }
         Set-ModelId $obj $name $v
         return $true
@@ -140,12 +146,13 @@ if (-not $Action) {
     $changed = 0
     foreach ($k in $credKeys) {
         $existing = (Get-Options $j)[$k]
-        $prompt = if ($k -eq 'apiKey') { "$k ($(Mask-Key $existing))" } else { "$k ($existing)" }
-        $v = Read-Host "$prompt (Enter=keep)"
+        if ($k -eq 'apiKey')  { $shown = Mask-Key $existing }
+        else                  { $shown = Mask-Url-If-Sensitive $existing }
+        $v = Read-Host "$k ($shown) (Enter=keep)"
         if (Apply-Set $j $k $v '') { $changed++ }
     }
     foreach ($m in $modelNames) {
-        $existing = (Get-Model $j $m)['id']
+        $existing = (Get-Model $j $m).id
         $v = Read-Host "model.$m ($existing) (Enter=keep)"
         if (Apply-Set $j 'model' $v $m) { $changed++ }
     }

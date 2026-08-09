@@ -16,8 +16,8 @@ set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TEMPLATE="$REPO_ROOT/opencode.json"
-TARGET="${HOME}/.config/opencode/opencode.json"
+TEMPLATE="$REPO_ROOT/opencode.jsonc"
+TARGET="${HOME}/.config/opencode/opencode.jsonc"
 
 PROVIDER="llm-router"
 CRED_KEYS=("baseURL" "apiKey")
@@ -29,11 +29,18 @@ mask_key() {
     echo "${k:0:3}***${k: -3}"
 }
 
+# ponytail: baseURL is usually clean — only mask when a query string carries a token
+mask_url_if_sensitive() {
+    local u="$1"
+    [[ -z "$u" || "$u" != *\?* ]] && { echo "$u"; return; }
+    mask_key "$u"
+}
+
 show_current() {
     local j opts mname mid
     j="$(jq -r --arg p "$PROVIDER" '.provider[$p]' "$1")"
     opts="$(echo "$j" | jq -r '.options // {}')"
-    echo "baseURL: $(echo "$opts" | jq -r '.baseURL // ""')"
+    echo "baseURL: $(echo "$opts" | jq -r '.baseURL // ""' | mask_url_if_sensitive)"
     echo "apiKey:  $(echo "$opts" | jq -r '.apiKey // ""' | mask_key)"
     for m in "${MODEL_NAMES[@]}"; do
         mid="$(echo "$j" | jq -r --arg n "$m" '.models[$n].id // ""')"
@@ -101,11 +108,11 @@ if [[ -z "$ACTION" ]]; then
     for k in "${CRED_KEYS[@]}"; do
         existing="$(jq -r --arg p "$PROVIDER" --arg k "$k" '.provider[$p].options[$k] // ""' "$TARGET")"
         if [[ "$k" == "apiKey" ]]; then
-            prompt="$k ($(mask_key "$existing"))"
+            shown="$(mask_key "$existing")"
         else
-            prompt="$k ($existing)"
+            shown="$(mask_url_if_sensitive "$existing")"
         fi
-        printf '%s (Enter=keep): ' "$prompt"
+        printf '%s (%s) (Enter=keep): ' "$k" "$shown"
         if ! read -r v; then echo; continue; fi
         if apply_set "$TARGET" "$k" "$v" ""; then changed=$((changed+1)); fi
     done

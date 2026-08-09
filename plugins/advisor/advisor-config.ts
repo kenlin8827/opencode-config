@@ -8,7 +8,7 @@
  *   - "off"           → off (no @advisor dispatch)
  *
  * Cold-start resolution (no flag yet):
- *   1. opencode.json advisorMode field (cross-session default)
+ *   1. opencode.jsonc advisorMode field (cross-session default)
  *   2. PONYTAIL_DEFAULT_MODE env var, only if it pins advisor off
  *   3. "lite"
  *
@@ -22,7 +22,7 @@ import { homedir } from "node:os"
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const STATE_FILE = join(CONFIG_DIR, ".advisor-mode")
-const OPENCODE_CONFIG = join(CONFIG_DIR, "opencode.json")
+const OPENCODE_CONFIG = join(CONFIG_DIR, "opencode.jsonc")
 
 const VALID_MODES = ["off", "lite", "full"] as const
 export type AdvisorMode = (typeof VALID_MODES)[number]
@@ -48,13 +48,17 @@ export function getMode(): AdvisorMode {
     const m = normalizeMode(readFileSync(STATE_FILE, "utf-8"))
     if (m) return m
   }
-  if (existsSync(OPENCODE_CONFIG)) {
-    try {
-      const cfg = JSON.parse(readFileSync(OPENCODE_CONFIG, "utf-8"))
-      const m = normalizeMode(cfg?.advisorMode)
-      if (m) return m
-    } catch {
-      /* ignore parse error */
+  // ponytail: probe .jsonc first (current install), fall back to legacy .json
+  const legacyConfig = join(CONFIG_DIR, "opencode.json")
+  for (const path of [OPENCODE_CONFIG, legacyConfig]) {
+    if (existsSync(path)) {
+      try {
+        const cfg = JSON.parse(readFileSync(path, "utf-8"))
+        const m = normalizeMode(cfg?.advisorMode)
+        if (m) return m
+      } catch {
+        /* ignore parse error */
+      }
     }
   }
   if (normalizeMode(process.env.PONYTAIL_DEFAULT_MODE) === "off") return "off"

@@ -34,9 +34,9 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Structural: config & protocols" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-$config = Get-Content "$PSScriptRoot\..\opencode.json" -Raw | ConvertFrom-Json
+$config = Get-Content "$PSScriptRoot\..\opencode.jsonc" -Raw | ConvertFrom-Json
 Check "instructions contains output-protocol.md" `
-    ($config.instructions -contains "~/.config/opencode/agents/_shared/output-protocol.md")
+    ($config.instructions -contains "~/.config/opencode/instructions/output-protocol.md")
 Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
@@ -44,7 +44,7 @@ Check "plugin includes @dietrichgebert/ponytail" `
 # instructions array is intentionally size 1 (just output-protocol.md).
 Check "instructions count = 1" ($config.instructions.Count -eq 1)
 Check "instructions does NOT include decision-advisor.md" `
-    (-not ($config.instructions -contains "~/.config/opencode/agents/_shared/decision-advisor.md"))
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
 # Ponytail config (official plugin)
 $ponytailConfigPath = Join-Path $env:APPDATA "ponytail\config.json"
@@ -80,7 +80,7 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 
 # File integrity
 $allFiles = @(
-    "agents/_shared/output-protocol.md",
+    "instructions/output-protocol.md",
     "agents/build.md", "agents/plan.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",

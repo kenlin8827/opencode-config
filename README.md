@@ -28,7 +28,7 @@ User
  │
  ├── @plan (primary) ── read-only analysis coordinator
  │
- └── Shared instructions (injected into all agents)
+ └── Shared instructions (injected into all agents, lives in `instructions/`)
      ├── output-protocol.md     — structured output format
      ├── ponytail.md            — lazy coding protocol (coding agents only)
      └── decision-advisor.md    — advisor mode protocol (default on)
@@ -114,7 +114,7 @@ All agents follow `output-protocol.md`:
 - **Layered exposition** — Summary → Key points → Details
 - **Content labeling** — [Fact] / [Inference] / [Assumption]
 - **Decision confirmation** — two-tier: non-blocking (state assumption, proceed) vs blocking (STOP, output options)
-- **Decision mode** — `advisor` (default, consults `@advisor` on blocking decisions) or `direct` (orchestrator alone). Toggle via `/advisor-on`/`/advisor-off` commands or `instructions` array in `opencode.json`
+- **Decision mode** — `advisor` (default, consults `@advisor` on blocking decisions) or `direct` (orchestrator alone). Toggle via `/advisor-on`/`/advisor-off` commands or `instructions` array in `opencode.jsonc`
 - **Verifiable data** — cite `file:line`, show calculation steps
 
 ### 5. Ponytail protocol (shared, coding only, lite mode)
@@ -242,6 +242,9 @@ Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 ## File inventory
 
 ```
+instructions/
+└── output-protocol.md        # Shared output format (injected via `instructions` array)
+
 agents/
 ├── _shared/
 │   ├── output-protocol.md    # Shared output format (all agents)

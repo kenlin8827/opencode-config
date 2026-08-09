@@ -1,10 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "snapshot": true,
   "model": "llm-router/default",
   "permission": "allow",
   "default_agent": "build",
   "instructions": [
-    "~/.config/opencode/agents/_shared/output-protocol.md"
+    "~/.config/opencode/instructions/output-protocol.md"
   ],
   "plugin": ["@dietrichgebert/ponytail"],
   "provider": {

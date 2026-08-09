@@ -20,7 +20,7 @@ function Check($name, $condition, $detail = "") {
 $base = "$PSScriptRoot\.."
 
 # output-protocol.md checks
-$op = Get-Content "$base\agents\_shared\output-protocol.md" -Raw
+$op = Get-Content "$base\instructions\output-protocol.md" -Raw
 Check "output-protocol: two-tier decision strategy" ($op -match "Non-blocking" -and $op -match "Blocking")
 Check "output-protocol: has STOP for blocking" ($op -match "STOP")
 Check "output-protocol: subagents no question tool" ($op -match "no.*question.*tool")

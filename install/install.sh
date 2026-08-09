@@ -11,7 +11,7 @@
 #   ./install/install.sh install -f     # force reinstall same version
 #   ./install/install.sh install -t DIR # target a different directory
 #
-# Mirrors install.ps1's three modes + credential preservation in opencode.json.
+# Mirrors install.ps1's three modes + credential preservation in opencode.jsonc.
 
 set -eo pipefail
 
@@ -23,8 +23,8 @@ VERSION_FILE="$SCRIPT_DIR/VERSION"
 INST_DIR="$SCRIPT_DIR/versions"
 MARKER=".CONFIG_VERSION"
 
-# ponytail: whitelist of 4 runtime paths; nothing else ships
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "opencode.json")
+# ponytail: whitelist of 5 runtime paths; nothing else ships
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc")
 PRESERVE_KEYS=("baseURL" "apiKey")
 MODEL_NAMES=("default" "code" "advisor" "explorer" "vision")
 
@@ -123,10 +123,10 @@ copy_manifest_files() {
 }
 
 # preserves provider.*.options.{baseURL,apiKey} for every provider in the
-# target's existing opencode.json before the copy overwrites it
+# target's existing opencode.jsonc before the copy overwrites it
 # outputs a JSON array: [{"provider":"llm-router","key":"baseURL","value":"..."}, ...]
 read_preserve() {
-    rp_f="$1/opencode.json"
+    rp_f="$1/opencode.jsonc"
     [[ -f "$rp_f" ]] || { unset rp_f; return 0; }
     jq -c '
         [ .provider // {} | to_entries[] as $p |
@@ -138,11 +138,11 @@ read_preserve() {
     unset rp_f
 }
 
-# restores preserved baseURL/apiKey into the freshly-copied opencode.json
+# restores preserved baseURL/apiKey into the freshly-copied opencode.jsonc
 # reads JSON array from stdin
 restore_preserve() {
     rp_dst="$1"
-    rp_f="$rp_dst/opencode.json"
+    rp_f="$rp_dst/opencode.jsonc"
     rp_bag_file="$(mktemp)"
     cat > "$rp_bag_file"
     rp_size=$(wc -c < "$rp_bag_file" | tr -d ' ')
@@ -218,11 +218,11 @@ case "$MODE" in
         preserve_bag="$(mktemp)"
         read_preserve "$TARGET" > "$preserve_bag" || true
         read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
-        # restore them into the freshly-copied opencode.json
+        # restore them into the freshly-copied opencode.jsonc
         if [[ -s "$preserve_bag" ]]; then
             restore_preserve "$TARGET" < "$preserve_bag"
             n="$(jq 'length' "$preserve_bag" 2>/dev/null || echo 0)"
-            echo "[cur: $VER] preserved $n credential field(s) in opencode.json"
+            echo "[cur: $VER] preserved $n credential field(s) in opencode.jsonc"
         fi
         rm -f "$preserve_bag"
 

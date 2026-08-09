@@ -49,8 +49,8 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if (-not $Target) { $Target = Join-Path $HOME '.config/opencode' }
 
-# ponytail: whitelist the 4 paths opencode actually reads at runtime — nothing else ships
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'opencode.json')
+# ponytail: whitelist the 5 paths opencode actually reads at runtime — nothing else ships
+$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc')
 $markerRel = '.CONFIG_VERSION'  # active-version marker written into $Target (source is install/VERSION)
 
 function Read-Version {
@@ -132,12 +132,12 @@ function Copy-ManifestFiles([string[]]$files, [string]$from, [string]$to, [strin
 }
 
 # ponytail: only the two credential fields under provider.*.options are preserved across reinstalls;
-# every other field in opencode.json comes from the repo (current behavior)
+# every other field in opencode.jsonc comes from the repo (current behavior)
 $preserveJsonKeys = @('baseURL', 'apiKey')
 
 function Read-Preserve([string]$dst) {
-    # returns hashtable of "provider.<name>.options.<key>" => value, or $null if no prior opencode.json
-    $f = Join-Path $dst 'opencode.json'
+    # returns hashtable of "provider.<name>.options.<key>" => value, or $null if no prior opencode.jsonc
+    $f = Join-Path $dst 'opencode.jsonc'
     if (-not (Test-Path $f)) { return $null }
     try {
         $obj = Get-Content $f -Raw | ConvertFrom-Json
@@ -157,7 +157,7 @@ function Read-Preserve([string]$dst) {
 
 function Restore-Preserve([string]$dst, $bag) {
     if (-not $bag -or $bag.Count -eq 0) { return }
-    $f = Join-Path $dst 'opencode.json'
+    $f = Join-Path $dst 'opencode.jsonc'
     $obj = Get-Content $f -Raw | ConvertFrom-Json
     foreach ($key in $bag.Keys) {
         # dotted path: provider.<name>.options.<field>
@@ -232,14 +232,14 @@ switch ($Mode) {
                 Write-Host "[prev: none] skipping removal"
             }
 
-            # 2) copy current manifest over target (preserve user credentials in opencode.json)
+            # 2) copy current manifest over target (preserve user credentials in opencode.jsonc)
             $curFiles = Read-Manifest $curMan
             Write-Host ("[cur: {0}] copying {1} files" -f $ver, $curFiles.Count)
             $preserve = Read-Preserve $Target
             Copy-ManifestFiles $curFiles $RepoRoot $Target "cur"
             if ($preserve) {
                 Restore-Preserve $Target $preserve
-                Write-Host ("[cur: {0}] preserved {1} credential field(s) in opencode.json" -f $ver, $preserve.Count)
+                Write-Host ("[cur: {0}] preserved {1} credential field(s) in opencode.jsonc" -f $ver, $preserve.Count)
             }
 
             # 3) marker goes last — only success reaches here

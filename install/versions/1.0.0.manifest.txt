@@ -1,4 +1,3 @@
-agents/_shared/output-protocol.md
 agents/advisor.md
 agents/architect.md
 agents/build.md
@@ -22,7 +21,8 @@ commands/advisor.md
 commands/grill-me.md
 commands/grill-with-docs.md
 commands/review-fix-loop.md
-opencode.json
+instructions/output-protocol.md
+opencode.jsonc
 plugins/advisor-mode.ts
 plugins/advisor/advisor-config.ts
 plugins/advisor/advisor-full-inject.ts
