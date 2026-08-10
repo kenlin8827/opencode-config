@@ -283,7 +283,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | 命令 | 说明 |
 |---|---|
 | `/advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
-| `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`、`files`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
+| `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 
