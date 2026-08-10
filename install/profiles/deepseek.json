@@ -1,0 +1,9 @@
+{
+  "description": "DeepSeek (official DeepSeek API) — deepseek-chat carries the high-traffic default tier (non-reasoning, fastest), deepseek-v4-pro flagship codes and judges on the low-frequency advisor slot, deepseek-v4-flash explores. All DeepSeek models are text-only — no vision tier. Requires DEEPSEEK_API_KEY environment variable.",
+  "tiers": {
+    "default": "deepseek/deepseek-chat",
+    "code": "deepseek/deepseek-v4-pro",
+    "advisor": "deepseek/deepseek-v4-pro",
+    "explorer": "deepseek/deepseek-v4-flash"
+  }
+}

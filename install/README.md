@@ -144,9 +144,10 @@ Semantics:
 
 Bundled profiles.
 Cost tiers mirror the IDE model-tier vocabulary (Auto / Ultimate / Performance / Economy / Lightweight).
-Every profile fills `vision`: on this gateway only Qwen accepts image input,
-so all opencode-go profiles route vision to `qwen3.8-max` (mixed families,
-same provider).
+Every opencode-go profile fills `vision`: on this gateway only Qwen accepts
+image input, so all opencode-go profiles route vision to `qwen3.8-max`
+(mixed families, same provider). Official provider profiles that lack an
+image-capable model (GLM, DeepSeek) omit the `vision` tier.
 
 | Profile | Tier | default / code / advisor / explorer / vision |
 | --- | --- | --- |
@@ -157,7 +158,24 @@ same provider).
 | `opencode-go-lite` | Lightweight — cheapest usable | qwen3.7-plus / mimo-v2.5-pro / glm-5.2 / mimo-v2.5 / qwen3.8-max |
 | `opencode-go-qwen` | All-Qwen family fallback | qwen3.7-plus / qwen3.8-max / qwen3.7-max / qwen3.6-plus / qwen3.8-max |
 | `opencode-go-kimi` | All-Kimi family fallback | kimi-k2.6 / kimi-k2.7-code / kimi-k3 / kimi-k2.6 / qwen3.8-max |
-| `kimi-code` | Kimi For Coding (official Kimi Code plan) | k3-256k / kimi-for-coding / k3 / kimi-for-coding-highspeed / k3-256k |
+| `kimi-for-coding` | Kimi For Coding (official Kimi Code plan) | k3-256k / kimi-for-coding / k3 / kimi-for-coding-highspeed / k3-256k |
+| `zai-coding-plan` | Z.AI Coding Plan (official GLM subscription) | glm-5-turbo / glm-5.2 / glm-5.2 / glm-5.2-highspeed / — |
+| `deepseek` | DeepSeek (official DeepSeek API) | deepseek-chat / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / — |
+| `anthropic` | Anthropic (official Anthropic API) | claude-haiku-4-5 / claude-sonnet-5 / claude-opus-5 / claude-haiku-4-5 / claude-sonnet-5 |
+| `google` | Google (official Vertex AI / Gemini API) | gemini-2.5-flash / gemini-3-pro-preview / gemini-2.5-pro / gemini-flash-lite-latest / gemini-2.5-flash |
+| `openai` | OpenAI (official OpenAI API) | gpt-5.5 / gpt-5.3-codex / gpt-5.6-pro / gpt-5.4-fast / gpt-4o |
+| `alibaba-coding-plan` | Alibaba Coding Plan (official) | qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / MiniMax-M2.5 / qwen3.7-plus |
+| `alibaba-coding-plan-cn` | Alibaba Coding Plan China (official) | qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / MiniMax-M2.5 / qwen3.7-plus |
+| `alibaba-token-plan` | Alibaba Token Plan (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
+| `alibaba-token-plan-cn` | Alibaba Token Plan China (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
+| `minimax-coding-plan` | MiniMax Token Plan minimax.io (official) | MiniMax-M3 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7-highspeed / MiniMax-M3 |
+| `minimax-cn-coding-plan` | MiniMax Token Plan minimaxi.com (official) | MiniMax-M3 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7-highspeed / MiniMax-M3 |
+| `zhipuai-coding-plan` | Zhipu AI Coding Plan (official) | glm-5v-turbo / glm-5.2-highspeed / glm-5.2-highspeed / glm-5.2-highspeed / glm-5v-turbo |
+| `tencent-coding-plan` | Tencent Coding Plan (official) | hunyuan-turbos / tc-code-latest / minimax-m2.5 / hunyuan-turbos / kimi-k2.5 |
+| `tencent-token-plan` | Tencent Token Plan (official) | hy3 / hy3 / hy3 / hy3 / — |
+| `xiaomi-token-plan-cn` | Xiaomi Token Plan China (official) | mimo-v2.5-tts / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-tts / mimo-v2.5 |
+| `xiaomi-token-plan-ams` | Xiaomi Token Plan Europe (official) | mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 |
+| `xiaomi-token-plan-sgp` | Xiaomi Token Plan Singapore (official) | mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 |
 | `opencode-go-deepseek` | All-DeepSeek family fallback | deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / qwen3.8-max |
 | `opencode-go-glm` | All-GLM family fallback | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.1 / qwen3.8-max |
 
@@ -277,3 +295,18 @@ literal key is never silently overwritten.
 The two implementations share the same contract — same manifest format, same
 preserved fields, same default target — but are tested independently. If you
 find a behavioural drift, file it.
+
+## Model name verification principle
+
+**DO NOT GUESS provider model names** based on internal knowledge or naming
+patterns. Every `provider/model_id` in a profile **must reference a real,
+current model on the provider's official API**. If you cannot verify the
+model_id via the provider's official documentation, do not invent it.
+
+If you add a new provider profile (e.g. `anthropic.json`), always:
+
+1. Visit the provider's official API docs (e.g. [Anthropic API models doc](https://docs.anthropic.com/en/docs/about-models)).
+2. Copy the exact model_id from the official list.
+3. If the provider only supports one model family (e.g. `claude-3-haiku`),
+   reference those in your comment and omit speculative versions.
+4. Record your research in a TODO and update README or TODO as needed, with links and model names.

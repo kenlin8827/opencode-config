@@ -1,0 +1,10 @@
+{
+  "description": "MiniMax Token Plan (minimaxi.com) — MiniMax-M3 carries the high-traffic default tier MiniMax-M3 codes MiniMax-M3 judges on the low-frequency advisor slot MiniMax-M2.7-highspeed explores. MiniMax-M3 also handles vision (image input). Requires MINIMAX_API_KEY environment variable.",
+  "tiers": {
+    "default": "minimax-cn-coding-plan/MiniMax-M3",
+    "code": "minimax-cn-coding-plan/MiniMax-M3",
+    "advisor": "minimax-cn-coding-plan/MiniMax-M3",
+    "explorer": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "vision": "minimax-cn-coding-plan/MiniMax-M3"
+  }
+}

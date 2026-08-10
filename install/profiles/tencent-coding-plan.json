@@ -1,0 +1,10 @@
+{
+  "description": "Tencent Coding Plan (China) — hunyuan-turbos carries the high-traffic default tier tc-code-latest codes minimax-m2.5 judges on the low-frequency advisor slot hunyuan-turbos explores. kimi-k2.5 doubles as vision (image input). Requires TENCENT_CODING_PLAN_API_KEY environment variable.",
+  "tiers": {
+    "default": "tencent-coding-plan/hunyuan-turbos",
+    "code": "tencent-coding-plan/tc-code-latest",
+    "advisor": "tencent-coding-plan/minimax-m2.5",
+    "explorer": "tencent-coding-plan/hunyuan-turbos",
+    "vision": "tencent-coding-plan/kimi-k2.5"
+  }
+}

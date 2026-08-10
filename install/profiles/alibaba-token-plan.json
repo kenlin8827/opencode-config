@@ -1,0 +1,10 @@
+{
+  "description": "Alibaba Token Plan — deepseek-v4-flash-0731 carries the high-traffic default tier qwen3.8-max codes qwen3.8-max judges on the low-frequency advisor slot deepseek-v4-flash-0731 explores. qwen3.7-plus doubles as vision (image input). Requires ALIBABA_TOKEN_PLAN_API_KEY environment variable.",
+  "tiers": {
+    "default": "alibaba-token-plan/deepseek-v4-flash-0731",
+    "code": "alibaba-token-plan/qwen3.8-max",
+    "advisor": "alibaba-token-plan/qwen3.8-max",
+    "explorer": "alibaba-token-plan/deepseek-v4-flash-0731",
+    "vision": "alibaba-token-plan/qwen3.7-plus"
+  }
+}

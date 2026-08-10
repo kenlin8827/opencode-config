@@ -211,7 +211,7 @@ list_profiles() {
         while IFS=$'\t' read -r tier ref; do
             [[ -z "$tier" ]] && continue
             printf '  %-9s %s\n' "tier.$tier" "$ref"
-        done < <($JQ -r '.tiers // {} | to_entries[] | [.key, .value] | @tsv' "$p")
+        done < <($JQ -r '.tiers // {} | to_entries[] | [.key, .value] | @tsv' "$p" | sort)
         echo
     done < <(echo "$names" | sort)
 }
@@ -266,7 +266,7 @@ apply_profile() {
 # Enter or 0 cancels. Sets PICKED_PROFILE (empty when cancelled).
 pick_profile() {
     local names=()
-    mapfile -t names < <(profile_names)
+    mapfile -t names < <(profile_names | sort)
     [[ ${#names[@]} -eq 0 ]] && { echo "no profiles found in $PROFILES_DIR" >&2; exit 1; }
     echo "[profiles]"
     echo "   0) cancel"
@@ -274,7 +274,7 @@ pick_profile() {
     for name in "${names[@]}"; do
         p="$(profile_path "$name")"
         desc="$($JQ -r '.description // empty' "$p")"
-        refs="$($JQ -r '.tiers // {} | to_entries[] | .value' "$p" | paste -sd ', ' -)"
+        refs="$($JQ -r '.tiers // {} | to_entries[] | [.key, .value] | @tsv' "$p" | sort | cut -f2 | paste -sd ', ' -)"
         printf '  %2d) %s\n' "$i" "$name"
         [[ -n "$desc" ]] && echo "       $desc"
         echo "       $refs"

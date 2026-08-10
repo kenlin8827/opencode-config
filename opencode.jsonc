@@ -21,9 +21,9 @@
       },
       "models": {
         "default":  { "name": "LLM Router default",  "id": "default",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
-        "code":     { "name": "LLM Router code",     "id": "code",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
-        "advisor":  { "name": "LLM Router advisor",  "id": "advisor",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
-        "explorer": { "name": "LLM Router explorer", "id": "explorer", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "code":     { "name": "LLM Router code",     "id": "code",     "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
+        "advisor":  { "name": "LLM Router advisor",  "id": "advisor",  "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
+        "explorer": { "name": "LLM Router explorer", "id": "explorer", "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
         "vision":   { "name": "LLM Router vision",   "id": "vision",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
       }
     }

@@ -1,0 +1,10 @@
+{
+  "description": "Anthropic (official API) — claude-haiku-4-5 carries the high-traffic default tier (fast), claude-sonnet-5 codes, claude-opus-5 judges on the low-frequency advisor slot, claude-haiku-4-5 explores. All Claude models accept images and PDFs — vision uses claude-sonnet-5 for balanced quality. Requires ANTHROPIC_API_KEY environment variable.",
+  "tiers": {
+    "default": "anthropic/claude-haiku-4-5",
+    "code": "anthropic/claude-sonnet-5",
+    "advisor": "anthropic/claude-opus-5",
+    "explorer": "anthropic/claude-haiku-4-5",
+    "vision": "anthropic/claude-sonnet-5"
+  }
+}

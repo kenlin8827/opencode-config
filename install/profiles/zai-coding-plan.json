@@ -1,0 +1,9 @@
+{
+  "description": "Z.AI Coding Plan — glm-5-turbo carries the high-traffic default tier glm-5.2 codes glm-5.2 judges on the low-frequency advisor slot glm-5.2-highspeed explores. All models are text-only — no vision tier. Requires ZHIPU_API_KEY environment variable.",
+  "tiers": {
+    "default": "zai-coding-plan/glm-5-turbo",
+    "code": "zai-coding-plan/glm-5.2",
+    "advisor": "zai-coding-plan/glm-5.2",
+    "explorer": "zai-coding-plan/glm-5.2-highspeed"
+  }
+}

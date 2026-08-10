@@ -1,0 +1,10 @@
+{
+  "description": "Kimi For Coding — kimi-for-coding carries the high-traffic default tier (cost-efficient), k3 judges on the low-frequency advisor slot, kimi-for-coding-highspeed explores. kimi-for-coding doubles as vision (image input). Requires KIMI_API_KEY environment variable.",
+  "tiers": {
+    "default": "kimi-for-coding/kimi-for-coding",
+    "code": "kimi-for-coding/kimi-for-coding",
+    "advisor": "kimi-for-coding/k3",
+    "explorer": "kimi-for-coding/kimi-for-coding-highspeed",
+    "vision": "kimi-for-coding/kimi-for-coding"
+  }
+}
