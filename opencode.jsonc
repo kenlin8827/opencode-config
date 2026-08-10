@@ -6,7 +6,8 @@
   "default_agent": "build",
   "instructions": [
     "~/.config/opencode/instructions/output-protocol.md",
-    "instructions/test-scope.md"
+    "instructions/test-scope.md",
+    "instructions/rfc-keywords.md"
   ],
   "plugin": ["@dietrichgebert/ponytail"],
   "provider": {
