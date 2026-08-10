@@ -1,7 +1,7 @@
 {
-  "description": "Zhipu AI Coding Plan — glm-4.7 carries the high-traffic default tier (text-only, cost-efficient), glm-5.2 codes and judges on the low-frequency advisor slot, glm-5.2-highspeed explores. glm-5v-turbo handles vision (image input). Requires ZHIPU_API_KEY environment variable.",
+  "description": "Zhipu AI Coding Plan — glm-5.1 carries the high-traffic default tier (previous-gen flagship, cost-efficient), glm-5.2 codes and judges on the low-frequency advisor slot, glm-5.2-highspeed explores. glm-5v-turbo handles vision (image input). Requires ZHIPU_API_KEY environment variable.",
   "tiers": {
-    "default": "zhipuai-coding-plan/glm-4.7",
+    "default": "zhipuai-coding-plan/glm-5.1",
     "code": "zhipuai-coding-plan/glm-5.2",
     "advisor": "zhipuai-coding-plan/glm-5.2",
     "explorer": "zhipuai-coding-plan/glm-5.2-highspeed",

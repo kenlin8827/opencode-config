@@ -1,10 +1,10 @@
 {
-  "description": "Alibaba Coding Plan (China) — qwen3.7-plus carries the high-traffic default tier qwen3-coder-next codes MiniMax-M2.5 judges on the low-frequency advisor slot MiniMax-M2.5 explores. qwen3.7-plus also handles vision (image input). Requires ALIBABA_CODING_PLAN_API_KEY environment variable.",
+  "description": "Alibaba Coding Plan (China) — qwen3.7-plus carries the high-traffic default tier qwen3-coder-next codes MiniMax-M2.5 judges on the low-frequency advisor slot qwen3.7-plus explores. qwen3.7-plus also handles vision (image input). Requires ALIBABA_CODING_PLAN_API_KEY environment variable.",
   "tiers": {
     "default": "alibaba-coding-plan-cn/qwen3.7-plus",
     "code": "alibaba-coding-plan-cn/qwen3-coder-next",
     "advisor": "alibaba-coding-plan-cn/MiniMax-M2.5",
-    "explorer": "alibaba-coding-plan-cn/MiniMax-M2.5",
+    "explorer": "alibaba-coding-plan-cn/qwen3.7-plus",
     "vision": "alibaba-coding-plan-cn/qwen3.7-plus"
   }
 }

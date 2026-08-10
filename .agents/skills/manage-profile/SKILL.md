@@ -63,17 +63,29 @@ Check the `suggested_tiers` field. Adjust if needed:
 
 | Tier | What to pick | Keywords that boost score |
 |------|-------------|---------------------------|
-| `default` | Fast, high-traffic, non-reasoning | flash, haiku, mini, small, turbo, lite, chat, plus |
-| `code` | Coding-focused or strong reasoning | codestral, coder, sonnet, pro, opus, max, large |
-| `advisor` | Highest quality available | opus, max, large, ultra, pro |
-| `explorer` | Cheapest, fast | flash, haiku, mini, lite, turbo, nano, small |
+| `default` | **Second-highest** tier (strong but not flagship) — default is the high-traffic main agent + fallback | pro, max, plus, chat, sonnet |
+| `code` | Coding-focused or strongest reasoning | codestral, coder, sonnet, pro, opus, max, large |
+| `advisor` | **Absolute flagship** — highest quality available, low-frequency | opus, max, large, ultra, pro |
+| `explorer` | Cheapest, fast | flash, haiku, mini, lite, turbo, nano, small, highspeed |
 | `vision` | Must have `attachment: true` + `image` in input modalities | (auto-selected by script) |
 
+### Quality ladder
+
+The tier-to-model assignment must follow a strict quality ladder:
+
+```
+explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest coding)  <=  advisor  (absolute flagship)
+```
+
 Rules:
+- **`default` = second-highest, NOT the cheapest.** The default tier drives 6 agents (build, plan, architect, security, researcher, tech-writer) — orchestration and architecture analysis need strong reasoning. Use the flagship's previous-gen or fast variant (e.g. qwen3.7-max not qwen3.6-plus, glm-5.1 not glm-4.7, kimi-for-coding not highspeed).
+- **`advisor` = absolute flagship.** Must be >= `code` in quality. Never put a weaker model in advisor than code (quality inversion).
+- **`explorer` = cheapest/fastest variant.** Use flash/turbo/highspeed/lite/mini variants. Should be <= `default`.
+- **`code` = strongest coding model.** Prefer codex/coder variants when available.
 - Skip `deprecated` status models.
 - If no model has `attachment: true`, **omit** the `vision` tier entirely.
 - Prefer the latest release date when scores tie.
-- The `default` and `explorer` tiers can share the same model if the provider has a small catalog.
+- When the provider has a small catalog (<= 2 models), tiers can share the same model — but `advisor` should always get the strongest one available.
 
 ### 3. Write the profile file
 

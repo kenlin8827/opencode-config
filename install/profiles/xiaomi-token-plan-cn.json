@@ -1,10 +1,10 @@
 {
-  "description": "Xiaomi Token Plan (China) — mimo-v2.5-tts carries the high-traffic default tier mimo-v2.5-pro codes mimo-v2.5-pro judges on the low-frequency advisor slot mimo-v2.5-tts explores. mimo-v2.5 doubles as vision (image input). Requires XIAOMI_API_KEY environment variable.",
+  "description": "Xiaomi Token Plan (China) — mimo-v2.5-pro carries the high-traffic default tier mimo-v2.5-pro codes mimo-v2.5-pro judges on the low-frequency advisor slot mimo-v2.5 explores. mimo-v2.5 doubles as vision (image input). Requires XIAOMI_API_KEY environment variable.",
   "tiers": {
-    "default": "xiaomi-token-plan-cn/mimo-v2.5-tts",
+    "default": "xiaomi-token-plan-cn/mimo-v2.5-pro",
     "code": "xiaomi-token-plan-cn/mimo-v2.5-pro",
     "advisor": "xiaomi-token-plan-cn/mimo-v2.5-pro",
-    "explorer": "xiaomi-token-plan-cn/mimo-v2.5-tts",
+    "explorer": "xiaomi-token-plan-cn/mimo-v2.5",
     "vision": "xiaomi-token-plan-cn/mimo-v2.5"
   }
 }

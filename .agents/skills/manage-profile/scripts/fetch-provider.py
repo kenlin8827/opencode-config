@@ -12,13 +12,18 @@ import urllib.request
 
 API_URL = "https://models.opencode.ai/api.json"
 TIER_KEYWORDS = {
-    "default":    ["flash", "haiku", "mini", "small", "turbo", "lite", "chat", "plus"],
+    "default":    ["pro", "max", "plus", "chat", "sonnet"],  # second-highest: strong but not flagship
     "code":       ["codestral", "coder", "sonnet", "pro", "opus", "max", "large"],
-    "advisor":    ["opus", "max", "large", "ultra", "pro"],
-    "explorer":   ["flash", "haiku", "mini", "lite", "turbo", "nano", "small"],
+    "advisor":    ["opus", "max", "large", "ultra", "pro"],  # absolute flagship
+    "explorer":   ["flash", "haiku", "mini", "lite", "turbo", "nano", "small", "highspeed"],  # cheapest/fastest
 }
 
-SMALL_RE = __import__("re").compile(r"\b(nano|flash|lite|mini|haiku|small|fast|turbo)\b")
+# Keywords that indicate flagship / highest-quality models — used to exclude them from default tier
+FLAGSHIP_KEYWORDS = ["opus", "ultra"]
+# Keywords that indicate cheap/fast models — used to exclude them from default tier
+CHEAP_KEYWORDS = ["flash", "haiku", "mini", "lite", "nano", "small", "highspeed"]
+
+SMALL_RE = __import__("re").compile(r"\b(nano|flash|lite|mini|haiku|small|fast|turbo|highspeed)\b")
 
 
 def fetch_catalog():
@@ -34,6 +39,14 @@ def model_score(model_id, model_data, tier):
     for kw in keywords:
         if kw in name_lower:
             score += 1
+    # default tier: penalize flagship (should use second-highest) and cheap models (should use strong)
+    if tier == "default":
+        for kw in FLAGSHIP_KEYWORDS:
+            if kw in name_lower:
+                score -= 2  # flagship too expensive for high-traffic default
+        for kw in CHEAP_KEYWORDS:
+            if kw in name_lower:
+                score -= 1  # cheap models not strong enough for orchestration
     cost = model_data.get("cost", {})
     cost_val = (cost.get("input", 0) + cost.get("output", 0)) if cost else 0
     status = model_data.get("status", "")
