@@ -205,11 +205,11 @@ Full policy: see `instructions/test-scope.md` (injected via system prompt — `o
 @<domain-dev> (fix) → @qa (regression test — min. 2–5-file tier per policy, i.e. unit tests for changed file + direct callers) → @code-review (review)
 ```
 
-### Bug fix loop (review → fix → re-review until no P0/P1)
+### Bug fix loop (review → verify → fix → re-review until no P0/P1)
 ```
-@code-review (find P0/P1, scope = diff) → @<domain-dev> (fix blocking issues) → @code-review (recheck) → repeat until no P0/P1 remain → @qa (regression test, min. 2–5-file tier per policy)
+@code-review (find P0/P1, scope = diff) → verify each finding (real bug? false positive?) → @advisor (if false positive, confirm before dismiss) → @<domain-dev> (fix verified issues) → @code-review (recheck) → repeat until no P0/P1 remain → @qa (regression test, min. 2–5-file tier per policy)
 ```
-For automated iterative review-fix cycles, run `/review-fix-loop` instead of managing the loop manually.
+For automated iterative review-fix cycles, run `/review-fix-loop` — it includes the verify gate and advisor consultation protocol. Run `/review-fix-loop --max-rounds=N` to override the default 5-round limit.
 
 ### Tech migration
 ```

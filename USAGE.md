@@ -283,7 +283,7 @@ Shall I proceed?
 | Command | Description |
 |---|---|
 | `/advisor off\|lite\|full` | Switch advisor mode (see below) |
-| `/review-fix-loop [scope]` | Automated review → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, `files`, or empty (uncommitted) |
+| `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, `files`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
 
@@ -292,10 +292,15 @@ Shall I proceed?
 ```
 > /review-fix-loop last commit
   → @code-review finds P0/P1 issues
-  → @<domain-dev> fixes each blocking issue
+  → Verify each finding (read code, trace data flow, check guards)
+  → If false positive → @advisor confirms before dismiss
+  → If confirmed real → @<domain-dev> fixes each verified issue
   → @code-review re-reviews
-  → Repeat until clean or 5 rounds max
+  → Repeat until clean or max rounds (default 5)
   → Summary with verdict + statistics
+
+> /review-fix-loop HEAD~3 --max-rounds=8
+  → Same loop, allows up to 8 rounds for larger diffs
 ```
 
 ---

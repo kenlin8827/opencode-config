@@ -283,7 +283,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | 命令 | 说明 |
 |---|---|
 | `/advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
-| `/review-fix-loop [scope]` | 自动化 审查→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`、`files`，或空（未提交变更） |
+| `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`、`files`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 
@@ -292,10 +292,15 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 ```
 > /review-fix-loop last commit
   → @code-review 发现 P0/P1 问题
-  → @<领域开发> 修复每个阻塞性问题
+  → 验证每个发现（读代码、追踪数据流、检查上游守卫）
+  → 若为误报 → @advisor 确认后方可跳过
+  → 若确认真BUG → @<领域开发> 修复每个已验证问题
   → @code-review 复审
-  → 重复直到清零或最多 5 轮
+  → 重复直到清零或达到最大轮次（默认 5）
   → 输出总结：结论 + 统计数据
+
+> /review-fix-loop HEAD~3 --max-rounds=8
+  → 相同流程，允许最多 8 轮（适用于较大 diff）
 ```
 
 ---

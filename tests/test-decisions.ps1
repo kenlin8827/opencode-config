@@ -79,7 +79,7 @@ Check "build.md: no shared_context placeholder" ($bc -notmatch "\{shared_context
 $rfl = Get-Content "$base\commands\review-fix-loop.md" -Raw
 Check "review-fix-loop.md: has carry context forward rule" ($rfl -match "Carry context forward")
 Check "review-fix-loop.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
-Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only P0/P1")
+Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only.*P0/P1")
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)
 $ai = Get-Content "$base\plugins\advisor\advisor-instructions.ts" -Raw
