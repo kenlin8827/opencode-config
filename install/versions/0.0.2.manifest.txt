@@ -21,6 +21,7 @@ commands/advisor.md
 commands/grill-me.md
 commands/grill-with-docs.md
 commands/review-fix-loop.md
+instructions/coding-principles.md
 instructions/output-protocol.md
 instructions/rfc-keywords.md
 instructions/test-scope.md
