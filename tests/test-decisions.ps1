@@ -41,7 +41,7 @@ Check "output-protocol: has full toggle" ($op -match "/advisor full" -or $op -ma
 Check "output-protocol: has permanent toggle (instructions or config)" ($op -match "instructions" -or $op -match "opencode.json")
 Check "output-protocol: advisor only for blocking" ($op -match "blocking decision")
 Check "output-protocol: has confidence score" ($op -match "confidence")
-Check "output-protocol: has threshold 9" ($op -match "9")
+Check "output-protocol: has threshold 8" ($op -match "8")
 
 # Subagent checks: should NOT have "ask the user" or "ask a question" language
 # (subagents don't have the question tool and would stall)

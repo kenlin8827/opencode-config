@@ -43,8 +43,8 @@ Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/advisor/advisor-instructions.ts.
-# instructions array: output-protocol.md + instructions/test-scope.md
-Check "instructions count = 2" ($config.instructions.Count -eq 2)
+# instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md
+Check "instructions count = 4" ($config.instructions.Count -eq 4)
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
@@ -146,7 +146,7 @@ Check "advisor.md: lists all 3 modes (off/lite/full)" `
 Check "advisor.md: references @advisor dispatch" ($advisorCmd -match "@advisor")
 Check "advisor.md: mentions blocking decisions" ($advisorCmd -match "blocking")
 Check "advisor.md: references confidence score" ($advisorCmd -match "confidence")
-Check "advisor.md: mentions threshold 9" ($advisorCmd -match "9")
+Check "advisor.md: mentions threshold 8" ($advisorCmd -match "8")
 Check "advisor.md: mentions auto-execute" ($advisorCmd -match "auto-execute" -or $advisorCmd -match "directly")
 
 # Advisor agent checks
