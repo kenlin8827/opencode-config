@@ -2,6 +2,8 @@
 
 OpenCode-based multi-agent architecture with shared protocols, specialist dispatch, and structured output.
 
+> **New here?** Start with the **[Usage Guide](USAGE.md)** (English) or **[使用指南](USAGE.zh-CN.md)** (中文) — prerequisites, installation, configuration, daily workflow, and troubleshooting.
+
 ## Architecture
 
 ```
@@ -249,7 +251,7 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 | Mode | Behavior |
 |------|----------|
 | **lite** (default) | Dispatch `@advisor`; present BOTH opinions to the user. User decides. |
-| **full** | Dispatch `@advisor`; confidence ≥ 9 → auto-execute; < 9 → lite flow. |
+| **full** | Dispatch `@advisor`; confidence ≥ 8 → auto-execute (max 10/session); < 8 → lite flow. |
 | **off** | No `@advisor` dispatch; orchestrator decides alone. |
 
 **Toggle**: `/advisor off|lite|full` — the `advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
@@ -261,7 +263,7 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 1. `command.execute.before` — `/advisor <mode>` writes the state file
 2. `experimental.chat.system.transform` — injects the active-mode marker + embedded protocol into every system prompt
 3. `tool.execute.before` — blocks `@advisor` dispatch with a clear error while mode is off
-4. `tool.execute.after` — parses confidence; full mode ≥ 9 gets the auto-execute directive (never on model fallback, never on red-team output)
+4. `tool.execute.after` — parses confidence; full mode ≥ 8 gets the auto-execute directive (max 10/session, never on model fallback, never on red-team output)
 
 ### Red-team stance (adversarial design review)
 

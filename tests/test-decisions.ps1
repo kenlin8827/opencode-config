@@ -89,7 +89,7 @@ Check "advisor-instructions.ts: has dispatch section" ($ai -match "dispatch")
 Check "advisor-instructions.ts: only blocking decisions" ($ai -match "blocking")
 Check "advisor-instructions.ts: has 3 modes (off/lite/full)" `
     (($ai -match "lite") -and ($ai -match "full") -and ($ai -match "off"))
-Check "advisor-instructions.ts: has confidence threshold" ($ai -match "confidence" -and $ai -match "9")
+Check "advisor-instructions.ts: has confidence threshold" ($ai -match "confidence" -and $ai -match "8")
 
 # advisor-mode.ts checks (plugin entry)
 $am = Get-Content "$base\plugins\advisor-mode.ts" -Raw
