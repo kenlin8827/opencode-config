@@ -12,12 +12,11 @@
     - Skipped paths (.git, node_modules, .metrics, install) are never shipped
       and never deleted from the target.
 
-.PARAMETER Mode
-    Generate | Install | Status
-
-    - Generate  Scan repo, write install/versions/<ver>.manifest.txt (no install).
-    - Install   Apply current manifest to $Target (auto-generates if missing). Default.
-    - Status    Show installed version vs repo version, no changes.
+    Subcommands (positional, like install.sh):
+      install     Apply current manifest to target (default).
+      generate    Scan repo, write manifest (no install).
+      status      Show installed version vs repo version, no changes.
+      init        Backup target to a timestamped sibling, then clear it.
 
 .PARAMETER Target
     Install target (defaults to ~/.config/opencode).
@@ -25,11 +24,20 @@
 .PARAMETER Force
     Install even when installed version equals repo version.
 
+.PARAMETER NoBackup
+    Skip the backup step when running `init`.
+
+.PARAMETER Yes
+    Skip the confirmation prompt when running `init`.
+
 .EXAMPLE
-    pwsh ./install/install.ps1 -Mode Generate        # before tagging a release
-    pwsh ./install/install.ps1 -Mode Install         # apply current manifest
-    pwsh ./install/install.ps1 -Mode Install -Force  # re-apply same version
-    pwsh ./install/install.ps1 -Mode Status
+    pwsh ./install/install.ps1                 # install (default)
+    pwsh ./install/install.ps1 install -Force  # re-apply same version
+    pwsh ./install/install.ps1 status          # show installed vs repo version
+    pwsh ./install/install.ps1 generate        # generate manifest only
+    pwsh ./install/install.ps1 init            # backup + clear target (fresh start)
+    pwsh ./install/install.ps1 init -NoBackup  # clear without backup
+    pwsh ./install/install.ps1 init -Yes       # skip confirmation prompt
 
 .NOTES
     Manifest format: one repo-relative path per line, forward slashes.
@@ -38,13 +46,37 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('Generate', 'Install', 'Status')]
-    [string]$Mode = 'Install',
-    [string]$Target,
-    [switch]$Force
+    [Alias('t')][string]$Target,
+    [Alias('f')][switch]$Force,
+    [switch]$NoBackup,
+    [Alias('y')][switch]$Yes,
+    [Alias('h')][switch]$Help,
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)][string[]]$CommandArgs
 )
 
 $ErrorActionPreference = 'Stop'
+
+# --- subcommand parse -------------------------------------------------------
+# Positional subcommand (install / generate / status / init), mirroring install.sh.
+# Named params (-Target, -Force, -NoBackup, -Yes) are bound by PowerShell's
+# parameter binder; everything else lands in $CommandArgs.
+$Mode = 'Install'
+if ($Help) {
+    Get-Help $PSCommandPath -Detailed
+    exit 0
+}
+if ($CommandArgs) {
+    foreach ($token in $CommandArgs) {
+        switch ($token) {
+            'install'   { $Mode = 'Install' }
+            'generate'  { $Mode = 'Generate' }
+            'status'    { $Mode = 'Status' }
+            'init'      { $Mode = 'Init' }
+            '--help'    { Get-Help $PSCommandPath -Detailed; exit 0 }
+            default     { throw "unknown arg: $token" }
+        }
+    }
+}
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if (-not $Target) { $Target = Join-Path $HOME '.config/opencode' }
@@ -227,6 +259,52 @@ $instDir = Join-Path $RepoRoot 'install/versions'
 $curMan  = Join-Path $instDir "$ver.manifest.txt"
 
 switch ($Mode) {
+    'Init' {
+        # Backup the entire target directory to a timestamped sibling, then clear it.
+        # Designed for a fresh start: after init, run `install` to reinstall
+        # config files, then config.ps1 (interactive) to set credentials.
+        if (-not (Test-Path $Target)) {
+            Write-Host "target directory does not exist: $Target"
+            Write-Host 'nothing to do'
+            return
+        }
+        $items = @(Get-ChildItem $Target -Force)
+        if ($items.Count -eq 0) {
+            Write-Host "target directory is already empty: $Target"
+            return
+        }
+
+        # Timestamped backup as a sibling directory.
+        $timestamp = (Get-Date -Format 'yyyyMMdd-HHmmss')
+        $backupDir = "${Target}.backup.${timestamp}"
+
+        if (-not $NoBackup) {
+            Copy-Item $Target $backupDir -Recurse -Force
+            $backupCount = @(Get-ChildItem $backupDir -Recurse -Force).Count
+            Write-Host ("backed up {0} item(s) to: {1}" -f $backupCount, $backupDir)
+        } else {
+            Write-Host 'skipping backup (-NoBackup)'
+        }
+
+        # Confirmation before destructive operation.
+        if (-not $Yes) {
+            $confirm = Read-Host "clear all files in $Target? (y/N)"
+            if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+                Write-Host 'cancelled'
+                return
+            }
+        }
+
+        # Clear everything in the target directory (keep the directory itself).
+        foreach ($item in $items) {
+            Remove-Item $item.FullName -Recurse -Force
+        }
+        Write-Host ("cleared {0} ({1} item(s) removed)" -f $Target, $items.Count)
+        Write-Host ''
+        Write-Host 'next steps:'
+        Write-Host '  pwsh install/install.ps1 install   # reinstall config files'
+        Write-Host '  pwsh install/config.ps1             # set credentials + models'
+    }
     'Generate' {
         if (Test-Path $curMan) {
             throw "install/versions/$ver.manifest.txt already exists; remove it first to regenerate"

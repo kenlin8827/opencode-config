@@ -10,8 +10,11 @@
 #   ./install/install.sh status         # show installed vs repo
 #   ./install/install.sh install -f     # force reinstall same version
 #   ./install/install.sh install -t DIR # target a different directory
+#   ./install/install.sh init           # backup + clear target (fresh start)
+#   ./install/install.sh init --no-backup  # clear without backup
+#   ./install/install.sh init -y        # skip confirmation prompt
 #
-# Mirrors install.ps1's three modes + credential preservation in opencode.jsonc.
+# Mirrors install.ps1's four modes + credential preservation in opencode.jsonc.
 
 set -eo pipefail
 
@@ -30,12 +33,16 @@ PRESERVE_KEYS=("baseURL" "apiKey")
 # --- arg parse ----------------------------------------------------------
 MODE="install"
 FORCE=0
+NO_BACKUP=0
+YES=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        generate|status|install) MODE="$1"; shift ;;
+        generate|status|install|init) MODE="$1"; shift ;;
         -f|--force) FORCE=1; shift ;;
+        --no-backup) NO_BACKUP=1; shift ;;
+        -y|--yes) YES=1; shift ;;
         -t|--target) TARGET="$2"; shift 2 ;;
-        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
         *) echo "unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -252,6 +259,51 @@ VER="$(read_version)"
 CUR_MAN="$INST_DIR/$VER.manifest.txt"
 
 case "$MODE" in
+    init)
+        # Backup the entire target directory to a timestamped sibling, then clear it.
+        # Designed for a fresh start: after init, run `install` to reinstall
+        # config files, then config.sh (interactive) to set credentials.
+        if [[ ! -d "$TARGET" ]]; then
+            echo "target directory does not exist: $TARGET"
+            echo "nothing to do"
+            exit 0
+        fi
+        item_count="$(find "$TARGET" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
+        if [[ "$item_count" -eq 0 ]]; then
+            echo "target directory is already empty: $TARGET"
+            exit 0
+        fi
+
+        # Timestamped backup as a sibling directory.
+        timestamp="$(date +%Y%m%d-%H%M%S)"
+        backup_dir="${TARGET}.backup.${timestamp}"
+
+        if [[ $NO_BACKUP -eq 0 ]]; then
+            cp -R "$TARGET" "$backup_dir"
+            backup_count="$(find "$backup_dir" -mindepth 1 | wc -l | tr -d ' ')"
+            echo "backed up $backup_count item(s) to: $backup_dir"
+        else
+            echo "skipping backup (--no-backup)"
+        fi
+
+        # Confirmation before destructive operation.
+        if [[ $YES -eq 0 ]]; then
+            printf 'clear all files in %s? (y/N): ' "$TARGET"
+            if ! read -r confirm; then echo; echo "cancelled"; exit 0; fi
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                echo "cancelled"
+                exit 0
+            fi
+        fi
+
+        # Clear everything in the target directory (keep the directory itself).
+        find "$TARGET" -mindepth 1 -delete
+        echo "cleared $TARGET ($item_count item(s) removed)"
+        echo
+        echo "next steps:"
+        echo "  ./install/install.sh install   # reinstall config files"
+        echo "  ./install/config.sh            # set credentials + models"
+        ;;
     generate)
         if [[ -f "$CUR_MAN" ]]; then
             echo "install/versions/$VER.manifest.txt already exists; remove it first to regenerate" >&2

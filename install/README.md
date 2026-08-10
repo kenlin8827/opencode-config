@@ -9,14 +9,19 @@ them with the current manifest's files.
 ```pwsh
 # 1. Edit install/VERSION (one line).
 # 2. Apply (manifest for the new version is auto-generated if missing):
-pwsh install/install.ps1 -Mode Install
+pwsh install/install.ps1
 
 # Force re-apply, or just check state:
-pwsh install/install.ps1 -Mode Install -Force
-pwsh install/install.ps1 -Mode Status
+pwsh install/install.ps1 install -Force
+pwsh install/install.ps1 status
 
 # Generate the manifest for the current VERSION without installing:
-pwsh install/install.ps1 -Mode Generate
+pwsh install/install.ps1 generate
+
+# Backup + clear the entire target directory (fresh start):
+pwsh install/install.ps1 init
+pwsh install/install.ps1 init -NoBackup   # clear without backup
+pwsh install/install.ps1 init -Yes       # skip confirmation prompt
 ```
 
 Default target is `~/.config/opencode`. To test without touching your real
@@ -24,7 +29,7 @@ config, point `-Target` at a scratch directory:
 
 ```pwsh
 $tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
-pwsh install/install.ps1 -Mode Install -Target $tmp
+pwsh install/install.ps1 install -Target $tmp
 Get-ChildItem -Force $tmp
 Remove-Item -Recurse -Force $tmp
 ```
@@ -38,11 +43,14 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 # 2. Apply:
 ./install/install.sh
 
-# Force, status, generate, custom target:
+# Force, status, generate, custom target, init:
 ./install/install.sh -f
 ./install/install.sh status
 ./install/install.sh generate
 ./install/install.sh install -t /path/to/target
+./install/install.sh init               # backup + clear target
+./install/install.sh init --no-backup    # clear without backup
+./install/install.sh init -y            # skip confirmation prompt
 ```
 
 ## Configuring credentials (PowerShell)
@@ -201,6 +209,27 @@ a version manually, delete `<target>/.CONFIG_VERSION`.
 `.CONFIG_VERSION` itself is never deleted by the script (even if an old
 manifest listed it) — it is always rewritten at the end of each install.
 
+## Init mode (fresh start)
+
+`init` (PowerShell and Bash) backs up the entire target directory
+to a timestamped sibling (`~/.config/opencode.backup.YYYYMMDD-HHMMSS`), then
+clears everything inside it — a clean slate for a fresh install.
+
+```pwsh
+pwsh install/install.ps1 init             # backup + clear
+pwsh install/install.ps1 init -NoBackup   # clear without backup
+pwsh install/install.ps1 init -Yes         # skip confirmation
+```
+
+```bash
+./install/install.sh init               # backup + clear
+./install/install.sh init --no-backup    # clear without backup
+./install/install.sh init -y            # skip confirmation
+```
+
+After `init`, run `install` to reinstall config files,
+then `config.ps1` / `config.sh` to set credentials and model picks.
+
 ## Preserved fields
 
 When the manifest contains `opencode.jsonc`, both scripts snapshot the user's
@@ -240,7 +269,7 @@ literal key is never silently overwritten.
 
 | Script             | Language   | Purpose                                    |
 | ------------------ | ---------- | ------------------------------------------ |
-| `install.ps1`      | PowerShell | Install / generate / status                |
+| `install.ps1`      | PowerShell | Install / generate / status / init         |
 | `install.sh`       | Bash 4+    | Same, with `jq` for JSON                   |
 | `config.ps1`       | PowerShell | Set / get / reset credentials + model IDs  |
 | `config.sh`        | Bash 4+    | Same, with `jq`                            |

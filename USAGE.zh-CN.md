@@ -24,7 +24,7 @@ git clone <repo-url> opencode-config
 cd opencode-config
 
 # 2. 安装配置到 ~/.config/opencode
-pwsh install/install.ps1 -Mode Install
+pwsh install/install.ps1
 
 # 3. 配置凭证（交互式 — 先选服务商，再为每个层级选模型）
 pwsh install/config.ps1
@@ -49,16 +49,17 @@ macOS / Linux / WSL：
 
 | 模式 | PowerShell | Bash | 说明 |
 |---|---|---|---|
-| 安装（默认） | `pwsh install/install.ps1 -Mode Install` | `./install/install.sh` | 将当前清单应用到目标目录 |
-| 强制重装 | `pwsh install/install.ps1 -Mode Install -Force` | `./install/install.sh install -f` | 重新应用相同版本 |
-| 查看状态 | `pwsh install/install.ps1 -Mode Status` | `./install/install.sh status` | 显示已安装版本与仓库版本 |
-| 生成清单 | `pwsh install/install.ps1 -Mode Generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
+| 安装（默认） | `pwsh install/install.ps1` | `./install/install.sh` | 将当前清单应用到目标目录 |
+| 强制重装 | `pwsh install/install.ps1 install -Force` | `./install/install.sh install -f` | 重新应用相同版本 |
+| 查看状态 | `pwsh install/install.ps1 status` | `./install/install.sh status` | 显示已安装版本与仓库版本 |
+| 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
+| 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
 
 ### 自定义目标目录（安全测试）
 
 ```powershell
 $tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
-pwsh install/install.ps1 -Mode Install -Target $tmp
+pwsh install/install.ps1 install -Target $tmp
 # 检查...
 Remove-Item -Recurse -Force $tmp
 ```
@@ -411,10 +412,10 @@ $env:LLM_ROUTER_API_KEY  = "<your-api-key>"
 git pull origin main
 
 # 2. 检查将会变更什么
-pwsh install/install.ps1 -Mode Status
+pwsh install/install.ps1 status
 
 # 3. 安装（凭证 + 模型选择会被保留）
-pwsh install/install.ps1 -Mode Install
+pwsh install/install.ps1
 ```
 
 ```bash
@@ -428,7 +429,7 @@ git pull origin main
 ### 发布新版本（维护者）
 
 1. 编辑 `install/VERSION`（一行，例如 `0.0.3`）
-2. 生成清单：`pwsh install/install.ps1 -Mode Generate`
+2. 生成清单：`pwsh install/install.ps1 generate`
 3. 运行结构测试：`pwsh tests/test-all.ps1 -StructuralOnly`
 4. 类型检查插件：`bun install && bunx tsc --noEmit`
 5. 提交 + 打标签
@@ -443,7 +444,7 @@ git pull origin main
 
 ```powershell
 # 查看已安装的内容
-pwsh install/install.ps1 -Mode Status
+pwsh install/install.ps1 status
 # 然后手动删除目标目录：
 Remove-Item -Recurse -Force "$HOME/.config/opencode"
 ```
@@ -456,6 +457,24 @@ rm -rf ~/.config/opencode
 
 这会移除所有智能体、命令、插件、指令和配置。`~/.config/opencode/.metrics/` 中的指标也会被删除。
 
+### Init 模式（备份 + 清空）
+
+使用 `init` 将整个目标目录备份到带时间戳的同级目录（`~/.config/opencode.backup.YYYYMMDD-HHMMSS`），然后清空其中所有内容 — 为全新安装做准备。
+
+```powershell
+pwsh install/install.ps1 init             # 备份 + 清空
+pwsh install/install.ps1 init -NoBackup   # 不备份直接清空
+pwsh install/install.ps1 init -Yes         # 跳过确认提示
+```
+
+```bash
+./install/install.sh init               # 备份 + 清空
+./install/install.sh init --no-backup    # 不备份直接清空
+./install/install.sh init -y            # 跳过确认提示
+```
+
+`init` 之后，运行 `install` 重装配置文件，再运行 `config.ps1` / `config.sh` 设置凭证和模型。
+
 ---
 
 ## 添加新智能体
@@ -465,7 +484,7 @@ rm -rf ~/.config/opencode
 3. **添加到 `plan.md`** — 团队表（如果具备分析能力）
 4. **添加到 `opencode.jsonc`** — `agent.<name>` 块，包含 tier、model、mode 等
 5. **添加到 `tests/test-all.ps1`** — `$allFiles` 数组 + 内容检查
-6. **生成清单** — `pwsh install/install.ps1 -Mode Generate`（在更新 VERSION 之后）
+6. **生成清单** — `pwsh install/install.ps1 generate`（在更新 VERSION 之后）
 7. **测试** — `pwsh tests/test-all.ps1 -StructuralOnly`
 
 ### Frontmatter 模板

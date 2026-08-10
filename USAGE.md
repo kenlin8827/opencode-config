@@ -24,7 +24,7 @@ git clone <repo-url> opencode-config
 cd opencode-config
 
 # 2. Install config to ~/.config/opencode
-pwsh install/install.ps1 -Mode Install
+pwsh install/install.ps1
 
 # 3. Configure credentials (interactive — pick providers, then models per tier)
 pwsh install/config.ps1
@@ -49,16 +49,17 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 
 | Mode | PowerShell | Bash | What it does |
 |---|---|---|---|
-| Install (default) | `pwsh install/install.ps1 -Mode Install` | `./install/install.sh` | Apply current manifest to target |
-| Force reinstall | `pwsh install/install.ps1 -Mode Install -Force` | `./install/install.sh install -f` | Re-apply same version |
-| Status | `pwsh install/install.ps1 -Mode Status` | `./install/install.sh status` | Show installed vs repo version |
-| Generate manifest | `pwsh install/install.ps1 -Mode Generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
+| Install (default) | `pwsh install/install.ps1` | `./install/install.sh` | Apply current manifest to target |
+| Force reinstall | `pwsh install/install.ps1 install -Force` | `./install/install.sh install -f` | Re-apply same version |
+| Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
+| Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
+| Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
 
 ### Custom target (safe testing)
 
 ```powershell
 $tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
-pwsh install/install.ps1 -Mode Install -Target $tmp
+pwsh install/install.ps1 install -Target $tmp
 # inspect...
 Remove-Item -Recurse -Force $tmp
 ```
@@ -411,10 +412,10 @@ $env:LLM_ROUTER_API_KEY  = "<your-api-key>"
 git pull origin main
 
 # 2. Check what will change
-pwsh install/install.ps1 -Mode Status
+pwsh install/install.ps1 status
 
 # 3. Install (credentials + model picks are preserved)
-pwsh install/install.ps1 -Mode Install
+pwsh install/install.ps1
 ```
 
 ```bash
@@ -428,7 +429,7 @@ The installer reads `.CONFIG_VERSION` in the target, looks up that version's man
 ### Releasing a new version (maintainer)
 
 1. Edit `install/VERSION` (one line, e.g. `0.0.3`)
-2. Generate manifest: `pwsh install/install.ps1 -Mode Generate`
+2. Generate manifest: `pwsh install/install.ps1 generate`
 3. Run structural tests: `pwsh tests/test-all.ps1 -StructuralOnly`
 4. Type-check plugins: `bun install && bunx tsc --noEmit`
 5. Commit + tag
@@ -443,7 +444,7 @@ Delete `<target>/.CONFIG_VERSION` — the next install won't know what to clean 
 
 ```powershell
 # Point install at the target with the old version still recorded
-pwsh install/install.ps1 -Mode Status   # see what's installed
+pwsh install/install.ps1 status   # see what's installed
 # Then manually remove the target directory:
 Remove-Item -Recurse -Force "$HOME/.config/opencode"
 ```
@@ -456,6 +457,24 @@ rm -rf ~/.config/opencode
 
 This removes all agents, commands, plugins, instructions, and config. Metrics in `~/.config/opencode/.metrics/` are also removed.
 
+### Init mode (backup + clear)
+
+Use `init` to back up the entire target directory to a timestamped sibling (`~/.config/opencode.backup.YYYYMMDD-HHMMSS`), then clear everything inside it — a clean slate for a fresh install.
+
+```powershell
+pwsh install/install.ps1 init             # backup + clear
+pwsh install/install.ps1 init -NoBackup   # clear without backup
+pwsh install/install.ps1 init -Yes         # skip confirmation prompt
+```
+
+```bash
+./install/install.sh init               # backup + clear
+./install/install.sh init --no-backup    # clear without backup
+./install/install.sh init -y            # skip confirmation prompt
+```
+
+After `init`, run `install` to reinstall config files, then `config.ps1` / `config.sh` to set credentials and model picks.
+
 ---
 
 ## Adding a new agent
@@ -465,7 +484,7 @@ This removes all agents, commands, plugins, instructions, and config. Metrics in
 3. **Add to `plan.md`** — team table (if analysis-capable)
 4. **Add to `opencode.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — `$allFiles` array + content checks
-6. **Generate manifest** — `pwsh install/install.ps1 -Mode Generate` (after bumping VERSION)
+6. **Generate manifest** — `pwsh install/install.ps1 generate` (after bumping VERSION)
 7. **Test** — `pwsh tests/test-all.ps1 -StructuralOnly`
 
 ### Frontmatter template

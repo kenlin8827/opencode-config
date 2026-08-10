@@ -218,7 +218,7 @@ pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
 pwsh -ExecutionPolicy Bypass -File tests/test-advisor-e2e.ps1
 ```
 
-Pre-install gate (single-user repo — no CI by design): run `test-all.ps1 -StructuralOnly` (exit code 0) before `install/install.ps1 -Mode Install`. Type-check the plugins once after toolchain setup: `bun install && bunx tsc --noEmit`. Runtime behavior (hooks, LLM compliance) still requires a real `opencode` environment — see the pre-release checklist below.
+Pre-install gate (single-user repo — no CI by design): run `test-all.ps1 -StructuralOnly` (exit code 0) before `install/install.ps1`. Type-check the plugins once after toolchain setup: `bun install && bunx tsc --noEmit`. Runtime behavior (hooks, LLM compliance) still requires a real `opencode` environment — see the pre-release checklist below.
 
 ### Test coverage
 
