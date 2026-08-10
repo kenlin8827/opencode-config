@@ -26,14 +26,14 @@ Every blocking question falls into one of two classes — \`@advisor\` classifie
 | **FACTUAL** | Answer derivable from code, docs, or given context — no unstated user preference involved | May auto-answer |
 | **PREFERENCE** | Depends on user taste, goals, priorities, or irreversible trade-offs | NEVER auto-answer — back to the user |
 
-The advisor may answer on the user's behalf only when EVERY premise of its answer is traceable to facts in the context. Any doubt → PREFERENCE.
+The advisor may answer on the user's behalf when its answer is well-supported by the project context. Classify as FACTUAL when the answer is clear from existing code, conventions, dependencies, or tooling — even if a different project might choose differently. Classify as PREFERENCE only when the answer genuinely depends on unstated user taste, goals, or involves an irreversible trade-off with no clear default. When in genuine doubt → PREFERENCE, but don't default to PREFERENCE just because multiple options exist — if one option is clearly better given the project's existing context, it's FACTUAL.
 
 ### Modes
 
 | Mode | Behavior |
 |------|----------|
 | **lite** (default) | Dispatch \`@advisor\`, then present BOTH your and the advisor's recommendation. User decides. Advisor gives opinions ONLY — it NEVER answers on the user's behalf. |
-| **full** | Dispatch \`@advisor\`. Question class FACTUAL + confidence ≥ 9 → auto-execute the answer on the user's behalf. Otherwise (PREFERENCE or < 9) → lite flow. |
+| **full** | Dispatch \`@advisor\`. Question class FACTUAL + confidence ≥ 8 → auto-execute the answer on the user's behalf. Otherwise (PREFERENCE or < 8) → lite flow. Max 10 auto-executes per session, then falls back to lite. |
 | **off** | No \`@advisor\`. Orchestrator decides alone. |
 
 ### Flow
@@ -42,7 +42,8 @@ The advisor may answer on the user's behalf only when EVERY premise of its answe
 blocking decision / question to user
   └─ advisor mode != off
        ├─ dispatch @advisor (context, options, your recommendation)
-       ├─ mode = full && Question class = FACTUAL && confidence ≥ 9
+       ├─ mode = full && Question class = FACTUAL && confidence ≥ 8
+       │    && within session limit (10)
        │    → auto-execute the advisor's answer, on the user's behalf
        └─ otherwise → present BOTH opinions to user via question tool
 \`\`\`
@@ -94,7 +95,8 @@ Output your verdict (HOLDS / HOLDS WITH CAVEATS / FAILS). No confidence score.
 - One advisor call per decision — don't loop.
 - Present both opinions. Highlight disagreement.
 - Question tool: put the recommended option FIRST in the option list, marked \`(recommended)\`. On disagreement, mark the advisor-backed option and state the disagreement in the question header, not via option order.
-- Full mode ≥ 9 is final ONLY when the advisor classified the question FACTUAL: do NOT call question, do NOT present options. Note in your reply that the advisor answered on the user's behalf.
+- Full mode auto-execute fires when advisor classified the question FACTUAL AND confidence ≥ 8: do NOT call question, do NOT present options. Note in your reply that the advisor answered on the user's behalf.
+- After 10 auto-executes in a session, subsequent decisions fall back to lite flow.
 - PREFERENCE questions ALWAYS go back to the user — no confidence score unlocks them, in any mode.
 - If \`@advisor\` fails, proceed with your recommendation alone; note advisor was unavailable.
 - Subagents: tell them to STOP on blocking decisions, not decide.`
@@ -103,8 +105,9 @@ const MODE_MARKER: Record<AdvisorMode, string> = {
   off: `[ADVISOR MODE: OFF]\nAdvisor consultation is disabled. Do NOT dispatch @advisor.`,
   lite: `[ADVISOR MODE: LITE]\nDispatch @advisor for each blocking decision; present BOTH opinions to the user. Advisor gives opinions only — it NEVER answers on the user's behalf.`,
   full: `[ADVISOR MODE: FULL — ACTIVE NOW]\n` +
-    `Dispatch @advisor. Question class FACTUAL + confidence ≥ 9 → auto-execute the answer NOW (on the user's behalf), no question tool. ` +
-    `PREFERENCE or confidence < 9 → present BOTH opinions (lite flow). This is full, not lite, not off.`,
+    `Dispatch @advisor. Question class FACTUAL + confidence ≥ 8 → auto-execute the answer NOW (on the user's behalf), no question tool. ` +
+    `Max 10/session, then lite. ` +
+    `PREFERENCE or < 8 → present BOTH opinions (lite flow). This is full, not lite, not off.`,
 }
 
 /**
@@ -122,13 +125,13 @@ export function getAdvisorPrompt(mode: AdvisorMode): string {
 
 /**
  * Directive appended to advisor's tool output in full mode when confidence
- * ≥ 9 and the question was classified FACTUAL. A code-level nudge for the
- * orchestrator.
+ * meets threshold and the question was classified FACTUAL. A code-level
+ * nudge for the orchestrator.
  */
 export function fullDirective(confidence: number): string {
   return (
     `\n\n---\n[FULL MODE — CODE-LEVEL DIRECTIVE]\n` +
-    `Advisor confidence: ${confidence}/10 (≥ 9 threshold met; question classified FACTUAL).\n` +
+    `Advisor confidence: ${confidence}/10 (threshold met; question classified FACTUAL).\n` +
     `Auto-execute the advisor's recommendation NOW, on the user's behalf. ` +
     `Do NOT call question. Note: "Advisor answered on the user's behalf (confidence ${confidence}/10, class FACTUAL) — auto-executed per full mode."`
   )

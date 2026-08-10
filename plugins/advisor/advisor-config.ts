@@ -4,7 +4,7 @@
  *
  * State file: ~/.config/opencode/.advisor-mode
  *   - absent or "lite" → lite (default; both opinions returned to user)
- *   - "full"          → full (auto-execute when confidence ≥ 9)
+ *   - "full"          → full (auto-execute when confidence ≥ 8)
  *   - "off"           → off (no @advisor dispatch)
  *
  * Cold-start resolution (no flag yet):

@@ -28,11 +28,7 @@ function stripMarker(system: string[]): boolean {
     if (typeof s !== "string") continue
     const idx = s.indexOf(MARKER)
     if (idx === -1) continue
-    // Find the end: next "\n---\n" or "\n\n" boundary after our marker
-    const after = s.substring(idx)
-    const endMarker = after.indexOf("\n\n---\n", after.indexOf("]\n") + 2)
-    const end = endMarker > 0 ? idx + endMarker : s.length
-    system[i] = s.substring(0, idx) + s.substring(end)
+    system[i] = s.substring(0, idx)
     changed = true
   }
   return changed

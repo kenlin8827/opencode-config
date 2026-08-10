@@ -1,56 +1,63 @@
 /**
  * Shared advisor runtime — log helper + advisor detection + output shaping.
- * Single source of truth for utilities every hook reuses. Keeps the hook
- * handlers below to their single responsibility (one event each).
+ * Single source of truth for utilities every hook reuses.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
 
-/**
- * Detect advisor dispatch in tool args. Looks for the agent name.
- *
- * Known limitation: substring-based on purpose — the exact shape of the
- * task-tool args is not contractually known, and a false negative here is
- * worse than a false positive (off-mode guard wouldn't fire, full-mode
- * directive wouldn't inject). Tighten only once e2e coverage proves the
- * real arg shape.
- */
+// ─── Constants ───────────────────────────────────────────────────────
+
+const CONFIDENCE_THRESHOLD = 8
+const MAX_AUTO_ANSWERS = 10
+
+// ─── Try-catch wrapper ───────────────────────────────────────────────
+// Plugin hooks must NEVER crash the user's session.
+
+export function safeHook<H extends (...args: never[]) => Promise<unknown>>(
+  hook: H,
+  log?: (level: "info" | "warn", msg: string) => Promise<unknown>,
+): H {
+  return (async (...args: never[]) => {
+    try {
+      return await hook(...args)
+    } catch (err) {
+      try { await log?.("warn", `hook error (suppressed): ${String(err)}`) } catch {}
+    }
+  }) as H
+}
+
+// ─── Cheap tool-name filter ──────────────────────────────────────────
+
+const DISPATCH_TOOL_RE = /^(task|subagent|dispatch|agent|delegate)$/i
+
+export function isDispatchTool(input: unknown): boolean {
+  if (!input || typeof input !== "object") return true
+  const t = (input as Record<string, unknown>).tool
+  if (typeof t !== "string") return true
+  return DISPATCH_TOOL_RE.test(t) || t.toLowerCase().includes("task") || t.toLowerCase().includes("agent")
+}
+
+// ─── Advisor dispatch detection ──────────────────────────────────────
+
 export function isAdvisorDispatch(args: unknown): boolean {
   const s = JSON.stringify(args || {})
   return s.includes('"advisor"') || s.includes("@advisor")
 }
 
-/**
- * Detect red-team stance output by its mandatory markers (verdict header /
- * Verdict line). Hard code-level guard: red-team verdicts must NEVER trigger
- * full-mode auto-execute — enforced here regardless of whether the model
- * obeyed the "no confidence score" rule in the prompt.
- */
+// ─── Output parsing ──────────────────────────────────────────────────
+
 export function isRedTeamOutput(text: string): boolean {
   const s = String(text || "")
   return s.includes("Red-team analysis") || /\*\*Verdict\*\*\s*:/.test(s)
 }
 
-/**
- * Detect the advisor's question-class marker. Every blocking question is
- * classified by the advisor itself:
- *   FACTUAL    — answer derivable from code/docs/context, no unstated user
- *                preference → eligible for full-mode auto-answer.
- *   PREFERENCE — depends on user taste/goals/priorities → ALWAYS back to
- *                the user, no confidence score unlocks it.
- * Code-level gate: only an explicit "Question class: FACTUAL" marker unlocks
- * auto-answer — a missing or PREFERENCE classification never does.
- */
-export function isFactualClass(text: string): boolean {
-  return /question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(
-    String(text || ""),
-  )
+export function detectQuestionClass(text: string): "FACTUAL" | "PREFERENCE" | null {
+  const s = String(text || "")
+  if (/question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(s)) return "FACTUAL"
+  if (/question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*preference\b/i.test(s)) return "PREFERENCE"
+  return null
 }
 
-/**
- * Best-effort extraction of advisor's response text from whatever shape
- * OpenCode gives us. Order: known string fields → state.output → JSON.stringify.
- */
 export function extractResponseText(output: unknown): string {
   if (typeof output === "string") return output
   if (!output || typeof output !== "object") return ""
@@ -65,34 +72,29 @@ export function extractResponseText(output: unknown): string {
   return JSON.stringify(o)
 }
 
-/**
- * Parse a 1-10 confidence score from advisor's free-text response.
- * Matches: "Confidence: 9", "**Confidence**: 8", "confidence 10/10".
- */
 export function parseConfidence(text: string): number {
   const m = String(text || "").match(/confidence\*{0,2}[:\s]+\*?(\d{1,2})/i)
   return m ? Math.min(10, Math.max(0, parseInt(m[1], 10))) : 0
 }
 
-/**
- * Detect advisor model fallback: if OpenCode couldn't reach the dedicated
- * `advisor` model it silently uses the default. The confidence score from
- * a fallback is less trustworthy — we never auto-execute off it.
- */
+// ─── Model fallback detection ────────────────────────────────────────
+
 export function isModelFallback(output: unknown): boolean {
   if (!output || typeof output !== "object") return false
-  const meta = (output as Record<string, unknown>).metadata as
-  Record<string, unknown>
-  | undefined
+  const o = output as Record<string, unknown>
+  const meta = o.metadata as Record<string, unknown> | undefined
   const model = meta?.model as Record<string, unknown> | undefined
-  const id = model?.modelID as string | undefined
-  return !!id && id !== "advisor"
+  const id =
+    (model?.modelID as string | undefined) ??
+    (model?.id as string | undefined) ??
+    (meta?.modelID as string | undefined) ??
+    (o.modelID as string | undefined)
+  if (!id || typeof id !== "string") return false
+  return !id.toLowerCase().includes("advisor")
 }
 
-/**
- * Best-effort: append a string directive to whichever output field the
- * OpenCode task tool uses. Returns true on inject.
- */
+// ─── Output shaping ──────────────────────────────────────────────────
+
 export function appendDirective(output: unknown, directive: string): boolean {
   if (!output || typeof output !== "object") return false
   const o = output as Record<string, unknown>
@@ -112,9 +114,51 @@ export function appendDirective(output: unknown, directive: string): boolean {
   return false
 }
 
-/**
- * Log helper — same shape for every hook, one line per event.
- */
+// ─── Auto-answer state (session-keyed, one-shot) ─────────────────────
+
+const autoAnswerSessions = new Set<string>()
+const autoAnswerCounts = new Map<string, number>()
+
+export function setAutoAnswer(sessionId: string): void {
+  autoAnswerSessions.add(sessionId)
+}
+
+export function isAutoAnswerActive(sessionId: string): boolean {
+  return autoAnswerSessions.has(sessionId)
+}
+
+export function clearAutoAnswer(sessionId: string): void {
+  autoAnswerSessions.delete(sessionId)
+}
+
+export function autoAnswerQuotaReached(sessionId: string): boolean {
+  return (autoAnswerCounts.get(sessionId) ?? 0) >= MAX_AUTO_ANSWERS
+}
+
+export function recordAutoAnswer(sessionId: string): number {
+  const next = (autoAnswerCounts.get(sessionId) ?? 0) + 1
+  autoAnswerCounts.set(sessionId, next)
+  return next
+}
+
+// ─── Session ID extraction ───────────────────────────────────────────
+
+export function extractSessionId(output: unknown): string {
+  if (!output || typeof output !== "object") return "default"
+  const o = output as Record<string, unknown>
+  const sid = (o.sessionID as string) ?? (o.sessionId as string)
+  if (typeof sid === "string" && sid) return sid
+  const meta = o.metadata as Record<string, unknown> | undefined
+  const metaSid = (meta?.sessionID as string) ?? (meta?.sessionId as string)
+  return typeof metaSid === "string" && metaSid ? metaSid : "default"
+}
+
+// ─── Exports for full-inject ─────────────────────────────────────────
+
+export { CONFIDENCE_THRESHOLD, MAX_AUTO_ANSWERS }
+
+// ─── Log helper ──────────────────────────────────────────────────────
+
 export function makeLogger(client: PluginInput["client"], service: string) {
   return (level: "info" | "warn", message: string) =>
     client.app.log({ body: { service, level, message } })

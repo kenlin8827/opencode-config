@@ -1,30 +1,32 @@
 /**
  * Hook: tool.execute.after — finalize advisor's response for full mode.
- * Parses confidence, detects model fallback, appends the right directive.
  *
- * Rules:
- *   - Red-team stance output? Suppress ALL directives and stop — adversarial
- *     verdicts must never auto-execute, regardless of mode or stray scores.
- *   - Model fallback (OpenCode couldn't reach the dedicated advisor model)?
- *     Confidence is untrustworthy → append fallback warning, never auto-execute.
- *   - Question not classified FACTUAL? Never auto-answer — PREFERENCE
- *     questions always go back to the user, no confidence score unlocks them.
- *   - Full + FACTUAL + confidence ≥ 9 + no fallback → auto-answer directive.
- *   - Otherwise: no injection (lite flow handles it itself).
+ *   - safeHook: exceptions never crash the user's session.
+ *   - isDispatchTool: skip non-dispatch tools (perf).
+ *   - Format validation: warn on unparseable confidence/class.
+ *   - Frequency limit: max MAX_AUTO_ANSWERS per session.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getMode } from "./advisor-config"
 import { fullDirective, fallbackWarning } from "./advisor-instructions"
 import {
+  CONFIDENCE_THRESHOLD,
+  MAX_AUTO_ANSWERS,
   appendDirective,
+  autoAnswerQuotaReached,
+  detectQuestionClass,
   extractResponseText,
+  extractSessionId,
   isAdvisorDispatch,
-  isFactualClass,
+  isDispatchTool,
   isModelFallback,
   isRedTeamOutput,
   makeLogger,
   parseConfidence,
+  recordAutoAnswer,
+  safeHook,
+  setAutoAnswer,
 } from "./advisor-runtime"
 
 type Log = ReturnType<typeof makeLogger>
@@ -32,33 +34,67 @@ type Log = ReturnType<typeof makeLogger>
 export function makeFullInjectHook(client: PluginInput["client"]) {
   const log: Log = makeLogger(client, "advisor-mode")
 
-  return async (input: { args: unknown }, output: unknown) => {
-    const mode = getMode()
-    if (mode === "off") return
-    if (!isAdvisorDispatch(input.args) && !isAdvisorDispatch(output)) return
+  return safeHook(
+    async (input: unknown, output: unknown) => {
+      const mode = getMode()
+      if (mode === "off") return
+      if (!isDispatchTool(input)) return
 
-    const text = extractResponseText(output)
+      if (!isAdvisorDispatch(input) && !isAdvisorDispatch(output)) return
 
-    // Hard guard: adversarial verdicts never auto-execute — in any mode.
-    if (isRedTeamOutput(text)) {
-      await log("info", "red-team output detected — directives suppressed")
-      return
-    }
+      const text = extractResponseText(output)
 
-    const confidence = parseConfidence(text)
-    const fallback = isModelFallback(output)
-    const factual = isFactualClass(text)
-    await log("info", `advisor returned: confidence=${confidence}/10, class=${factual ? "FACTUAL" : "PREFERENCE"}, fallback=${fallback}`)
+      if (isRedTeamOutput(text)) {
+        await log("info", "red-team output — directives suppressed")
+        return
+      }
 
-    if (fallback) appendDirective(output, fallbackWarning())
+      const confidence = parseConfidence(text)
+      const fallback = isModelFallback(output)
+      const questionClass = detectQuestionClass(text)
+      const factual = questionClass === "FACTUAL"
+      const sessionId = extractSessionId(output)
 
-    if (mode === "full" && confidence >= 9 && factual && !fallback) {
-      appendDirective(output, fullDirective(confidence))
-      await log("info", `full directive injected (confidence=${confidence}, class=FACTUAL)`)
-      return
-    }
-    if (mode === "full" && confidence >= 9 && !factual) {
-      await log("info", "confidence ≥ 9 but question class is not FACTUAL — no auto-answer, back to user")
-    }
-  }
+      if (confidence === 0) {
+        await log("warn", "confidence score not parsed — check advisor output format")
+      }
+      if (questionClass === null) {
+        await log("warn", "question class not found — check advisor output format")
+      }
+
+      await log(
+        "info",
+        `advisor: confidence=${confidence}/${CONFIDENCE_THRESHOLD}, class=${questionClass ?? "UNKNOWN"}, fallback=${fallback}, session=${sessionId}`,
+      )
+
+      if (fallback) {
+        const ok = appendDirective(output, fallbackWarning())
+        if (!ok) await log("warn", "fallback warning FAILED to inject")
+      }
+
+      const shouldAuto =
+        mode === "full" &&
+        confidence >= CONFIDENCE_THRESHOLD &&
+        factual &&
+        !fallback &&
+        !autoAnswerQuotaReached(sessionId)
+
+      if (shouldAuto) {
+        const ok = appendDirective(output, fullDirective(confidence))
+        if (ok) {
+          setAutoAnswer(sessionId)
+          const count = recordAutoAnswer(sessionId)
+          await log(
+            "info",
+            `auto-answer armed [${count}/${MAX_AUTO_ANSWERS}] — confidence=${confidence}, class=FACTUAL, session=${sessionId}`,
+          )
+        } else {
+          await log("warn", "full directive FAILED to inject — output structure unrecognized")
+        }
+      } else if (mode === "full" && confidence >= CONFIDENCE_THRESHOLD && factual && !fallback) {
+        await log("warn", `auto-answer skipped — quota reached (${MAX_AUTO_ANSWERS}/${MAX_AUTO_ANSWERS})`)
+      }
+    },
+    log,
+  )
 }

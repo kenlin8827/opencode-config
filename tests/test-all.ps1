@@ -1,4 +1,4 @@
-﻿# Run all tests sequentially
+﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -210,7 +210,7 @@ Check "advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match "Verd
 
 # Question-class gate: full-mode auto-answer requires FACTUAL classification;
 # PREFERENCE questions always return to the user, in any mode.
-Check "advisor-runtime.ts: has isFactualClass gate" ($advisorRuntime -match "isFactualClass")
+Check "advisor-runtime.ts: has detectQuestionClass gate" ($advisorRuntime -match "detectQuestionClass")
 Check "advisor-instructions.ts: defines question class" ($advisorInstructions -match "FACTUAL")
 Check "advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE questions ALWAYS go back to the user")
 Check "advisor-instructions.ts: lite never answers for user" ($advisorInstructions -match "NEVER answers on the user's behalf")
@@ -220,7 +220,7 @@ Check "advisor.md: classifies every question" ($advisorAgent -match "ALWAYS clas
 $advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-full-inject.ts" -Raw
 Check "advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
 Check "advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
-Check "advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "isFactualClass")
+Check "advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "detectQuestionClass")
 
 # Session-created announce + /advisor switch feedback (user visibility)
 $advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-announce.ts" -Raw

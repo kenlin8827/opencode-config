@@ -18,7 +18,7 @@
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getMode, type AdvisorMode } from "./advisor-config"
-import { makeLogger } from "./advisor-runtime"
+import { CONFIDENCE_THRESHOLD, makeLogger, MAX_AUTO_ANSWERS, safeHook } from "./advisor-runtime"
 
 type Client = PluginInput["client"]
 
@@ -32,8 +32,8 @@ type SessionCreatedEvent = {
 export function announceMessage(mode: AdvisorMode): string {
   if (mode === "full") {
     return (
-      "[advisor] Mode: FULL — advisor may answer blocking questions on your " +
-      "behalf (FACTUAL, confidence ≥ 9). /advisor lite to require sign-off."
+      `[advisor] Mode: FULL — advisor may answer blocking questions on your ` +
+      `behalf (FACTUAL, confidence ≥ ${CONFIDENCE_THRESHOLD}, max ${MAX_AUTO_ANSWERS}/session). /advisor lite to require sign-off.`
     )
   }
   if (mode === "off") {
@@ -66,15 +66,20 @@ async function announce(client: Client, mode: AdvisorMode): Promise<void> {
 }
 
 export function makeAnnounceHook(client: Client) {
-  return async ({ event }: { event: SessionCreatedEvent }) => {
-    if (event.type !== "session.created") return
-    // Subagent sessions (task-dispatched) carry parentID — only announce on
-    // the top-level session the user actually opened.
-    if (event.properties?.info?.parentID) return
-    const mode = getMode()
-    if (mode === "off") return
-    await announce(client, mode)
-  }
+  const log = makeLogger(client, "advisor-mode")
+
+  return safeHook(
+    async ({ event }: { event: SessionCreatedEvent }) => {
+      if (event.type !== "session.created") return
+      // Subagent sessions (task-dispatched) carry parentID — only announce on
+      // the top-level session the user actually opened.
+      if (event.properties?.info?.parentID) return
+      const mode = getMode()
+      if (mode === "off") return
+      await announce(client, mode)
+    },
+    log,
+  )
 }
 
 /** Immediate user-visible confirmation for `/advisor <mode>` switches. */

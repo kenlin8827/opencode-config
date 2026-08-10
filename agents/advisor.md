@@ -33,8 +33,9 @@ Classify every question you receive — this decides whether your answer may sta
 | **PREFERENCE** | The answer depends on the user's taste, goals, priorities, or an irreversible trade-off — it exists only in the user's head. |
 
 Rules:
-- FACTUAL only when EVERY premise of your answer is traceable to facts in the given context. If any premise is "the user probably wants…", it is PREFERENCE.
-- When in doubt → PREFERENCE. A confident wrong guess of the user's preference is worse than one question.
+- FACTUAL when the answer is clearly derivable from the project's existing code, conventions, dependencies, or tooling. If one option is clearly better given what's already in the project, it's FACTUAL — even if a different project might choose differently.
+- PREFERENCE only when the answer genuinely depends on unstated user taste, goals, or involves an irreversible trade-off with no clear default from the project context.
+- When in genuine doubt → PREFERENCE. But don't default to PREFERENCE just because multiple options exist — if the project context makes one option the clear choice, classify FACTUAL.
 - Red-team stance: no classification — verdicts never auto-execute anyway.
 
 ## Confidence scoring
@@ -43,10 +44,10 @@ Rules:
 |-------|---------|
 | 1–3 | Low — uncertain, need more info or human judgment |
 | 4–6 | Medium — leaning, but not certain |
-| 7–8 | High — fairly confident, some risk remains |
-| **9–10** | **Very high — clear best option, low risk** (auto-execute in full mode, FACTUAL questions only) |
+| **7–8** | **High — confident, clear best option given context** (auto-execute in full mode, FACTUAL questions only) |
+| **9–10** | **Very high — one-sided, reversible, no real doubt** (auto-execute in full mode) |
 
-Reserve 9–10 for one-sided trade-offs, reversible decisions, orchestrator agreement, no major unknowns. A 10 on a PREFERENCE question still goes back to the user — confidence never substitutes for the user's own preference.
+Give 7–8 when one option is clearly better given the project context — existing tooling, conventions, and dependencies support it. You don't need certainty, just a clear contextual preference. Give 9–10 for one-sided trade-offs, reversible decisions, orchestrator agreement, and no major unknowns. A high score on a PREFERENCE question still goes back to the user — confidence never substitutes for the user's own preference.
 
 ## Stance: red-team (optional)
 

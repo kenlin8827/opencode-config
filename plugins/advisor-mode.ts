@@ -4,18 +4,21 @@
  *
  *   off  — no @advisor dispatch. Orchestrator decides alone.
  *   lite — both opinions returned to user; advisor never answers for the user.
- *   full — FACTUAL question + confidence ≥ 9 → advisor answers on the user's
- *          behalf (auto-execute); PREFERENCE or < 9 → lite flow.
+ *   full — FACTUAL question + confidence ≥ 8 → advisor answers on the user's
+ *          behalf (auto-execute); PREFERENCE or < 8 → lite flow.
  *
  * File layout: one entry + one job per file.
  *   advisor-config.ts            — mode normalize, state file IO, cold-start
  *   advisor-runtime.ts           — log, advisor detection, output shaping,
- *                                  red-team + question-class guards
+ *                                  red-team + question-class guards,
+ *                                  auto-answer state (session-keyed)
  *   advisor-instructions.ts      — embedded prompt fragment per mode
  *   advisor-mode-tracker.ts      — command hook (writes state on slash command)
  *   advisor-system-inject.ts     — system-transform hook (injects prompt)
- *   advisor-tool-guard.ts        — tool.before hook (blocks @advisor when off)
- *   advisor-full-inject.ts       — tool.after hook (auto-answer FACTUAL ≥ 9 in full mode)
+ *   advisor-tool-guard.ts        — tool.before hook: blocks @advisor when off;
+ *                                  blocks question tool when auto-answer armed
+ *   advisor-full-inject.ts       — tool.after hook: auto-answer FACTUAL ≥ 8 in
+ *                                  full mode; arms auto-answer state on success
  *   advisor-announce.ts          — event hook (session-created mode notice,
  *                                  toast → log fallback; also switch feedback)
  *
