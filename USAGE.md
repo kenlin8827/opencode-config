@@ -54,6 +54,8 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
+| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
+| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
 
 ### Custom target (safe testing)
 
@@ -66,6 +68,28 @@ Remove-Item -Recurse -Force $tmp
 
 ```bash
 ./install/install.sh install -t /tmp/opencode-test
+```
+
+### Global command
+
+After the initial install, register the repo as a global `opencode-config` command:
+
+```powershell
+pwsh install/install.ps1 register              # shim at ~/.local/bin
+pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom directory
+```
+
+```bash
+./install/install.sh register
+./install/install.sh register --bin-dir ~/bin
+```
+
+`register` creates a trampoline that re-executes the in-repo dispatcher, so `git pull` updates the command immediately. It will refuse to overwrite a file it did not create. Add `~/.local/bin` to your user PATH, then run:
+
+```powershell
+opencode-config status
+opencode-config install -Force
+opencode-config unregister   # remove the shim
 ```
 
 ### What gets preserved across reinstalls

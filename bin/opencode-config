@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# bin/opencode-config — global dispatcher for the opencode-config repo.
+#
+# This file lives in the opencode-config repo. The global shim at
+# ~/.local/bin/opencode-config re-execs this file (created by
+# install.sh's `register` subcommand). The same path is used when running
+# the command directly from a clone: `bin/opencode-config install`,
+# `bin/opencode-config status`, etc.
+#
+# Subcommands:
+#   install         Apply the current version's manifest to the default target
+#   update          Same as install, but forces reapply (-f)
+#   init            Backup + clear the target for a fresh start
+#   status          Show installed vs repo version
+#   generate        Regenerate install/versions/<ver>.manifest.txt
+#   register        Install the global shim into ~/.local/bin
+#   unregister      Remove the global shim from ~/.local/bin
+#   config          Run the config helper (credentials + per-tier model picks)
+#   profile         Shortcut for `config profile` (interactive picker)
+#   version         Print the repo's install/VERSION
+#   help            Print this help
+#
+# Anything else falls through to `install.sh` (so unknown flags + future
+# subcommands still work after an upgrade).
+
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+INSTALL="$REPO_ROOT/install/install.sh"
+CONFIG="$REPO_ROOT/install/config.sh"
+
+# First-line help extraction: print everything between line 2 and the
+# first blank line after the subcommand list. Keeps the comment block as
+# the single source of truth.
+print_help() {
+    awk 'NR>=2 && /^$/{exit} NR>=2' "$0"
+}
+
+# Treat no-arg invocation as `install` (most common entrypoint).
+if [[ $# -eq 0 ]]; then
+    set -- install
+fi
+
+sub="$1"
+shift || true
+
+case "$sub" in
+    -h|--help|help)
+        print_help
+        ;;
+    install)
+        exec "$INSTALL" install "$@"
+        ;;
+    update)
+        exec "$INSTALL" install -f "$@"
+        ;;
+    init)
+        exec "$INSTALL" init "$@"
+        ;;
+    status)
+        exec "$INSTALL" status "$@"
+        ;;
+    generate)
+        exec "$INSTALL" generate "$@"
+        ;;
+    register)
+        exec "$INSTALL" register "$@"
+        ;;
+    unregister)
+        exec "$INSTALL" unregister "$@"
+        ;;
+    config)
+        exec "$CONFIG" "$@"
+        ;;
+    profile)
+        exec "$CONFIG" profile "$@"
+        ;;
+    version|--version|-V)
+        head -1 "$REPO_ROOT/install/VERSION" 2>/dev/null || echo "unknown"
+        ;;
+    *)
+        # Unknown subcommand: fall through to install.sh. This keeps
+        # forward compatibility — any new flag or subcommand added to
+        # install.sh is reachable without updating this dispatcher.
+        echo "opencode-config: unknown subcommand: $sub (passing through to install.sh)" >&2
+        exec "$INSTALL" "$sub" "$@"
+        ;;
+esac

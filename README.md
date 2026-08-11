@@ -39,6 +39,10 @@ User
       └── advisor-mode.ts             — local plugin: advisor modes + red-team guard (plugins/)
 ```
 
+## Usage & installation
+
+For end-user setup, daily workflow, and troubleshooting, see [`USAGE.md`](USAGE.md) (English) and [`USAGE.zh-CN.md`](USAGE.zh-CN.md) (中文). This repo is meant to be installed into `~/.config/opencode` via `install/install.ps1` or `install/install.sh`; see [`install/README.md`](install/README.md) for installer internals (manifests, preserved fields, init, custom targets).
+
 ## Prompt design conventions
 
 ### 1. RFC 2119 keyword usage

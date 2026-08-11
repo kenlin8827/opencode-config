@@ -51,6 +51,55 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 ./install/install.sh init               # backup + clear target
 ./install/install.sh init --no-backup    # clear without backup
 ./install/install.sh init -y            # skip confirmation prompt
+
+# Global command:
+./install/install.sh register
+./install/install.sh register --bin-dir ~/bin
+./install/install.sh unregister
+```
+
+## Global command
+
+After installing the files, register the repo as a global `opencode-config`
+command so you can run it from any directory.
+
+PowerShell:
+
+```pwsh
+pwsh install/install.ps1 register              # shim to ~/.local/bin
+pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom location
+pwsh install/install.ps1 unregister            # remove shim
+```
+
+Bash:
+
+```bash
+./install/install.sh register
+./install/install.sh register --bin-dir ~/bin
+./install/install.sh unregister
+```
+
+`register` writes a tiny trampoline that re-executes the in-repo dispatcher
+(`bin/opencode-config.ps1` on PowerShell, `bin/opencode-config` on Bash), so
+`git pull` updates the command immediately. It will refuse to overwrite a file
+it didn't create.
+
+Add `~/.local/bin` to your user PATH, then run:
+
+```pwsh
+# PowerShell
+[Environment]::SetEnvironmentVariable('Path', "$env:Path;$HOME\.local\bin", 'User')
+# then in a fresh session:
+opencode-config status
+opencode-config install -Force
+```
+
+```bash
+# bash/zsh
+export PATH="$HOME/.local/bin:$PATH"
+# then:
+opencode-config status
+opencode-config update
 ```
 
 ## Configuring credentials (PowerShell)
@@ -304,12 +353,12 @@ literal key is never silently overwritten.
 
 ## Scripts
 
-| Script             | Language   | Purpose                                    |
-| ------------------ | ---------- | ------------------------------------------ |
-| `install.ps1`      | PowerShell | Install / generate / status / init         |
-| `install.sh`       | Bash 4+    | Same, with `jq` for JSON                   |
-| `config.ps1`       | PowerShell | Set / get / reset credentials + model IDs  |
-| `config.sh`        | Bash 4+    | Same, with `jq`                            |
+| Script             | Language   | Purpose                                      |
+| ------------------ | ---------- | -------------------------------------------- |
+| `install.ps1`      | PowerShell | Install / generate / status / init / register |
+| `install.sh`       | Bash 4+    | Same, with `jq` for JSON                     |
+| `config.ps1`       | PowerShell | Set / get / reset credentials + model IDs    |
+| `config.sh`        | Bash 4+    | Same, with `jq`                              |
 
 The two implementations share the same contract — same manifest format, same
 preserved fields, same default target — but are tested independently. If you
