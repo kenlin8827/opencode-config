@@ -286,6 +286,7 @@ Shall I proceed?
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
+| `/queue ...` | Queue the next prompt/command/shell while an agent runs — provided by the `opencode-queue` npm plugin (see [Queueing the next prompt](#queueing-the-next-prompt-while-an-agent-runs)) |
 
 ### Example: review-fix-loop
 
@@ -353,8 +354,45 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `metrics.ts` | `tool.execute.after` + `session.idle` | Auto-records tool call metrics (duration, success, agent) as JSONL |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit |
 | `advisor-mode.ts` (+ helpers) | 4 hooks | Advisor modes, protocol injection, off-mode blocking, full-mode auto-execute, red-team suppression |
+| [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
+
+### Queueing the next prompt while an agent runs (`opencode-queue`)
+
+Long-running agents (multi-step `@build` chains, full `/review-fix-loop` rounds) get interrupted the moment you type the next instruction in the prompt bar. The optional [`opencode-queue`](https://github.com/mirsella/opencode-queue) npm plugin registers a real `/queue` slash command so the next prompt, slash command, or shell block waits in line instead of cutting the running agent off.
+
+**Install** (npm plugin — OpenCode installs it on startup):
+
+```jsonc
+// opencode.jsonc
+{ "plugin": ["opencode-queue"] }
+```
+
+Restart OpenCode once after adding the entry. This repo does NOT bundle `opencode-queue` — it's opt-in.
+
+**Common usage** (works as either leading or trailing token):
+
+```
+/queue continue with the migration after this
+continue with the migration after this /queue
+
+/queue front /review
+/review /queue front
+
+/queue !ls           # !cmd = OpenCode shell block
+/queue flush         # send everything waiting, even before idle
+/queue list          # show current queue
+/queue clear 1       # drop item 1
+```
+
+**Key behavior** (full semantics in the [upstream README](https://github.com/mirsella/opencode-queue#readme)):
+
+- Queued entries are hidden from the running agent and from the transcript; the current run keeps its agent / model / variant unchanged.
+- Replays fire one per idle transition, in queue order, using each entry's own agent / model / variant at the time it was queued.
+- Queue state is persisted to OpenCode's user data directory, so entries survive abort / crash / restart; a running queue resumes after the next successful completion.
+- `/queue stop` pauses automatic replay (entries are kept); `/queue start` resumes it.
+- If plan mode asks to switch to the build agent while more queued work is waiting, the plugin answers `No` so the queue can continue.
 
 ### Compile plugins (one-time, after toolchain setup)
 

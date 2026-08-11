@@ -286,6 +286,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
+| `/queue ...` | 在智能体运行时排队下一条提示/命令/Shell —— 由 `opencode-queue` 这个 npm 插件提供（详见 [排队下一条提示](#排队下一条提示（opencode-queue）)） |
 
 ### 示例：review-fix-loop
 
@@ -353,8 +354,45 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `metrics.ts` | `tool.execute.after` + `session.idle` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式 |
 | `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式拦截、full 模式自动执行、red-team 抑制 |
+| [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。
+
+### 排队下一条提示（`opencode-queue`）
+
+长时间运行的智能体（多步 `@build` 链路、完整的 `/review-fix-loop` 轮次）往往会在你在提示栏敲下下一条指令时被截断。可选的 [`opencode-queue`](https://github.com/mirsella/opencode-queue) 这个 npm 插件注册了一个真正的 `/queue` 斜杠命令，让下一条提示、斜杠命令或 Shell 块排队等待，而不是打断当前运行的智能体。
+
+**安装**（npm 插件，OpenCode 启动时自动安装）：
+
+```jsonc
+// opencode.jsonc
+{ "plugin": ["opencode-queue"] }
+```
+
+添加后重启一次 OpenCode。本仓库**不**捆绑 `opencode-queue`，需自行启用。
+
+**常用用法**（前置或后置标记均可）：
+
+```
+/queue 任务完成后继续做迁移
+任务完成后继续做迁移 /queue
+
+/queue front /review
+/review /queue front
+
+/queue !ls           # !cmd = OpenCode Shell 块
+/queue flush         # 立即把排队里的全部发出，即使还没 idle
+/queue list          # 查看当前队列
+/queue clear 1       # 移除第 1 条
+```
+
+**关键行为**（完整语义见 [上游 README](https://github.com/mirsella/opencode-queue#readme)）：
+
+- 排队条目对当前智能体和对话记录都不可见；当前运行保持其原来的智能体 / 模型 / variant 不变。
+- 每次进入 idle 触发一条，按队列顺序回放，每条用其入队时选择的智能体 / 模型 / variant。
+- 队列状态持久化到 OpenCode 用户数据目录，abort / 崩溃 / 重启后条目仍在；处于 running 状态的队列在下一次正常完成后继续回放。
+- `/queue stop` 暂停自动回放（条目保留），`/queue start` 恢复。
+- 当 plan 模式询问是否切换到 build 智能体且队列中仍有条目时，插件会回答 `No`，让队列先跑完。
 
 ### 编译插件（一次性，工具链安装后）
 
