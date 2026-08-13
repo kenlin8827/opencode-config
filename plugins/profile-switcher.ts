@@ -186,7 +186,8 @@ function loadProfiles(): Map<string, { path: string; data: Profile }> {
 }
 
 // ─── Profile application ─────────────────────────────────────────────
-// Validates single-provider constraint, then rewrites agent models per tier.
+// Validates tier value format, then rewrites agent models per tier.
+// Mixed providers are allowed — a profile can span multiple providers.
 // Root `model` tracks tier.default — kept in sync like config.sh/config.ps1.
 
 function applyProfile(
@@ -200,20 +201,13 @@ function applyProfile(
     throw new Error("opencode.jsonc has no agent section")
   }
 
-  // Validate: single-provider constraint (same as config.sh).
-  let provider: string | null = null
+  // Validate format: each tier value must be '<provider>/<model_id>'.
+  // Mixed providers are allowed — a profile can route different tiers to
+  // different providers (e.g. deepseek for text tiers, llm-router for vision).
   for (const [tier, ref] of Object.entries(profile.tiers)) {
     if (!ref.includes("/") || ref.startsWith("/") || ref.endsWith("/")) {
       throw new Error(
         `tier ${tier}: value '${ref}' must be '<provider>/<model_id>'`,
-      )
-    }
-    const prov = ref.split("/")[0]
-    if (provider === null) {
-      provider = prov
-    } else if (prov !== provider) {
-      throw new Error(
-        `mixed providers (${provider} vs ${prov}) — a profile supports a single provider`,
       )
     }
   }
