@@ -310,7 +310,7 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, etc). Logs warnings. |
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
-| `advisor-mode.ts` (+ `plugins/advisor/` helpers) | `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Advisor modes off/lite/full; protocol injection; off-mode dispatch blocking; full-mode auto-execute directive; red-team output suppression. |
+| `advisor-mode.ts` (+ `plugins/advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode dispatch blocking; full-mode auto-execute directive; red-team output suppression. |
 | `profile-switcher.ts` | `config` + `command.execute.before` + `event: session.created` | Registers `/profile` slash command programmatically; switches model provider profiles by rewriting `opencode.jsonc` agent models per tier. State in `~/.config/opencode/.active-profile`. |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
@@ -361,7 +361,6 @@ plugins/
 └── profile-switcher.ts       # Hook: registers /profile command + switches provider profiles
 
 commands/
-├── advisor.md                # /advisor off|lite|full — mode switch
 ├── review-fix-loop.md        # Automated review→fix→re-review loop
 ├── grill-me.md               # Relentless interview to sharpen a plan or design
 └── grill-with-docs.md        # Grilling + domain modeling (CONTEXT.md & ADRs)
@@ -377,4 +376,4 @@ tests/
 └── README.md                 # Test documentation
 ```
 
-19 agent files + 2 shared instructions + 4 commands + 6 plugins (7 advisor helpers) + 8 test files + tsconfig.json.
+19 agent files + 2 shared instructions + 3 commands + 6 plugins (7 advisor helpers) + 8 test files + tsconfig.json.

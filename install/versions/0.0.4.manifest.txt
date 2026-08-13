@@ -17,7 +17,6 @@ agents/rust-dev.md
 agents/security.md
 agents/tech-writer.md
 agents/vision.md
-commands/advisor.md
 commands/grill-me.md
 commands/grill-with-docs.md
 commands/review-fix-loop.md

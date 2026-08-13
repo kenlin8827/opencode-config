@@ -86,6 +86,29 @@ export function makeAnnounceHook(client: Client) {
 export async function announceSwitch(
   client: Client,
   mode: AdvisorMode,
+  sessionID?: string,
 ): Promise<void> {
+  const log = makeLogger(client, "advisor-mode")
+  const message = announceMessage(mode)
+  // If we have a sessionID, inject the confirmation into the chat transcript
+  // via session.prompt({ noReply: true, ignored: true }) — visible in the
+  // main UI, no LLM call, no context pollution (OpenCode natively skips
+  // ignored parts in message-v2.ts:206).
+  if (sessionID) {
+    try {
+      await client.session.prompt({
+        path: { id: sessionID },
+        body: {
+          parts: [{ type: "text", text: message, ignored: true }],
+          noReply: true,
+        },
+        throwOnError: true,
+      })
+      await log("info", `announce: mode=${mode} (chat reply)`)
+      return
+    } catch {
+      // session.prompt failed — fall through to toast
+    }
+  }
   await announce(client, mode)
 }
