@@ -14,7 +14,7 @@
 #   ./install/config.ps1 set apiKey sk-xxx
 #   ./install/config.ps1 set model code claude-sonnet-4-5 [-p anthropic]
 #   ./install/config.ps1 profile                        # pick a profile by number and apply it
-#   ./install/config.ps1 profile list                   # list profiles in install/profiles/
+#   ./install/config.ps1 profile list                   # list profiles in profiles/
 #   ./install/config.ps1 profile apply opencode-go-performance
 #   ./install/config.ps1 reset                          # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.ps1 set ... -t FILE                # target a different file
@@ -44,7 +44,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir '..')).Path
 $Template = Join-Path $RepoRoot 'opencode.jsonc'
-$ProfilesDir = Join-Path $ScriptDir 'profiles'
+$ProfilesDir = Join-Path $RepoRoot 'profiles'
 $OPENCODE_BIN = $env:OPENCODE_BIN ? $env:OPENCODE_BIN : 'opencode'
 
 $script:CommentsWarned = $false
@@ -62,7 +62,7 @@ commands:
   set apiKey <key>         set provider.<Provider>.options.apiKey
   set model <name> <id>    set agent.model for tier <name> to <id> on provider <Provider>
   profile                  interactive: numbered profile menu, pick one by number to apply
-  profile list             list available profiles in install/profiles/
+  profile list             list available profiles in profiles/
   profile apply <name>     apply a profile (provider + per-tier model picks) in one shot
   reset                    restore baseURL/apiKey and model refs from repo template (default: llm-router)
 
@@ -330,7 +330,7 @@ function Set-LlmRouterCredentials($obj) {
 
 # --- profiles ---------------------------------------------------------------
 
-# Profiles are presets in install/profiles/<name>.json: a tier -> full
+# Profiles are presets in profiles/<name>.json: a tier -> full
 # "<provider>/<model_id>" ref map, applied in one shot (`profile apply <name>`).
 # A profile is single-provider: every ref must share the same provider part,
 # mixed providers are rejected. Tiers not listed by the profile are untouched.
@@ -512,7 +512,7 @@ while ($i -lt $CommandArgs.Count) {
 
 # --- main --------------------------------------------------------------------
 
-# `profile list` only reads install/profiles/ — it must work before the
+# `profile list` only reads profiles/ — it must work before the
 # target exists (fresh machine). Everything else touches $Target.
 if (-not ($Action -eq 'profile' -and $Key -eq 'list')) {
     if (-not (Test-Path $Target)) { throw "not found: $Target" }

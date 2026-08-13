@@ -43,7 +43,7 @@ Now launch `opencode` in your project directory — the `@build` orchestrator is
 
 ## Installation
 
-The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
+The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`, `profiles/`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
 
 ### Commands
 
@@ -223,6 +223,8 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 
 A profile is **single-provider** — every tier ref must share the same provider. Tiers not listed by a profile are left untouched. Applying validates everything up front and backs up `opencode.jsonc.bak` before writing.
 
+You can also switch profiles from within an opencode session using the `/profile` slash command (see [Slash commands](#slash-commands)).
+
 ---
 
 ## Model routing
@@ -307,6 +309,9 @@ Shall I proceed?
 | Command | Description |
 |---|---|
 | `/advisor off\|lite\|full` | Switch advisor mode (see below) |
+| `/profile list` | List all available model provider profiles |
+| `/profile <name>` | Switch to a named profile (e.g., `/profile deepseek`); rewrites tier→model mappings in `opencode.jsonc` |
+| `/profile current` | Show the active profile and current tier→model mappings |
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |

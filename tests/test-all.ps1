@@ -1,4 +1,4 @@
-﻿﻿# Run all tests sequentially
+﻿﻿﻿﻿﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -260,7 +260,7 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 # (no API calls; model existence check auto-skips without the opencode CLI)
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Profiles: install/profiles stress test" -ForegroundColor Cyan
+Write-Host "Profiles: profiles/ stress test" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-profiles.ps1"
 if ($LASTEXITCODE -ne 0) { $fail++ }

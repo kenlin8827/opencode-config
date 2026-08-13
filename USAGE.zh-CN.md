@@ -43,7 +43,7 @@ macOS / Linux / WSL：
 
 ## 安装
 
-安装器将白名单内的运行时文件（`agents/`、`commands/`、`plugins/`、`instructions/`、`opencode.jsonc`）复制到 `~/.config/opencode/`。其他所有内容（`.git/`、`install/`、`tests/`、`node_modules/` 等）保留在仓库中。
+安装器将白名单内的运行时文件（`agents/`、`commands/`、`plugins/`、`instructions/`、`opencode.jsonc`、`profiles/`）复制到 `~/.config/opencode/`。其他所有内容（`.git/`、`install/`、`tests/`、`node_modules/` 等）保留在仓库中。
 
 ### 命令
 
@@ -199,6 +199,8 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 
 预设是**单服务商**的 — 每个层级的引用必须属于同一服务商。预设未列出的层级保持不变。应用前会校验所有内容，并在写入前备份 `opencode.jsonc.bak`。
 
+也可以在 opencode 会话中直接使用 `/profile` 斜杠命令切换预设（详见 [斜杠命令](#斜杠命令)）。
+
 ---
 
 ## 模型路由
@@ -283,6 +285,9 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | 命令 | 说明 |
 |---|---|
 | `/advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
+| `/profile list` | 列出所有可用的模型服务商预设 |
+| `/profile <name>` | 切换到指定预设（如 `/profile deepseek`），重写 `opencode.jsonc` 中的层级→模型映射 |
+| `/profile current` | 显示当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |

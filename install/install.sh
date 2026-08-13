@@ -33,7 +33,7 @@ MARKER=".CONFIG_VERSION"
 BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 
 # Whitelist of runtime paths; nothing else ships.
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "profiles/")
 PRESERVE_KEYS=("baseURL" "apiKey")
 
 # --- arg parse ----------------------------------------------------------

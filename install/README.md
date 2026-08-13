@@ -113,7 +113,7 @@ pwsh install/config.ps1 set baseURL https://router.example.com/v1
 pwsh install/config.ps1 set apiKey  sk-xxxx
 pwsh install/config.ps1 set model  advisor my-advisor-v2
 pwsh install/config.ps1 profile                        # numbered menu, pick one to apply
-pwsh install/config.ps1 profile list                   # list presets in install/profiles/
+pwsh install/config.ps1 profile list                   # list presets in profiles/
 pwsh install/config.ps1 profile apply opencode-go-performance
 pwsh install/config.ps1 get
 pwsh install/config.ps1 reset
@@ -128,7 +128,7 @@ pwsh install/config.ps1 reset
 ./install/config.sh set apiKey sk-xxxx
 ./install/config.sh set model advisor my-advisor-v2
 ./install/config.sh profile                            # numbered menu, pick one to apply
-./install/config.sh profile list                       # list presets in install/profiles/
+./install/config.sh profile list                       # list presets in profiles/
 ./install/config.sh profile apply opencode-go-performance
 ./install/config.sh reset
 ```
@@ -165,7 +165,7 @@ pwsh install/config.ps1 profile list            # plain listing, no prompt
 pwsh install/config.ps1 profile apply <name>    # scripted, no prompt
 ```
 
-Profiles live in `install/profiles/<name>.json`:
+Profiles live in `profiles/<name>.json`:
 
 ```json
 {

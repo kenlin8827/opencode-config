@@ -1,5 +1,5 @@
 #requires -Version 7.0
-# test-profiles.ps1 — stress test for install/profiles/*.json
+# test-profiles.ps1 — stress test for profiles/*.json
 #
 # For every bundled profile: apply it to a fresh copy of the repo template
 # and assert that (a) every agent of a covered tier carries the profile ref,
@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $template = Join-Path $root 'opencode.jsonc'
 $config = Join-Path $root 'install' 'config.ps1'
-$profilesDir = Join-Path $root 'install' 'profiles'
+$profilesDir = Join-Path $root 'profiles'
 
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "ocfg-profile-test-$PID"
 New-Item -ItemType Directory -Force $tmp | Out-Null

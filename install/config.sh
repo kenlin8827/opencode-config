@@ -14,7 +14,7 @@
 #   ./install/config.sh set apiKey sk-xxx
 #   ./install/config.sh set model code claude-sonnet-4-5 [-p anthropic]
 #   ./install/config.sh profile                         # pick a profile by number and apply it
-#   ./install/config.sh profile list                    # list profiles in install/profiles/
+#   ./install/config.sh profile list                    # list profiles in profiles/
 #   ./install/config.sh profile apply opencode-go-performance
 #   ./install/config.sh reset                           # restore baseURL/apiKey and model refs from repo template
 #   ./install/config.sh set ... -t FILE                     # target a different file
@@ -35,7 +35,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE="$REPO_ROOT/opencode.jsonc"
-PROFILES_DIR="$SCRIPT_DIR/profiles"
+PROFILES_DIR="$REPO_ROOT/profiles"
 TARGET="${HOME}/.config/opencode/opencode.jsonc"
 
 # Tier names and agent -> tier mapping are derived from the repo template
@@ -171,7 +171,7 @@ relink_tier() {
 
 # --- profiles ------------------------------------------------------------
 
-# Profiles are presets in install/profiles/<name>.json: a tier -> full
+# Profiles are presets in profiles/<name>.json: a tier -> full
 # "<provider>/<model_id>" ref map, applied in one shot (`profile apply <name>`).
 # A profile is single-provider: every ref must share the same provider part,
 # mixed providers are rejected. Tiers not listed by the profile are untouched.
@@ -363,7 +363,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# `profile list` only reads install/profiles/ — it must work before the
+# `profile list` only reads profiles/ — it must work before the
 # target exists (fresh machine). Everything else touches $TARGET.
 if [[ ! ( "$ACTION" == "profile" && "$KEY" == "list" ) ]]; then
     [[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }

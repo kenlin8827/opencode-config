@@ -17,7 +17,7 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 |--------|---------------|
 | `test-all.ps1` | Runner — structural checks + all prompt tests |
 | `test-decisions.ps1` | Decision strategy structural checks (invoked by test-all) |
-| `test-profiles.ps1` | install/profiles stress test: every profile applied to a fresh template copy, refs asserted (no API calls) |
+| `test-profiles.ps1` | profiles/ stress test: every profile applied to a fresh template copy, refs asserted (no API calls) |
 | `test-build.ps1` | Primary build agent follows Output Protocol |
 | `test-plan.ps1` | Primary plan agent follows Output Protocol |
 | `test-subagent.ps1` | Subagent dispatched by build agent follows Output Protocol |
@@ -48,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
 - Security rules intact in all coding agents
 - researcher.md has no ponytail rules (non-coding isolation)
 - All 20 agent files exist (including explorer.md)
-- `install/profiles/*.json`: each profile applies cleanly to a fresh template
+- `profiles/*.json`: each profile applies cleanly to a fresh template
   copy (agent refs, root model, untouched tiers); every profile must cover
   all five tiers
 

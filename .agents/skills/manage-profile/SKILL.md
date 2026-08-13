@@ -5,7 +5,7 @@ description: Create or update opencode provider profiles by fetching real model 
 
 # Manage Provider Profile
 
-Create or update a provider profile in `install/profiles/` with **real model names** fetched from the opencode source of truth.
+Create or update a provider profile in `profiles/` with **real model names** fetched from the opencode source of truth.
 
 ## Core principle
 
@@ -89,7 +89,7 @@ Rules:
 
 ### 3. Write the profile file
 
-Write to `install/profiles/<provider_id>.json`:
+Write to `profiles/<provider_id>.json`:
 
 ```json
 {
@@ -169,6 +169,6 @@ User: "Add an anthropic profile"
 1. Run: `python .agents/skills/manage-profile/scripts/fetch-provider.py anthropic`
 2. Script returns models: claude-haiku-4-5, claude-sonnet-5, claude-opus-5, etc.
 3. Suggested tiers: default=claude-haiku-4-5, code=claude-sonnet-5, advisor=claude-opus-5, explorer=claude-haiku-4-5, vision=claude-sonnet-5
-4. Write `install/profiles/anthropic.json` with real model IDs
+4. Write `profiles/anthropic.json` with real model IDs
 5. Update README table
 6. Run `pwsh tests/test-profiles.ps1` to verify
