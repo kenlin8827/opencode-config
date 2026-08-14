@@ -97,10 +97,8 @@ $allFiles = @(
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands
-    "commands/grill-me.md",
-    "commands/grill-with-docs.md",
     "commands/advisor.md",
-    # Plugins (advisor-mode + helpers + review-fix-loop)
+    # Plugins (advisor-mode + helpers + review-fix-loop + grill)
     "plugins/advisor-mode.ts",
     "plugins/advisor/advisor-config.ts",
     "plugins/advisor/advisor-runtime.ts",
@@ -113,6 +111,12 @@ $allFiles = @(
     "plugins/review-fix-loop.ts",
     "plugins/review-fix-loop/review-fix-loop.ts",
     "plugins/review-fix-loop/review-fix-loop.md",
+    "plugins/grill-me.ts",
+    "plugins/grill-with-docs.ts",
+    "plugins/grill/grill-me.ts",
+    "plugins/grill/grill-me.md",
+    "plugins/grill/grill-with-docs.ts",
+    "plugins/grill/grill-with-docs.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -122,24 +126,40 @@ foreach ($f in $allFiles) {
     Check "file exists: $f" (Test-Path "$PSScriptRoot\..\$f")
 }
 
-# Command content checks
-$grillMe = Get-Content "$PSScriptRoot\..\commands\grill-me.md" -Raw
-$grillWithDocs = Get-Content "$PSScriptRoot\..\commands\grill-with-docs.md" -Raw
-Check "grill-me.md: has frontmatter agent" ($grillMe -match "agent: build")
-Check "grill-me.md: has one-question-at-a-time rule" ($grillMe -match "one at a time")
-Check "grill-me.md: has recommendation requirement" ($grillMe -match "MUST include your recommended")
-Check "grill-me.md: has facts vs decisions" ($grillMe -match "Facts vs")
-Check "grill-me.md: has stop conditions" ($grillMe -match "Stop conditions")
-Check "grill-me.md: has session output format" ($grillMe -match "Grilling Summary")
+# Grill plugin checks (plugins/grill/ — registered programmatically, no commands/*.md)
+$grillMePlugin = Get-Content "$PSScriptRoot\..\plugins\grill\grill-me.ts" -Raw
+$grillMeProtocol = Get-Content "$PSScriptRoot\..\plugins\grill\grill-me.md" -Raw
+Check "grill-me.ts: imports Plugin type" ($grillMePlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "grill-me.ts: has config hook registering command" ($grillMePlugin -match "config:" -and $grillMePlugin -match 'COMMAND_NAME')
+Check "grill-me.ts: NO command.execute.before hook" (-not ($grillMePlugin -match '"command\.execute\.before"'))
+Check "grill-me.ts: has system.transform hook" ($grillMePlugin -match "experimental.chat.system.transform")
+Check "grill-me.ts: agent is build" ($grillMePlugin -match 'agent:.*"build"')
+Check "grill-me.md: has one-question-at-a-time rule" ($grillMeProtocol -match "one at a time")
+Check "grill-me.md: has recommendation requirement" ($grillMeProtocol -match "MUST include your recommended")
+Check "grill-me.md: has facts vs decisions" ($grillMeProtocol -match "Facts vs")
+Check "grill-me.md: has stop conditions" ($grillMeProtocol -match "Stop conditions")
+Check "grill-me.md: has session output format" ($grillMeProtocol -match "Grilling Summary")
 
-Check "grill-with-docs.md: has frontmatter agent" ($grillWithDocs -match "agent: build")
-Check "grill-with-docs.md: has domain modeling" ($grillWithDocs -match "Domain modeling")
-Check "grill-with-docs.md: has CONTEXT.md format" ($grillWithDocs -match "CONTEXT.md")
-Check "grill-with-docs.md: has ADR format" ($grillWithDocs -match "ADR format")
-Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocs -match "Hard to reverse")
-Check "grill-with-docs.md: has lazy file creation" ($grillWithDocs -match "lazily")
-Check "grill-with-docs.md: has glossary rules" ($grillWithDocs -match "Be opinionated")
-Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocs -match "one at a time")
+$grillWithDocsPlugin = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.ts" -Raw
+$grillWithDocsProtocol = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.md" -Raw
+Check "grill-with-docs.ts: imports Plugin type" ($grillWithDocsPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "grill-with-docs.ts: has config hook registering command" ($grillWithDocsPlugin -match "config:" -and $grillWithDocsPlugin -match 'COMMAND_NAME')
+Check "grill-with-docs.ts: NO command.execute.before hook" (-not ($grillWithDocsPlugin -match '"command\.execute\.before"'))
+Check "grill-with-docs.ts: has system.transform hook" ($grillWithDocsPlugin -match "experimental.chat.system.transform")
+Check "grill-with-docs.ts: agent is build" ($grillWithDocsPlugin -match 'agent:.*"build"')
+Check "grill-with-docs.md: has domain modeling" ($grillWithDocsProtocol -match "Domain modeling")
+Check "grill-with-docs.md: has CONTEXT.md format" ($grillWithDocsProtocol -match "CONTEXT.md")
+Check "grill-with-docs.md: has ADR format" ($grillWithDocsProtocol -match "ADR format")
+Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocsProtocol -match "Hard to reverse")
+Check "grill-with-docs.md: has lazy file creation" ($grillWithDocsProtocol -match "lazily")
+Check "grill-with-docs.md: has glossary rules" ($grillWithDocsProtocol -match "Be opinionated")
+Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocsProtocol -match "one at a time")
+
+$grillMeBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-me.ts" -Raw
+Check "grill-me.ts: barrel re-exports GrillMePlugin" ($grillMeBarrel -match "export.*GrillMePlugin")
+
+$grillWithDocsBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-with-docs.ts" -Raw
+Check "grill-with-docs.ts: barrel re-exports GrillWithDocsPlugin" ($grillWithDocsBarrel -match "export.*GrillWithDocsPlugin")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw

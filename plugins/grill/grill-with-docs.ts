@@ -1,8 +1,8 @@
 /**
- * Review-Fix Loop Plugin — registers the `/review-fix-loop` slash command
+ * Grill-With-Docs Plugin — registers the `/grill-with-docs` slash command
  * programmatically via the `config` hook (same pattern as advisor-mode.ts
- * and profile-switcher.ts — no `commands/review-fix-loop.md` file needed),
- * then injects the protocol into the system prompt.
+ * and review-fix-loop.ts — no `commands/grill-with-docs.md` file needed),
+ * then injects the grilling-with-docs protocol into the system prompt.
  *
  * Two hooks:
  *   1. config — registers the slash command (template, description, agent)
@@ -18,9 +18,9 @@
  *   rely on strip-and-reappend for idempotency (same approach as
  *   advisor-mode's system hook).
  *
- * The protocol body lives in `review-fix-loop.md` (next to this file).
+ * The protocol body lives in `grill-with-docs.md` (next to this file).
  *
- * This module is re-exported by `plugins/review-fix-loop.ts` (barrel) so
+ * This module is re-exported by `plugins/grill.ts` (barrel) so
  * OpenCode's auto-discovery (which scans `plugins/` root) picks it up.
  */
 
@@ -30,9 +30,9 @@ import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PROTOCOL_FILE = join(__dirname, "review-fix-loop.md")
-const COMMAND_NAME = "review-fix-loop"
-const MARKER = "[REVIEW-FIX-LOOP SKILL]"
+const PROTOCOL_FILE = join(__dirname, "grill-with-docs.md")
+const COMMAND_NAME = "grill-with-docs"
+const MARKER = "[GRILL-WITH-DOCS PROTOCOL ARMED]"
 
 // Cache the protocol file content (loaded once).
 let cachedProtocol: string | null = null
@@ -42,13 +42,13 @@ function getProtocol(): string {
   return cachedProtocol
 }
 
-export const ReviewFixLoopPlugin: Plugin = async () => ({
+export const GrillWithDocsPlugin: Plugin = async () => ({
   config: async (cfg) => {
     cfg.command ??= {}
     cfg.command[COMMAND_NAME] = {
-      template: "/review-fix-loop $ARGUMENTS",
+      template: "/grill-with-docs $ARGUMENTS",
       description:
-        "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope] [--max-rounds=N]",
+        "Grill me with docs — relentless interview + domain modeling (CONTEXT.md glossary & ADRs created inline). Usage: /grill-with-docs <topic>",
       agent: "build",
     }
   },
