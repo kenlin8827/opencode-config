@@ -1,14 +1,6 @@
----
-description: "Grill me with docs — relentless interview + domain modeling (CONTEXT.md glossary & ADRs created inline). Usage: /grill-with-docs <topic>"
-agent: build
-source: https://github.com/mattpocock/skills
-author: Matt Pocock
-license: MIT
----
+# Grill-With-Docs Protocol
 
-Execute a **grilling session with documentation** — same relentless one-question-at-a-time interview as `/grill-me`, but also builds the project's domain model as decisions crystallize, writing them down immediately.
-
-$ARGUMENTS
+You are now running **grill-with-docs** — same relentless one-question-at-a-time interview as `/grill-me`, but also builds the project's domain model as decisions crystallize, writing them down immediately.
 
 ## What is grilling with docs?
 

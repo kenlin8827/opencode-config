@@ -32,7 +32,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROTOCOL_FILE = join(__dirname, "grill-with-docs.md")
 const COMMAND_NAME = "grill-with-docs"
-const MARKER = "[GRILL-WITH-DOCS PROTOCOL ARMED]"
+const MARKER = "[GRILL-WITH-DOCS SKILL]"
 
 // Cache the protocol file content (loaded once).
 let cachedProtocol: string | null = null

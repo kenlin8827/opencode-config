@@ -313,6 +313,8 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `advisor-mode.ts` (+ `plugins/advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode dispatch blocking; full-mode auto-execute directive; red-team output suppression. |
 | `profile-switcher.ts` | `config` + `command.execute.before` + `event: session.created` | Registers `/profile` slash command programmatically; switches model provider profiles by rewriting `opencode.jsonc` agent models per tier. State in `~/.config/opencode/.active-profile`. |
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session on command and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
+| `grill-me.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-me` slash command programmatically; arms session on command and injects grilling protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
+| `grill-with-docs.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-with-docs` slash command programmatically; arms session on command and injects grilling-with-docs protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 Profile state is stored in `~/.config/opencode/.active-profile`.
@@ -359,15 +361,18 @@ plugins/
 ├── review-fix-loop/
 │   ├── review-fix-loop.ts    # Plugin entry: config + command hook + system.transform
 │   └── review-fix-loop.md    # Protocol body (loaded at runtime, injected into system prompt)
+├── grill-me.ts               # Barrel entry (re-exports /grill-me plugin)
+├── grill-with-docs.ts        # Barrel entry (re-exports /grill-with-docs plugin)
+├── grill/
+│   ├── grill-me.ts           # Plugin entry: /grill-me command + system.transform
+│   ├── grill-me.md           # Grilling protocol body (loaded at runtime)
+│   ├── grill-with-docs.ts    # Plugin entry: /grill-with-docs command + system.transform
+│   └── grill-with-docs.md    # Grilling-with-docs protocol body (loaded at runtime)
 ├── design-token-guard.ts     # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts        # Hook: scan for AI anti-patterns
 ├── metrics.ts                # Hook: auto-collect tool metrics
 ├── auto-format.ts            # Hook: auto-run formatters
 └── profile-switcher.ts       # Hook: registers /profile command + switches provider profiles
-
-commands/
-├── grill-me.md               # Relentless interview to sharpen a plan or design
-└── grill-with-docs.md        # Grilling + domain modeling (CONTEXT.md & ADRs)
 
 tests/
 ├── test-all.ps1              # Main test runner (structural + prompt tests)
@@ -380,6 +385,6 @@ tests/
 └── README.md                 # Test documentation
 ```
 
-19 agent files + 4 shared instructions + 2 commands + 7 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol) + 8 test files + tsconfig.json.
+19 agent files + 4 shared instructions + 9 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol + 6 grill files: 2 barrels + 2 implementations + 2 protocols) + 8 test files + tsconfig.json.
 
-> **Note**: `/review-fix-loop` is registered programmatically via the `config` hook — no `commands/review-fix-loop.md` file is needed (same pattern as `/advisor` and `/profile`).
+> **Note**: `/review-fix-loop`, `/grill-me`, and `/grill-with-docs` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/advisor` and `/profile`).

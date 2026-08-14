@@ -1,14 +1,6 @@
----
-description: "Grill me — relentless one-question-at-a-time interview to sharpen a plan or design. Usage: /grill-me <topic>"
-agent: build
-source: https://github.com/mattpocock/skills
-author: Matt Pocock
-license: MIT
----
+# Grill-Me Protocol
 
-Execute a **grilling session** — a relentless, one-question-at-a-time interview that stress-tests a plan, design, or decision until we reach shared understanding.
-
-$ARGUMENTS
+You are now running **grill-me** — a relentless, one-question-at-a-time interview that stress-tests a plan, design, or decision until shared understanding is reached.
 
 ## What is grilling?
 

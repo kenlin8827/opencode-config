@@ -16,3 +16,9 @@ Thumbs.db
 
 # Repo snapshot copy (whole tree duplicated, never meant to be tracked)
 " 2"/
+
+# Codex CLI runtime output (ephemeral, never meant to be tracked)
+.codex/
+
+# IDE project files
+.idea/

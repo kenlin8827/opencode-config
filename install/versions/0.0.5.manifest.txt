@@ -17,8 +17,6 @@ agents/rust-dev.md
 agents/security.md
 agents/tech-writer.md
 agents/vision.md
-commands/grill-me.md
-commands/grill-with-docs.md
 instructions/coding-principles.md
 instructions/output-protocol.md
 instructions/rfc-keywords.md
@@ -36,11 +34,17 @@ plugins/advisor/advisor-tool-guard.ts
 plugins/ai-slop-scanner.ts
 plugins/auto-format.ts
 plugins/design-token-guard.ts
+plugins/grill-me.ts
+plugins/grill-with-docs.ts
+plugins/grill/grill-me.md
+plugins/grill/grill-me.ts
+plugins/grill/grill-with-docs.md
+plugins/grill/grill-with-docs.ts
 plugins/metrics.ts
 plugins/profile-switcher.ts
 plugins/review-fix-loop.ts
-plugins/review-fix-loop/review-fix-loop.ts
 plugins/review-fix-loop/review-fix-loop.md
+plugins/review-fix-loop/review-fix-loop.ts
 profiles/alibaba-coding-plan-cn.json
 profiles/alibaba-coding-plan.json
 profiles/alibaba-token-plan-cn.json
