@@ -383,7 +383,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `metrics.ts` | `tool.execute.after` + `session.idle` | Auto-records tool call metrics (duration, success, agent) as JSONL |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit |
 | `advisor-mode.ts` (+ helpers) | 4 hooks | Advisor modes, protocol injection, off-mode blocking, full-mode auto-execute, red-team suppression |
-| `review-fix-loop.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command; parses args; injects full protocol into system prompt (LLM-only, not visible in chat UI) |
+| `review-fix-loop.ts` (+ `commands/review-fix-loop.md` + `review-fix-loop.md`) | `command.execute.before` + `system.transform` | `/review-fix-loop` registered via command md file; plugin arms session and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI) |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.

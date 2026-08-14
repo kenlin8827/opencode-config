@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -96,10 +96,11 @@ $allFiles = @(
     "agents/advisor.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
-    # Commands (review-fix-loop is now a plugin, not a .md file)
+    # Commands
     "commands/grill-me.md",
     "commands/grill-with-docs.md",
     "commands/advisor.md",
+    "commands/review-fix-loop.md",
     # Plugins (advisor-mode + helpers + review-fix-loop)
     "plugins/advisor-mode.ts",
     "plugins/advisor/advisor-config.ts",
@@ -111,12 +112,7 @@ $allFiles = @(
     "plugins/advisor/advisor-full-inject.ts",
     "plugins/advisor/advisor-announce.ts",
     "plugins/review-fix-loop.ts",
-    "plugins/review-fix-loop/rfl-config.ts",
-    "plugins/review-fix-loop/rfl-runtime.ts",
-    "plugins/review-fix-loop/rfl-instructions.ts",
-    "plugins/review-fix-loop/rfl-command.ts",
-    "plugins/review-fix-loop/rfl-system-inject.ts",
-    "plugins/review-fix-loop/review-fix-loop.md",
+    "plugins/review-fix-loop.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config

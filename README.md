@@ -312,7 +312,7 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `advisor-mode.ts` (+ `plugins/advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode dispatch blocking; full-mode auto-execute directive; red-team output suppression. |
 | `profile-switcher.ts` | `config` + `command.execute.before` + `event: session.created` | Registers `/profile` slash command programmatically; switches model provider profiles by rewriting `opencode.jsonc` agent models per tier. State in `~/.config/opencode/.active-profile`. |
-| `review-fix-loop.ts` (+ `plugins/review-fix-loop/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; parses args (scope + `--max-rounds`); injects full 316-line protocol into system prompt (LLM-only, not visible in chat UI). Replaces the old `commands/review-fix-loop.md`. |
+| `review-fix-loop.ts` (+ `commands/review-fix-loop.md` + `plugins/review-fix-loop.md`) | `command.execute.before` + `system.transform` | Registers `/review-fix-loop` via command md file (startup-loaded); plugin arms session on command and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 Profile state is stored in `~/.config/opencode/.active-profile`.
@@ -355,13 +355,8 @@ plugins/
 │   ├── advisor-system-inject.ts # system.transform
 │   ├── advisor-tool-guard.ts # tool.execute.before (off-mode block)
 │   └── advisor-full-inject.ts # tool.execute.after (auto-execute + suppression)
-├── review-fix-loop.ts       # Plugin entry: 2 hooks (command + system.transform)
-├── review-fix-loop/
-│   ├── rfl-config.ts        # Command name, arg parsing, session arming
-│   ├── rfl-runtime.ts       # Log helper
-│   ├── rfl-instructions.ts  # Embedded protocol (replaces .md body)
-│   ├── rfl-command.ts      # command.execute.before hook
-│   └── rfl-system-inject.ts # system.transform hook
+├── review-fix-loop.ts        # Plugin entry: command hook + system.transform
+├── review-fix-loop.md        # Protocol body (loaded at runtime, injected into system prompt)
 ├── design-token-guard.ts     # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts        # Hook: scan for AI anti-patterns
 ├── metrics.ts                # Hook: auto-collect tool metrics

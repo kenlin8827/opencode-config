@@ -19,6 +19,7 @@ agents/tech-writer.md
 agents/vision.md
 commands/grill-me.md
 commands/grill-with-docs.md
+commands/review-fix-loop.md
 instructions/coding-principles.md
 instructions/output-protocol.md
 instructions/rfc-keywords.md
@@ -39,12 +40,7 @@ plugins/design-token-guard.ts
 plugins/metrics.ts
 plugins/profile-switcher.ts
 plugins/review-fix-loop.ts
-plugins/review-fix-loop/review-fix-loop.md
-plugins/review-fix-loop/rfl-command.ts
-plugins/review-fix-loop/rfl-config.ts
-plugins/review-fix-loop/rfl-instructions.ts
-plugins/review-fix-loop/rfl-runtime.ts
-plugins/review-fix-loop/rfl-system-inject.ts
+plugins/review-fix-loop.md
 profiles/alibaba-coding-plan-cn.json
 profiles/alibaba-coding-plan.json
 profiles/alibaba-token-plan-cn.json
