@@ -359,6 +359,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `metrics.ts` | `tool.execute.after` + `session.idle` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式 |
 | `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式拦截、full 模式自动执行、red-team 抑制 |
+| `review-fix-loop.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/review-fix-loop` 斜杠命令；解析参数；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。

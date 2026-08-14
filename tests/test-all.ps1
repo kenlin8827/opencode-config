@@ -96,11 +96,11 @@ $allFiles = @(
     "agents/advisor.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
-    # Commands
-    "commands/review-fix-loop.md", "commands/grill-me.md",
+    # Commands (review-fix-loop is now a plugin, not a .md file)
+    "commands/grill-me.md",
     "commands/grill-with-docs.md",
     "commands/advisor.md",
-    # Plugins (advisor-mode + helpers)
+    # Plugins (advisor-mode + helpers + review-fix-loop)
     "plugins/advisor-mode.ts",
     "plugins/advisor/advisor-config.ts",
     "plugins/advisor/advisor-runtime.ts",
@@ -110,6 +110,13 @@ $allFiles = @(
     "plugins/advisor/advisor-tool-guard.ts",
     "plugins/advisor/advisor-full-inject.ts",
     "plugins/advisor/advisor-announce.ts",
+    "plugins/review-fix-loop.ts",
+    "plugins/review-fix-loop/rfl-config.ts",
+    "plugins/review-fix-loop/rfl-runtime.ts",
+    "plugins/review-fix-loop/rfl-instructions.ts",
+    "plugins/review-fix-loop/rfl-command.ts",
+    "plugins/review-fix-loop/rfl-system-inject.ts",
+    "plugins/review-fix-loop/review-fix-loop.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config

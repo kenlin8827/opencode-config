@@ -75,11 +75,24 @@ Check "build.md: still has Carry context forward" ($bc -match "Carry context for
 Check "build.md: no context sharing header template" ($bc -notmatch "CONTEXT SHARING HEADER")
 Check "build.md: no shared_context placeholder" ($bc -notmatch "\{shared_context\}")
 
-# review-fix-loop.md: context passing reference pattern
-$rfl = Get-Content "$base\commands\review-fix-loop.md" -Raw
+# review-fix-loop: protocol now lives in review-fix-loop.md, loaded by rfl-instructions.ts
+$rfl = Get-Content "$base\plugins\review-fix-loop\review-fix-loop.md" -Raw
 Check "review-fix-loop.md: has carry context forward rule" ($rfl -match "Carry context forward")
 Check "review-fix-loop.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
 Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only.*P0/P1")
+
+$rflInstr = Get-Content "$base\plugins\review-fix-loop\rfl-instructions.ts" -Raw
+Check "rfl-instructions.ts: has getProtocol function" ($rflInstr -match "getProtocol")
+Check "rfl-instructions.ts: reads review-fix-loop.md" ($rflInstr -match "review-fix-loop.md")
+
+# review-fix-loop plugin entry checks
+$rflPlugin = Get-Content "$base\plugins\review-fix-loop.ts" -Raw
+Check "review-fix-loop.ts: has command.execute.before hook" ($rflPlugin -match "command.execute.before")
+Check "review-fix-loop.ts: has system.transform hook" ($rflPlugin -match "experimental.chat.system.transform")
+Check "review-fix-loop.ts: has config hook" ($rflPlugin -match "config:")
+Check "review-fix-loop.ts: registers command" ($rflPlugin -match "COMMAND_NAME")
+Check "review-fix-loop.ts: sets agent build" ($rflPlugin -match '"build"')
+Check "review-fix-loop.ts: thin glue (<60 lines)" (($rflPlugin -split "`n").Count -lt 60)
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)
 $ai = Get-Content "$base\plugins\advisor\advisor-instructions.ts" -Raw

@@ -1,22 +1,10 @@
----
-description: "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope] [--max-rounds=N]  |  scope = last commit | HEAD~N | branch | PR | (empty=uncommitted)  |  default max-rounds=5, cap 99"
-agent: build
----
+# Review-Fix Loop Protocol
 
-$ARGUMENTS
+You are now running the **review-fix-loop** — an automated iterative review → verify → fix → re-review cycle. Follow this protocol until an exit condition is met.
 
-**Arguments:**
+## Arguments
 - Positional arg (optional): review scope — `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted changes).
 - `--max-rounds=N` (optional): override the maximum number of iterations. Default: 5, range 1–99. Increase for large cross-module diffs (e.g., `--max-rounds=8`); decrease for quick single-file reviews (e.g., `--max-rounds=3`).
-
-**Examples:**
-```
-/review-fix-loop                          # review uncommitted changes, default 5 rounds
-/review-fix-loop last commit              # review HEAD~1 diff
-/review-fix-loop HEAD~3                   # review last 3 commits
-/review-fix-loop --max-rounds=8           # large cross-module diff, allow 8 rounds
-/review-fix-loop main                     # review current branch vs main
-```
 
 ## When to use (and when NOT to)
 
@@ -30,47 +18,26 @@ $ARGUMENTS
 
 ## Graph
 
-```mermaid
-stateDiagram-v2
-    [*] --> Scope: Determine review scope
-
-    state "ROUND N" as Round {
-        [*] --> Review
-        Review: 1. @code-review finds P0/P1
-        Review --> Triage: P0/P1 found
-        Review --> Exit_Cleared: No P0/P1
-        Triage: 2. Classify by domain
-        Triage --> Verify
-        Verify: 3. Verify each finding
-        Verify --> Fix: Confirmed real bug
-        Verify --> Advisor: False positive
-        Verify --> Exit_Escalate: Inconclusive
-        Advisor: 3a. @advisor consult
-        Advisor --> Fix: Advisor says real
-        Advisor --> Dismiss: Advisor agrees FP
-        Advisor --> Exit_Escalate: Advisor inconclusive
-        Dismiss: Dismiss + carry forward
-        Dismiss --> ReReview
-        Fix: 4. @domain-dev fixes
-        Fix --> ReReview
-        ReReview: 5. @code-review re-check
-        ReReview --> [*]: Round done
-    }
-
-    Round --> Round: Round < max & issues remain<br/>max = --max-rounds (1–99) or 5
-    Round --> Exit_MaxRounds: Round = max & issues remain
-    Round --> Exit_Cleared: No P0/P1
-
-    Exit_Cleared: ✅ Cleared
-    Exit_MaxRounds: ⚠️ Max rounds — unresolved blockers
-    Exit_Escalate: 🔴 Escalated to user
-
-    Exit_Cleared --> PostLoop
-    Exit_MaxRounds --> PostLoop
-    Exit_Escalate --> [*]: User decides
-
-    PostLoop: Post-loop<br/>@qa (conditional) + summary
-    PostLoop --> [*]
+```
+[*] → Scope: Determine review scope
+  → ROUND 1
+    1. Review: @code-review finds P0/P1
+    2. Triage: Classify by domain
+    3. Verify: Verify each finding
+       — Confirmed real bug → Step 4
+       — False positive → @advisor consult (Step 3a)
+       — Inconclusive → Escalate to user
+    3a. Advisor: @advisor consult (only if verifier says false positive)
+       — Advisor agrees FP → Dismiss + carry forward → Step 5
+       — Advisor says real → Step 4
+       — Advisor inconclusive → Escalate to user
+    4. Fix: @domain-dev fixes
+    5. ReReview: @code-review re-check
+  → if P0/P1 remain AND round < max → ROUND N+1
+  → if no P0/P1 → ✅ Cleared → Post-loop
+  → if round = max → ⚠️ Max rounds → Post-loop
+  → if escalated → 🔴 Escalated → User decides
+Post-loop: @qa (conditional) + summary
 ```
 
 **Loop invariant (carried forward every iteration):**
@@ -88,7 +55,7 @@ stateDiagram-v2
 
 ## Determining review scope
 
-Parse `$ARGUMENTS` to determine scope (positional arg) and max rounds (`--max-rounds=N`), then apply the rules below:
+Parse the arguments to determine scope (positional arg) and max rounds (`--max-rounds=N`), then apply the rules below:
 
 1. **If the user specified a commit/branch/PR** → review that specific change set. Use `git diff`, `git log`, `git show` to identify changed files.
 2. **If the user said "latest commit"** → run `git log -1` and `git diff HEAD~1` to find the changes.
@@ -271,7 +238,7 @@ Expected output: The fix applied, with a brief explanation of what changed and w
 
 ## Output format
 
-### Per-round output
+**Per-round output** (concise, one summary block per round):
 
 ```
 ### Review Round N
@@ -284,7 +251,7 @@ Expected output: The fix applied, with a brief explanation of what changed and w
 - Remaining blockers: <yes/no> — <count> P0/P1 issues remain
 ```
 
-### Final summary
+**Final summary:**
 
 ```
 ## Review-Fix Loop Summary
