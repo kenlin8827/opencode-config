@@ -2,8 +2,8 @@
  * Review-Fix Loop Plugin — replaces the old `commands/review-fix-loop.md`.
  *
  *   1. `config` — registers `/review-fix-loop` (empty template, agent: build).
- *   2. `command.execute.before` — arms session, suppresses template (HTTP 204).
- *      User's raw input ("/review-fix-loop last commit") stays as the user message.
+ *   2. `command.execute.before` — arms session + pushes full command into
+ *      output.parts with ignored: true (LLM sees it, UI doesn't duplicate).
  *   3. `system.transform` — when armed, injects the protocol into system prompt
  *      (LLM-only, not visible in chat UI).
  *
@@ -18,14 +18,9 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
-import { HttpServerResponse } from "effect/unstable/http"
 import { makeCommandHook } from "./review-fix-loop/rfl-command"
 import { makeSystemHook } from "./review-fix-loop/rfl-system-inject"
 import { COMMAND_NAME } from "./review-fix-loop/rfl-config"
-
-const handled = (): never => {
-  throw HttpServerResponse.empty({ status: 204 })
-}
 
 export const ReviewFixLoopPlugin: Plugin = async ({ client }) => ({
   config: async (cfg) => {
@@ -38,6 +33,6 @@ export const ReviewFixLoopPlugin: Plugin = async ({ client }) => ({
     }
   },
 
-  "command.execute.before": makeCommandHook(client, handled),
+  "command.execute.before": makeCommandHook(client),
   "experimental.chat.system.transform": makeSystemHook(client),
 })
