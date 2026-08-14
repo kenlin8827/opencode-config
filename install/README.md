@@ -255,6 +255,19 @@ explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest 
 | `install/versions/<ver>.manifest.txt` | One repo-relative path per line     |
 | `<target>/.CONFIG_VERSION`            | Records the active version          |
 
+### Iron rule: never modify historical manifests
+
+**NEVER edit `install/versions/<ver>.manifest.txt` for any version other than
+the current one** (the version in `install/VERSION`). Historical manifests are
+immutable records of what each version shipped — they are used by the
+upgrade path to clean up old files. Tampering with them breaks uninstall and
+upgrade correctness for users on those older versions.
+
+When a file is removed or renamed:
+1. Edit **only** the current version's manifest (or run `install.ps1 generate`).
+2. Bump `install/VERSION`.
+3. Leave all prior manifests untouched.
+
 ## What gets shipped
 
 The manifest whitelists exactly the paths opencode reads at runtime:
