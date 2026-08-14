@@ -1,15 +1,14 @@
 /**
- * Review-Fix Loop Plugin — injects the protocol into the system prompt
- * in the same turn the user runs `/review-fix-loop`.
- *
- * The slash command itself is registered statically via
- * `commands/review-fix-loop.md` (sync file-scan at startup),
- * which avoids the TUI async-loading race condition where the command
- * isn't available on first input.
+ * Review-Fix Loop Plugin — registers the `/review-fix-loop` slash command
+ * programmatically via the `config` hook (same pattern as advisor-mode.ts
+ * and profile-switcher.ts — no `commands/review-fix-loop.md` file needed),
+ * then injects the protocol into the system prompt in the same turn the
+ * user runs the command.
  *
  * Two hooks:
- *   1. command.execute.before — arms the session
- *   2. system.transform — injects protocol into system prompt (LLM-only)
+ *   1. config — registers the slash command (template, description, agent)
+ *   2. command.execute.before — arms the session
+ *   3. system.transform — injects protocol into system prompt (LLM-only)
  *
  * The protocol body lives in `review-fix-loop.md` (next to this file).
  */
@@ -36,6 +35,16 @@ function getProtocol(): string {
 }
 
 export const ReviewFixLoopPlugin: Plugin = async () => ({
+  config: async (cfg) => {
+    cfg.command ??= {}
+    cfg.command[COMMAND_NAME] = {
+      template: "/review-fix-loop $ARGUMENTS",
+      description:
+        "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope] [--max-rounds=N]",
+      agent: "build",
+    }
+  },
+
   "command.execute.before": async (input: { command?: string; sessionID?: string }) => {
     if (input.command !== COMMAND_NAME) return
     armedSessions.add(input.sessionID || "default")

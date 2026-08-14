@@ -76,23 +76,23 @@ Check "build.md: no context sharing header template" ($bc -notmatch "CONTEXT SHA
 Check "build.md: no shared_context placeholder" ($bc -notmatch "\{shared_context\}")
 
 # review-fix-loop: protocol lives in review-fix-loop.md, loaded by review-fix-loop.ts
-$rfl = Get-Content "$base\plugins\review-fix-loop\review-fix-loop.md" -Raw
+$rfl = Get-Content "$base\plugins\review-fix-loop.md" -Raw
 Check "review-fix-loop.md: has carry context forward rule" ($rfl -match "Carry context forward")
 Check "review-fix-loop.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
 Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only.*P0/P1")
 
-# review-fix-loop plugin entry checks (single file, no config hook)
+# review-fix-loop plugin entry checks (command registered via config hook, no .md file)
 $rflPlugin = Get-Content "$base\plugins\review-fix-loop.ts" -Raw
+Check "review-fix-loop.ts: has config hook" ($rflPlugin -match "config:")
+Check "review-fix-loop.ts: registers command programmatically" ($rflPlugin -match "cfg.command")
+Check "review-fix-loop.ts: sets agent build" ($rflPlugin -match "agent.*build")
+Check "review-fix-loop.ts: sets template with `$ARGUMENTS" ($rflPlugin -match '\$ARGUMENTS')
+Check "review-fix-loop.ts: has description" ($rflPlugin -match "description:")
 Check "review-fix-loop.ts: has command.execute.before hook" ($rflPlugin -match "command.execute.before")
 Check "review-fix-loop.ts: has system.transform hook" ($rflPlugin -match "experimental.chat.system.transform")
 Check "review-fix-loop.ts: loads review-fix-loop.md" ($rflPlugin -match "review-fix-loop.md")
-Check "review-fix-loop.ts: thin glue (<70 lines)" (($rflPlugin -split "`n").Count -lt 70)
+Check "review-fix-loop.ts: thin glue (<80 lines)" (($rflPlugin -split "`n").Count -lt 80)
 
-# review-fix-loop command md (registers command at startup)
-$rflCmd = Get-Content "$base\commands\review-fix-loop.md" -Raw
-Check "commands/review-fix-loop.md: has agent build" ($rflCmd -match "agent: build")
-Check "commands/review-fix-loop.md: has $ARGUMENTS" ($rflCmd -match "\$ARGUMENTS")
-Check "commands/review-fix-loop.md: has description" ($rflCmd -match "description:")
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)
 $ai = Get-Content "$base\plugins\advisor\advisor-instructions.ts" -Raw

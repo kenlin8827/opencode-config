@@ -20,7 +20,6 @@ agents/vision.md
 commands/advisor.md
 commands/grill-me.md
 commands/grill-with-docs.md
-commands/review-fix-loop.md
 instructions/output-protocol.md
 instructions/test-scope.md
 opencode.jsonc

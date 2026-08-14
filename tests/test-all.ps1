@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -100,7 +100,6 @@ $allFiles = @(
     "commands/grill-me.md",
     "commands/grill-with-docs.md",
     "commands/advisor.md",
-    "commands/review-fix-loop.md",
     # Plugins (advisor-mode + helpers + review-fix-loop)
     "plugins/advisor-mode.ts",
     "plugins/advisor/advisor-config.ts",
