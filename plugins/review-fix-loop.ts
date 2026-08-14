@@ -1,9 +1,9 @@
 /**
  * Review-Fix Loop Plugin — replaces the old `commands/review-fix-loop.md`.
  *
- *   1. `config` — registers `/review-fix-loop` (empty template, agent: build).
- *   2. `command.execute.before` — arms session + pushes full command into
- *      output.parts with ignored: true (LLM sees it, UI doesn't duplicate).
+ *   1. `config` — registers `/review-fix-loop` (template: $ARGUMENTS, agent: build).
+ *      The user's arguments are passed through to the LLM as-is.
+ *   2. `command.execute.before` — arms session only (no output.parts push).
  *   3. `system.transform` — when armed, injects the protocol into system prompt
  *      (LLM-only, not visible in chat UI).
  *
@@ -26,7 +26,7 @@ export const ReviewFixLoopPlugin: Plugin = async ({ client }) => ({
   config: async (cfg) => {
     cfg.command ??= {}
     cfg.command[COMMAND_NAME] = {
-      template: "",
+      template: "$ARGUMENTS",
       description:
         "Review-fix loop — iterative review & fix until no P0/P1 remain. Usage: /review-fix-loop [scope] [--max-rounds=N]",
       agent: "build",
