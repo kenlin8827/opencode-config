@@ -39,7 +39,8 @@ plugins/design-token-guard.ts
 plugins/metrics.ts
 plugins/profile-switcher.ts
 plugins/review-fix-loop.ts
-plugins/review-fix-loop.md
+plugins/review-fix-loop/review-fix-loop.ts
+plugins/review-fix-loop/review-fix-loop.md
 profiles/alibaba-coding-plan-cn.json
 profiles/alibaba-coding-plan.json
 profiles/alibaba-token-plan-cn.json

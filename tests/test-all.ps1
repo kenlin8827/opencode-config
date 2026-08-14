@@ -111,7 +111,8 @@ $allFiles = @(
     "plugins/advisor/advisor-full-inject.ts",
     "plugins/advisor/advisor-announce.ts",
     "plugins/review-fix-loop.ts",
-    "plugins/review-fix-loop.md",
+    "plugins/review-fix-loop/review-fix-loop.ts",
+    "plugins/review-fix-loop/review-fix-loop.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
