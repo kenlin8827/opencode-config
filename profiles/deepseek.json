@@ -4,6 +4,7 @@
     "default": "deepseek/deepseek-v4-flash",
     "code": "deepseek/deepseek-v4-flash",
     "advisor": "deepseek/deepseek-v4-pro",
-    "explorer": "deepseek/deepseek-v4-flash"
+    "explorer": "deepseek/deepseek-v4-flash",
+    "vision": "minimax-cn-coding-plan/MiniMax-M3"
   }
 }
