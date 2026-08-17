@@ -33,7 +33,7 @@ export const MODE_MARKER: Record<AdvisorMode, string> = {
   full: `[ADVISOR MODE: FULL — ACTIVE NOW]\n` +
     `Dispatch @advisor. Question class FACTUAL + confidence ≥ 8 → auto-execute the answer NOW (on the user's behalf), no question tool. ` +
     `Max 10/session, then lite. ` +
-    `PREFERENCE or < 8 → present BOTH opinions (lite flow). This is full, not lite, not off.`,
+    `PREFERENCE or < 8 → present BOTH opinions (lite flow).`,
 }
 
 /**

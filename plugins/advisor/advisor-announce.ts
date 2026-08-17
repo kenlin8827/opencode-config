@@ -106,8 +106,9 @@ export async function announceSwitch(
       })
       await log("info", `announce: mode=${mode} (chat reply)`)
       return
-    } catch {
+    } catch (err) {
       // session.prompt failed — fall through to toast
+      await log("warn", `announceSwitch: session.prompt failed (${String(err)}) — falling back to toast`)
     }
   }
   await announce(client, mode)

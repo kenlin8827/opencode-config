@@ -22,6 +22,16 @@ import {
   makeLogger,
 } from "./advisor-runtime"
 
+/** Extract sessionID from either the hook input or output. */
+function resolveSessionId(input: unknown, output: unknown): string {
+  // tool.execute.before receives (input, output) where input may carry
+  // sessionID in some OpenCode versions. Try input first, fall back to
+  // output, then "default".
+  const fromInput = extractSessionId(input)
+  if (fromInput !== "default") return fromInput
+  return extractSessionId(output)
+}
+
 type Log = ReturnType<typeof makeLogger>
 
 const QUESTION_TOOL_RE = /^(question|ask|prompt|confirm|select)$/i
@@ -31,8 +41,8 @@ export function makeToolGuardHook(client: PluginInput["client"]) {
 
   // NOT wrapped in safeHook — intentional throws must propagate to block
   // tool execution. safeHook would swallow them and defeat the guard.
-  return async (input: { tool?: string }, output: { args?: unknown }) => {
-    const sessionId = extractSessionId(output)
+  return async (input: { tool?: string; sessionID?: string }, output: { args?: unknown }) => {
+    const sessionId = resolveSessionId(input, output)
 
     // ── 1. Full-mode auto-answer enforcement (one-shot) ───────────
     if (isAutoAnswerActive(sessionId)) {

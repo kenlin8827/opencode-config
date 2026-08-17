@@ -30,6 +30,13 @@ export function safeHook<H extends (...args: never[]) => Promise<unknown>>(
 
 const DISPATCH_TOOL_RE = /^(task|subagent|dispatch|agent|delegate)$/i
 
+/**
+ * Returns true when the tool looks like a dispatch/subagent tool.
+ * When the input shape is unrecognized (no object, no .tool string),
+ * returns true as a conservative default — the caller (full-inject)
+ * re-filters with isAdvisorDispatch, so a false positive here only
+ * costs one extra JSON.stringify, never a wrong auto-execute.
+ */
 export function isDispatchTool(input: unknown): boolean {
   if (!input || typeof input !== "object") return true
   const t = (input as Record<string, unknown>).tool
@@ -73,7 +80,10 @@ export function extractResponseText(output: unknown): string {
 }
 
 export function parseConfidence(text: string): number {
-  const m = String(text || "").match(/confidence\*{0,2}[:\s]+\*?(\d{1,2})/i)
+  // Match structured "Confidence: 8" or "**Confidence**: 8/10" — require a
+  // colon (ASCII or fullwidth) so natural-language phrases like "confidence
+  // in the team is high" don't trigger a false parse.
+  const m = String(text || "").match(/confidence\*{0,2}\s*[:：]\s*\*{0,2}(\d{1,2})\s*(?:\/\s*10)?\b/i)
   return m ? Math.min(10, Math.max(0, parseInt(m[1], 10))) : 0
 }
 
@@ -129,6 +139,15 @@ export function isAutoAnswerActive(sessionId: string): boolean {
 
 export function clearAutoAnswer(sessionId: string): void {
   autoAnswerSessions.delete(sessionId)
+}
+
+/**
+ * Tear down all state for a session — call when a session ends to prevent
+ * the Set/Map from growing without bound in long-lived plugin hosts.
+ */
+export function disposeSession(sessionId: string): void {
+  autoAnswerSessions.delete(sessionId)
+  autoAnswerCounts.delete(sessionId)
 }
 
 export function autoAnswerQuotaReached(sessionId: string): boolean {
