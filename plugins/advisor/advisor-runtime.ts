@@ -60,8 +60,19 @@ export function isRedTeamOutput(text: string): boolean {
 
 export function detectQuestionClass(text: string): "FACTUAL" | "PREFERENCE" | null {
   const s = String(text || "")
-  if (/question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(s)) return "FACTUAL"
-  if (/question\s*class\*{0,2}\s*[:：]\s*\*{0,2}\s*preference\b/i.test(s)) return "PREFERENCE"
+  // Match the mandatory output format from advisor.md:
+  //   "**Question class**: FACTUAL" / "Question class: PREFERENCE"
+  // Also tolerate close variants:
+  //   "Question type: FACTUAL"  — some models swap "class" for "type"
+  //   "Class: FACTUAL"          — shortened label
+  //   "**FACTUAL**"             — standalone bold marker (no label)
+  if (/question\s*(?:class|type)?\s*\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(s)) return "FACTUAL"
+  if (/question\s*(?:class|type)?\s*\*{0,2}\s*[:：]\s*\*{0,2}\s*preference\b/i.test(s)) return "PREFERENCE"
+  if (/\bclass\s*\*{0,2}\s*[:：]\s*\*{0,2}\s*factual\b/i.test(s)) return "FACTUAL"
+  if (/\bclass\s*\*{0,2}\s*[:：]\s*\*{0,2}\s*preference\b/i.test(s)) return "PREFERENCE"
+  // Standalone bold marker — last resort, only if no labeled match found.
+  if (/\*{0,2}\bFACTUAL\b\*{0,2}/i.test(s)) return "FACTUAL"
+  if (/\*{0,2}\bPREFERENCE\b\*{0,2}/i.test(s)) return "PREFERENCE"
   return null
 }
 
@@ -80,27 +91,174 @@ export function extractResponseText(output: unknown): string {
 }
 
 export function parseConfidence(text: string): number {
-  // Match structured "Confidence: 8" or "**Confidence**: 8/10" — require a
-  // colon (ASCII or fullwidth) so natural-language phrases like "confidence
-  // in the team is high" don't trigger a false parse.
-  const m = String(text || "").match(/confidence\*{0,2}\s*[:：]\s*\*{0,2}(\d{1,2})\s*(?:\/\s*10)?\b/i)
-  return m ? Math.min(10, Math.max(0, parseInt(m[1], 10))) : 0
+  // Match the mandatory output format from advisor.md:
+  //   "**Confidence**: 8" or "Confidence: 8/10"
+  // Also tolerate close variants:
+  //   "Confidence Level: 8" / "Confidence Score: 8" — extra word
+  //   "Confidence：8" — fullwidth colon
+  // Require a colon (ASCII or fullwidth) so natural-language phrases like
+  // "confidence in the team is high" don't trigger a false parse.
+  const s = String(text || "")
+  const patterns = [
+    // Primary: Confidence[: ] N  or  **Confidence**: N/10
+    /confidence\s*(?:level|score)?\s*\*{0,2}\s*[:：]\s*\*{0,2}(\d{1,2})\s*(?:\/\s*10)?\b/i,
+  ]
+  for (const re of patterns) {
+    const m = s.match(re)
+    if (m) return Math.min(10, Math.max(0, parseInt(m[1], 10)))
+  }
+  return 0
 }
 
 // ─── Model fallback detection ────────────────────────────────────────
+//
+// Strategy: read opencode.jsonc to find the advisor agent's configured model
+// (e.g. "deepseek/deepseek-v4-pro") and the default agent's model (e.g.
+// "deepseek/deepseek-v4-flash"). The tool output carries the actual model id
+// that was used. If the actual id matches the advisor's configured model →
+// not a fallback. If it matches the default model → fallback. If we can't
+// read the config or the actual id is missing → trust the configuration and
+// return false (don't block auto-execute on a parse failure).
+//
+// This replaces the old heuristic ("model id must contain 'advisor'") which
+// was broken for any provider whose model ids don't include the string
+// 'advisor' — e.g. DeepSeek ("deepseek-v4-pro"), Qwen, MiniMax, etc.
+
+import { readFileSync, existsSync } from "node:fs"
+import { join } from "node:path"
+import { homedir } from "node:os"
+
+const CONFIG_DIR_FALLBACK = join(homedir(), ".config", "opencode")
+const CONFIG_FILE_FALLBACK = join(CONFIG_DIR_FALLBACK, "opencode.jsonc")
+const CONFIG_FILE_LEGACY = join(CONFIG_DIR_FALLBACK, "opencode.json")
+
+// Cache the config read — it doesn't change during a session.
+let cachedAdvisorModel: string | null | undefined = undefined
+let cachedDefaultModel: string | null | undefined = undefined
+
+/**
+ * Strip JSONC comments and trailing commas so we can JSON.parse a .jsonc file.
+ * Minimal stripper: removes line comments and block comments while respecting
+ * string literals, and removes trailing commas before } or ].
+ */
+function stripJsonc(raw: string): string {
+  let result = ""
+  let i = 0
+  const len = raw.length
+  let state: "normal" | "string" | "lineComment" | "blockComment" = "normal"
+  while (i < len) {
+    const c = raw[i]
+    const next = i + 1 < len ? raw[i + 1] : ""
+    switch (state) {
+      case "normal":
+        if (c === '"') { result += c; state = "string" }
+        else if (c === "/" && next === "/") { state = "lineComment"; i++ }
+        else if (c === "/" && next === "*") { state = "blockComment"; i++ }
+        else { result += c }
+        break
+      case "string":
+        result += c
+        if (c === "\\") { i++; if (i < len) result += raw[i] }
+        else if (c === '"') { state = "normal" }
+        break
+      case "lineComment":
+        if (c === "\n") { result += c; state = "normal" }
+        break
+      case "blockComment":
+        if (c === "*" && next === "/") { state = "normal"; i++ }
+        break
+    }
+    i++
+  }
+  return result.replace(/,(\s*[}\]])/g, "$1")
+}
+
+function readAgentModels(): { advisor: string | null; default: string | null } {
+  if (cachedAdvisorModel !== undefined && cachedDefaultModel !== undefined) {
+    return { advisor: cachedAdvisorModel, default: cachedDefaultModel }
+  }
+  cachedAdvisorModel = null
+  cachedDefaultModel = null
+  for (const path of [CONFIG_FILE_FALLBACK, CONFIG_FILE_LEGACY]) {
+    if (!existsSync(path)) continue
+    try {
+      const raw = readFileSync(path, "utf-8")
+      const cfg = JSON.parse(stripJsonc(raw)) as Record<string, unknown>
+      const agents = cfg?.agent as Record<string, Record<string, unknown>> | undefined
+      if (!agents) break
+      // Find the advisor agent's model (the agent named "advisor").
+      const advisorAgent = agents["advisor"]
+      if (advisorAgent?.model && typeof advisorAgent.model === "string") {
+        cachedAdvisorModel = advisorAgent.model
+      }
+      // Find the default model: either root-level cfg.model, or the first
+      // agent with tier "default".
+      if (cfg.model && typeof cfg.model === "string") {
+        cachedDefaultModel = cfg.model
+      }
+      if (!cachedDefaultModel) {
+        for (const a of Object.values(agents)) {
+          if (a?.tier === "default" && typeof a.model === "string") {
+            cachedDefaultModel = a.model
+            break
+          }
+        }
+      }
+      break
+    } catch {
+      // config parse error — try next file
+    }
+  }
+  return { advisor: cachedAdvisorModel, default: cachedDefaultModel }
+}
+
+/**
+ * Extract the model-id portion from a "provider/model-id" reference.
+ * e.g. "deepseek/deepseek-v4-pro" → "deepseek-v4-pro"
+ *      "llm-router/advisor" → "advisor"
+ * Returns the input as-is if there's no slash.
+ */
+function modelIdFromRef(ref: string): string {
+  const idx = ref.lastIndexOf("/")
+  return idx >= 0 ? ref.substring(idx + 1) : ref
+}
 
 export function isModelFallback(output: unknown): boolean {
   if (!output || typeof output !== "object") return false
   const o = output as Record<string, unknown>
   const meta = o.metadata as Record<string, unknown> | undefined
   const model = meta?.model as Record<string, unknown> | undefined
-  const id =
+  const actualId =
     (model?.modelID as string | undefined) ??
     (model?.id as string | undefined) ??
     (meta?.modelID as string | undefined) ??
     (o.modelID as string | undefined)
-  if (!id || typeof id !== "string") return false
-  return !id.toLowerCase().includes("advisor")
+  // If we can't determine the actual model id, don't block auto-execute.
+  if (!actualId || typeof actualId !== "string") return false
+
+  const { advisor: advisorModel, default: defaultModel } = readAgentModels()
+
+  // If we know the advisor's configured model, check whether the actual id
+  // matches it (any case). This is the primary check.
+  const actualLower = actualId.toLowerCase()
+  if (advisorModel) {
+    const advisorId = modelIdFromRef(advisorModel).toLowerCase()
+    if (actualLower === advisorId || actualLower.includes(advisorId)) {
+      return false // actual model matches advisor config — not a fallback
+    }
+  }
+
+  // If we know the default model, check whether the actual id matches it.
+  // That would indicate the advisor was unavailable and the system fell back.
+  if (defaultModel) {
+    const defaultId = modelIdFromRef(defaultModel).toLowerCase()
+    if (actualLower === defaultId || actualLower.includes(defaultId)) {
+      return true // actual model matches default config — it's a fallback
+    }
+  }
+
+  // Can't determine — trust the configuration, don't block auto-execute.
+  return false
 }
 
 // ─── Output shaping ──────────────────────────────────────────────────
