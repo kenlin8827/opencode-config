@@ -12,7 +12,8 @@
  *   advisor-runtime.ts           — log, advisor detection, output shaping,
  *                                  red-team + question-class guards,
  *                                  auto-answer state (session-keyed)
- *   advisor-instructions.ts      — embedded prompt fragment per mode
+ *   advisor-instructions.ts      — prompt fragment per mode (loads advisor-protocol.md)
+ *   advisor-protocol.md         — advisor protocol body (markdown, read once + cached)
  *   advisor-mode-tracker.ts      — command hook (writes state on slash command)
  *   advisor-system-inject.ts     — system-transform hook (injects prompt)
  *   advisor-tool-guard.ts        — tool.before hook: blocks @advisor when off;

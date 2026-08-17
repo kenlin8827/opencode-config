@@ -1,6 +1,7 @@
 /**
  * Hook: experimental.chat.system.transform — inject the active-mode marker
- * and the embedded advisor protocol into the system prompt.
+ * and the advisor protocol (loaded from advisor-protocol.md) into the
+ * system prompt.
  *
  * Cache-friendly strategy:
  *   - Build the expected marker for the active mode (e.g. "[ADVISOR MODE: LITE]").
