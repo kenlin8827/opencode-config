@@ -1,0 +1,10 @@
+{
+  "description": "MiniMax + Kimi hybrid — MiniMax-M3 carries the high-traffic default tier and doubles as vision (image input), kimi-for-coding codes, k3-256k judges on the low-frequency advisor slot, MiniMax-M2.7-highspeed explores. Requires MINIMAX_API_KEY and KIMI_API_KEY environment variables.",
+  "tiers": {
+    "default": "minimax-cn-coding-plan/MiniMax-M3",
+    "code": "kimi-for-coding/kimi-for-coding",
+    "advisor": "kimi-for-coding/k3-256k",
+    "explorer": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "vision": "minimax-cn-coding-plan/MiniMax-M3"
+  }
+}
