@@ -90,6 +90,57 @@ export function extractResponseText(output: unknown): string {
   return JSON.stringify(o)
 }
 
+// ─── Dispatch-input question-text extraction ───────────────────────
+// The text the orchestrator sent to @advisor is the only reliable place
+// to look for PREFERENCE markers. The advisor's own classification regex
+// can be gamed by a model that emits the word "FACTUAL".
+
+export function extractQuestionText(input: unknown): string {
+  if (typeof input === "string") return input
+  if (!input || typeof input !== "object") return ""
+  const o = input as Record<string, unknown>
+  const args = o.args ?? o.input ?? o.prompt ?? o.task
+  if (typeof args === "string") return args
+  if (args && typeof args === "object") {
+    const a = args as Record<string, unknown>
+    for (const key of ["content", "text", "message", "prompt", "task", "input"]) {
+      if (typeof a[key] === "string") return a[key] as string
+    }
+    return JSON.stringify(a)
+  }
+  return JSON.stringify(input)
+}
+
+// ─── Independent PREFERENCE / irreversibility guards ─────────────────
+// These deliberately do not trust the advisor's self-reported class.
+// See advisor-protocol.md: PREFERENCE questions must never auto-execute.
+
+const PREFERENCE_MARKERS = [
+  /\buser\s+(?:wants|prefers|would\s+like)\b/i,
+  /\bwhich\s+do\s+you\b/i,
+  /what['’]?s\s+your\s+opinion\b/i,
+  /\bdo\s+you\s+(?:like|prefer|want)\b/i,
+  /\byou\s+think\b/i,
+]
+
+const IRREVERSIBILITY_MARKERS = [
+  /\bdelete\b/i,
+  /\bdrop\b/i,
+  /\bforce\s+push\b/i,
+  /\bdeploy\s+to\s+prod\b/i,
+  /\bpayment\b/i,
+  /\bpermission\b/i,
+  /\bauth\s+change\b/i,
+]
+
+export function containsPreferenceMarker(text: string): boolean {
+  return PREFERENCE_MARKERS.some((re) => re.test(String(text || "")))
+}
+
+export function containsIrreversibilityMarker(text: string): boolean {
+  return IRREVERSIBILITY_MARKERS.some((re) => re.test(String(text || "")))
+}
+
 export function parseConfidence(text: string): number {
   // Match the mandatory output format from advisor.md:
   //   "**Confidence**: 8" or "Confidence: 8/10"
@@ -261,6 +312,37 @@ export function isModelFallback(output: unknown): boolean {
   return false
 }
 
+// ─── Advisor dispatch-failure detection ──────────────────────────────
+//
+// The model-fallback guard above catches "wrong model used". This guard
+// catches the cases where the advisor tool itself never produced a usable
+// response: timeout, network error, empty output, or explicit error keys.
+// The orchestrator must never treat a failed dispatch as a real opinion.
+
+export function getAdvisorFailureReason(output: unknown): string | null {
+  if (output === null || output === undefined) return "output missing"
+  if (typeof output === "object") {
+    const o = output as Record<string, unknown>
+    if (o.error !== undefined && o.error !== null) return "error key present"
+    if (o.state && typeof o.state === "object") {
+      const st = o.state as Record<string, unknown>
+      if (st.status === "error") return "state status error"
+    }
+  }
+  const text = extractResponseText(output)
+  if (text === "") return "empty response"
+  const start = text.trimStart()
+  if (/^(?:Error:|Failed:)/i.test(start)) return "error marker in response"
+  if (/^(?:\w+\s+)?(?:request\s+)?timed?\s*out\b/i.test(start)) return "timeout"
+  if (/^\s*ECONNREFUSED\b/i.test(start)) return "connection refused"
+  if (/^(?:[A-Z]+\s+)?5\d\d\s+error\b/i.test(start)) return "5xx error"
+  return null
+}
+
+export function isAdvisorFailure(output: unknown): boolean {
+  return getAdvisorFailureReason(output) !== null
+}
+
 // ─── Output shaping ──────────────────────────────────────────────────
 
 export function appendDirective(output: unknown, directive: string): boolean {
@@ -297,6 +379,18 @@ export function isAutoAnswerActive(sessionId: string): boolean {
 
 export function clearAutoAnswer(sessionId: string): void {
   autoAnswerSessions.delete(sessionId)
+}
+
+export function resetAutoAnswerCounter(sessionId: string): void {
+  autoAnswerCounts.delete(sessionId)
+}
+
+export function clearAutoAnswerCounts(): void {
+  autoAnswerCounts.clear()
+}
+
+export function clearAutoAnswerSessions(): void {
+  autoAnswerSessions.clear()
 }
 
 /**

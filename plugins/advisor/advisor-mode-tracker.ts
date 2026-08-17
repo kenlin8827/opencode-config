@@ -17,7 +17,7 @@
 import type { PluginInput } from "@opencode-ai/plugin"
 import { announceSwitch } from "./advisor-announce"
 import { COMMAND_NAME, parseModeArg, setMode } from "./advisor-config"
-import { makeLogger } from "./advisor-runtime"
+import { makeLogger, clearAutoAnswerCounts, clearAutoAnswerSessions } from "./advisor-runtime"
 
 type Log = ReturnType<typeof makeLogger>
 
@@ -29,6 +29,8 @@ export function makeCommandHook(client: PluginInput["client"], handled: () => ne
     const mode = parseModeArg(input.arguments)
     if (!mode) return
     setMode(mode)
+    clearAutoAnswerCounts()
+    clearAutoAnswerSessions()
     await log("info", `mode=${mode.toUpperCase()} — state file written`)
     await announceSwitch(client, mode, input.sessionID)
     return handled()

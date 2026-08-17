@@ -75,3 +75,16 @@ export function fallbackWarning(): string {
     `Do NOT auto-execute in full mode. Return both opinions to the user.`
   )
 }
+
+/**
+ * Warning appended when the advisor dispatch itself failed (timeout,
+ * network error, empty response, explicit error key). A failed dispatch is
+ * not a real opinion, so full mode must fall back to lite flow.
+ */
+export function advisorFailureWarning(reason: string): string {
+  return (
+    `\n\n---\n[ADVISOR DISPATCH FAILURE]\n` +
+    `Advisor dispatch failed (${reason}).\n` +
+    `Do NOT auto-execute in full mode. Return both opinions to the user.`
+  )
+}

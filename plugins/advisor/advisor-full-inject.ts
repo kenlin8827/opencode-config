@@ -9,15 +9,19 @@
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getMode } from "./advisor-config"
-import { fullDirective, fallbackWarning } from "./advisor-instructions"
+import { advisorFailureWarning, fullDirective, fallbackWarning } from "./advisor-instructions"
 import {
   CONFIDENCE_THRESHOLD,
   MAX_AUTO_ANSWERS,
   appendDirective,
   autoAnswerQuotaReached,
+  containsIrreversibilityMarker,
+  containsPreferenceMarker,
   detectQuestionClass,
+  extractQuestionText,
   extractResponseText,
   extractSessionId,
+  getAdvisorFailureReason,
   isAdvisorDispatch,
   isDispatchTool,
   isModelFallback,
@@ -43,6 +47,15 @@ export function makeFullInjectHook(client: PluginInput["client"]) {
       if (!isAdvisorDispatch(input) && !isAdvisorDispatch(output)) return
 
       const text = extractResponseText(output)
+      const questionText = extractQuestionText(input)
+
+      const failureReason = getAdvisorFailureReason(output)
+      if (failureReason) {
+        await log("warn", `advisor: dispatch failed (${failureReason}) — falling back to lite flow, NO auto-execute`)
+        const ok = appendDirective(output, advisorFailureWarning(failureReason))
+        if (!ok) await log("warn", "advisor failure warning FAILED to inject")
+        return
+      }
 
       if (isRedTeamOutput(text)) {
         await log("info", "red-team output — directives suppressed")
@@ -51,7 +64,14 @@ export function makeFullInjectHook(client: PluginInput["client"]) {
 
       const confidence = parseConfidence(text)
       const fallback = isModelFallback(output)
-      const questionClass = detectQuestionClass(text)
+      let questionClass = detectQuestionClass(text)
+      if (
+        questionClass === "FACTUAL" &&
+        (containsPreferenceMarker(questionText) || containsIrreversibilityMarker(questionText))
+      ) {
+        await log("warn", "advisor: PREFERENCE/irreversibility marker detected in question text — forcing lite flow")
+        questionClass = "PREFERENCE"
+      }
       const factual = questionClass === "FACTUAL"
       const sessionId = extractSessionId(output)
 
