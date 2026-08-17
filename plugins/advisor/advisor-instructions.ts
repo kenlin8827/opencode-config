@@ -101,7 +101,7 @@ Output your verdict (HOLDS / HOLDS WITH CAVEATS / FAILS). No confidence score.
 - If \`@advisor\` fails, proceed with your recommendation alone; note advisor was unavailable.
 - Subagents: tell them to STOP on blocking decisions, not decide.`
 
-const MODE_MARKER: Record<AdvisorMode, string> = {
+export const MODE_MARKER: Record<AdvisorMode, string> = {
   off: `[ADVISOR MODE: OFF]\nAdvisor consultation is disabled. Do NOT dispatch @advisor.`,
   lite: `[ADVISOR MODE: LITE]\nDispatch @advisor for each blocking decision; present BOTH opinions to the user. Advisor gives opinions only — it NEVER answers on the user's behalf.`,
   full: `[ADVISOR MODE: FULL — ACTIVE NOW]\n` +

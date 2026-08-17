@@ -7,16 +7,22 @@
  * Two hooks:
  *   1. config — registers the slash command (template, description, agent)
  *   2. experimental.chat.system.transform — injects protocol into system
- *      prompt on every turn (idempotent: strips prior injection before
- *      re-appending, so the protocol appears exactly once)
+ *      prompt (cache-friendly: if the marker is already present, the hook
+ *      is a complete no-op — it doesn't touch output.system at all, so
+ *      the LLM provider's prompt-cache stays warm across turns)
  *
  * Why no armedSessions / command.execute.before?
  *   The execution order of command.execute.before vs system.transform is
  *   not guaranteed. If system.transform fires first, armedSessions hasn't
  *   been populated yet → the protocol is never injected on turn 1.
  *   Instead we unconditionally inject on every system.transform call and
- *   rely on strip-and-reappend for idempotency (same approach as
+ *   rely on the marker check for idempotency (same approach as
  *   advisor-mode's system hook).
+ *
+ * Cache note: the protocol content is static (read once from the .md file
+ * and cached in memory). On every turn after the first, the MARKER is
+ * already present in the system prompt → the hook returns immediately
+ * without mutating any string → prompt-cache is preserved.
  *
  * The protocol body lives in `grill-with-docs.md` (next to this file).
  *
@@ -57,15 +63,20 @@ export const GrillWithDocsPlugin: Plugin = async () => ({
     _input: unknown,
     output: { system: string[] },
   ) => {
+    // Cache-friendly: if the marker is already present, the protocol was
+    // injected on a previous turn and the content hasn't changed — don't
+    // touch output.system at all. This keeps the prompt byte-identical so
+    // the LLM provider's prompt-cache stays warm (no extra tokens, no
+    // extra cost).
+    if (output.system.some((s) => typeof s === "string" && s.includes(MARKER))) return
+
     const fragment = `\n\n---\n${MARKER}\n\n${getProtocol()}\n`
 
-    // Strip prior injection (idempotent across compaction/turns).
+    // First injection (or after compaction rebuilt the system prompt).
     for (let i = 0; i < output.system.length; i++) {
       const s = output.system[i]
       if (typeof s !== "string") continue
-      const idx = s.indexOf(MARKER)
-      if (idx !== -1) output.system[i] = s.substring(0, idx)
-      output.system[i] += fragment
+      output.system[i] = s + fragment
     }
   },
 })
