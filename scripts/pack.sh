@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# scripts/pack.sh — build a release archive from the current repo state.
+#
+# Produces two archives in dist/:
+#   opencode-config-<version>.tar.gz   (for macOS / Linux / WSL)
+#   opencode-config-<version>.zip       (for Windows)
+#
+# Each archive contains:
+#   install/VERSION
+#   install/install.sh
+#   install/install.ps1
+#   install/config.sh
+#   install/config.ps1
+#   install/versions/<ver>.manifest.txt   (auto-generated if missing)
+#   bin/opencode-config                   (bash dispatcher)
+#   bin/opencode-config.ps1               (PowerShell dispatcher)
+#   <every file listed in the manifest>    (agents/, plugins/, etc.)
+#
+# Usage:
+#   ./scripts/pack.sh                    # build both tar.gz + zip
+#   ./scripts/pack.sh --tar               # only tar.gz
+#   ./scripts/pack.sh --zip              # only zip
+#   ./scripts/pack.sh --out /tmp/dist    # custom output directory
+
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VERSION_FILE="$REPO_ROOT/install/VERSION"
+INST_DIR="$REPO_ROOT/install/versions"
+
+# --- read version --------------------------------------------------------
+
+read_version() {
+    if [[ -f "$VERSION_FILE" ]]; then
+        head -1 "$VERSION_FILE" | tr -d '\r\n '
+    else
+        (cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null) || echo "unknown"
+    fi
+}
+
+VERSION="$(read_version)"
+MANIFEST="$INST_DIR/$VERSION.manifest.txt"
+
+# --- read manifest -------------------------------------------------------
+
+read_manifest() {
+    [[ -f "$1" ]] || return 0
+    grep -v '^\s*#' "$1" | grep -v '^\s*$' | sed 's/\\/\//g' | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+# --- generate manifest if missing (inline, no dependency on install.sh) --
+
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "profiles/")
+
+generate_manifest() {
+    local out="$1"
+    : > "$out"
+    while IFS= read -r -d '' file; do
+        local rel="${file#"$REPO_ROOT"/}"
+        rel="${rel//\\//}"
+        local include=0
+        for p in "${INCLUDE_PREFIXES[@]}"; do
+            [[ "$rel" == "${p%/}" || "$rel" == "$p"* ]] && include=1 && break
+        done
+        [[ $include -eq 1 ]] && printf '%s\n' "$rel" >> "$out"
+    done < <(find "$REPO_ROOT" -type f -print0 | sort -z)
+}
+
+# --- arg parse -----------------------------------------------------------
+
+BUILD_TAR=1
+BUILD_ZIP=1
+OUT_DIR="$REPO_ROOT/dist"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --tar) BUILD_ZIP=0; shift ;;
+        --zip) BUILD_TAR=0; shift ;;
+        --out) OUT_DIR="$2"; shift 2 ;;
+        -h|--help)
+            sed -n '2,30p' "$0"
+            exit 0
+            ;;
+        *) echo "unknown arg: $1" >&2; exit 1 ;;
+    esac
+done
+
+# --- main ----------------------------------------------------------------
+
+# Ensure manifest exists
+if [[ ! -f "$MANIFEST" ]]; then
+    echo "manifest missing for version $VERSION, generating..."
+    mkdir -p "$INST_DIR"
+    generate_manifest "$MANIFEST"
+    manifest_n=$(wc -l < "$MANIFEST" | tr -d ' ')
+    echo "wrote $MANIFEST ($manifest_n files)"
+fi
+
+mkdir -p "$OUT_DIR"
+
+# Build a staging directory with the exact layout we want in the archive.
+STAGE="$(mktemp -d)"
+PKG_DIR="$STAGE/opencode-config-$VERSION"
+mkdir -p "$PKG_DIR"
+
+# 1. Copy install scripts
+mkdir -p "$PKG_DIR/install/versions"
+cp "$REPO_ROOT/install/install.sh"     "$PKG_DIR/install/"
+cp "$REPO_ROOT/install/install.ps1"    "$PKG_DIR/install/"
+cp "$REPO_ROOT/install/config.sh"      "$PKG_DIR/install/"
+cp "$REPO_ROOT/install/config.ps1"     "$PKG_DIR/install/"
+cp "$VERSION_FILE"                     "$PKG_DIR/install/"
+cp "$MANIFEST"                         "$PKG_DIR/install/versions/"
+
+# 2. Copy bin dispatchers
+mkdir -p "$PKG_DIR/bin"
+cp "$REPO_ROOT/bin/opencode-config"      "$PKG_DIR/bin/"
+cp "$REPO_ROOT/bin/opencode-config.ps1"  "$PKG_DIR/bin/"
+
+# 3. Copy every file listed in the manifest
+manifest_files="$(read_manifest "$MANIFEST")"
+file_count=0
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    src="$REPO_ROOT/$f"
+    dst="$PKG_DIR/$f"
+    if [[ ! -e "$src" ]]; then
+        echo "WARN: missing source: $f" >&2
+        continue
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp -R "$src" "$dst"
+    file_count=$((file_count + 1))
+done <<< "$manifest_files"
+
+echo "staged $file_count manifest file(s) + install scripts + bin dispatchers"
+
+# 4. Build archives
+TAR_NAME="opencode-config-$VERSION.tar.gz"
+ZIP_NAME="opencode-config-$VERSION.zip"
+
+if [[ $BUILD_TAR -eq 1 ]]; then
+    (cd "$STAGE" && tar czf "$OUT_DIR/$TAR_NAME" "opencode-config-$VERSION")
+    echo "built: $OUT_DIR/$TAR_NAME"
+fi
+
+if [[ $BUILD_ZIP -eq 1 ]]; then
+    (cd "$STAGE" && zip -qr "$OUT_DIR/$ZIP_NAME" "opencode-config-$VERSION")
+    echo "built: $OUT_DIR/$ZIP_NAME"
+fi
+
+# Clean up
+rm -rf "$STAGE"
+
+echo "done (version: $VERSION, files: $file_count)"

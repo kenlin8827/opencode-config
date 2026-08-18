@@ -1,4 +1,4 @@
-## Advisor protocol
+## Auto-advisor protocol
 
 Consult `@advisor` for an independent second opinion on **blocking** decisions before presenting them to the user. Before asking the user any blocking question, let the advisor try to answer on the user's behalf — but only when the question is factual (see below).
 
@@ -19,18 +19,21 @@ The advisor may answer on the user's behalf when its answer is well-supported by
 |------|----------|
 | **lite** (default) | Dispatch `@advisor`, then present BOTH your and the advisor's recommendation. User decides. Advisor gives opinions ONLY — it NEVER answers on the user's behalf. |
 | **full** | Dispatch `@advisor`. Question class FACTUAL + confidence ≥ 8 → auto-execute the answer on the user's behalf. Otherwise (PREFERENCE or < 8) → lite flow. Max 10 auto-executes per session, then falls back to lite. |
-| **off** | No `@advisor`. Orchestrator decides alone. |
+| **off** | No **auto-dispatch** of `@advisor` — orchestrator decides alone. Manual `@advisor` from the user is still allowed; the advisor's opinion is advisory only, never auto-executed. |
 
 ### Flow
 
 ```
 blocking decision / question to user
-  └─ advisor mode != off
+  └─ advisor mode != off  (auto-dispatch)
        ├─ dispatch @advisor (context, options, your recommendation)
        ├─ mode = full && Question class = FACTUAL && confidence ≥ 8
        │    && within session limit (10)
        │    → auto-execute the advisor's answer, on the user's behalf
        └─ otherwise → present BOTH opinions to user via question tool
+
+User-explicit @advisor (any mode, including off):
+  └─ dispatch @advisor → return opinion as advisory text → no auto-execute
 ```
 
 ### Dispatch template

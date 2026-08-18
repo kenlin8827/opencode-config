@@ -36,12 +36,44 @@ User
   │
   └── Plugins
       ├── @dietrichgebert/ponytail    — lazy coding protocol (npm plugin via `opencode.jsonc:plugin`)
-      └── advisor-mode.ts             — local plugin: advisor modes + red-team guard (plugins/)
+      └── auto-advisor-mode.ts          — local plugin: auto-advisor modes + red-team guard (plugins/)
 ```
 
 ## Usage & installation
 
+### From a GitHub Release (no Git needed)
+
+Download the latest archive from the [Releases page](https://github.com/kenlin8827/opencode-config/releases):
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz
+tar xzf /tmp/oc-config.tar.gz -C /tmp
+cd /tmp/opencode-config-*/
+./install/install.sh
+./install/config.sh
+```
+
+```powershell
+# Windows
+$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"
+Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
+Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
+Set-Location "$env:TEMP\oc-config\opencode-config-*"
+pwsh install/install.ps1
+pwsh install/config.ps1
+```
+
+### From a Git clone
+
 For end-user setup, daily workflow, and troubleshooting, see [`USAGE.md`](USAGE.md) (English) and [`USAGE.zh-CN.md`](USAGE.zh-CN.md) (中文). This repo is meant to be installed into `~/.config/opencode` via `install/install.ps1` or `install/install.sh`; see [`install/README.md`](install/README.md) for installer internals (manifests, preserved fields, init, custom targets).
+
+### Releasing a new version
+
+1. Bump `install/VERSION` (e.g. `0.0.7`).
+2. Commit and push to `main`.
+3. Tag and push: `git tag v0.0.7 && git push origin v0.0.7`.
+4. The [Release workflow](.github/workflows/release.yml) builds `opencode-config-<ver>.tar.gz` + `.zip` and creates a GitHub Release automatically — no manual artifact upload needed.
 
 ## Prompt design conventions
 
@@ -122,7 +154,7 @@ All agents follow `output-protocol.md`:
 - **Layered exposition** — Summary → Key points → Details
 - **Content labeling** — [Fact] / [Inference] / [Assumption]
 - **Decision confirmation** — two-tier: non-blocking (state assumption, proceed) vs blocking (STOP, output options)
-- **Decision mode** — advisor modes `off | lite (default) | full` control `@advisor` consultation on blocking decisions. Toggle via `/advisor off|lite|full` — see "Advisor mode" below
+- **Decision mode** — advisor modes `off | lite (default) | full` control `@advisor` consultation on blocking decisions. Toggle via `/auto-advisor off|lite|full` — see "Auto-advisor mode" below
 - **Verifiable data** — cite `file:line`, show calculation steps
 
 ### 5. Ponytail protocol (shared, coding only, lite mode)
@@ -230,7 +262,7 @@ Pre-install gate (single-user repo — no CI by design): run `test-all.ps1 -Stru
 |------|-----------------|
 | Structural | File existence, frontmatter, protocol injection, content patterns, red-team guards |
 | Decision strategy | Two-tier decision strategy, subagent no-ask rule, blocking markers |
-| Advisor e2e | `/advisor off/lite/full` state writes, invalid-arg no-op, off-mode dispatch blocking, cross-process persistence |
+| Advisor e2e | `/auto-advisor off/lite/full` state writes, invalid-arg no-op, off-mode soft guard (no auto-dispatch, manual @ allowed), cross-process persistence |
 | build.md | Routing table, team table, workflow templates, identity |
 | plan.md | Analysis plan, read-only rule, team table |
 | Ponytail behavioral | lite suggestion, code reuse, ponytail reference |
@@ -248,7 +280,7 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 - **plan** = read-only analysis coordinator (review, audit, design)
 - Separation prevents analysis agents from accidentally modifying code.
 
-### Advisor mode: off | lite | full
+### Auto-advisor mode: off | lite | full
 
 `@advisor` gives an independent second opinion on **blocking** decisions only — non-blocking decisions always proceed with stated assumptions. Two perspectives reduce groupthink on irreversible choices.
 
@@ -256,17 +288,17 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 |------|----------|
 | **lite** (default) | Dispatch `@advisor`; present BOTH opinions to the user. User decides. |
 | **full** | Dispatch `@advisor`; confidence ≥ 8 → auto-execute (max 10/session); < 8 → lite flow. |
-| **off** | No `@advisor` dispatch; orchestrator decides alone. |
+| **off** | No auto-dispatch of `@advisor`; orchestrator decides alone. Manual `@advisor` still works. |
 
-**Toggle**: `/advisor off|lite|full` — the `advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
+**Toggle**: `/auto-advisor off|lite|full` — the `auto-advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
 
-**State file**: `~/.config/opencode/.advisor-mode` (`off`/`lite`/`full`; legacy `advisory`/`decisive` are auto-normalized). Cold start (no state file): `advisorMode` field in `opencode.jsonc` → env pin to `off` → `lite`.
+**State file**: `~/.config/opencode/.auto-advisor-mode` (`off`/`lite`/`full`; legacy `advisory`/`decisive` are auto-normalized). Cold start (no state file): `autoAdvisorMode` field in `opencode.jsonc` → env pin to `off` → `lite`.
 
-**Four-hook enforcement** (`plugins/advisor-mode.ts` + helpers in `plugins/advisor/`):
+**Four-hook enforcement** (`plugins/auto-advisor-mode.ts` + helpers in `plugins/auto-advisor/`):
 
-1. `command.execute.before` — `/advisor <mode>` writes the state file
+1. `command.execute.before` — `/auto-advisor <mode>` writes the state file
 2. `experimental.chat.system.transform` — injects the active-mode marker + embedded protocol into every system prompt
-3. `tool.execute.before` — blocks `@advisor` dispatch with a clear error while mode is off
+3. `tool.execute.before` — full-mode auto-answer enforcement (blocks question tool when advisor auto-answered); off-mode relies on system prompt soft guard (no auto-dispatch, manual @advisor allowed)
 4. `tool.execute.after` — parses confidence; full mode ≥ 8 gets the auto-execute directive (max 10/session, never on model fallback, never on red-team output)
 
 ### Red-team stance (adversarial design review)
@@ -310,7 +342,7 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, etc). Logs warnings. |
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
-| `advisor-mode.ts` (+ `plugins/advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode dispatch blocking; full-mode auto-execute directive; red-team output suppression. |
+| `auto-advisor-mode.ts` (+ `plugins/auto-advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/auto-advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode soft guard (no auto-dispatch, manual @advisor allowed); full-mode auto-execute directive; red-team output suppression. |
 | `profile-switcher.ts` | `config` + `command.execute.before` + `event: session.created` | Registers `/profile` slash command programmatically; switches model provider profiles by rewriting `opencode.jsonc` agent models per tier. State in `~/.config/opencode/.active-profile`. |
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session on command and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-me.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-me` slash command programmatically; arms session on command and injects grilling protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
@@ -348,15 +380,16 @@ agents/
 └── vision.md                 # Image/screenshot analysis
 
 plugins/
-├── advisor-mode.ts           # Plugin entry: 4 hooks (see "Advisor mode")
-├── advisor/
-│   ├── advisor-config.ts     # Mode normalize, state file IO, cold-start
-│   ├── advisor-runtime.ts    # Log, dispatch detection, red-team guard
-│   ├── advisor-instructions.ts # Embedded protocol + red-team rules
-│   ├── advisor-mode-tracker.ts # command.execute.before
-│   ├── advisor-system-inject.ts # system.transform
-│   ├── advisor-tool-guard.ts # tool.execute.before (off-mode block)
-│   └── advisor-full-inject.ts # tool.execute.after (auto-execute + suppression)
+├── auto-advisor-mode.ts       # Plugin entry: 4 hooks (see "Auto-advisor mode")
+├── auto-advisor/
+│   ├── auto-advisor-config.ts     # Mode normalize, state file IO, cold-start
+│   ├── auto-advisor-runtime.ts    # Log, dispatch detection, red-team guard
+│   ├── auto-advisor-instructions.ts # Embedded protocol + red-team rules
+│   ├── auto-advisor-protocol.md   # Protocol body (loaded at runtime)
+│   ├── auto-advisor-mode-tracker.ts # command.execute.before
+│   ├── auto-advisor-system-inject.ts # system.transform
+│   ├── auto-advisor-tool-guard.ts # tool.execute.before (full-mode auto-answer guard)
+│   └── auto-advisor-full-inject.ts # tool.execute.after (auto-execute + suppression)
 ├── review-fix-loop.ts        # Barrel entry (re-exports from subdirectory)
 ├── review-fix-loop/
 │   ├── review-fix-loop.ts    # Plugin entry: config + command hook + system.transform
@@ -387,4 +420,4 @@ tests/
 
 19 agent files + 4 shared instructions + 9 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol + 6 grill files: 2 barrels + 2 implementations + 2 protocols) + 8 test files + tsconfig.json.
 
-> **Note**: `/review-fix-loop`, `/grill-me`, and `/grill-with-docs` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/advisor` and `/profile`).
+> **Note**: `/review-fix-loop`, `/grill-me`, and `/grill-with-docs` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/auto-advisor` and `/profile`).

@@ -1,7 +1,7 @@
 /**
- * Hook: event — announce the active advisor mode to the user.
+ * Hook: event — announce the active auto-advisor mode to the user.
  *
- * The mode is persisted in ~/.config/opencode/.advisor-mode and silently
+ * The mode is persisted in ~/.config/opencode/.auto-advisor-mode and silently
  * survives across sessions; without a visible signal the user can forget
  * full mode is on — and full mode auto-answers on their behalf.
  *
@@ -9,7 +9,7 @@
  *   - session.created → top-level sessions only (subagent sessions carry
  *     parentID), mode=off stays silent, full gets a warning variant that
  *     names the auto-answer risk, lite gets a light info toast.
- *   - /advisor <mode> → the command hook reuses announceMessage() for the
+ *   - /auto-advisor <mode> → the command hook reuses announceMessage() for the
  *     switch confirmation.
  *
  * Toast is TUI-only by nature: in headless environments (opencode run) the
@@ -17,8 +17,8 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
-import { getMode, type AdvisorMode } from "./advisor-config"
-import { CONFIDENCE_THRESHOLD, makeLogger, MAX_AUTO_ANSWERS, safeHook } from "./advisor-runtime"
+import { getMode, type AdvisorMode } from "./auto-advisor-config"
+import { CONFIDENCE_THRESHOLD, makeLogger, MAX_AUTO_ANSWERS, safeHook } from "./auto-advisor-runtime"
 
 type Client = PluginInput["client"]
 
@@ -32,15 +32,15 @@ type SessionCreatedEvent = {
 export function announceMessage(mode: AdvisorMode): string {
   if (mode === "full") {
     return (
-      `[advisor] Mode: FULL — advisor may answer blocking questions on your ` +
-      `behalf (FACTUAL, confidence ≥ ${CONFIDENCE_THRESHOLD}, max ${MAX_AUTO_ANSWERS}/session). /advisor lite to require sign-off.`
+      `[auto-advisor] Mode: FULL — advisor may answer blocking questions on your ` +
+      `behalf (FACTUAL, confidence ≥ ${CONFIDENCE_THRESHOLD}, max ${MAX_AUTO_ANSWERS}/session). /auto-advisor lite to require sign-off.`
     )
   }
   if (mode === "off") {
-    return "[advisor] Mode: OFF — no @advisor dispatch; orchestrator decides alone."
+    return "[auto-advisor] Mode: OFF — no auto-dispatch of @advisor; manual @advisor still works. Orchestrator decides alone."
   }
   return (
-    "[advisor] Mode: LITE — both opinions returned to you; nothing auto-executes."
+    "[auto-advisor] Mode: LITE — both opinions returned to you; nothing auto-executes."
   )
 }
 
@@ -54,7 +54,7 @@ function toastVariant(mode: AdvisorMode): "warning" | "info" {
  * session start or a mode switch.
  */
 async function announce(client: Client, mode: AdvisorMode): Promise<void> {
-  const log = makeLogger(client, "advisor-mode")
+  const log = makeLogger(client, "auto-advisor-mode")
   try {
     await client.tui.showToast({
       body: { message: announceMessage(mode), variant: toastVariant(mode) },
@@ -66,7 +66,7 @@ async function announce(client: Client, mode: AdvisorMode): Promise<void> {
 }
 
 export function makeAnnounceHook(client: Client) {
-  const log = makeLogger(client, "advisor-mode")
+  const log = makeLogger(client, "auto-advisor-mode")
 
   return safeHook(
     async ({ event }: { event: SessionCreatedEvent }) => {
@@ -82,13 +82,13 @@ export function makeAnnounceHook(client: Client) {
   )
 }
 
-/** Immediate user-visible confirmation for `/advisor <mode>` switches. */
+/** Immediate user-visible confirmation for `/auto-advisor <mode>` switches. */
 export async function announceSwitch(
   client: Client,
   mode: AdvisorMode,
   sessionID?: string,
 ): Promise<void> {
-  const log = makeLogger(client, "advisor-mode")
+  const log = makeLogger(client, "auto-advisor-mode")
   const message = announceMessage(mode)
   // If we have a sessionID, inject the confirmation into the chat transcript
   // via session.prompt({ noReply: true, ignored: true }) — visible in the

@@ -1,15 +1,19 @@
 /**
- * Hook: tool.execute.after — finalize advisor's response for full mode.
+ * Hook: tool.execute.after — finalize advisor's response.
  *
  *   - safeHook: exceptions never crash the user's session.
  *   - isDispatchTool: skip non-dispatch tools (perf).
  *   - Format validation: warn on unparseable confidence/class.
  *   - Frequency limit: max MAX_AUTO_ANSWERS per session.
+ *
+ * OFF mode: failure detection and fallback warnings still run (so the user
+ * gets told if their manual @advisor dispatch failed). Auto-execute never
+ * fires — shouldAuto requires mode === "full".
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
-import { getMode } from "./advisor-config"
-import { advisorFailureWarning, fullDirective, fallbackWarning } from "./advisor-instructions"
+import { getMode } from "./auto-advisor-config"
+import { advisorFailureWarning, fullDirective, fallbackWarning } from "./auto-advisor-instructions"
 import {
   CONFIDENCE_THRESHOLD,
   MAX_AUTO_ANSWERS,
@@ -31,17 +35,16 @@ import {
   recordAutoAnswer,
   safeHook,
   setAutoAnswer,
-} from "./advisor-runtime"
+} from "./auto-advisor-runtime"
 
 type Log = ReturnType<typeof makeLogger>
 
 export function makeFullInjectHook(client: PluginInput["client"]) {
-  const log: Log = makeLogger(client, "advisor-mode")
+  const log: Log = makeLogger(client, "auto-advisor-mode")
 
   return safeHook(
     async (input: unknown, output: unknown) => {
       const mode = getMode()
-      if (mode === "off") return
       if (!isDispatchTool(input)) return
 
       if (!isAdvisorDispatch(input) && !isAdvisorDispatch(output)) return

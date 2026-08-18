@@ -16,7 +16,32 @@ From clone to daily workflow — everything you need to use this multi-agent Ope
 | [Bun](https://bun.sh) | TypeScript plugin compilation | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | Version control & manifest fallback | — |
 
-## Quick start (3 steps)
+## Quick start
+
+### Option A: Install from a Release (no Git clone needed)
+
+Grab the latest archive from the [Releases page](https://github.com/kenlin8827/opencode-config/releases), then:
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz
+tar xzf /tmp/oc-config.tar.gz -C /tmp
+cd /tmp/opencode-config-*/
+./install/install.sh
+./install/config.sh
+```
+
+```powershell
+# Windows (PowerShell)
+$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"
+Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
+Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
+Set-Location "$env:TEMP\oc-config\opencode-config-*"
+pwsh install/install.ps1
+pwsh install/config.ps1
+```
+
+### Option B: Clone and install (3 steps)
 
 ```powershell
 # 1. Clone
@@ -308,7 +333,7 @@ Shall I proceed?
 
 | Command | Description |
 |---|---|
-| `/advisor off\|lite\|full` | Switch advisor mode (see below) |
+| `/auto-advisor off\|lite\|full` | Switch advisor mode (see below) |
 | `/profile list` | List all available model provider profiles |
 | `/profile <name>` | Switch to a named profile (e.g., `/profile deepseek`); rewrites tier→model mappings in `opencode.jsonc` |
 | `/profile current` | Show the active profile and current tier→model mappings |
@@ -335,7 +360,7 @@ Shall I proceed?
 
 ---
 
-## Advisor mode
+## Auto-advisor mode
 
 `@advisor` provides an independent second opinion on **blocking** decisions only. Non-blocking decisions always proceed with stated assumptions.
 
@@ -348,17 +373,17 @@ Shall I proceed?
 ### Toggle
 
 ```
-/advisor off
-/advisor lite
-/advisor full
+/auto-advisor off
+/auto-advisor lite
+/auto-advisor full
 ```
 
-The `advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
+The `auto-advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
 
 ### State persistence
 
-- **State file**: `~/.config/opencode/.advisor-mode` (`off` / `lite` / `full`; legacy `advisory` / `decisive` auto-normalized)
-- **Cold start** (no state file): `advisorMode` field in `opencode.jsonc` → env pin to `off` → `lite` (default)
+- **State file**: `~/.config/opencode/.auto-advisor-mode` (`off` / `lite` / `full`; legacy `advisory` / `decisive` auto-normalized)
+- **Cold start** (no state file): `autoAdvisorMode` field in `opencode.jsonc` → env pin to `off` → `lite` (default)
 - State persists across sessions and processes
 
 ### Red-team stance (adversarial design review)
@@ -382,7 +407,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup) |
 | `metrics.ts` | `tool.execute.after` + `session.idle` | Auto-records tool call metrics (duration, success, agent) as JSONL |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit |
-| `advisor-mode.ts` (+ helpers) | 4 hooks | Advisor modes, protocol injection, off-mode blocking, full-mode auto-execute, red-team suppression |
+| `auto-advisor-mode.ts` (+ helpers) | 4 hooks | Advisor modes, protocol injection, off-mode soft guard (no auto-dispatch, manual @advisor allowed), full-mode auto-execute, red-team suppression |
 | `review-fix-loop.ts` (+ `review-fix-loop.md`) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI) |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
@@ -606,15 +631,15 @@ Run the interactive config: `pwsh install/config.ps1` (or `./install/config.sh`)
 
 Run `opencode` first to authenticate the CLI, then re-run `config.ps1`. The interactive flow reads `opencode models` to list available models.
 
-### Advisor mode not switching
+### Auto-advisor mode not switching
 
 Check the state file:
 
 ```powershell
-Get-Content "$HOME/.config/opencode/.advisor-mode"
+Get-Content "$HOME/.config/opencode/.auto-advisor-mode"
 ```
 
-If missing, the cold-start chain applies: `advisorMode` in `opencode.jsonc` → env pin to `off` → `lite` (default). Run `/advisor lite` to create the state file.
+If missing, the cold-start chain applies: `autoAdvisorMode` in `opencode.jsonc` → env pin to `off` → `lite` (default). Run `/auto-advisor lite` to create the state file.
 
 ### Plugin type errors
 

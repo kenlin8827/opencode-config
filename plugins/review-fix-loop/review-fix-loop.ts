@@ -1,6 +1,6 @@
 /**
  * Review-Fix Loop Plugin — registers the `/review-fix-loop` slash command
- * programmatically via the `config` hook (same pattern as advisor-mode.ts
+ * programmatically via the `config` hook (same pattern as auto-advisor-mode.ts
  * and profile-switcher.ts — no `commands/review-fix-loop.md` file needed),
  * then injects the protocol into the system prompt.
  *
@@ -17,7 +17,7 @@
  *   been populated yet → the protocol is never injected on turn 1.
  *   Instead we unconditionally inject on every system.transform call and
  *   rely on the marker check for idempotency (same approach as
- *   advisor-mode's system hook).
+ *   auto-advisor-mode's system hook).
  *
  * Cache note: the protocol content is static (read once from the .md file
  * and cached in memory). On every turn after the first, the MARKER is

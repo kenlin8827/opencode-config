@@ -1,0 +1,143 @@
+# GitHub Actions workflow: build and publish a Release on tag push.
+#
+# Trigger: push a tag matching `v*` (e.g. v0.0.7) to the remote.
+# The workflow:
+#   1. Checks out the repo at the tag.
+#   2. Runs scripts/pack.sh to build tar.gz + zip archives.
+#   3. Creates a GitHub Release (if it doesn't exist) and uploads both archives.
+#
+# The tag name (e.g. v0.0.7) does NOT need to match install/VERSION — but it
+# SHOULD, to keep the release artifact filename consistent. The pack script
+# reads install/VERSION for the archive filename and embedded manifest.
+#
+# To release:
+#   1. Bump install/VERSION (e.g. 0.0.7)
+#   2. Commit and push
+#   3. git tag v0.0.7 && git push origin v0.0.7
+#   4. The workflow does the rest automatically.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Allow manual trigger for testing without a tag
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build archives without creating a release'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          VER=$(head -1 install/VERSION | tr -d '\r\n ')
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME:-manual}" >> "$GITHUB_OUTPUT"
+
+      - name: Build archives
+        run: |
+          chmod +x scripts/pack.sh
+          ./scripts/pack.sh --out dist
+          echo "--- Archives built ---"
+          ls -lh dist/
+
+      - name: Create latest aliases
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          cp "dist/opencode-config-${VER}.tar.gz" "dist/opencode-config-latest.tar.gz"
+          cp "dist/opencode-config-${VER}.zip" "dist/opencode-config-latest.zip"
+          echo "--- Aliases created ---"
+          ls -lh dist/opencode-config-latest.*
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          # Build a simple changelog from commits since the last tag
+          if [[ "$TAG" == "manual" ]]; then
+            PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          else
+            PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p' || echo "")
+          fi
+          if [[ -n "$PREV_TAG" ]]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD 2>/dev/null || echo "")
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" -20 2>/dev/null || echo "")
+          fi
+
+          {
+            echo '# opencode-config'
+            echo ''
+            echo '## What''s included'
+            echo ''
+            echo '- **Platform**: Windows (PowerShell) / macOS / Linux / WSL (Bash)'
+            echo '- **Archives**: versioned `.tar.gz` (Unix) + `.zip` (Windows) + `latest` aliases'
+            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers'
+            echo ''
+            echo '## Install from release'
+            echo ''
+            echo '```bash'
+            echo '# macOS / Linux / WSL — use latest alias'
+            echo 'curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz'
+            echo 'tar xzf /tmp/oc-config.tar.gz -C /tmp'
+            echo 'cd /tmp/opencode-config-*/'
+            echo './install/install.sh'
+            echo './install/config.sh'
+            echo '```'
+            echo ''
+            echo '```powershell'
+            echo '# Windows — use latest alias'
+            echo '$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"'
+            echo 'Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"'
+            echo 'Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force'
+            echo 'Set-Location "$env:TEMP\oc-config\opencode-config-*"'
+            echo 'pwsh install/install.ps1'
+            echo 'pwsh install/config.ps1'
+            echo '```'
+            echo ''
+            echo '## Changes'
+            echo ''
+            echo "${COMMITS}"
+            echo ''
+            echo 'See [install/README.md](https://github.com/kenlin8827/opencode-config/blob/main/install/README.md) for installer internals.'
+          } > dist/RELEASE_NOTES.md
+          echo "notes_path=dist/RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create release and upload assets
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != 'true') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: opencode-config v${{ steps.version.outputs.version }}
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/opencode-config-${{ steps.version.outputs.version }}.tar.gz
+            dist/opencode-config-${{ steps.version.outputs.version }}.zip
+            dist/opencode-config-latest.tar.gz
+            dist/opencode-config-latest.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+
+      - name: Upload artifacts (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode-config-${{ steps.version.outputs.version }}-archives
+          path: dist/opencode-config-*.*
+          retention-days: 7

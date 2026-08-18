@@ -36,8 +36,8 @@ Check "output-protocol: has lite mode" ($op -match "lite")
 Check "output-protocol: has full mode" ($op -match "full")
 Check "output-protocol: has off mode" ($op -match "off.*direct" -or $op -match "off.*orchestrator")
 Check "output-protocol: has advisor mode" (($op -match "advisor") -and ($op -match "@advisor"))
-Check "output-protocol: has session toggle (command)" ($op -match "/advisor off" -or $op -match "/advisor-on")
-Check "output-protocol: has full toggle" ($op -match "/advisor full" -or $op -match "advisor-decisive")
+Check "output-protocol: has session toggle (command)" ($op -match "/auto-advisor off" -or $op -match "/advisor off")
+Check "output-protocol: has full toggle" ($op -match "/auto-advisor full" -or $op -match "/advisor full" -or $op -match "advisor-decisive")
 Check "output-protocol: has permanent toggle (instructions or config)" ($op -match "instructions" -or $op -match "opencode.json")
 Check "output-protocol: advisor only for blocking" ($op -match "blocking decision")
 Check "output-protocol: has confidence score" ($op -match "confidence")
@@ -62,8 +62,8 @@ $bc = Get-Content "$base\agents\build.md" -Raw
 Check "build.md exists and readable" ($bc.Length -gt 0)
 Check "build.md: has advisor mode section" ($bc -match "Advisor mode")
 Check "build.md: references @advisor" ($bc -match "@advisor")
-Check "build.md: has session toggle" ($bc -match "/advisor")
-Check "build.md: has full toggle" ($bc -match "/advisor full" -or $bc -match "advisor-decisive")
+Check "build.md: has session toggle" ($bc -match "/auto-advisor" -or $bc -match "/advisor")
+Check "build.md: has full toggle" ($bc -match "/auto-advisor full" -or $bc -match "/advisor full" -or $bc -match "advisor-decisive")
 Check "build.md: has permanent toggle" ($bc -match "instructions" -or $bc -match "opencode.json")
 
 # Context passing checks (build.md multi-step workflow)
@@ -105,12 +105,12 @@ Check "advisor-instructions.ts: has 3 modes (off/lite/full)" `
     (($ai -match "lite") -and ($ai -match "full") -and ($ai -match "off"))
 Check "advisor-instructions.ts: has confidence threshold" ($ai -match "confidence" -and $ai -match "8")
 
-# advisor-mode.ts checks (plugin entry)
-$am = Get-Content "$base\plugins\advisor-mode.ts" -Raw
-Check "advisor-mode.ts: has command.execute.before hook" ($am -match "command.execute.before")
-Check "advisor-mode.ts: has system.transform hook" ($am -match "experimental.chat.system.transform")
-Check "advisor-mode.ts: has tool.execute.before hook" ($am -match "tool.execute.before")
-Check "advisor-mode.ts: has tool.execute.after hook" ($am -match "tool.execute.after")
+# auto-advisor-mode.ts checks (plugin entry)
+$am = Get-Content "$base\plugins\auto-advisor-mode.ts" -Raw
+Check "auto-advisor-mode.ts: has command.execute.before hook" ($am -match "command.execute.before")
+Check "auto-advisor-mode.ts: has system.transform hook" ($am -match "experimental.chat.system.transform")
+Check "auto-advisor-mode.ts: has tool.execute.before hook" ($am -match "tool.execute.before")
+Check "auto-advisor-mode.ts: has tool.execute.after hook" ($am -match "tool.execute.after")
 
 # plan.md checks
 $pc = Get-Content "$base\agents\plan.md" -Raw

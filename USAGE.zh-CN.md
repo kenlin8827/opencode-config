@@ -16,7 +16,32 @@
 | [Bun](https://bun.sh) | TypeScript 插件编译 | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | 版本控制 & 清单回退 | — |
 
-## 快速上手（3 步）
+## 快速上手
+
+### 方式 A：从 Release 安装（无需克隆仓库）
+
+从 [Releases 页面](https://github.com/kenlin8827/opencode-config/releases) 下载最新归档，然后：
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz
+tar xzf /tmp/oc-config.tar.gz -C /tmp
+cd /tmp/opencode-config-*/
+./install/install.sh
+./install/config.sh
+```
+
+```powershell
+# Windows（PowerShell）
+$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"
+Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
+Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
+Set-Location "$env:TEMP\oc-config\opencode-config-*"
+pwsh install/install.ps1
+pwsh install/config.ps1
+```
+
+### 方式 B：克隆仓库安装（3 步）
 
 ```powershell
 # 1. 克隆仓库
@@ -284,7 +309,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 
 | 命令 | 说明 |
 |---|---|
-| `/advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
+| `/auto-advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
 | `/profile list` | 列出所有可用的模型服务商预设 |
 | `/profile <name>` | 切换到指定预设（如 `/profile deepseek`），重写 `opencode.jsonc` 中的层级→模型映射 |
 | `/profile current` | 显示当前活跃预设和层级→模型映射 |
@@ -311,7 +336,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 
 ---
 
-## Advisor 模式
+## Auto-advisor 模式
 
 `@advisor` 在**阻塞性**决策上提供独立的第二意见。非阻塞决策始终以声明假设的方式继续推进。
 
@@ -324,17 +349,17 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 ### 切换
 
 ```
-/advisor off
-/advisor lite
-/advisor full
+/auto-advisor off
+/auto-advisor lite
+/auto-advisor full
 ```
 
-`advisor-mode` 插件在 LLM 看到命令之前就写入了状态文件，因此切换是代码级可靠的。
+`auto-advisor-mode` 插件在 LLM 看到命令之前就写入了状态文件，因此切换是代码级可靠的。
 
 ### 状态持久化
 
-- **状态文件**：`~/.config/opencode/.advisor-mode`（`off` / `lite` / `full`；旧值 `advisory` / `decisive` 自动归一化）
-- **冷启动**（无状态文件）：`opencode.jsonc` 中的 `advisorMode` 字段 → 环境锁定为 `off` → `lite`（默认）
+- **状态文件**：`~/.config/opencode/.auto-advisor-mode`（`off` / `lite` / `full`；旧值 `advisory` / `decisive` 自动归一化）
+- **冷启动**（无状态文件）：`opencode.jsonc` 中的 `autoAdvisorMode` 字段 → 环境锁定为 `off` → `lite`（默认）
 - 状态跨会话和跨进程持久化
 
 ### Red-team 立场（对抗式设计审查）
@@ -358,7 +383,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `ai-slop-scanner.ts` | `event: file.edited` | 扫描前端文件中的 AI 反模式（渐变汤、div 汤等） |
 | `metrics.ts` | `tool.execute.after` + `session.idle` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式 |
 | `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
-| `advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式拦截、full 模式自动执行、red-team 抑制 |
+| `auto-advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式软约束（不自动 dispatch，手动 @ 放行）、full 模式自动执行、red-team 抑制 |
 | `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
@@ -431,7 +456,7 @@ pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1
 pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
 ```
 
-### Advisor 模式端到端（需要 opencode CLI + 环境变量）
+### Auto-advisor 模式端到端（需要 opencode CLI + 环境变量）
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File tests/test-advisor-e2e.ps1
@@ -582,15 +607,15 @@ Invoke via `@<agent-name>` or <keywords>.
 
 先运行 `opencode` 完成 CLI 认证，再重新运行 `config.ps1`。交互流程通过 `opencode models` 获取可用模型列表。
 
-### Advisor 模式不切换
+### Auto-advisor 模式不切换
 
 检查状态文件：
 
 ```powershell
-Get-Content "$HOME/.config/opencode/.advisor-mode"
+Get-Content "$HOME/.config/opencode/.auto-advisor-mode"
 ```
 
-如果文件不存在，冷启动链生效：`opencode.jsonc` 中的 `advisorMode` → 环境锁定为 `off` → `lite`（默认）。运行 `/advisor lite` 来创建状态文件。
+如果文件不存在，冷启动链生效：`opencode.jsonc` 中的 `autoAdvisorMode` → 环境锁定为 `off` → `lite`（默认）。运行 `/auto-advisor lite` 来创建状态文件。
 
 ### 插件类型错误
 

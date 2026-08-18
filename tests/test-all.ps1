@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -42,7 +42,7 @@ Check "instructions contains output-protocol.md" `
 Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
-# now lives embedded in plugins/advisor/advisor-instructions.ts.
+# now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
 # instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md
 Check "instructions count = 4" ($config.instructions.Count -eq 4)
 Check "instructions does NOT include decision-advisor.md" `
@@ -96,18 +96,17 @@ $allFiles = @(
     "agents/advisor.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
-    # Commands
-    "commands/advisor.md",
-    # Plugins (advisor-mode + helpers + review-fix-loop + grill)
-    "plugins/advisor-mode.ts",
-    "plugins/advisor/advisor-config.ts",
-    "plugins/advisor/advisor-runtime.ts",
-    "plugins/advisor/advisor-instructions.ts",
-    "plugins/advisor/advisor-mode-tracker.ts",
-    "plugins/advisor/advisor-system-inject.ts",
-    "plugins/advisor/advisor-tool-guard.ts",
-    "plugins/advisor/advisor-full-inject.ts",
-    "plugins/advisor/advisor-announce.ts",
+    # Commands (auto-advisor command is registered programmatically via config hook — no commands/*.md file needed)
+    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill)
+    "plugins/auto-advisor-mode.ts",
+    "plugins/auto-advisor/auto-advisor-config.ts",
+    "plugins/auto-advisor/auto-advisor-runtime.ts",
+    "plugins/auto-advisor/auto-advisor-instructions.ts",
+    "plugins/auto-advisor/auto-advisor-mode-tracker.ts",
+    "plugins/auto-advisor/auto-advisor-system-inject.ts",
+    "plugins/auto-advisor/auto-advisor-tool-guard.ts",
+    "plugins/auto-advisor/auto-advisor-full-inject.ts",
+    "plugins/auto-advisor/auto-advisor-announce.ts",
     "plugins/review-fix-loop.ts",
     "plugins/review-fix-loop/review-fix-loop.ts",
     "plugins/review-fix-loop/review-fix-loop.md",
@@ -184,81 +183,81 @@ Check "advisor.md: states recommendation requirement" ($advisorAgent -match "ALW
 Check "advisor.md: has confidence score" ($advisorAgent -match "confidence score")
 Check "advisor.md: has confidence in output format" ($advisorAgent -match "Confidence.*1-10")
 
-# Advisor mode plugin checks (split into multiple files under plugins/advisor/)
-$advisorPlugin = Get-Content "$PSScriptRoot\..\plugins\advisor-mode.ts" -Raw
-Check "advisor-mode.ts: imports Plugin type" ($advisorPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -match "command.execute.before")
-Check "advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
-Check "advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
-Check "advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
-Check "advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
-Check "advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
+# Auto-advisor mode plugin checks (split into multiple files under plugins/auto-advisor/)
+$advisorPlugin = Get-Content "$PSScriptRoot\..\plugins\auto-advisor-mode.ts" -Raw
+Check "auto-advisor-mode.ts: imports Plugin type" ($advisorPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "auto-advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -match "command.execute.before")
+Check "auto-advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
+Check "auto-advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
+Check "auto-advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
+Check "auto-advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
+Check "auto-advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
 
-$advisorConfig = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-config.ts" -Raw
-Check "advisor-config.ts: has COMMAND_NAME constant" ($advisorConfig -match "COMMAND_NAME")
-Check "advisor-config.ts: has getMode function" ($advisorConfig -match "getMode")
-Check "advisor-config.ts: has setMode function" ($advisorConfig -match "setMode")
-Check "advisor-config.ts: has isOn function" ($advisorConfig -match "isOn")
-Check "advisor-config.ts: defaults to lite" ($advisorConfig -match "lite.*default" -or $advisorConfig -match "DEFAULT_MODE.*lite")
-Check "advisor-config.ts: has parseModeArg" ($advisorConfig -match "parseModeArg")
+$advisorConfig = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-config.ts" -Raw
+Check "auto-advisor-config.ts: has COMMAND_NAME constant" ($advisorConfig -match "COMMAND_NAME")
+Check "auto-advisor-config.ts: has getMode function" ($advisorConfig -match "getMode")
+Check "auto-advisor-config.ts: has setMode function" ($advisorConfig -match "setMode")
+Check "auto-advisor-config.ts: has isOn function" ($advisorConfig -match "isOn")
+Check "auto-advisor-config.ts: defaults to lite" ($advisorConfig -match "lite.*default" -or $advisorConfig -match "DEFAULT_MODE.*lite")
+Check "auto-advisor-config.ts: has parseModeArg" ($advisorConfig -match "parseModeArg")
 
-$advisorToolGuard = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-tool-guard.ts" -Raw
-Check "advisor-tool-guard.ts: blocks advisor when off" `
-    ($advisorToolGuard -match "Advisor mode is OFF" -or $advisorToolGuard -match "throw.*Error.*advisor")
-Check "advisor-tool-guard.ts: has makeToolGuardHook" ($advisorToolGuard -match "makeToolGuardHook")
+$advisorToolGuard = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-tool-guard.ts" -Raw
+Check "auto-advisor-tool-guard.ts: no hard block for advisor when off" `
+    (-not ($advisorToolGuard -match "isOn" -and $advisorToolGuard -match "isAdvisorDispatch.*throw"))
+Check "auto-advisor-tool-guard.ts: has makeToolGuardHook" ($advisorToolGuard -match "makeToolGuardHook")
 
-$advisorInstructions = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-instructions.ts" -Raw
-Check "advisor-instructions.ts: embeds PROTOCOL string" ($advisorInstructions -match "PROTOCOL")
-Check "advisor-instructions.ts: has MODE_MARKER for 3 modes (off/lite/full)" `
+$advisorInstructions = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-instructions.ts" -Raw
+Check "auto-advisor-instructions.ts: embeds PROTOCOL string" ($advisorInstructions -match "PROTOCOL")
+Check "auto-advisor-instructions.ts: has MODE_MARKER for 3 modes (off/lite/full)" `
     (($advisorInstructions -match "lite") -and ($advisorInstructions -match "full") -and ($advisorInstructions -match "off"))
-Check "advisor-instructions.ts: has getAdvisorPrompt" ($advisorInstructions -match "getAdvisorPrompt")
-Check "advisor-instructions.ts: has fullDirective" ($advisorInstructions -match "fullDirective")
-Check "advisor-instructions.ts: question puts recommended option first" ($advisorInstructions -match "recommended option FIRST")
+Check "auto-advisor-instructions.ts: has getAdvisorPrompt" ($advisorInstructions -match "getAdvisorPrompt")
+Check "auto-advisor-instructions.ts: has fullDirective" ($advisorInstructions -match "fullDirective")
+Check "auto-advisor-instructions.ts: question puts recommended option first" ($advisorInstructions -match "recommended option FIRST")
 
 # Red-team stance (optional adversarial mode on @advisor)
 Check "advisor.md: has red-team stance section" ($advisorAgent -match "Stance: red-team")
 Check "advisor.md: red-team forbids confidence score" ($advisorAgent -match "NEVER output a confidence score in red-team")
 Check "advisor.md: has verdict vocabulary" `
     (($advisorAgent -match "HOLDS") -and ($advisorAgent -match "FAILS"))
-Check "advisor-instructions.ts: has red-team stance rules" ($advisorInstructions -match "Red-team stance")
-Check "advisor-instructions.ts: red-team never auto-executes" ($advisorInstructions -match "NEVER trigger full-mode auto-execute")
-Check "advisor-instructions.ts: FAILS verdict requires user" ($advisorInstructions -match "FAILS")
-Check "advisor-instructions.ts: FAILS routes rebuttal to design owner" ($advisorInstructions -match "design owner")
-Check "advisor-instructions.ts: no blue team rule" ($advisorInstructions -match "No blue team")
+Check "auto-advisor-instructions.ts: has red-team stance rules" ($advisorInstructions -match "Red-team stance")
+Check "auto-advisor-instructions.ts: red-team never auto-executes" ($advisorInstructions -match "NEVER trigger full-mode auto-execute")
+Check "auto-advisor-instructions.ts: FAILS verdict requires user" ($advisorInstructions -match "FAILS")
+Check "auto-advisor-instructions.ts: FAILS routes rebuttal to design owner" ($advisorInstructions -match "design owner")
+Check "auto-advisor-instructions.ts: no blue team rule" ($advisorInstructions -match "No blue team")
 
 # Red-team auto-execute hard guard (code-level, not prompt-level)
-$advisorRuntime = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-runtime.ts" -Raw
-Check "advisor-runtime.ts: has isRedTeamOutput guard" ($advisorRuntime -match "isRedTeamOutput")
-Check "advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match "Verdict")
+$advisorRuntime = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-runtime.ts" -Raw
+Check "auto-advisor-runtime.ts: has isRedTeamOutput guard" ($advisorRuntime -match "isRedTeamOutput")
+Check "auto-advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match "Verdict")
 
 # Question-class gate: full-mode auto-answer requires FACTUAL classification;
 # PREFERENCE questions always return to the user, in any mode.
-Check "advisor-runtime.ts: has detectQuestionClass gate" ($advisorRuntime -match "detectQuestionClass")
-Check "advisor-instructions.ts: defines question class" ($advisorInstructions -match "FACTUAL")
-Check "advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE questions ALWAYS go back to the user")
-Check "advisor-instructions.ts: lite never answers for user" ($advisorInstructions -match "NEVER answers on the user's behalf")
+Check "auto-advisor-runtime.ts: has detectQuestionClass gate" ($advisorRuntime -match "detectQuestionClass")
+Check "auto-advisor-instructions.ts: defines question class" ($advisorInstructions -match "FACTUAL")
+Check "auto-advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE questions ALWAYS go back to the user")
+Check "auto-advisor-instructions.ts: lite never answers for user" ($advisorInstructions -match "NEVER answers on the user's behalf")
 Check "advisor.md: outputs question class" ($advisorAgent -match "Question class")
 Check "advisor.md: classifies every question" ($advisorAgent -match "ALWAYS classify the question")
 
-$advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-full-inject.ts" -Raw
-Check "advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
-Check "advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
-Check "advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "detectQuestionClass")
+$advisorFullInject = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-full-inject.ts" -Raw
+Check "auto-advisor-full-inject.ts: suppresses red-team output" ($advisorFullInject -match "isRedTeamOutput")
+Check "auto-advisor-full-inject.ts: has fallback warning path" ($advisorFullInject -match "fallbackWarning")
+Check "auto-advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($advisorFullInject -match "detectQuestionClass")
 
-# Session-created announce + /advisor switch feedback (user visibility)
-$advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-announce.ts" -Raw
-Check "advisor-announce.ts: has makeAnnounceHook" ($advisorAnnounce -match "makeAnnounceHook")
-Check "advisor-announce.ts: listens on session.created" ($advisorAnnounce -match "session.created")
-Check "advisor-announce.ts: filters subagent sessions via parentID" ($advisorAnnounce -match "parentID")
-Check "advisor-announce.ts: full-mode message names auto-answer risk" ($advisorAnnounce -match "answer blocking questions on your")
-Check "advisor-announce.ts: toast via tui.showToast" ($advisorAnnounce -match "showToast")
-Check "advisor-announce.ts: degrades to log without TUI" ($advisorAnnounce -match "no TUI")
-$advisorTracker = Get-Content "$PSScriptRoot\..\plugins\advisor\advisor-mode-tracker.ts" -Raw
-Check "advisor-mode-tracker.ts: switch gives user-visible feedback" ($advisorTracker -match "announceSwitch")
+# Session-created announce + /auto-advisor switch feedback (user visibility)
+$advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-announce.ts" -Raw
+Check "auto-advisor-announce.ts: has makeAnnounceHook" ($advisorAnnounce -match "makeAnnounceHook")
+Check "auto-advisor-announce.ts: listens on session.created" ($advisorAnnounce -match "session.created")
+Check "auto-advisor-announce.ts: filters subagent sessions via parentID" ($advisorAnnounce -match "parentID")
+Check "auto-advisor-announce.ts: full-mode message names auto-answer risk" ($advisorAnnounce -match "answer blocking questions on your")
+Check "auto-advisor-announce.ts: toast via tui.showToast" ($advisorAnnounce -match "showToast")
+Check "auto-advisor-announce.ts: degrades to log without TUI" ($advisorAnnounce -match "no TUI")
+$advisorTracker = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-mode-tracker.ts" -Raw
+Check "auto-advisor-mode-tracker.ts: switch gives user-visible feedback" ($advisorTracker -match "announceSwitch")
 
 # Advisor e2e test aligns with the current command surface
 $advisorE2e = Get-Content "$PSScriptRoot\test-advisor-e2e.ps1" -Raw
-Check "test-advisor-e2e.ps1: uses /advisor <mode> form" ($advisorE2e -match "/advisor ")
+Check "test-advisor-e2e.ps1: uses /auto-advisor <mode> form" ($advisorE2e -match "/auto-advisor ")
 Check "test-advisor-e2e.ps1: no legacy advisor-on/off/decisive commands" `
     (($advisorE2e -notmatch "advisor-on") -and ($advisorE2e -notmatch "advisor-decisive") -and ($advisorE2e -notmatch "--command advisor-"))
 Check "test-advisor-e2e.ps1: covers invalid-argument no-op" ($advisorE2e -match "banana")

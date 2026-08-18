@@ -113,7 +113,7 @@ export function extractQuestionText(input: unknown): string {
 
 // ─── Independent PREFERENCE / irreversibility guards ─────────────────
 // These deliberately do not trust the advisor's self-reported class.
-// See advisor-protocol.md: PREFERENCE questions must never auto-execute.
+// See auto-advisor-protocol.md: PREFERENCE questions must never auto-execute.
 
 const PREFERENCE_MARKERS = [
   /\buser\s+(?:wants|prefers|would\s+like)\b/i,

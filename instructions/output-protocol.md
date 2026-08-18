@@ -51,7 +51,7 @@ No decision points → skip section. NEVER invent trivial decisions.
 
 ### Decision mode: 3 advisor modes (off/lite/full)
 
-Three modes control how blocking decisions are handled: **off** (orchestrator alone / direct) | **lite** (default — advisor opinions only, both returned to user; advisor never answers for the user) | **full** (advisor answers on the user's behalf only when question class FACTUAL + confidence ≥ 8; otherwise lite flow). Toggle via `/advisor off` / `/advisor lite` / `/advisor full` (session) or set `advisorMode` in `opencode.jsonc` (cross-session default). Dispatch the advisor subagent with `@advisor` (must call for second opinion on blocking decisions). Full protocol is embedded in the `advisor-mode` plugin (`plugins/advisor-instructions.ts`) and injected on every system-prompt build.
+Three modes control how blocking decisions are handled: **off** (orchestrator alone / direct) | **lite** (default — advisor opinions only, both returned to user; advisor never answers for the user) | **full** (advisor answers on the user's behalf only when question class FACTUAL + confidence ≥ 8; otherwise lite flow). Toggle via `/auto-advisor off` / `/auto-advisor lite` / `/auto-advisor full` (session) or set `autoAdvisorMode` in `opencode.jsonc` (cross-session default). Dispatch the advisor subagent with `@advisor` (must call for second opinion on blocking decisions). Full protocol is embedded in the `auto-advisor-mode` plugin (`plugins/auto-advisor-instructions.ts`) and injected on every system-prompt build.
 
 ### Verifiable data
 Cite sources (file paths, URLs, test output). Show calculation steps.

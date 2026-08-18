@@ -1,10 +1,10 @@
 /**
  * Hook: experimental.chat.system.transform — inject the active-mode marker
- * and the advisor protocol (loaded from advisor-protocol.md) into the
+ * and the advisor protocol (loaded from auto-advisor-protocol.md) into the
  * system prompt.
  *
  * Cache-friendly strategy:
- *   - Build the expected marker for the active mode (e.g. "[ADVISOR MODE: LITE]").
+ *   - Build the expected marker for the active mode (e.g. "[AUTO-ADVISOR MODE: LITE]").
  *   - If the system prompt already contains that exact marker → do nothing.
  *     The prior injection is still valid; touching the string would break
  *     the LLM provider's prompt-cache (the system prompt is byte-identical,
@@ -17,11 +17,11 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
-import { getMode } from "./advisor-config"
-import { getAdvisorPrompt, MODE_MARKER } from "./advisor-instructions"
-import { makeLogger } from "./advisor-runtime"
+import { getMode } from "./auto-advisor-config"
+import { getAdvisorPrompt, MODE_MARKER } from "./auto-advisor-instructions"
+import { makeLogger } from "./auto-advisor-runtime"
 
-const MARKER = "[ADVISOR MODE:"
+const MARKER = "[AUTO-ADVISOR MODE:"
 
 type Log = ReturnType<typeof makeLogger>
 
@@ -58,7 +58,7 @@ function appendPrompt(system: string[], fragment: string): boolean {
 }
 
 export function makeSystemHook(client: PluginInput["client"]) {
-  const log: Log = makeLogger(client, "advisor-mode")
+  const log: Log = makeLogger(client, "auto-advisor-mode")
 
   return async (_input: unknown, output: { system: string[] }) => {
     const mode = getMode()
@@ -69,7 +69,7 @@ export function makeSystemHook(client: PluginInput["client"]) {
     if (hasExactMarker(output.system, exactMarker)) return
 
     // Slow path: either first injection, or the mode changed since last turn.
-    // Strip any stale [ADVISOR MODE: ...] block, then append the new one.
+    // Strip any stale [AUTO-ADVISOR MODE: ...] block, then append the new one.
     if (hasAnyMarker(output.system)) stripMarker(output.system)
     const changed = appendPrompt(output.system, getAdvisorPrompt(mode))
     if (changed) await log("info", `system prompt: mode=${mode} injected`)
