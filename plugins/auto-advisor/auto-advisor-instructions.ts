@@ -29,9 +29,9 @@ function getProtocol(): string {
 
 export const MODE_MARKER: Record<AdvisorMode, string> = {
   off: `[AUTO-ADVISOR MODE: OFF]\nDo NOT auto-dispatch @advisor for blocking decisions — you decide alone.\nEXCEPTION: if the user's message explicitly contains @advisor, you MAY dispatch @advisor to consult it. The advisor's opinion is advisory only — never auto-execute.`,
-  lite: `[AUTO-ADVISOR MODE: LITE]\nDispatch @advisor for each blocking decision; present BOTH opinions to the user. Advisor gives opinions only — it NEVER answers on the user's behalf.`,
+  lite: `[AUTO-ADVISOR MODE: LITE]\nDispatch @advisor ONLY for genuinely blocking decisions where a second opinion adds value — not routine or low-stakes calls (see Frugality rules in protocol below). When dispatched, present BOTH opinions to the user. Advisor gives opinions only — it NEVER answers on the user's behalf.`,
   full: `[AUTO-ADVISOR MODE: FULL — ACTIVE NOW]\n` +
-    `Dispatch @advisor. Question class FACTUAL + confidence ≥ 8 → auto-execute the answer NOW (on the user's behalf), no question tool. ` +
+    `Dispatch @advisor ONLY for genuinely blocking decisions (see Frugality rules in protocol below). Question class FACTUAL + confidence ≥ 8 → auto-execute the answer NOW (on the user's behalf), no question tool. ` +
     `Max 10/session, then lite. ` +
     `PREFERENCE or < 8 → present BOTH opinions (lite flow).`,
 }

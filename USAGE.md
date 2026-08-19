@@ -362,7 +362,7 @@ Shall I proceed?
 
 ## Auto-advisor mode
 
-`@advisor` provides an independent second opinion on **blocking** decisions only. Non-blocking decisions always proceed with stated assumptions.
+`@advisor` provides an independent second opinion on **blocking** decisions only — and only when genuinely necessary (see Frugality rules in the advisor protocol). Non-blocking decisions always proceed with stated assumptions.
 
 | Mode | Behavior |
 |---|---|

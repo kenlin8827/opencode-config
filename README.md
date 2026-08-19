@@ -287,7 +287,7 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 
 ### Auto-advisor mode: off | lite | full
 
-`@advisor` gives an independent second opinion on **blocking** decisions only — non-blocking decisions always proceed with stated assumptions. Two perspectives reduce groupthink on irreversible choices.
+`@advisor` gives an independent second opinion on **blocking** decisions only — and only when genuinely necessary (see Frugality rules in the advisor protocol). Non-blocking decisions always proceed with stated assumptions. Two perspectives reduce groupthink on irreversible choices.
 
 | Mode | Behavior |
 |------|----------|
