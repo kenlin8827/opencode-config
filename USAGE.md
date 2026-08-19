@@ -134,7 +134,50 @@ All other fields come from the repo template. To discard preserved picks: `confi
 
 ## Configuration
 
-### Interactive (recommended for first setup)
+OpenCode supports two configuration approaches:
+
+1. **Existing Provider Setup** - For direct connection to official APIs (slash command quick setup - recommended to try first)
+2. **LLM Router Setup** - For self-hosted or third-party routing services (config script setup)
+
+> **Selection Guide**: Choose method 1 if you want to directly connect to official APIs like DeepSeek, Kimi, etc. (simpler and faster); choose method 2 if you need to set up your own LLM router or use third-party routing services.
+
+### Existing Provider Configuration (Non-LLM Router - recommended to try first)
+
+**Configuration Methods Comparison:**
+- **Existing Provider Setup**: Direct use of existing LLM provider APIs with slash commands for quick configuration
+- **LLM Router Setup**: Self-hosted or third-party routing services requiring config scripts to set baseURL and apiKey
+
+For existing providers (such as official DeepSeek, Kimi, Qwen APIs, not self-hosted LLM routers), you can configure through OpenCode slash commands without running config scripts:
+
+```
+/connect <provider-name>    # connect to existing provider
+/profile <profile-name>     # select provider profile configuration
+```
+
+**Configuration Flow:**
+
+1. **Connect Provider** — Use `/connect` command to connect to an existing provider
+2. **Select Profile** — Use `/profile` command to select the corresponding configuration profile
+
+**Example:**
+
+```
+> /connect deepseek
+  → Connect to DeepSeek provider
+> /profile deepseek  
+  → Apply DeepSeek official API profile configuration
+```
+
+**Important:** After configuration is complete, please exit the current opencode session and re-enter to ensure the new provider and profile configurations take full effect.
+
+This configuration method is suitable for:
+- Users who already have existing LLM providers (e.g., DeepSeek, Kimi, Qwen, etc.)
+- Users who don't want to self-host an LLM router
+- Quick interactive configuration scenarios
+
+Profiles automatically configure tier-to-model mappings, eliminating the need to manually set models for each tier.
+
+### LLM Router Configuration (Interactive - recommended for first setup)
 
 ```powershell
 pwsh install/config.ps1    # PowerShell

@@ -110,7 +110,50 @@ Remove-Item -Recurse -Force $tmp
 
 ## 配置
 
-### 交互式（首次配置推荐）
+OpenCode支持两种配置方式：
+
+1. **现有服务商配置** - 用于直接连接官方API（斜杠命令快速配置，推荐优先尝试）
+2. **LLM Router配置** - 用于自建或第三方路由服务（config脚本配置）
+
+> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；如需自建LLM Router或使用第三方路由服务，请选择方式2。
+
+### 现有服务商配置（非LLM Router，推荐优先尝试）
+
+**配置方式对比：**
+- **现有服务商配置**：直接使用已存在的LLM服务商API，通过斜杠命令快速配置
+- **LLM Router配置**：自建或第三方路由服务，需要使用config脚本设置baseURL和apiKey
+
+对于现有服务商（如官方DeepSeek、Kimi、通义千问等API，非自建LLM Router），可以通过OpenCode的斜杠命令进行配置，无需运行config脚本：
+
+```
+/connect <provider-name>    # 连接到现有服务商
+/profile <profile-name>     # 选择服务商预设配置
+```
+
+**配置流程：**
+
+1. **连接服务商** — 使用 `/connect` 命令连接到已存在的provider
+2. **选择预设** — 使用 `/profile` 命令选择该服务商对应的配置预设
+
+**示例：**
+
+```
+> /connect deepseek
+  → 连接到DeepSeek服务商
+> /profile deepseek  
+  → 应用DeepSeek官方API预设配置
+```
+
+**重要提示：** 配置完成后请退出当前opencode会话并重新进入，以确保新的provider和profile配置完全生效。
+
+这种配置方式适用于：
+- 已有现成的LLM服务商（如DeepSeek、Kimi、通义千问等）
+- 不想自建LLM Router的用户
+- 希望通过交互方式快速配置的场景
+
+预设会自动配置各层级的模型映射，无需手动设置每个层级的模型。
+
+### LLM Router配置（交互式 - 首次配置推荐）
 
 ```powershell
 pwsh install/config.ps1    # PowerShell
