@@ -1,6 +1,7 @@
 ---
 description: Security engineer. Use for security analysis, vulnerability assessment, security architecture review, dependency scanning, secret detection, OWASP Top 10 analysis, authentication/authorization audit, encryption review, or compliance questions. Always invoke when the user mentions security, vulnerability, OWASP, penetration test, encryption, authentication, authorization, secret, compliance, or asks "is this secure?".
 mode: subagent
+variant: high
 temperature: 0.2
 steps: 50
 permission:

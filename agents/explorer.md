@@ -1,6 +1,7 @@
 ---
 description: Fast read-only codebase explorer. Use for rapid code search, pattern discovery, architecture overview, and locating relevant files before dispatching a specialist. Returns compressed context for handoff. Always invoke when the user asks to explore, find, locate, or understand code structure.
 mode: subagent
+variant: low
 temperature: 0.2
 steps: 30
 permission:

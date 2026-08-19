@@ -36,6 +36,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 80,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/build.md}"
     },
     "plan": {
@@ -45,6 +46,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 60,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
     },
     "advisor": {
@@ -54,6 +56,7 @@
       "model": "llm-router/advisor",
       "temperature": 0.3,
       "steps": 20,
+      "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/advisor.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
     },
@@ -64,6 +67,7 @@
       "model": "llm-router/explorer",
       "temperature": 0.2,
       "steps": 30,
+      "variant": "low",
       "prompt": "{file:~/.config/opencode/agents/explorer.md}",
       "permission": { "edit": "deny", "webfetch": "deny", "websearch": "deny" }
     },
@@ -74,6 +78,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 40,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/researcher.md}",
       "permission": { "edit": "deny" }
     },
@@ -84,6 +89,7 @@
       "model": "llm-router/default",
       "temperature": 0.4,
       "steps": 60,
+      "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/architect.md}",
       "permission": { "edit": "deny" }
     },
@@ -94,6 +100,7 @@
       "model": "llm-router/code",
       "temperature": 0.2,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/dba.md}"
     },
     "security": {
@@ -103,6 +110,7 @@
       "model": "llm-router/default",
       "temperature": 0.2,
       "steps": 50,
+      "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/security.md}",
       "permission": { "edit": "deny" }
     },
@@ -113,6 +121,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/java-dev.md}"
     },
     "python-dev": {
@@ -122,6 +131,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/python-dev.md}"
     },
     "go-dev": {
@@ -131,6 +141,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/go-dev.md}"
     },
     "rust-dev": {
@@ -140,6 +151,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/rust-dev.md}"
     },
     "node-dev": {
@@ -149,6 +161,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/node-dev.md}"
     },
     "frontend-dev": {
@@ -158,6 +171,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}"
     },
     "qa": {
@@ -167,6 +181,7 @@
       "model": "llm-router/code",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/qa.md}",
       "permission": { "webfetch": "ask" }
     },
@@ -177,6 +192,7 @@
       "model": "llm-router/advisor",
       "temperature": 0.3,
       "steps": 50,
+      "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/code-review.md}",
       "permission": { "edit": "deny", "webfetch": "ask", "websearch": "ask" }
     },
@@ -187,6 +203,7 @@
       "model": "llm-router/code",
       "temperature": 0.2,
       "steps": 50,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/devops.md}"
     },
     "tech-writer": {
@@ -196,6 +213,7 @@
       "model": "llm-router/default",
       "temperature": 0.3,
       "steps": 40,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/tech-writer.md}"
     },
     "vision": {
@@ -205,6 +223,7 @@
       "model": "llm-router/vision",
       "temperature": 0.2,
       "steps": 25,
+      "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/vision.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
     }

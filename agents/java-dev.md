@@ -1,6 +1,7 @@
 ---
 description: Java/Spring Boot engineer. Use for Java, Spring Boot, Spring Security, Spring Data JPA/Hibernate, Maven/Gradle, JUnit/Mockito, REST APIs, and Java ecosystem tasks. Always invoke when the user mentions Java, Spring, JPA, Hibernate, Maven, Gradle, JUnit, or JVM.
 mode: subagent
+variant: medium
 temperature: 0.3
 steps: 50
 permission:

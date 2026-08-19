@@ -1,6 +1,7 @@
 ---
 description: Node.js/TypeScript engineer. Use for Node.js, TypeScript, NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm/yarn, and Node ecosystem tasks. Always invoke when the user mentions Node.js, NestJS, Express, Fastify, Prisma, TypeORM, pnpm, or npm.
 mode: subagent
+variant: medium
 temperature: 0.3
 steps: 50
 permission:

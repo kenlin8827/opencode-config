@@ -1,6 +1,7 @@
 ---
 description: DevOps engineer. Use for Docker, Kubernetes, CI/CD pipelines, Terraform/IaC, monitoring, observability, deployment strategies, and infrastructure automation. Always invoke when the user mentions Docker, Kubernetes, K8s, CI/CD, pipeline, deploy, deployment, Terraform, Ansible, Helm, monitoring, Prometheus, Grafana, or infrastructure.
 mode: subagent
+variant: medium
 temperature: 0.2
 steps: 50
 permission:

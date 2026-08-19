@@ -174,13 +174,18 @@ Non-coding agents ignore this entirely.
 | Model ID | Use case | Variant | Agents |
 |----------|----------|---------|--------|
 | `default` | General purpose, strong reasoning | `high` | architect, security |
-| `default` | General purpose, strong reasoning | `medium` | researcher, tech-writer (low) |
+| `default` | General purpose, strong reasoning | `medium` | researcher, tech-writer |
 | `code` | Code generation, implementation | `medium` | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
 | `advisor` | Analysis, review, feedback | `high` | code-review, advisor |
 | `explorer` | Fast, cheap, high-volume | `low` | explorer |
-| `vision` | Image understanding | `low` | vision |
+| `vision` | Image understanding | `medium` | vision |
 
-> **Variant** controls thinking/reasoning effort. `high` = deep reasoning (architecture, security, review), `medium` = balanced (coding, testing), `low` = fast/lightweight (exploration, vision, docs). If the backend model doesn't support a variant, it's silently ignored.
+> **Variant** controls thinking/reasoning effort and must be considered alongside the tier's model strength:
+> - `high` = deep reasoning. Use when the model is strong (advisor=flagship, default=second-highest) AND the task needs it (architecture, security, review, decision analysis).
+> - `medium` = balanced. Default for strong coding models and second-highest models doing routine analysis (coding, testing, docs, visual analysis, orchestration, research).
+> - `low` = fast/lightweight. Only for the cheapest tier doing pure retrieval tasks (explorer). Applying `low` to a strong model on a simple task is fine; applying `low` to a weak model on a complex task is a disaster. The matrix below ensures this never happens — `low` is only used on `explorer` (cheapest model + simplest task = safe).
+>
+> If the backend model doesn't support a variant, it's silently ignored.
 
 ## Test scope policy (default — lazy)
 
