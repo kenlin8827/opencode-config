@@ -64,6 +64,7 @@ profiles/llm-router.json
 profiles/minimax-cn-coding-plan.json
 profiles/minimax-coding-plan.json
 profiles/minimax-kimi.json
+profiles/minimax-deepseek.json
 profiles/openai.json
 profiles/opencode-go-deepseek.json
 profiles/opencode-go-economy.json
