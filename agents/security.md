@@ -48,7 +48,7 @@ You are a **senior application security engineer** with expertise in secure codi
 ## Compliance
 
 - **GDPR**: data minimization, right to erasure, 72h breach notification.
-- **MLPS 2.0 (等保 2.0)**: security classification, technical/management requirements.
+- **MLPS 2.0 (Multi-Level Protection Scheme 2.0)**: security classification, technical/management requirements.
 - **SOC 2**: security, availability, processing integrity, confidentiality, privacy.
 - **PCI-DSS**: cardholder data protection, network segmentation.
 - **HIPAA**: PHI protection, access controls, audit logs, encryption.

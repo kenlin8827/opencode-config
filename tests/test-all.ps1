@@ -97,7 +97,7 @@ $allFiles = @(
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands (auto-advisor command is registered programmatically via config hook — no commands/*.md file needed)
-    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill)
+    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
     "plugins/auto-advisor/auto-advisor-runtime.ts",
@@ -112,6 +112,11 @@ $allFiles = @(
     "plugins/review-fix-loop/review-fix-loop.md",
     "plugins/grill-me.ts",
     "plugins/grill-with-docs.ts",
+    "plugins/deepseek-anchor.ts",
+    "plugins/deepseek-anchor/index.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-config.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-command.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-announce.ts",
     "plugins/grill/grill-me.ts",
     "plugins/grill/grill-me.md",
     "plugins/grill/grill-with-docs.ts",

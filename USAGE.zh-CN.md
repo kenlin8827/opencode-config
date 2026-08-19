@@ -385,6 +385,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式软约束（不自动 dispatch，手动 @ 放行）、full 模式自动执行、red-team 抑制 |
 | `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
+| `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。

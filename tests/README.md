@@ -22,6 +22,8 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 | `test-plan.ps1` | Primary plan agent follows Output Protocol |
 | `test-subagent.ps1` | Subagent dispatched by build agent follows Output Protocol |
 | `test-default.ps1` | Default build agent (no custom prompt) — baseline |
+| `test-anchor-unit.ts` | DeepSeek Anchor plugin unit tests (no API, 46 assertions) — verifies anchor injection, idempotency, model detection (DeepSeek V4 Pro only), tool block/restore, config/event hooks |
+| `test-anchor-benchmark.ps1` | DeepSeek Anchor benchmark: on vs off comparison (requires API) — measures reasoning depth, trajectory style ("We" vs "Let me"), tool suppression across 4 test prompts |
 
 ## Run
 
@@ -34,6 +36,15 @@ powershell -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
 
 # Or run individually
 powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
+
+# DeepSeek Anchor unit tests (no API, fast)
+npx tsx tests/test-anchor-unit.ts
+
+# DeepSeek Anchor benchmark (requires API, ~2 min per prompt × 2 states)
+pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1
+
+# Quick benchmark (only 2 prompts)
+pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1 -Quick
 ```
 
 ## What test-all.ps1 checks
@@ -64,3 +75,58 @@ powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
 - `test-subagent.ps1`: Subagent output follows Protocol format (dispatched via build agent).
 - `test-default.ps1`: Default agent may NOT follow Protocol (no custom prompt, instructions may not inject).
 - Ponytail behavioral: Agent challenges speculative scope, reuses existing code, references ladder.
+
+## DeepSeek Anchor Plugin Tests
+
+### Unit tests (`test-anchor-unit.ts`)
+
+Zero-dependency, no API calls. Validates plugin mechanics by directly invoking hooks with mock inputs.
+
+**Test coverage** (mapped to `dsh-anchored-standard` mechanisms):
+
+| Test | What it validates | dsh-anchored equivalent |
+|------|-------------------|-------------------------|
+| Anchor injection | System prompt gets `[DEEPSEEK REASONING ANCHOR]` marker + 3-step reasoning checklist | `anchor-turn.mjs` — anchor text injection |
+| Idempotency | Marker already present → no re-injection (cache-friendly) | `context-gate.mjs` — phase-based suppression |
+| Model detection | 3-layer DeepSeek detection (providerID / modelID / api.id), case-insensitive | Issue #11: tool schema is the decisive variable |
+| First-turn tool block | All tool calls blocked during anchored turn | `deliberation-gate.mjs` — deny on shallow reasoning |
+| Second-turn restore | Tools pass after MARKER detected in system prompt | `context-gate.mjs` — promotion after first assistant message |
+| Plugin disabled | `enabled=false` → no injection, no blocking | `context-gate.mjs` — `enabled: false` A/B switch |
+| Multi-fragment | Anchor appended to every system string fragment | Multiple system prompt assembly paths |
+| Config & command | `parseModeArg`, `getMode/setMode`, `COMMAND_NAME` | Preset row config validation |
+| Config hook | `/deepseek-anchor` command registered in `cfg.command` | Preset mount-time registration |
+| Event hook | `session.created` announce, subagent skip, non-target skip | `anchor-turn.mjs` — fresh-session detection |
+
+Run:
+```bash
+npx tsx tests/test-anchor-unit.ts
+```
+
+### Benchmark tests (`test-anchor-benchmark.ps1`)
+
+Real API calls comparing DeepSeek V4 Pro behavior with anchor ON vs OFF.
+
+**Test prompts** (from `test-dsh-anchored-validation.md`):
+
+| # | Prompt | Type |
+|---|--------|------|
+| 1 | "你是谁" | Simple inquiry |
+| 2 | "帮我创建一个用户登录功能" | Task request |
+| 3 | "这个项目用到了什么技术栈？" | Exploration |
+| 4 | "优化这个系统的性能，当前QPS只有100" | Complex engineering |
+
+**Metrics measured:**
+
+- **Reasoning length**: ON should produce longer first replies (deeper reasoning)
+- **Trajectory style**: "We need…" (deep) vs "Let me…" (shallow) — per dsh-anchored-standard terminology
+- **Reasoning structure**: goal restatement + constraints + approach (0-3 score)
+- **Tool suppression**: ON should have fewer tool mentions in first reply
+
+Run:
+```powershell
+# Full benchmark (4 prompts × 2 states = 8 API calls)
+pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1
+
+# Quick benchmark (2 prompts only)
+pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1 -Quick
+```
