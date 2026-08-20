@@ -357,6 +357,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `/profile <name>` | 切换到指定预设（如 `/profile deepseek`），重写 `opencode.jsonc` 中的层级→模型映射 |
 | `/profile current` | 显示当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
+| `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queue ...` | 在智能体运行时排队下一条提示/命令/Shell —— 由 `opencode-queue` 这个 npm 插件提供（详见 [排队下一条提示](#排队下一条提示（opencode-queue）)） |
@@ -428,6 +429,7 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式软约束（不自动 dispatch，手动 @ 放行）、full 模式自动执行、red-team 抑制 |
 | `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
+| `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 

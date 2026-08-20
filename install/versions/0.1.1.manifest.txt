@@ -47,6 +47,9 @@ plugins/grill/grill-me.md
 plugins/grill/grill-me.ts
 plugins/grill/grill-with-docs.md
 plugins/grill/grill-with-docs.ts
+plugins/goal.ts
+plugins/goal/goal.ts
+plugins/goal/goal.md
 plugins/metrics.ts
 plugins/profile-switcher.ts
 plugins/review-fix-loop.ts

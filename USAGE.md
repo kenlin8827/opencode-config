@@ -381,6 +381,7 @@ Shall I proceed?
 | `/profile <name>` | Switch to a named profile (e.g., `/profile deepseek`); rewrites tier→model mappings in `opencode.jsonc` |
 | `/profile current` | Show the active profile and current tier→model mappings |
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
+| `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
 | `/queue ...` | Queue the next prompt/command/shell while an agent runs — provided by the `opencode-queue` npm plugin (see [Queueing the next prompt](#queueing-the-next-prompt-while-an-agent-runs)) |
@@ -452,6 +453,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit |
 | `auto-advisor-mode.ts` (+ helpers) | 4 hooks | Advisor modes, protocol injection, off-mode soft guard (no auto-dispatch, manual @advisor allowed), full-mode auto-execute, red-team suppression |
 | `review-fix-loop.ts` (+ `review-fix-loop.md`) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI) |
+| `goal.ts` (+ `goal.md`) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) into system prompt (LLM-only, not visible in chat UI) |
 | `deepseek-anchor.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/deepseek-anchor` slash command; manages anchor-based reasoning protocols and DeepSeek model integration |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 

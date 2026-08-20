@@ -352,6 +352,7 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session on command and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-me.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-me` slash command programmatically; arms session on command and injects grilling protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-with-docs.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-with-docs` slash command programmatically; arms session on command and injects grilling-with-docs protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
+| `goal.ts` (+ `plugins/goal/` helpers) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) from markdown into system prompt (LLM-only, not visible in chat UI). |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 Profile state is stored in `~/.config/opencode/.active-profile`.
@@ -406,6 +407,10 @@ plugins/
 │   ├── grill-me.md           # Grilling protocol body (loaded at runtime)
 │   ├── grill-with-docs.ts    # Plugin entry: /grill-with-docs command + system.transform
 │   └── grill-with-docs.md    # Grilling-with-docs protocol body (loaded at runtime)
+├── goal.ts                   # Barrel entry (re-exports /goal plugin)
+├── goal/
+│   ├── goal.ts               # Plugin entry: /goal command + system.transform
+│   └── goal.md               # Goal protocol body (loaded at runtime)
 ├── design-token-guard.ts     # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts        # Hook: scan for AI anti-patterns
 ├── metrics.ts                # Hook: auto-collect tool metrics
@@ -423,6 +428,6 @@ tests/
 └── README.md                 # Test documentation
 ```
 
-19 agent files + 4 shared instructions + 9 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol + 6 grill files: 2 barrels + 2 implementations + 2 protocols) + 8 test files + tsconfig.json.
+19 agent files + 4 shared instructions + 11 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol + 6 grill files: 2 barrels + 2 implementations + 2 protocols + 2 goal files: barrel + implementation/protocol) + 8 test files + tsconfig.json.
 
-> **Note**: `/review-fix-loop`, `/grill-me`, and `/grill-with-docs` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/auto-advisor` and `/profile`).
+> **Note**: `/review-fix-loop`, `/grill-me`, `/grill-with-docs`, and `/goal` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/auto-advisor` and `/profile`).

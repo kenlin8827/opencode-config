@@ -97,7 +97,7 @@ $allFiles = @(
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands (auto-advisor command is registered programmatically via config hook — no commands/*.md file needed)
-    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill + deepseek-anchor)
+    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill + goal + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
     "plugins/auto-advisor/auto-advisor-runtime.ts",
@@ -121,6 +121,9 @@ $allFiles = @(
     "plugins/grill/grill-me.md",
     "plugins/grill/grill-with-docs.ts",
     "plugins/grill/grill-with-docs.md",
+    "plugins/goal.ts",
+    "plugins/goal/goal.ts",
+    "plugins/goal/goal.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -164,6 +167,26 @@ Check "grill-me.ts: barrel re-exports GrillMePlugin" ($grillMeBarrel -match "exp
 
 $grillWithDocsBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-with-docs.ts" -Raw
 Check "grill-with-docs.ts: barrel re-exports GrillWithDocsPlugin" ($grillWithDocsBarrel -match "export.*GrillWithDocsPlugin")
+
+# Goal plugin checks (plugins/goal/ — registered programmatically, no commands/*.md)
+$goalPlugin = Get-Content "$PSScriptRoot\..\plugins\goal\goal.ts" -Raw
+$goalProtocol = Get-Content "$PSScriptRoot\..\plugins\goal\goal.md" -Raw
+Check "goal.ts: imports Plugin type" ($goalPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "goal.ts: has config hook registering command" ($goalPlugin -match "config:" -and $goalPlugin -match 'COMMAND_NAME')
+Check "goal.ts: NO command.execute.before hook" (-not ($goalPlugin -match '"command\.execute\.before"'))
+Check "goal.ts: has system.transform hook" ($goalPlugin -match "experimental.chat.system.transform")
+Check "goal.ts: agent is build" ($goalPlugin -match 'agent:.*"build"')
+Check "goal.md: has golden template" ($goalProtocol -match "golden template")
+Check "goal.md: has 5 sections" ($goalProtocol -match "Objective.*Scope.*Constraints.*Done when.*Stop if" -or ($goalProtocol -match "objective" -and $goalProtocol -match "Scope:" -and $goalProtocol -match "Constraints:" -and $goalProtocol -match "Done when:" -and $goalProtocol -match "Stop if:"))
+Check "goal.md: has audit checklist" ($goalProtocol -match "audit checklist")
+Check "goal.md: has stop conditions" ($goalProtocol -match "Stop conditions")
+Check "goal.md: has scenario skeletons" ($goalProtocol -match "Scenario skeletons" -or $goalProtocol -match "Refactor")
+Check "goal.md: has project-type defaults" ($goalProtocol -match "Project-type defaults" -or $goalProtocol -match "Node.*TypeScript")
+Check "goal.md: has hard rules" ($goalProtocol -match "Hard rules")
+Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $goalProtocol -match "Goal Summary")
+
+$goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
+Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
