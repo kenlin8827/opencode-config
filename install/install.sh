@@ -33,7 +33,9 @@ MARKER=".CONFIG_VERSION"
 BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 
 # Whitelist of runtime paths; nothing else ships.
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "profiles/")
+# providers/ ships as merge sources: install folds each providers/*.json into
+# opencode.jsonc's `provider` node (see merge_providers).
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
 PRESERVE_KEYS=("baseURL" "apiKey")
 
 # --- arg parse ----------------------------------------------------------
@@ -139,7 +141,8 @@ copy_manifest_files() {
 
 # snapshots user state from the target's existing opencode.jsonc before the
 # copy overwrites it: provider credentials, root model, and per-tier model
-# refs (agents of a tier share one ref — same tier semantics as config.sh).
+# refs (agents of a tier share one ref — same tier semantics as the
+# /profile plugin).
 # outputs a JSON object: {creds: [...], rootModel: "...", tiers: {"code": "..."}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
@@ -183,10 +186,58 @@ restore_preserve() {
                  (.value.tier // "") as $tier
                  | if ($t | has($tier)) then .value.model = $t[$tier] else . end)
            else . end)
-    ' "$rp_f" > "$rp_tmp"
+    ' "$rp_f" | style_json > "$rp_tmp"
     mv "$rp_tmp" "$rp_f"
     rm -f "$rp_bag_file"
     unset rp_dst rp_f rp_bag_file rp_tmp
+}
+
+# Pretty-prints JSON (stdin -> stdout) while keeping every provider model
+# entry on one line, mirroring providers/*.json and the hand-written
+# opencode.jsonc — plain jq expands each model into ~15 lines.
+# Trick: jq stringifies model entries (tojson), pretty-prints, then awk
+# strips the string wrapper back off exactly those lines.
+style_json() {
+    jq '.provider |= with_entries(.value.models? |= with_entries(.value |= tojson))' \
+    | awk '
+        /^[[:space:]]*"[^"]+": "\{\\".*\}"[,]?$/ {
+            sub(/": "\{/ , ": {")
+            if (!sub(/}",$/, "},")) sub(/}"$/, "}")
+            gsub(/\\"/, "\"")
+            # re-add the spaces the repo style uses ({ "name": "...", ... })
+            gsub(/,"/, ", \"")
+            gsub(/":/, "\": ")
+            gsub(/\{/, "{ ")
+            gsub(/\}/, " }")
+            print; next
+        }
+        { print }
+    '
+}
+
+# Merges providers/*.json definitions into opencode.jsonc's `provider` node:
+# extract the existing node, layer shipped definitions on top (repo wins per
+# provider key — user-added providers we don't ship survive), overwrite-write.
+# Runs BEFORE restore_preserve so preserved baseURL/apiKey still land on top
+# of any {env:...} placeholders the shipped definitions carry.
+merge_providers() {
+    mp_dst="$1"
+    mp_cfg="$mp_dst/opencode.jsonc"
+    mp_dir="$mp_dst/providers"
+    if [[ ! -f "$mp_cfg" || ! -d "$mp_dir" ]]; then
+        unset mp_dst mp_cfg mp_dir
+        return 0
+    fi
+    # slurp every providers/*.json and fold them into one provider map
+    mp_defs="$(cat "$mp_dir"/*.json 2>/dev/null | jq -s 'reduce .[] as $d ({}; . * $d)' 2>/dev/null || echo '{}')"
+    mp_count="$(jq 'length' <<< "$mp_defs" 2>/dev/null || echo 0)"
+    if [[ "$mp_count" -gt 0 ]]; then
+        mp_tmp="$(mktemp)"
+        jq --argjson defs "$mp_defs" '.provider = ((.provider // {}) + $defs)' "$mp_cfg" | style_json > "$mp_tmp"
+        mv "$mp_tmp" "$mp_cfg"
+        echo "[cur: $VER] merged $mp_count provider(s) from providers/ into opencode.jsonc"
+    fi
+    unset mp_dst mp_cfg mp_dir mp_defs mp_count mp_tmp
 }
 
 # --- install orchestration ----------------------------------------------
@@ -210,6 +261,9 @@ copy_current_files() {
     cur_count="$(read_manifest "$CUR_MAN" | wc -l | tr -d ' ')"
     echo "[cur: $VER] copying $cur_count files"
     read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
+    # fold shipped providers/*.json into the `provider` node before the
+    # preserve-restore, so user credentials override {env:...} placeholders
+    merge_providers "$TARGET"
     # restore the snapshot taken before removal (only if there is anything)
     if [[ -s "$preserve_bag" ]]; then
         n="$(jq '(.creds | length) + (.tiers | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
@@ -317,7 +371,7 @@ case "$MODE" in
     init)
         # Backup the entire target directory to a timestamped sibling, then clear it.
         # Designed for a fresh start: after init, run `install` to reinstall
-        # config files, then config.sh (interactive) to set credentials.
+        # the config files; credentials are then configured inside opencode.
         if [[ ! -d "$TARGET" ]]; then
             echo "target directory does not exist: $TARGET"
             echo "nothing to do"
@@ -357,7 +411,6 @@ case "$MODE" in
         echo
         echo "next steps:"
         echo "  ./install/install.sh install   # reinstall config files"
-        echo "  ./install/config.sh            # set credentials + models"
         ;;
     generate)
         if [[ -f "$CUR_MAN" ]]; then

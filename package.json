@@ -1,11 +1,13 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "dependencies": {
     "@dietrichgebert/ponytail": "^4.9.0",
     "@opencode-ai/plugin": "1.18.15",
     "playwright": "^1.45.0"
   },
   "devDependencies": {
+    "@opentui/core": "^0.5.4",
+    "@opentui/solid": "^0.5.4",
     "@types/bun": "latest",
     "typescript": "^7.0.2"
   }

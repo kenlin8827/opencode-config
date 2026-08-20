@@ -7,13 +7,31 @@
 # keep the template ref. Optionally cross-checks every ref against
 # `opencode models` when the CLI is available and authenticated.
 #
+# Profile application is re-implemented inline (same semantics as the
+# /profile plugin), so this test no longer depends on the retired
+# install/config.ps1.
+#
 # Usage: pwsh tests/test-profiles.ps1
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $template = Join-Path $root 'opencode.jsonc'
-$config = Join-Path $root 'install' 'config.ps1'
 $profilesDir = Join-Path $root 'profiles'
+
+# Apply a profile to $obj in place: rewrite every agent of a covered tier to
+# the profile ref in lockstep; root `model` tracks tier.default. Mirrors the
+# /profile plugin's applyProfile semantics.
+function Apply-ProfileInPlace([hashtable]$obj, [hashtable]$p) {
+    foreach ($tier in $p.tiers.Keys) {
+        $ref = $p.tiers[$tier]
+        $n = 0
+        foreach ($a in $obj.agent.Values) {
+            if ($a.tier -eq $tier) { $a.model = $ref; $n++ }
+        }
+        if ($n -eq 0) { throw "no agent currently uses tier $tier" }
+        if ($tier -eq 'default') { $obj['model'] = $ref }
+    }
+}
 
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "ocfg-profile-test-$PID"
 New-Item -ItemType Directory -Force $tmp | Out-Null
@@ -32,9 +50,12 @@ try {
     foreach ($pf in $profiles) {
         Copy-Item $template $cfg -Force
         $p = Get-Content -Raw $pf.FullName | ConvertFrom-Json -AsHashtable
-        & pwsh -NoProfile -File $config profile apply $pf.BaseName -t $cfg *> $null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Output "[$($pf.BaseName)] FAIL apply exited $LASTEXITCODE"
+        try {
+            $obj = Get-Content -Raw $cfg | ConvertFrom-Json -AsHashtable
+            Apply-ProfileInPlace $obj $p
+            $obj | ConvertTo-Json -Depth 10 | Set-Content -Path $cfg -Encoding utf8NoBOM
+        } catch {
+            Write-Output "[$($pf.BaseName)] FAIL apply: $_"
             $fail++
             continue
         }

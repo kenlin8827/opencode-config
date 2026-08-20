@@ -51,7 +51,6 @@ curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/downloa
 tar xzf /tmp/oc-config.tar.gz -C /tmp
 cd /tmp/opencode-config-*/
 ./install/install.sh
-./install/config.sh
 ```
 
 ```powershell
@@ -61,8 +60,9 @@ Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
 Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
 Set-Location "$env:TEMP\oc-config\opencode-config-*"
 pwsh install/install.ps1
-pwsh install/config.ps1
 ```
+
+After installing, configure credentials and model picks inside opencode itself: `/connect <provider>` to authenticate, then `/profile` to open the dialog wizard and apply a profile (see [USAGE.md](USAGE.md#configuration)).
 
 ### From a Git clone
 
@@ -348,7 +348,8 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `auto-advisor-mode.ts` (+ `plugins/auto-advisor/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `tool.execute.after` | Registers `/auto-advisor` slash command programmatically; advisor modes off/lite/full; protocol injection; off-mode soft guard (no auto-dispatch, manual @advisor allowed); full-mode auto-execute directive; red-team output suppression. |
-| `profile-switcher.ts` | `config` + `command.execute.before` + `event: session.created` | Registers `/profile` slash command programmatically; switches model provider profiles by rewriting `opencode.jsonc` agent models per tier. State in `~/.config/opencode/.active-profile`. |
+| `profile-wizard.ts` | **TUI plugin** (`tui.json` → `plugin`) | Registers `/profile` slash command + palette entry; native dialog picker (DialogSelect → tier review with per-tier model override via provider → model dialogs fed by the opencode server catalog (built-in + configured providers, config-file fallback), manual ref entry as last resort → apply: rewrite `opencode.jsonc` agent models per tier + `.active-profile` state; a "show current mapping" option renders a DialogAlert). Announces active profile on session creation. TUI-only — no headless equivalent. |
+| `provider-wizard.ts` | **TUI plugin** (`tui.json` → `plugin`) | Registers `/provider` slash command + palette entry; native dialog wizard (DialogSelect → DialogPrompt baseURL → DialogPrompt apiKey → atomic write) plus model management (add/remove models on an active provider: key → upstream id → display name prompts, removal with confirmation). TUI-only — no headless equivalent. |
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session on command and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-me.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-me` slash command programmatically; arms session on command and injects grilling protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-with-docs.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-with-docs` slash command programmatically; arms session on command and injects grilling-with-docs protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
@@ -385,6 +386,10 @@ agents/
 ├── tech-writer.md            # Documentation
 └── vision.md                 # Image/screenshot analysis
 
+providers/
+├── codex-router.json         # Custom provider definition (merged via /provider add)
+└── qoder-router.json         # Custom provider definition (merged via /provider add)
+
 plugins/
 ├── auto-advisor-mode.ts       # Plugin entry: 4 hooks (see "Auto-advisor mode")
 ├── auto-advisor/
@@ -415,7 +420,8 @@ plugins/
 ├── ai-slop-scanner.ts        # Hook: scan for AI anti-patterns
 ├── metrics.ts                # Hook: auto-collect tool metrics
 ├── auto-format.ts            # Hook: auto-run formatters
-└── profile-switcher.ts       # Hook: registers /profile command + switches provider profiles
+├── profile-wizard.ts         # TUI plugin: /profile dialog wizard (registered via tui.json)
+└── provider-wizard.ts        # TUI plugin: /provider dialog wizard (registered via tui.json)
 
 tests/
 ├── test-all.ps1              # Main test runner (structural + prompt tests)
@@ -430,4 +436,4 @@ tests/
 
 19 agent files + 4 shared instructions + 11 plugins (7 advisor helpers + 2 review-fix-loop files: barrel + implementation/protocol + 6 grill files: 2 barrels + 2 implementations + 2 protocols + 2 goal files: barrel + implementation/protocol) + 8 test files + tsconfig.json.
 
-> **Note**: `/review-fix-loop`, `/grill-me`, `/grill-with-docs`, and `/goal` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/auto-advisor` and `/profile`).
+> **Note**: `/review-fix-loop`, `/grill-me`, `/grill-with-docs`, and `/goal` are all registered programmatically via the `config` hook — no `commands/*.md` files are needed (same pattern as `/auto-advisor`). `/provider` and `/profile` are TUI plugins registered via `tui.json` instead.

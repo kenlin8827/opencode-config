@@ -1,7 +1,7 @@
 /**
  * Review-Fix Loop Plugin — registers the `/review-fix-loop` slash command
  * programmatically via the `config` hook (same pattern as auto-advisor-mode.ts
- * and profile-switcher.ts — no `commands/review-fix-loop.md` file needed),
+ * — no `commands/review-fix-loop.md` file needed),
  * then injects the protocol into the system prompt.
  *
  * Two hooks:

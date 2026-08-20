@@ -11,7 +11,7 @@
 | 要求 | 用途 | 安装方式 |
 |---|---|---|
 | [opencode](https://opencode.ai) CLI | 运行时，读取配置并调度智能体 | `curl -fsSL https://opencode.ai/install \| bash` |
-| PowerShell 7+（Windows） | 安装与配置脚本 | `winget install Microsoft.PowerShell` |
+| PowerShell 7+（Windows） | 安装脚本 | `winget install Microsoft.PowerShell` |
 | Bash 4+ + `jq`（macOS / Linux / WSL） | 同上，Bash 版本 | `brew install jq` 或 `sudo apt install jq` |
 | [Bun](https://bun.sh) | TypeScript 插件编译 | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | 版本控制 & 清单回退 | — |
@@ -28,7 +28,6 @@ curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/downloa
 tar xzf /tmp/oc-config.tar.gz -C /tmp
 cd /tmp/opencode-config-*/
 ./install/install.sh
-./install/config.sh
 ```
 
 ```powershell
@@ -38,10 +37,9 @@ Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
 Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
 Set-Location "$env:TEMP\oc-config\opencode-config-*"
 pwsh install/install.ps1
-pwsh install/config.ps1
 ```
 
-### 方式 B：克隆仓库安装（3 步）
+### 方式 B：克隆仓库安装（2 步）
 
 ```powershell
 # 1. 克隆仓库
@@ -50,25 +48,21 @@ cd opencode-config
 
 # 2. 安装配置到 ~/.config/opencode
 pwsh install/install.ps1
-
-# 3. 配置凭证（交互式 — 先选服务商，再为每个层级选模型）
-pwsh install/config.ps1
 ```
 
 macOS / Linux / WSL：
 
 ```bash
 ./install/install.sh
-./install/config.sh
 ```
 
-完成后，在你的项目目录中启动 `opencode` — `@build` 编排器是默认智能体，会自动路由你的任务。
+完成后，在你的项目目录中启动 `opencode` — 在会话内配置服务商（`/connect`、`/provider`、`/profile`，见[配置](#配置)）；`@build` 编排器是默认智能体，会自动路由你的任务。
 
 ---
 
 ## 安装
 
-安装器将白名单内的运行时文件（`agents/`、`commands/`、`plugins/`、`instructions/`、`opencode.jsonc`、`profiles/`）复制到 `~/.config/opencode/`。其他所有内容（`.git/`、`install/`、`tests/`、`node_modules/` 等）保留在仓库中。
+安装器将白名单内的运行时文件（`agents/`、`commands/`、`plugins/`、`instructions/`、`opencode.jsonc`、`tui.json`、`profiles/`、`providers/`）复制到 `~/.config/opencode/`。其他所有内容（`.git/`、`install/`、`tests/`、`node_modules/` 等）保留在仓库中。
 
 ### 命令
 
@@ -104,44 +98,42 @@ Remove-Item -Recurse -Force $tmp
 | `model`（根级别） | 你为 default 层级选择的模型 |
 | `agent.<name>.model`（每个层级） | 你为各层级分配的模型 |
 
-其他所有字段来自仓库模板。如需丢弃保留的设置：`config.ps1 reset` / `config.sh reset`。
+其他所有字段来自仓库模板。如需丢弃保留的设置，在重装前删除 `<target>/opencode.jsonc`。
 
 ---
 
 ## 配置
 
-OpenCode支持两种配置方式：
+所有服务商/模型配置均在 opencode 会话内完成 — 旧的 `install/config.ps1` /
+`install/config.sh` 脚本已废弃（替代方案由后续 ADR 跟踪）：
 
-1. **现有服务商配置** - 用于直接连接官方API（斜杠命令快速配置，推荐优先尝试）
-2. **LLM Router配置** - 用于自建或第三方路由服务（config脚本配置）
+1. **现有服务商配置** — 通过 `/connect` 斜杠命令连接官方 API（推荐）
+2. **自定义服务商配置** — 针对仓库自带的路由定义（`codex-router`、`qoder-router` 等）使用 `/provider` 弹窗向导：凭证（baseURL/apiKey）和模型清单维护全部通过弹窗完成
+3. **LLM Router 配置** — 自建或第三方路由服务，通过环境变量设置凭证（或直接编辑 `opencode.jsonc`）
 
-> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；如需自建LLM Router或使用第三方路由服务，请选择方式2。
+> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；使用仓库自带的路由定义请选方式2；如需自建LLM Router或使用第三方路由服务，请选择方式3。
 
-### 现有服务商配置（非LLM Router，推荐优先尝试）
+### 在 opencode 内配置服务商（推荐）
 
-**配置方式对比：**
-- **现有服务商配置**：直接使用已存在的LLM服务商API，通过斜杠命令快速配置
-- **LLM Router配置**：自建或第三方路由服务，需要使用config脚本设置baseURL和apiKey
-
-对于现有服务商（如官方DeepSeek、Kimi、通义千问等API，非自建LLM Router），可以通过OpenCode的斜杠命令进行配置，无需运行config脚本：
+对于现有服务商（如官方DeepSeek、Kimi、通义千问等API，非自建LLM Router），通过OpenCode的斜杠命令配置：
 
 ```
 /connect <provider-name>    # 连接到现有服务商
-/profile <profile-name>     # 选择服务商预设配置
+/profile                    # 打开预设选择弹窗
 ```
 
 **配置流程：**
 
 1. **连接服务商** — 使用 `/connect` 命令连接到已存在的provider
-2. **选择预设** — 使用 `/profile` 命令选择该服务商对应的配置预设
+2. **选择预设** — 使用 `/profile` 打开选择弹窗，选中该服务商对应的配置预设
 
 **示例：**
 
 ```
 > /connect deepseek
   → 连接到DeepSeek服务商
-> /profile deepseek  
-  → 应用DeepSeek官方API预设配置
+> /profile
+  → 弹窗打开 — 选中 "deepseek" 条目即可应用官方API预设配置
 ```
 
 **重要提示：** 配置完成后请退出当前opencode会话并重新进入，以确保新的provider和profile配置完全生效。
@@ -153,53 +145,37 @@ OpenCode支持两种配置方式：
 
 预设会自动配置各层级的模型映射，无需手动设置每个层级的模型。
 
-### LLM Router配置（交互式 - 首次配置推荐）
+### 自定义服务商（`/provider` 向导）
 
-```powershell
-pwsh install/config.ps1    # PowerShell
+`/provider` 斜杠命令（通过 `tui.json` 注册的 TUI 插件）以原生弹窗端到端配置自定义服务商 — 无需参数：
+
+```
+/provider
+  → 弹窗："( Manage provider models )" + 每个服务商一个条目
+    （opencode.jsonc 中已激活的，或 providers/*.json 中可用的 —
+    选中未激活的条目会从定义文件激活它）
+  → 选中服务商：baseURL 输入 → apiKey 输入 → 原子写入
+    （opencode.jsonc.bak 备份）+ toast；空输入保留现值，
+    支持 '{env:VAR}' 令牌，密钥永不明文预填
+  → "( Manage provider models )"：选中已激活服务商 → 模型清单：
+    "( Add model… )" 依次三步输入（key → 上游 id → 显示名）；
+    选中已有模型则弹出删除确认
+  → Esc 取消
 ```
 
-```bash
-./install/config.sh        # Bash
-```
+说明：
 
-交互流程：
+- 仅限 TUI：向导运行在 opencode TUI 内，headless 会话没有等价功能。
+- 凭证修改需重启 opencode 生效；重装时会作为保留字段保留。
+- 这里新增的模型会立即出现在 `/profile` 的层级选择器中。
 
-1. **多选服务商** — 从 `opencode models` 输出 + `llm-router`（自定义服务商）中选择。`0` 或回车 = 全选。
-2. **llm-router 凭证** — 如果选了 `llm-router`，会提示输入 baseURL 和 apiKey。回车 = 保留现有值。
-3. **为每个层级选模型** — 对每个层级（default、code、advisor、explorer、vision），从已选服务商的模型中选择。回车 = 保留当前值。
+### LLM Router 凭证
 
-同一层级的所有智能体会被统一重写为相同的 `provider/model_id` 引用。
+对于 `llm-router` 自定义服务商，通过下面的环境变量设置 `baseURL` /
+`apiKey`（推荐）、通过 `/provider` 向导（交互式），或直接编辑
+`~/.config/opencode/opencode.jsonc`。
 
-### 脚本式（非交互）
-
-```powershell
-# 设置凭证
-pwsh install/config.ps1 set baseURL https://router.example.com/v1
-pwsh install/config.ps1 set apiKey  sk-xxxx
-
-# 为指定层级设置模型
-pwsh install/config.ps1 set model code claude-sonnet-4-5
-pwsh install/config.ps1 set model advisor gpt-5.6-luna -p opencode-go
-
-# 查看当前状态
-pwsh install/config.ps1 get
-
-# 重置为模板默认值
-pwsh install/config.ps1 reset
-```
-
-Bash 等价命令：
-
-```bash
-./install/config.sh set baseURL https://router.example.com/v1
-./install/config.sh set apiKey sk-xxxx
-./install/config.sh set model code claude-sonnet-4-5
-./install/config.sh get
-./install/config.sh reset
-```
-
-### 环境变量（推荐用于 API 密钥）
+#### 环境变量（推荐用于 API 密钥）
 
 仓库自带的 `opencode.jsonc` 使用环境变量替换令牌：
 
@@ -223,7 +199,7 @@ export LLM_ROUTER_BASE_URL="https://router.example.com/v1"
 export LLM_ROUTER_API_KEY="sk-xxxx"
 ```
 
-该令牌会在每次重装时原样保留。如果你更喜欢硬编码字面量，执行一次 `config.ps1 set apiKey sk-...` — 字面量之后会被自动保留。
+该令牌会在每次重装时原样保留。如果你更喜欢硬编码字面量，直接编辑 `~/.config/opencode/opencode.jsonc` — 字面量之后会被自动保留。
 
 ---
 
@@ -235,7 +211,9 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 
 | 预设 | 说明 |
 |---|---|
-| `llm-router` | 服务端路由基线（等同于 `reset`） |
+| `llm-router` | 服务端路由基线 |
+| `codex-router` | 自建 codex 网关（Sol/Luna 系列） |
+| `qoder-router` | 自建 qoder 网关（Ultimate/Performance/Lite） |
 | `opencode-go-ultimate` | 质量优先，不计成本 |
 | `opencode-go-performance` | 日常主力 |
 | `opencode-go-economy` | 性价比平衡 |
@@ -248,26 +226,24 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 
 ### 使用预设
 
-```powershell
-# 交互式编号菜单
-pwsh install/config.ps1 profile
+通过在 opencode 会话内的 `/profile` 斜杠命令应用预设（详见 [斜杠命令](#斜杠命令)）—— 无需参数，直接打开原生弹窗选择器：
 
-# 仅列出，不应用
-pwsh install/config.ps1 profile list
-
-# 直接应用
-pwsh install/config.ps1 profile apply opencode-go-performance
+```
+/profile
+  → 弹窗："( Show current tier mapping )" 条目 + 每个预设一个条目
+  → 选中预设：进入层级审阅弹窗 — 可逐个 tier 修改模型：先选 provider，
+    再选 model（列表来自 opencode 服务目录：内置 provider 如
+    anthropic/openai + 已配置的自定义 provider；也可手动输入
+    '<provider>/<model_id>' 作为兜底），然后 "( Apply profile )" 应用
+    （重写 opencode.jsonc + .active-profile），并通过合成按键自动
+    驱动原生模型选择器（同 /models：输入显示名过滤；仅当该名称
+    在目录中唯一时才自动回车，否则保留过滤结果等你人工确认）
+    完成当前会话的模型切换 —— TUI 的模型状态存在进程内，这是
+    唯一的实时切换途径；按键注入不可用时回退为手动选择
+  → Esc 取消
 ```
 
-```bash
-./install/config.sh profile
-./install/config.sh profile list
-./install/config.sh profile apply opencode-go-performance
-```
-
-预设是**单服务商**的 — 每个层级的引用必须属于同一服务商。预设未列出的层级保持不变。应用前会校验所有内容，并在写入前备份 `opencode.jsonc.bak`。
-
-也可以在 opencode 会话中直接使用 `/profile` 斜杠命令切换预设（详见 [斜杠命令](#斜杠命令)）。
+被覆盖层级的所有智能体会被统一重写为预设的 `provider/model_id` 引用，根级 `model` 跟随 `default` 层级。预设未列出的层级保持不变。应用前会校验所有内容，并在写入前备份 `opencode.jsonc.bak`；重启 opencode 后生效。
 
 ---
 
@@ -353,9 +329,8 @@ pwsh install/config.ps1 profile apply opencode-go-performance
 | 命令 | 说明 |
 |---|---|
 | `/auto-advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
-| `/profile list` | 列出所有可用的模型服务商预设 |
-| `/profile <name>` | 切换到指定预设（如 `/profile deepseek`），重写 `opencode.jsonc` 中的层级→模型映射 |
-| `/profile current` | 显示当前活跃预设和层级→模型映射 |
+| `/provider` | 打开服务商向导（仅限 TUI）：为已激活或仓库自带的服务商配置凭证（baseURL → apiKey 输入），或管理服务商的模型清单（按 key/上游 id/显示名三步新增，删除需确认）。详见[自定义服务商](#自定义服务商-provider-向导) |
+| `/profile` | 打开弹窗选择器：列出所有可用的模型服务商预设（活跃项带标记）；选中预设后进入层级审阅，可逐个 tier 通过 provider → model 选择修改模型再应用（provider/模型列表来自 opencode 服务目录：内置 + 已配置），重写 `opencode.jsonc` 中的层级→模型映射。首个条目用于查看当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
@@ -593,7 +568,7 @@ pwsh install/install.ps1 init -Yes         # 跳过确认提示
 ./install/install.sh init -y            # 跳过确认提示
 ```
 
-`init` 之后，运行 `install` 重装配置文件，再运行 `config.ps1` / `config.sh` 设置凭证和模型。
+`init` 之后，运行 `install` 重装配置文件，然后在 opencode 内配置凭证和模型（`/connect` + `/profile`）。
 
 ---
 
@@ -647,11 +622,7 @@ Invoke via `@<agent-name>` or <keywords>.
 
 ### "provider.llm-router not configured"
 
-运行交互式配置：`pwsh install/config.ps1`（或 `./install/config.sh`）。或通过环境变量设置凭证后重装。
-
-### "no models available"
-
-先运行 `opencode` 完成 CLI 认证，再重新运行 `config.ps1`。交互流程通过 `opencode models` 获取可用模型列表。
+通过环境变量 `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` 设置凭证（见 [LLM Router 凭证](#llm-router-凭证)），或直接编辑 `~/.config/opencode/opencode.jsonc`，然后重启 opencode。
 
 ### Auto-advisor 模式不切换
 
@@ -672,6 +643,6 @@ bunx tsc --noEmit
 
 修复报告的错误。opencode 运行时编译插件，但类型错误通常表示逻辑问题。
 
-### opencode.jsonc 中的注释丢失
+### `/profile` 不保留 JSONC 注释
 
-配置脚本（`config.ps1` / `config.sh`）写入时不保留 JSONC 注释。首次写入时会显示警告。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 — 每次重装会复制原始文件（注释恢复），但下次 `config.ps1` 修改时会再次去除。
+`/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 — 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。

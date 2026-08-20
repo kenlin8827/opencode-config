@@ -1,0 +1,37 @@
+{
+  "codex-router": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "codex-router",
+    "options": {
+      "baseURL": "{env:CODEX_ROUTER_BASE_URL}",
+      "apiKey": "{env:CODEX_ROUTER_API_KEY}"
+    },
+    "models": {
+      "gpt-5.6-sol":          { "name": "GPT 5.6 Sol",          "id": "cx/gpt-5.6-sol",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-ultra":    { "name": "GPT 5.6 Sol (Ultra)",  "id": "cx/gpt-5.6-sol-ultra",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-max":      { "name": "GPT 5.6 Sol (Max)",    "id": "cx/gpt-5.6-sol-max",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-xhigh":    { "name": "GPT 5.6 Sol (xHigh)",  "id": "cx/gpt-5.6-sol-xhigh",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-high":     { "name": "GPT 5.6 Sol (High)",   "id": "cx/gpt-5.6-sol-high",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-medium":   { "name": "GPT 5.6 Sol (Medium)", "id": "cx/gpt-5.6-sol-medium",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-sol-low":      { "name": "GPT 5.6 Sol (Low)",    "id": "cx/gpt-5.6-sol-low",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra":        { "name": "GPT 5.6 Terra",        "id": "cx/gpt-5.6-terra",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-ultra":  { "name": "GPT 5.6 Terra (Ultra)","id": "cx/gpt-5.6-terra-ultra",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-max":    { "name": "GPT 5.6 Terra (Max)",  "id": "cx/gpt-5.6-terra-max",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-xhigh":  { "name": "GPT 5.6 Terra (xHigh)","id": "cx/gpt-5.6-terra-xhigh",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-high":   { "name": "GPT 5.6 Terra (High)", "id": "cx/gpt-5.6-terra-high",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-medium": { "name": "GPT 5.6 Terra (Medium)","id": "cx/gpt-5.6-terra-medium", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-terra-low":    { "name": "GPT 5.6 Terra (Low)",  "id": "cx/gpt-5.6-terra-low",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna":         { "name": "GPT 5.6 Luna",         "id": "cx/gpt-5.6-luna",         "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna-max":     { "name": "GPT 5.6 Luna (Max)",   "id": "cx/gpt-5.6-luna-max",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna-xhigh":   { "name": "GPT 5.6 Luna (xHigh)", "id": "cx/gpt-5.6-luna-xhigh",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna-high":    { "name": "GPT 5.6 Luna (High)",  "id": "cx/gpt-5.6-luna-high",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna-medium":  { "name": "GPT 5.6 Luna (Medium)","id": "cx/gpt-5.6-luna-medium",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.6-luna-low":     { "name": "GPT 5.6 Luna (Low)",   "id": "cx/gpt-5.6-luna-low",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.5":              { "name": "GPT 5.5",              "id": "cx/gpt-5.5",              "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.5-xhigh":        { "name": "GPT 5.5 (xHigh)",      "id": "cx/gpt-5.5-xhigh",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.5-high":         { "name": "GPT 5.5 (High)",       "id": "cx/gpt-5.5-high",         "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.5-medium":       { "name": "GPT 5.5 (Medium)",    "id": "cx/gpt-5.5-medium",       "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-5.5-low":          { "name": "GPT 5.5 (Low)",       "id": "cx/gpt-5.5-low",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
+    }
+  }
+}

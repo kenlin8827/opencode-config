@@ -47,7 +47,6 @@ If the conversation was compacted and you're unsure which phase you're in, look 
 - **P2: batch answer via `question` tool.** Use the `question` tool to present all questions to the user at once — this triggers the interactive UI (not just plain text). Put the recommended option FIRST, marked `(recommended)`. User answers all in one reply. Pure collection, no improvised follow-ups. If scope fundamentally changed, stop and suggest re-running `/grill-with-docs`.
 - **P2: auto-advisor compat.** full mode: FACTUAL + confidence ≥ 8 → auto-adopt, don't ask user. lite/off: all questions reach user.
 - **P3 mandatory.** Always dispatch @advisor for refinement. Only skip if advisor fails (→ P4 with raw Q&A, note "contradictions may be undetected").
-- **P3: stateless dispatch.** Each @advisor dispatch is an independent session — advisor has no memory of P1 or prior P3 rounds. Main session MUST pass the full accumulated context every time: all original Q&A + all contradiction rounds + resolutions. This is by design: stateless = recoverable after compaction, no anchoring bias across rounds.
 - **P3: contradiction loop max 5.** After 5 rounds with unresolved contradictions, use `question` tool to present state to user: resolve manually / proceed anyway / stop.
 - **P3: inline docs.** When a term is resolved during contradiction rounds, immediately update `CONTEXT.md`. When an architectural decision meeting all ADR criteria is made, offer to create an ADR. Do NOT batch — write as decisions crystallize.
 - **P4: confirmation via `question` tool.** Use the `question` tool with `Confirm` / `Revise` / `Stop` options. Never start implementation without explicit go-ahead.
@@ -68,7 +67,7 @@ Watch for domain terms and architectural decisions that should be recorded in CO
 ```
 @advisor
 Grilling refinement (with docs) — consolidate answers, detect contradictions, produce decision brief.
-Also flag: terms that should go into CONTEXT.md, decisions that warrant an ADR (hard to reverse + surprising + real trade-off).
+Flag terms for CONTEXT.md and decisions warranting an ADR (hard to reverse + surprising + real trade-off).
 
 Original Q&A:
 Q1: <question> → <answer or "auto-adopted: <answer> (confidence N/10)" or "skipped">

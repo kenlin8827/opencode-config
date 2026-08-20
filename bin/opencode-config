@@ -15,20 +15,21 @@
 #   generate        Regenerate install/versions/<ver>.manifest.txt
 #   register        Install the global shim into ~/.local/bin
 #   unregister      Remove the global shim from ~/.local/bin
-#   config          Run the config helper (credentials + per-tier model picks)
-#   profile         Shortcut for `config profile` (interactive picker)
 #   version         Print the repo's install/VERSION
 #   help            Print this help
 #
 # Anything else falls through to `install.sh` (so unknown flags + future
 # subcommands still work after an upgrade).
+#
+# Credentials + model picks are configured inside opencode itself
+# (`/connect` + `/profile` slash command); the old config.sh helper is
+# retired.
 
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL="$REPO_ROOT/install/install.sh"
-CONFIG="$REPO_ROOT/install/config.sh"
 
 # First-line help extraction: print everything between line 2 and the
 # first blank line after the subcommand list. Keeps the comment block as
@@ -70,11 +71,9 @@ case "$sub" in
     unregister)
         exec "$INSTALL" unregister "$@"
         ;;
-    config)
-        exec "$CONFIG" "$@"
-        ;;
-    profile)
-        exec "$CONFIG" profile "$@"
+    config|profile)
+        echo "opencode-config: '$sub' is retired — configure credentials and model picks inside opencode ('/connect' + '/profile')" >&2
+        exit 1
         ;;
     version|--version|-V)
         head -1 "$REPO_ROOT/install/VERSION" 2>/dev/null || echo "unknown"

@@ -11,8 +11,8 @@ From clone to daily workflow — everything you need to use this multi-agent Ope
 | Requirement | Why | Install |
 |---|---|---|
 | [opencode](https://opencode.ai) CLI | Runtime that reads the config and dispatches agents | `curl -fsSL https://opencode.ai/install \| bash` |
-| PowerShell 7+ (Windows) | Install & config scripts | `winget install Microsoft.PowerShell` |
-| Bash 4+ + `jq` (macOS / Linux / WSL) | Same scripts, bash side | `brew install jq` or `sudo apt install jq` |
+| PowerShell 7+ (Windows) | Install script | `winget install Microsoft.PowerShell` |
+| Bash 4+ + `jq` (macOS / Linux / WSL) | Same script, bash side | `brew install jq` or `sudo apt install jq` |
 | [Bun](https://bun.sh) | TypeScript plugin compilation | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | Version control & manifest fallback | — |
 
@@ -28,7 +28,6 @@ curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/downloa
 tar xzf /tmp/oc-config.tar.gz -C /tmp
 cd /tmp/opencode-config-*/
 ./install/install.sh
-./install/config.sh
 ```
 
 ```powershell
@@ -38,10 +37,9 @@ Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
 Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
 Set-Location "$env:TEMP\oc-config\opencode-config-*"
 pwsh install/install.ps1
-pwsh install/config.ps1
 ```
 
-### Option B: Clone and install (3 steps)
+### Option B: Clone and install (2 steps)
 
 ```powershell
 # 1. Clone
@@ -50,25 +48,21 @@ cd opencode-config
 
 # 2. Install config to ~/.config/opencode
 pwsh install/install.ps1
-
-# 3. Configure credentials (interactive — pick providers, then models per tier)
-pwsh install/config.ps1
 ```
 
 macOS / Linux / WSL:
 
 ```bash
 ./install/install.sh
-./install/config.sh
 ```
 
-Now launch `opencode` in your project directory — the `@build` orchestrator is the default agent and will route your tasks automatically.
+Now launch `opencode` in your project directory — configure providers inside the session (`/connect`, `/provider`, `/profile`, see [Configuration](#configuration)); the `@build` orchestrator is the default agent and will route your tasks automatically.
 
 ---
 
 ## Installation
 
-The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`, `profiles/`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
+The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`, `tui.json`, `profiles/`, `providers/`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
 
 ### Commands
 
@@ -128,44 +122,43 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 | `model` (root) | Your default-tier model pick |
 | `agent.<name>.model` (per tier) | Your per-tier model assignments |
 
-All other fields come from the repo template. To discard preserved picks: `config.ps1 reset` / `config.sh reset`.
+All other fields come from the repo template. To discard preserved picks, remove `<target>/opencode.jsonc` before reinstalling.
 
 ---
 
 ## Configuration
 
-OpenCode supports two configuration approaches:
+All provider/model configuration happens inside opencode itself — the old
+`install/config.ps1` / `install/config.sh` helpers are retired (their
+replacement is tracked by a follow-up ADR):
 
-1. **Existing Provider Setup** - For direct connection to official APIs (slash command quick setup - recommended to try first)
-2. **LLM Router Setup** - For self-hosted or third-party routing services (config script setup)
+1. **Provider setup** — connect official APIs via the `/connect` slash command (recommended)
+2. **Custom provider setup** — for bundled router definitions (`codex-router`, `qoder-router`, …) use the `/provider` dialog wizard: credentials (baseURL/apiKey) and model-list maintenance, all via dialogs
+3. **LLM Router setup** — for self-hosted or third-party routing services, set credentials via environment variables (or edit `opencode.jsonc` directly)
 
-> **Selection Guide**: Choose method 1 if you want to directly connect to official APIs like DeepSeek, Kimi, etc. (simpler and faster); choose method 2 if you need to set up your own LLM router or use third-party routing services.
+> **Selection Guide**: Choose method 1 if you want to directly connect to official APIs like DeepSeek, Kimi, etc. (simpler and faster); choose method 2 for the bundled router definitions shipped in `providers/`; choose method 3 if you need to set up your own LLM router or use third-party routing services.
 
-### Existing Provider Configuration (Non-LLM Router - recommended to try first)
+### Provider setup inside opencode (recommended)
 
-**Configuration Methods Comparison:**
-- **Existing Provider Setup**: Direct use of existing LLM provider APIs with slash commands for quick configuration
-- **LLM Router Setup**: Self-hosted or third-party routing services requiring config scripts to set baseURL and apiKey
-
-For existing providers (such as official DeepSeek, Kimi, Qwen APIs, not self-hosted LLM routers), you can configure through OpenCode slash commands without running config scripts:
+For existing providers (such as official DeepSeek, Kimi, Qwen APIs, not self-hosted LLM routers), configure through OpenCode slash commands:
 
 ```
 /connect <provider-name>    # connect to existing provider
-/profile <profile-name>     # select provider profile configuration
+/profile                    # open the profile picker dialog
 ```
 
 **Configuration Flow:**
 
 1. **Connect Provider** — Use `/connect` command to connect to an existing provider
-2. **Select Profile** — Use `/profile` command to select the corresponding configuration profile
+2. **Select Profile** — Use `/profile` to open the picker dialog and select the corresponding configuration profile
 
 **Example:**
 
 ```
 > /connect deepseek
   → Connect to DeepSeek provider
-> /profile deepseek  
-  → Apply DeepSeek official API profile configuration
+> /profile
+  → Dialog opens — pick the "deepseek" entry to apply the official API profile
 ```
 
 **Important:** After configuration is complete, please exit the current opencode session and re-enter to ensure the new provider and profile configurations take full effect.
@@ -177,53 +170,37 @@ This configuration method is suitable for:
 
 Profiles automatically configure tier-to-model mappings, eliminating the need to manually set models for each tier.
 
-### LLM Router Configuration (Interactive - recommended for first setup)
+### Custom providers (`/provider` wizard)
 
-```powershell
-pwsh install/config.ps1    # PowerShell
+The `/provider` slash command (a TUI plugin registered via `tui.json`) configures custom providers end to end through native dialogs — no arguments:
+
+```
+/provider
+  → dialog: "( Manage provider models )" + one entry per provider
+    (active in opencode.jsonc, or available from providers/*.json —
+    picking an inactive one activates it from its definition file)
+  → pick a provider: baseURL prompt → apiKey prompt → atomic write
+    (opencode.jsonc.bak backup) + toast; empty input keeps current values,
+    '{env:VAR}' tokens are supported, secrets are never pre-filled
+  → "( Manage provider models )": pick an active provider → its model list:
+    "( Add model… )" walks three prompts (key → upstream id → display
+    name); picking an existing model asks for removal confirmation
+  → Esc cancels
 ```
 
-```bash
-./install/config.sh        # Bash
-```
+Notes:
 
-The interactive flow:
+- TUI-only: the wizard runs inside the opencode TUI; headless sessions have no equivalent.
+- Credential changes require an opencode restart to take effect; they survive reinstalls (preserved fields).
+- Models added here show up immediately in the `/profile` tier pickers.
 
-1. **Multi-select providers** — pick from `opencode models` output + `llm-router` (custom provider). `0` or Enter = all.
-2. **llm-router credentials** — prompted if `llm-router` is among selected providers. Enter = keep existing.
-3. **Pick model per tier** — for each tier (default, code, advisor, explorer, vision), choose a model from the selected providers. Enter = keep current.
+### LLM Router credentials
 
-Every agent in a tier is rewritten to the same `provider/model_id` ref in lockstep.
+For the `llm-router` custom provider, set `baseURL` / `apiKey` via the
+environment variables below (recommended), via the `/provider` wizard
+(interactive), or by editing `~/.config/opencode/opencode.jsonc` directly.
 
-### Scripted (non-interactive)
-
-```powershell
-# Set credentials
-pwsh install/config.ps1 set baseURL https://router.example.com/v1
-pwsh install/config.ps1 set apiKey  sk-xxxx
-
-# Set model for a specific tier
-pwsh install/config.ps1 set model code claude-sonnet-4-5
-pwsh install/config.ps1 set model advisor gpt-5.6-luna -p opencode-go
-
-# Show current state
-pwsh install/config.ps1 get
-
-# Reset to template defaults
-pwsh install/config.ps1 reset
-```
-
-Bash equivalents:
-
-```bash
-./install/config.sh set baseURL https://router.example.com/v1
-./install/config.sh set apiKey sk-xxxx
-./install/config.sh set model code claude-sonnet-4-5
-./install/config.sh get
-./install/config.sh reset
-```
-
-### Environment variables (recommended for API keys)
+#### Environment variables (recommended for API keys)
 
 The shipped `opencode.jsonc` uses env-var substitution tokens:
 
@@ -247,7 +224,7 @@ export LLM_ROUTER_BASE_URL="https://router.example.com/v1"
 export LLM_ROUTER_API_KEY="sk-xxxx"
 ```
 
-The token round-trips through every reinstall. If you prefer a hardcoded literal, run `config.ps1 set apiKey sk-...` once — the literal is then preserved across reinstalls.
+The token round-trips through every reinstall. If you prefer a hardcoded literal, edit `~/.config/opencode/opencode.jsonc` directly — the literal is then preserved across reinstalls.
 
 ---
 
@@ -259,7 +236,9 @@ A profile is a named preset that bundles a provider with a per-tier model pick, 
 
 | Profile | Description |
 |---|---|
-| `llm-router` | Server-side routing baseline (same as `reset`) |
+| `llm-router` | Server-side routing baseline |
+| `codex-router` | Self-hosted codex gateway (Sol/Luna) |
+| `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
 | `opencode-go-ultimate` | Quality first, cost no object |
 | `opencode-go-performance` | Daily driver |
 | `opencode-go-economy` | Cost-performance balance |
@@ -272,26 +251,27 @@ A profile is a named preset that bundles a provider with a per-tier model pick, 
 
 ### Using profiles
 
-```powershell
-# Interactive numbered menu
-pwsh install/config.ps1 profile
+Profiles are applied from within an opencode session via the `/profile` slash command (see [Slash commands](#slash-commands)) — it takes no arguments and opens a native dialog picker:
 
-# List without applying
-pwsh install/config.ps1 profile list
-
-# Apply directly
-pwsh install/config.ps1 profile apply opencode-go-performance
+```
+/profile
+  → dialog: "( Show current tier mapping )" + one entry per profile
+  → pick a profile: tier review dialog — pick any tier, then pick a
+    provider and a model from the opencode catalog (built-in providers
+    like anthropic/openai plus configured ones; typing a custom
+    '<provider>/<model_id>' ref is available as fallback), then
+    "( Apply profile )" writes opencode.jsonc + .active-profile and
+    auto-switches the current session's model by driving the native
+    model picker (same as /models) with synthetic keystrokes — it types
+    the display name as a filter and presses Enter only when the name
+    is unique across the catalog (otherwise the filtered picker stays
+    open for a manual confirm); the TUI keeps its model in in-process
+    state, so this is the only live path; falls back to a manual pick
+    if keystroke injection is unavailable
+  → Esc cancels
 ```
 
-```bash
-./install/config.sh profile
-./install/config.sh profile list
-./install/config.sh profile apply opencode-go-performance
-```
-
-A profile is **single-provider** — every tier ref must share the same provider. Tiers not listed by a profile are left untouched. Applying validates everything up front and backs up `opencode.jsonc.bak` before writing.
-
-You can also switch profiles from within an opencode session using the `/profile` slash command (see [Slash commands](#slash-commands)).
+Every agent of a covered tier is rewritten to the profile's `provider/model_id` ref in lockstep, and the root `model` tracks the `default` tier. Tiers not listed by a profile are left untouched. Applying validates everything up front and backs up `opencode.jsonc.bak` before writing; restart opencode for the change to take effect.
 
 ---
 
@@ -377,9 +357,8 @@ Shall I proceed?
 | Command | Description |
 |---|---|
 | `/auto-advisor off\|lite\|full` | Switch advisor mode (see below) |
-| `/profile list` | List all available model provider profiles |
-| `/profile <name>` | Switch to a named profile (e.g., `/profile deepseek`); rewrites tier→model mappings in `opencode.jsonc` |
-| `/profile current` | Show the active profile and current tier→model mappings |
+| `/provider` | Open the provider wizard (TUI-only): configure credentials (baseURL → apiKey prompts) for active or bundled providers, or manage a provider's model list (add via key/upstream id/display name prompts, remove with confirmation). See [Custom providers](#custom-providers-provider-wizard) |
+| `/profile` | Open the dialog picker: shows all available model provider profiles (active one marked); picking one opens a tier review where each tier's model can be overridden via provider → model selection (providers and models come from the opencode server catalog: built-in + configured) before applying (rewrites the tier→model mappings in `opencode.jsonc`). The first entry shows the active profile and current tier→model mappings |
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
@@ -617,7 +596,7 @@ pwsh install/install.ps1 init -Yes         # skip confirmation prompt
 ./install/install.sh init -y            # skip confirmation prompt
 ```
 
-After `init`, run `install` to reinstall config files, then `config.ps1` / `config.sh` to set credentials and model picks.
+After `init`, run `install` to reinstall config files, then configure credentials and model picks inside opencode (`/connect` + `/profile`).
 
 ---
 
@@ -671,11 +650,7 @@ Invoke via `@<agent-name>` or <keywords>.
 
 ### "provider.llm-router not configured"
 
-Run the interactive config: `pwsh install/config.ps1` (or `./install/config.sh`). Or set credentials via env vars and reinstall.
-
-### "no models available"
-
-Run `opencode` first to authenticate the CLI, then re-run `config.ps1`. The interactive flow reads `opencode models` to list available models.
+Set credentials via the `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` environment variables (see [LLM Router credentials](#llm-router-credentials)), or edit `~/.config/opencode/opencode.jsonc` directly, then restart opencode.
 
 ### Auto-advisor mode not switching
 
@@ -696,6 +671,6 @@ bunx tsc --noEmit
 
 Fix any reported errors. Opencode compiles plugins at runtime, but type errors indicate logic issues.
 
-### Config scripts don't preserve JSONC comments
+### `/profile` does not preserve JSONC comments
 
-Both `config.ps1` and `config.sh` strip comments on write. The warning `this script does not preserve JSONC comments` appears on first write. If comments matter to you, maintain them in the repo template (`opencode.jsonc`) — they'll be restored on every reinstall (the installer copies the raw file), then stripped again the next time `config.ps1` touches it.
+The `/profile` plugin strips comments when it rewrites `opencode.jsonc`. If comments matter to you, maintain them in the repo template (`opencode.jsonc`) — they'll be restored on every reinstall (the installer copies the raw file), then stripped again the next time `/profile` touches it.

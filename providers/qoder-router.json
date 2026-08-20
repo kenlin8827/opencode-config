@@ -1,0 +1,23 @@
+{
+  "qoder-router": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "qoder-router",
+    "options": {
+      "baseURL": "{env:QODER_ROUTER_BASE_URL}",
+      "apiKey": "{env:QODER_ROUTER_API_KEY}"
+    },
+    "models": {
+      "auto":            { "name": "Auto",                "id": "qd/auto",            "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "ultimate":        { "name": "Ultimate",            "id": "qd/ultimate",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "performance":     { "name": "Performance",         "id": "qd/performance",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "efficient":       { "name": "Efficient",           "id": "qd/efficient",       "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "lite":            { "name": "Lite",                "id": "qd/lite",            "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "qmodel":          { "name": "Q Model",             "id": "qd/qmodel",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "qmodel_latest":   { "name": "Q Model (Latest)",    "id": "qd/qmodel_latest",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "dmodel":          { "name": "D Model",             "id": "qd/dmodel",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "dfmodel":         { "name": "DF Model",            "id": "qd/dfmodel",         "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "kmodel":          { "name": "K Model",             "id": "qd/kmodel",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "mmodel":          { "name": "M Model",             "id": "qd/mmodel",          "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
+    }
+  }
+}
