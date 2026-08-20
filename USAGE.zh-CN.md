@@ -110,8 +110,9 @@ Remove-Item -Recurse -Force $tmp
 1. **现有服务商配置** — 通过 `/connect` 斜杠命令连接官方 API（推荐）
 2. **自定义服务商配置** — 针对仓库自带的路由定义（`codex-router`、`qoder-router` 等）使用 `/provider` 弹窗向导：凭证（baseURL/apiKey）和模型清单维护全部通过弹窗完成
 3. **LLM Router 配置** — 自建或第三方路由服务，通过环境变量设置凭证（或直接编辑 `opencode.jsonc`）
+4. **Qoder 配置** — `opencode-qoder-bridge` 插件已全局启用，启动时自动注入 `qoder` 服务商；只需用 Qoder CLI 登录（`qoder login`）并应用 `qoder` 预设即可
 
-> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；使用仓库自带的路由定义请选方式2；如需自建LLM Router或使用第三方路由服务，请选择方式3。
+> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；使用仓库自带的路由定义请选方式2；如需自建LLM Router或使用第三方路由服务，请选择方式3；如果你有 Qoder 订阅、想通过官方 Qoder Agent SDK 使用其模型目录（Ultimate/Performance/Kimi/DeepSeek/Qwen/GLM/…），请选择方式4。
 
 ### 在 opencode 内配置服务商（推荐）
 
@@ -201,6 +202,24 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 
 该令牌会在每次重装时原样保留。如果你更喜欢硬编码字面量，直接编辑 `~/.config/opencode/opencode.jsonc` — 字面量之后会被自动保留。
 
+### Qoder 服务商（`opencode-qoder-bridge`）
+
+[opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) 插件已列入仓库自带 `opencode.jsonc` 的 `plugin` 数组，启动时自动注入 `qoder` 服务商及其完整模型目录 —— 无需 provider 块或 API 密钥。它通过官方 `@qoder-ai/qoder-agent-sdk` 与 Qoder 通信，使用你的 Qoder CLI 凭证。
+
+前置条件：
+
+- Node.js `^22.18 || >=24.11`
+- 已安装 Qoder CLI 并登录：`qoder login`（凭证存于 `~/.qoder/.auth/user`）
+
+然后重启 opencode，通过 `/profile` 应用自带的 `qoder` 预设。可用模型跟随你的 Qoder 账户/套餐 —— bridge 通过 SDK 实时发现模型目录（auto、ultimate、performance、efficient、lite、cmodel、qmodel*、kmodel*、gm51model、dmodel、dfmodel、mmodel 等）。
+
+bridge 附带的额外能力：
+
+- opencode 内的 `/qoder-usage`，或终端里的 `qoder-usage` —— 分模型的消耗/token 台账 + 实时账户额度
+- bridge 首次加载时会向全局 `tui.json` 添加一个 TUI 入口（显示实时 Qoder 额度；若重装覆盖了 `tui.json` 会自动补回）
+
+故障排查：启动时弹认证 → 执行 `qoder login` 后重启；提示 `qodercli not found` → 把 Qoder CLI 加入 PATH。如果你不使用 Qoder，从 `~/.config/opencode/opencode.jsonc` 的 `plugin` 数组中移除 `"opencode-qoder-bridge"` 即可。
+
 ---
 
 ## 配置预设（Profiles）
@@ -214,6 +233,9 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 | `llm-router` | 服务端路由基线 |
 | `codex-router` | 自建 codex 网关（Sol/Luna 系列） |
 | `qoder-router` | 自建 qoder 网关（Ultimate/Performance/Lite） |
+| `qoder` | Qoder 订阅，经 opencode-qoder-bridge（官方 Qoder Agent SDK；需 `qoder login`） |
+| `qoder-deepseek` | Qoder 上的全 DeepSeek 系列备选（dmodel = DeepSeek-V4-Pro，dfmodel = DeepSeek-V4-Flash） |
+| `qoder-qwen` | Qoder 上的全通义千问系列备选（qmodel_preview = Qwen3.8-Max-Preview，qmodel_latest = Qwen3.7-Max，qmodel = Qwen3.7-Plus） |
 | `opencode-go-ultimate` | 质量优先，不计成本 |
 | `opencode-go-performance` | 日常主力 |
 | `opencode-go-economy` | 性价比平衡 |

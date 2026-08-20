@@ -182,6 +182,9 @@ explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest 
 | `llm-router` | Auto — server-side routing baseline | its five router slots |
 | `codex-router` | codex gateway — Sol heavy / Luna cheap | gpt-5.6-sol / gpt-5.6-sol-max / gpt-5.6-sol-ultra / gpt-5.6-luna-low / gpt-5.6-sol |
 | `qoder-router` | qoder gateway — Ultimate flags / Lite explores | performance / ultimate / ultimate / lite / auto |
+| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) | performance / ultimate / ultimate / lite / auto |
+| `qoder-deepseek` | All-DeepSeek family on Qoder (same bridge) | dfmodel / dmodel / dmodel / dfmodel / auto |
+| `qoder-qwen` | All-Qwen family on Qoder (same bridge) | qmodel_latest / qmodel_preview / qmodel_preview / qmodel / auto |
 | `opencode-go-ultimate` | Ultimate — quality first, cost no object | kimi-k3 / minimax-m3 / gpt-5.6-luna / kimi-k2.6 / qwen3.8-max |
 | `opencode-go-performance` | Performance — daily driver | kimi-k2.6 / kimi-k2.7-code / gpt-5.6-luna / deepseek-v4-flash / qwen3.8-max |
 | `opencode-go-economy` | Economy — cost-performance | kimi-k2.6 / kimi-k2.7-code / glm-5.2 / deepseek-v4-flash / qwen3.8-max |

@@ -10,7 +10,10 @@
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md"
   ],
-  "plugin": ["@dietrichgebert/ponytail"],
+  // opencode-qoder-bridge injects the `qoder` provider + models at startup
+  // via the official Qoder Agent SDK — no provider block needed. Requires
+  // Node ^22.18 || >=24.11 and a prior `qoder login`.
+  "plugin": ["@dietrichgebert/ponytail", "opencode-qoder-bridge"],
   "provider": {
     "llm-router": {
       "npm": "@ai-sdk/openai-compatible",

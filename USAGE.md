@@ -135,8 +135,9 @@ replacement is tracked by a follow-up ADR):
 1. **Provider setup** — connect official APIs via the `/connect` slash command (recommended)
 2. **Custom provider setup** — for bundled router definitions (`codex-router`, `qoder-router`, …) use the `/provider` dialog wizard: credentials (baseURL/apiKey) and model-list maintenance, all via dialogs
 3. **LLM Router setup** — for self-hosted or third-party routing services, set credentials via environment variables (or edit `opencode.jsonc` directly)
+4. **Qoder setup** — the `opencode-qoder-bridge` plugin is enabled globally and injects the `qoder` provider at startup; just log in with the Qoder CLI (`qoder login`) and apply the `qoder` profile
 
-> **Selection Guide**: Choose method 1 if you want to directly connect to official APIs like DeepSeek, Kimi, etc. (simpler and faster); choose method 2 for the bundled router definitions shipped in `providers/`; choose method 3 if you need to set up your own LLM router or use third-party routing services.
+> **Selection Guide**: Choose method 1 if you want to directly connect to official APIs like DeepSeek, Kimi, etc. (simpler and faster); choose method 2 for the bundled router definitions shipped in `providers/`; choose method 3 if you need to set up your own LLM router or use third-party routing services; choose method 4 if you have a Qoder subscription and want its model catalog (Ultimate/Performance/Kimi/DeepSeek/Qwen/GLM/…) through the official Qoder Agent SDK.
 
 ### Provider setup inside opencode (recommended)
 
@@ -226,6 +227,24 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 
 The token round-trips through every reinstall. If you prefer a hardcoded literal, edit `~/.config/opencode/opencode.jsonc` directly — the literal is then preserved across reinstalls.
 
+### Qoder provider (`opencode-qoder-bridge`)
+
+The [opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) plugin is listed in the shipped `opencode.jsonc` `plugin` array and injects the `qoder` provider plus its full model catalog at startup — no provider block or API key needed. It talks to Qoder through the official `@qoder-ai/qoder-agent-sdk`, using your Qoder CLI credentials.
+
+Prerequisites:
+
+- Node.js `^22.18 || >=24.11`
+- Qoder CLI installed and logged in: `qoder login` (credentials live under `~/.qoder/.auth/user`)
+
+Then restart opencode and apply the bundled `qoder` profile via `/profile`. Models follow your Qoder account/plan — the bridge discovers the catalog live via the SDK (auto, ultimate, performance, efficient, lite, cmodel, qmodel*, kmodel*, gm51model, dmodel, dfmodel, mmodel, …).
+
+Extras that come with the bridge:
+
+- `/qoder-usage` inside opencode, or `qoder-usage` in a terminal — per-model cost/token ledger plus live account quota
+- A TUI entry the bridge adds to the global `tui.json` on first load (shows live Qoder credits; self-heals if a reinstall overwrites `tui.json`)
+
+Troubleshooting: auth prompt at startup → run `qoder login` and restart; `qodercli not found` → put the Qoder CLI on PATH. If you don't use Qoder, remove `"opencode-qoder-bridge"` from the `plugin` array in `~/.config/opencode/opencode.jsonc`.
+
 ---
 
 ## Profiles
@@ -239,6 +258,9 @@ A profile is a named preset that bundles a provider with a per-tier model pick, 
 | `llm-router` | Server-side routing baseline |
 | `codex-router` | Self-hosted codex gateway (Sol/Luna) |
 | `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
+| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
+| `qoder-deepseek` | All-DeepSeek family on Qoder (dmodel = DeepSeek-V4-Pro, dfmodel = DeepSeek-V4-Flash) |
+| `qoder-qwen` | All-Qwen family on Qoder (qmodel_preview = Qwen3.8-Max-Preview, qmodel_latest = Qwen3.7-Max, qmodel = Qwen3.7-Plus) |
 | `opencode-go-ultimate` | Quality first, cost no object |
 | `opencode-go-performance` | Daily driver |
 | `opencode-go-economy` | Cost-performance balance |
