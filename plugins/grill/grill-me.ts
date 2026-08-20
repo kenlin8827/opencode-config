@@ -4,6 +4,19 @@
  * and review-fix-loop.ts — no `commands/grill-me.md` file needed),
  * then injects the grilling protocol into the system prompt.
  *
+ * Four-phase advisor-driven grilling flow:
+ *   1. Dispatch to @advisor — advisor organizes questions from the
+ *      user's description and returns a structured question list.
+ *   2. User answers — main session presents all questions at once,
+ *      user answers in one batch reply. Compatible with /auto-advisor
+ *      modes (full mode auto-adopts FACTUAL questions with confidence
+ *      ≥ 8, only uncertain ones reach the user).
+ *   3. Advisor refinement (mandatory) — send Q&A back to @advisor for
+ *      contradiction detection and consolidation. Contradictions loop
+ *      back to Phase 2 (max 5 rounds). Only skipped if advisor fails.
+ *   4. Dispatch development — present the brief, get confirmation,
+ *      then dispatch implementation to the right specialist agent.
+ *
  * Two hooks:
  *   1. config — registers the slash command (template, description, agent)
  *   2. experimental.chat.system.transform — injects protocol into system
@@ -54,7 +67,7 @@ export const GrillMePlugin: Plugin = async () => ({
     cfg.command[COMMAND_NAME] = {
       template: "/grill-me $ARGUMENTS",
       description:
-        "Grill me — relentless one-question-at-a-time interview to sharpen a plan or design. Usage: /grill-me <topic>",
+        "Grill me — advisor-driven grilling: @advisor organizes questions, user answers in batch, advisor refines (mandatory, contradiction loop), then dispatch development. Usage: /grill-me <topic>",
       agent: "build",
     }
   },
