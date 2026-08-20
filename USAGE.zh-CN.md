@@ -257,11 +257,9 @@ bridge 附带的额外能力：
     再选 model（列表来自 opencode 服务目录：内置 provider 如
     anthropic/openai + 已配置的自定义 provider；也可手动输入
     '<provider>/<model_id>' 作为兜底），然后 "( Apply profile )" 应用
-    （重写 opencode.jsonc + .active-profile），并通过合成按键自动
-    驱动原生模型选择器（同 /models：输入显示名过滤；仅当该名称
-    在目录中唯一时才自动回车，否则保留过滤结果等你人工确认）
-    完成当前会话的模型切换 —— TUI 的模型状态存在进程内，这是
-    唯一的实时切换途径；按键注入不可用时回退为手动选择
+    （重写 opencode.jsonc + .active-profile）；重启 opencode 后生效
+    （模型变更覆盖该层级下的所有智能体，因此不做当前会话的
+    实时切换）
   → Esc 取消
 ```
 

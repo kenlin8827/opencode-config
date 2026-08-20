@@ -28,13 +28,9 @@ import type {
  *                     apply / cancel
  *   3. apply        — rewrite agent models per tier in opencode.jsonc
  *                     (with any per-tier overrides), update
- *                     .active-profile, then auto-switch the current
- *                     session's model by opening the native model
- *                     picker (model.list) and driving it with
- *                     synthetic keystrokes (filter, plus Enter only
- *                     when the name is unique in the catalog),
- *                     falling back to a manual pick when injection is
- *                     unavailable; toast the result
+ *                     .active-profile, toast the result; a restart is
+ *                     required — the change only takes effect on the
+ *                     next launch
  *   1b. current mapping — DialogAlert with active profile, root model
  *                     and per-tier refs
  *
@@ -328,188 +324,14 @@ function applySelection(api: TuiPluginApi, name: string, profile: Profile): void
     writeConfigAtomic(CONFIG_FILE, config)
     setActiveProfile(name)
     api.ui.dialog.clear()
-    const defaultRef = profile.tiers["default"]
     toast(
       api,
-      `Switched to '${name}' — ${updated} agent(s) updated (${details.join("; ")}). Restart opencode for the full change.`,
+      `Switched to '${name}' — ${updated} agent(s) updated (${details.join("; ")}). Restart opencode to apply.`,
       "success",
     )
-    if (defaultRef) {
-      void liveSwitchUiModel(api, defaultRef)
-    }
   } catch (err) {
     api.ui.dialog.clear()
     toast(api, `Failed to apply '${name}': ${(err as Error).message}`, "error")
-  }
-}
-
-// The TUI keeps the current session's model in in-process state
-// (packages/tui local.tsx): every prompt submission sends that state, so
-// no server call can switch it, and the plugin API cannot write it
-// directly. What we can do is drive the native model picker (command
-// "model.list" — same as /models, ctrl+x m) end to end: open it, inject
-// synthetic keystrokes through the renderer's public keyInput handler
-// (opentui routes real keys through the same processParsedKey call),
-// let the fuzzy filter narrow the list, then press Enter only when the
-// catalog proves the display name matches a single model — otherwise
-// the filtered picker is left open for a manual confirm. The picker's
-// own onSelect does the switch, and the UI updates like a manual pick.
-// Server-side switchModel is still fired best-effort for non-TUI clients
-// (web/desktop), which the TUI ignores.
-type ParsedKeyLike = {
-  name: string
-  ctrl: boolean
-  meta: boolean
-  shift: boolean
-  option: boolean
-  sequence: string
-  raw: string
-  number: boolean
-  eventType: "press"
-  source: "raw"
-}
-
-function pressKey(api: TuiPluginApi, name: string, sequence: string, shift = false): boolean {
-  const keyInput = (api.renderer as unknown as {
-    keyInput?: { processParsedKey?: (key: ParsedKeyLike) => boolean }
-  }).keyInput
-  if (!keyInput?.processParsedKey) return false
-  try {
-    return keyInput.processParsedKey({
-      name,
-      ctrl: false,
-      meta: false,
-      shift,
-      option: false,
-      sequence,
-      raw: sequence,
-      number: /^[0-9]$/.test(name),
-      eventType: "press",
-      source: "raw",
-    })
-  } catch {
-    return false
-  }
-}
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
-
-// Type the target text into the picker's filter box. The picker
-// filters with fuzzysort on the display title (case- and
-// space-sensitive), so callers pass the model's display name, not its
-// id. Enter is pressed only when `confirm` is true — callers must
-// verify the filter narrows to the target uniquely first, otherwise
-// the first fuzzy match would be selected blindly. Returns false when
-// keystroke injection is unavailable so the caller can fall back to a
-// manual pick.
-async function autoSelectInPicker(
-  api: TuiPluginApi,
-  text: string,
-  confirm: boolean,
-): Promise<boolean> {
-  await sleep(150) // let the picker mount and focus its filter input
-  if (!api.ui.dialog.open) return false
-  for (const ch of text) {
-    if (ch === " ") {
-      if (!pressKey(api, "space", " ")) return false
-    } else {
-      const upper = /[A-Z]/.test(ch)
-      if (!pressKey(api, upper ? ch.toLowerCase() : ch, ch, upper)) return false
-    }
-    await sleep(20) // let the reactive filter settle between keys
-  }
-  await sleep(80) // let fuzzysort finish narrowing the options
-  if (!confirm) return true // filtered only — the user confirms manually
-  return pressKey(api, "return", "\r")
-}
-
-// Resolve the model's display name from the server catalog (the same
-// source the picker renders from) and decide whether filtering by that
-// name can only surface this one model. The picker hides the
-// favorites/recents sections once a filter is typed and ranks an exact
-// title match first, so an exact-match count of 1 makes Enter safe.
-// When several models share the name (e.g. the same upstream model
-// exposed by multiple providers) we must not press Enter blindly.
-async function lookupModelTarget(
-  api: TuiPluginApi,
-  providerID: string,
-  modelID: string,
-): Promise<{ displayName: string; unique: boolean }> {
-  try {
-    const res = await api.client.provider.list()
-    const all = (res as { data?: { all?: CatalogProvider[] } }).data?.all
-    if (res.error === undefined && Array.isArray(all)) {
-      const provider = all.find((p) => p?.id === providerID)
-      const model = provider?.models?.[modelID]
-      const displayName = model?.name ?? modelID
-      let exact = 0
-      for (const p of all) {
-        for (const [key, m] of Object.entries(p?.models ?? {})) {
-          if (m?.status === "deprecated") continue // picker drops these
-          const title = m?.name ?? key
-          if (title === displayName) exact += 1
-        }
-      }
-      return { displayName, unique: exact === 1 }
-    }
-  } catch {
-    // fall through to the id
-  }
-  // No catalog — can't prove uniqueness, leave Enter to the user.
-  return { displayName: modelID, unique: false }
-}
-
-async function liveSwitchUiModel(api: TuiPluginApi, ref: string): Promise<void> {
-  const slash = ref.indexOf("/")
-  if (slash <= 0 || slash === ref.length - 1) return
-  const providerID = ref.slice(0, slash)
-  const modelID = ref.slice(slash + 1)
-
-  const route = api.route.current
-  if (route.name === "session") {
-    const sessionID = (route as { params?: { sessionID?: string } }).params
-      ?.sessionID
-    if (sessionID) {
-      try {
-        await api.client.v2.session.switchModel({
-          sessionID,
-          model: { providerID, id: modelID },
-        })
-      } catch {
-        // The TUI overrides the model per prompt anyway; only non-TUI
-        // clients benefit from this call.
-      }
-    }
-  }
-
-  // Resolve the display name before opening the picker so the network
-  // round-trip doesn't sit between the dialog mounting and the typing.
-  const target = await lookupModelTarget(api, providerID, modelID)
-
-  let opened = false
-  try {
-    api.keymap.dispatchCommand("model.list")
-    opened = true
-  } catch {
-    // model.list unavailable in this build — the restart path still works
-  }
-  if (!opened) return
-
-  const typed = await autoSelectInPicker(api, target.displayName, target.unique)
-  if (!typed) {
-    toast(
-      api,
-      `Model picker opened — pick "${target.displayName}" (${providerID}) to switch this session now.`,
-      "info",
-    )
-  } else if (target.unique) {
-    toast(api, `Switching current session to ${ref}…`, "success")
-  } else {
-    toast(
-      api,
-      `Multiple models match "${target.displayName}" — check the highlighted one and press Enter to confirm.`,
-      "info",
-    )
   }
 }
 

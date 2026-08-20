@@ -282,14 +282,10 @@ Profiles are applied from within an opencode session via the `/profile` slash co
     provider and a model from the opencode catalog (built-in providers
     like anthropic/openai plus configured ones; typing a custom
     '<provider>/<model_id>' ref is available as fallback), then
-    "( Apply profile )" writes opencode.jsonc + .active-profile and
-    auto-switches the current session's model by driving the native
-    model picker (same as /models) with synthetic keystrokes — it types
-    the display name as a filter and presses Enter only when the name
-    is unique across the catalog (otherwise the filtered picker stays
-    open for a manual confirm); the TUI keeps its model in in-process
-    state, so this is the only live path; falls back to a manual pick
-    if keystroke injection is unavailable
+    "( Apply profile )" writes opencode.jsonc + .active-profile;
+    restart opencode for the change to take effect (the model switch
+    applies to all agents of the covered tiers, so no live session
+    switch is attempted)
   → Esc cancels
 ```
 
