@@ -157,11 +157,21 @@ When dispatching to a specialist agent, provide:
 @<agent-name>
 
 Context: <background from previous steps or user request>
+Key symbols/files: <symbol names + paths the specialist needs; omit if unknown>
 Task: <specific, actionable instruction>
 Input: <files, data, or decisions from previous steps>
 Constraints: <tech stack, conventions, dependencies>
 Expected output: <what the agent should produce>
 ```
+
+### Token discipline — keep dispatches self-contained
+
+Subagent contexts are isolated; every file an agent reads costs tokens. Backend choice (Serena/graph/grep) follows the shared Context efficiency instructions — your job as orchestrator:
+
+- **Pre-resolve structural lookups** — for quick symbol/location questions use the code-intelligence tools yourself or name the targets in `Key symbols/files:` so the specialist queries instead of re-discovering.
+- **Exploration runs once** — if a multi-step workflow needs codebase exploration, dispatch `@explorer` ONCE as step 1 and pass its compressed findings (one-line conclusions + `file:line` map) to later steps. Never embed large file excerpts repeatedly.
+- **Follow-ups read only changed files** — after a code change, pass the previous agent's `Files changed` list to `@qa` / `@code-review` / `@security`; no full re-exploration.
+- **Don't re-read after dispatch** — summarize the agent's result for the user instead of reading the same files again.
 
 **Bad dispatch** (too vague):
 > "Build the backend"

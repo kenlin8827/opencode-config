@@ -59,12 +59,15 @@ Dispatch with **read-only** instruction:
 @<agent-name>
 
 Context: <background>
+Key symbols/files: <symbol names + paths the analyst needs; omit if unknown>
 Task: <analysis task — explicitly read-only, no code changes>
 Scope: <files/modules/directories>
 Expected output: <structured report with findings and recommendations>
 ```
 
 Emphasize: **analyze and report, NEVER modify files**.
+
+**Token discipline:** subagent contexts are isolated — every duplicate file read costs tokens (backend choice follows the shared Context efficiency instructions). Pass `Key symbols/files:` in each dispatch; if the analysis needs codebase exploration, dispatch `@explorer` ONCE and share its compressed findings (conclusions + `file:line` map) with all analysts. Never let two analysts re-read the same file wholesale.
 
 ### 4. Synthesize findings
 

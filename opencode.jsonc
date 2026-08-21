@@ -6,6 +6,7 @@
   "default_agent": "build",
   "instructions": [
     "~/.config/opencode/instructions/output-protocol.md",
+    "~/.config/opencode/instructions/context-efficiency.md",
     "instructions/test-scope.md",
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md"
@@ -14,6 +15,52 @@
   // via the official Qoder Agent SDK — no provider block needed. Requires
   // Node ^22.18 || >=24.11 and a prior `qoder login`.
   "plugin": ["@dietrichgebert/ponytail", "opencode-qoder-bridge", "@frankhommers/opencode-smart-title"],
+  // Serena: LSP-based semantic code retrieval (symbol-level queries instead of
+  // full file reads) — shared by all agents, avoids duplicate file reads.
+  // Prerequisite (one-time):
+  //   uv tool install -p 3.13 serena-agent@latest --prerelease=allow
+  //   uv tool update-shell   # ensure ~/.local/bin is on PATH
+  // Uses the `ide` context: semantic query tools only — file editing stays
+  // with the agents' native tools. `--project-from-cwd` activates the project
+  // at the current working directory (.serena/project.yml or .git detected).
+  // If serena is not installed, set "enabled": false — agents fall back to
+  // grep/glob/file reads per their prompts.
+  "mcp": {
+    "serena": {
+      "type": "local",
+      "command": ["serena", "start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "enabled": true
+    },
+    // CodeGraph (default graph backend): pre-indexed code knowledge graph
+    // (Tree-sitter → SQLite). Complements Serena: adds macro queries —
+    // impact/blast radius, dependency chains, call paths, framework-aware
+    // routes. MIT licensed. Fixed tool surface: a single `codegraph_explore`.
+    // Index lifecycle: ONE-TIME manual `codegraph init` per repo (MCP does NOT
+    // auto-build a missing index); after that a built-in file watcher keeps it
+    // in sync on every save + reconciliation on reconnect — never stale.
+    // Prerequisite:
+    //   npm install -g @colbymchenry/codegraph   (one-time)
+    //   codegraph init                           (per project, ~seconds)
+    // "enabled": false to skip.
+    "codegraph": {
+      "type": "local",
+      "command": ["codegraph", "serve", "--mcp"],
+      "enabled": true
+    },
+    // GitNexus (optional): deeper graph analysis — arbitrary Cypher, Web UI
+    // visualization, precomputed processes/clusters, multi-repo groups.
+    // NOTE: PolyForm Noncommercial license — commercial use needs licensing.
+    // Requires manual re-index (`gitnexus analyze`) after big changes.
+    // One MCP server serves every indexed repo (registry ~/.gitnexus/).
+    // GITNEXUS_MCP_READ_ONLY=1: read-only graph tools only — edits stay with
+    // the agents' native tools. "enabled": true only if licensed + indexed.
+    "gitnexus": {
+      "type": "local",
+      "command": ["gitnexus", "mcp"],
+      "env": { "GITNEXUS_MCP_READ_ONLY": "1" },
+      "enabled": false
+    }
+  },
   "provider": {
     "llm-router": {
       "npm": "@ai-sdk/openai-compatible",
@@ -65,7 +112,7 @@
     },
     "explorer": {
       "tier": "explorer",
-      "description": "Fast read-only codebase explorer. Use for rapid code search, pattern discovery, architecture overview, and locating relevant files before dispatching a specialist.",
+      "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, call chains) go to Serena MCP tools instead.",
       "mode": "subagent",
       "model": "llm-router/explorer",
       "temperature": 0.2,

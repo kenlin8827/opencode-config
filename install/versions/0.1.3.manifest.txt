@@ -18,6 +18,7 @@ agents/security.md
 agents/tech-writer.md
 agents/vision.md
 instructions/coding-principles.md
+instructions/context-efficiency.md
 instructions/output-protocol.md
 instructions/rfc-keywords.md
 instructions/test-scope.md
@@ -52,6 +53,8 @@ plugins/grill/grill-with-docs.md
 plugins/grill/grill-with-docs.ts
 plugins/metrics.ts
 plugins/profile-wizard.ts
+plugins/project-profiler.ts
+plugins/project-profiler/project-profiler.ts
 plugins/provider-wizard.ts
 plugins/review-fix-loop.ts
 plugins/review-fix-loop/review-fix-loop.md

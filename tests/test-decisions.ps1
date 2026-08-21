@@ -96,7 +96,7 @@ Check "review-fix-loop.ts: thin glue (<80 lines)" (($rflPlugin -split "`n").Coun
 
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)
-$ai = Get-Content "$base\plugins\advisor\advisor-instructions.ts" -Raw
+$ai = Get-Content "$base\plugins\auto-advisor\auto-advisor-instructions.ts" -Raw
 Check "advisor-instructions.ts: exists and readable" ($ai.Length -gt 0)
 Check "advisor-instructions.ts: references @advisor" ($ai -match "@advisor")
 Check "advisor-instructions.ts: has dispatch section" ($ai -match "dispatch")
