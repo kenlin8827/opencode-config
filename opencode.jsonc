@@ -23,12 +23,15 @@
   // Uses the `ide` context: semantic query tools only — file editing stays
   // with the agents' native tools. `--project-from-cwd` activates the project
   // at the current working directory (.serena/project.yml or .git detected).
+  // `--open-web-dashboard False`: the dashboard still runs in the background
+  // (tray icon / http://localhost:24282/dashboard/) but no UI window pops up
+  // per session — without this, every opencode conversation opens one.
   // If serena is not installed, set "enabled": false — agents fall back to
   // grep/glob/file reads per their prompts.
   "mcp": {
     "serena": {
       "type": "local",
-      "command": ["serena", "start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "command": ["serena", "start-mcp-server", "--context", "ide", "--project-from-cwd", "--open-web-dashboard", "False"],
       "install": "uv tool install -p 3.13 serena-agent@latest --prerelease=allow",
       "enabled": true
     },
