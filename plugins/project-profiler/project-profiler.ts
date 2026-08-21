@@ -11,6 +11,7 @@
  *
  * Detection (all cheap, sync, one-shot per process):
  *   - Language composition via bounded file scan (extension counts)
+ *   - opencode.jsonc enabled flags (CLI installed but disabled → not recommended)
  *   - Serena: CLI installed? (.local/bin or uv tools dir)
  *   - CodeGraph: CLI installed? index present in .codegraph/?
  *   - GitNexus (optional): index present in .gitnexus/? stale vs HEAD?
@@ -23,7 +24,7 @@
  * failures degrade to "no injection".
  */
 
-import { existsSync, readdirSync, statSync, type Dirent } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync, type Dirent } from "node:fs"
 import { join, basename } from "node:path"
 import { homedir } from "node:os"
 import { execSync } from "node:child_process"
@@ -63,8 +64,10 @@ interface ProjectProfile {
   languages: { lang: string; count: number }[]
   dominant: { lang: string; share: number } | null
   polyglot: boolean
+  serenaEnabled: boolean
   serenaCli: boolean
   serenaLspFit: boolean
+  codegraphEnabled: boolean
   codegraphCli: boolean
   codegraphIndexed: boolean
   gitnexusIndex: "ready" | "stale" | "missing"
@@ -124,6 +127,30 @@ function codegraphCliInstalled(): boolean {
   return false
 }
 
+/** Parse mcp.<name>.enabled out of opencode.jsonc text — exported so it can
+ * be unit-tested. Strips whole-line // comments (the JSONC subset the config
+ * uses), then reads the real object: a regex can't cross nested braces like
+ * gitnexus's `env` block that sits before its `enabled` flag. Missing entry
+ * or unparseable text → true (assume enabled). */
+export function mcpEnabledFrom(text: string, name: string): boolean {
+  try {
+    const json = text.split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n")
+    const obj = JSON.parse(json) as { mcp?: Record<string, { enabled?: boolean }> }
+    const flag = obj.mcp?.[name]?.enabled
+    return flag !== false
+  } catch { /* unparseable — assume enabled */ return true }
+}
+
+/** mcp.<name>.enabled from the installed opencode.jsonc — a CLI on PATH that
+ * is disabled in config must NOT be recommended (its MCP server never loads).
+ * Degrades to true when the config is missing/unreadable. */
+function mcpEnabled(name: string): boolean {
+  try {
+    const cfg = join(homedir(), ".config", "opencode", "opencode.jsonc")
+    return mcpEnabledFrom(readFileSync(cfg, "utf8"), name)
+  } catch { /* no config — assume enabled */ return true }
+}
+
 function gitnexusIndexState(root: string): "ready" | "stale" | "missing" {
   const idx = join(root, ".gitnexus")
   if (!existsSync(idx)) return "missing"
@@ -164,11 +191,13 @@ export function buildProfile(root: string = process.cwd()): ProjectProfile {
     languages: languages.slice(0, 4),
     dominant,
     polyglot,
-    serenaCli: serenaCliInstalled(),
+    serenaEnabled: mcpEnabled("serena"),
+    serenaCli: serenaCliInstalled() && mcpEnabled("serena"),
     serenaLspFit: !!dominant && LSP_FRIENDLY.has(dominant.lang),
-    codegraphCli: codegraphCliInstalled(),
-    codegraphIndexed: existsSync(join(root, ".codegraph")),
-    gitnexusIndex: gitnexusIndexState(root),
+    codegraphEnabled: mcpEnabled("codegraph"),
+    codegraphCli: codegraphCliInstalled() && mcpEnabled("codegraph"),
+    codegraphIndexed: existsSync(join(root, ".codegraph")) && mcpEnabled("codegraph"),
+    gitnexusIndex: mcpEnabled("gitnexus") ? gitnexusIndexState(root) : "missing",
   }
 }
 
@@ -184,21 +213,25 @@ function langSummary(p: ProjectProfile): string {
 function recommendation(p: ProjectProfile): string[] {
   const serena = p.serenaCli
     ? `yes${p.serenaLspFit ? "" : " — no LSP fit for dominant language"}`
-    : "CLI not installed"
+    : p.serenaEnabled
+      ? "CLI not installed"
+      : "disabled in options.jsonc"
   const graph = p.codegraphIndexed
     ? "indexed (auto-synced)"
     : p.codegraphCli
       ? "CLI installed, not indexed — run `codegraph init` once (fast; the watcher keeps it fresh after)"
-      : "not installed — suggest `npm install -g @colbymchenry/codegraph` + `codegraph init`"
+      : p.codegraphEnabled
+        ? "not installed — suggest `npm install -g @colbymchenry/codegraph` + `codegraph init`"
+        : "disabled in options.jsonc"
 
   const pick: string[] = []
   if (p.serenaCli && p.serenaLspFit) {
-    pick.push("symbol lookups (definition/references/call chain) → Serena MCP tools")
+    pick.push("symbol lookups (definitions/references/outlines) → Serena MCP tools")
   }
   if (p.codegraphIndexed) {
     pick.push("impact/blast radius, dependency chains, call paths, architecture → CodeGraph MCP (`codegraph_explore`)")
   } else if (p.gitnexusIndex === "ready") {
-    pick.push("impact/flow questions → GitNexus MCP tools (CodeGraph not indexed here)")
+    pick.push("impact/flow questions → GitNexus MCP tools (CodeGraph not active here)")
   }
   if (pick.length === 0) pick.push("no code-intelligence backend available — grep/glob, one @explorer pass for multi-step workflows")
   return [`- Serena: ${serena} · CodeGraph: ${graph}`, ...pick.map((s) => `  - ${s}`)]
@@ -234,10 +267,14 @@ export const ProjectProfilerPlugin: Plugin = async () => ({
 
       if (cachedBlock === null) cachedBlock = renderProfileBlock(buildProfile())
       const fragment = `\n${cachedBlock}`
-      for (let i = 0; i < output.system.length; i++) {
+      // Append to the LAST string entry only — with multiple entries the old
+      // loop duplicated the block within a single pass (the marker check only
+      // guards the next call, not this one).
+      for (let i = output.system.length - 1; i >= 0; i--) {
         const s = output.system[i]
         if (typeof s !== "string") continue
         output.system[i] = s + fragment
+        break
       }
     } catch {
       // Never crash the session — degrade to no injection.

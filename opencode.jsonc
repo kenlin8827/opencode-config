@@ -20,8 +20,11 @@
   // CLI provisioning: the install script runs the `install` field automatically
   // when `serena` is missing from PATH (requires uv; then `uv tool update-shell`
   // once so ~/.local/bin is on PATH — see the opencode-config install output).
-  // Uses the `ide` context: semantic query tools only — file editing stays
-  // with the agents' native tools. `--project-from-cwd` activates the project
+  // Uses the `ide` context: basic file ops (read_file, list_dir, find_file,
+  // create_text_file) and the shell are excluded — those stay with the agents'
+  // native tools. Serena's symbolic EDITING/refactoring tools remain exposed;
+  // to make it strictly read-only, exclude them per project in
+  // .serena/project.yml (`excluded_tools`). `--project-from-cwd` activates the project
   // at the current working directory (.serena/project.yml or .git detected).
   // `--open-web-dashboard False`: the dashboard still runs in the background
   // (tray icon / http://localhost:24282/dashboard/) but no UI window pops up
@@ -147,7 +150,7 @@
     },
     "explorer": {
       "tier": "explorer",
-      "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, call chains) go to Serena MCP tools instead.",
+      "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, symbol outlines) go to Serena MCP tools; multi-hop call paths and impact analysis go to CodeGraph instead.",
       "mode": "subagent",
       "model": "llm-router/explorer",
       "temperature": 0.2,
