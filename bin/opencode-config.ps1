@@ -13,7 +13,8 @@
       install         Apply the current version's manifest to the default target
       update          Same as install, but forces reapply (-Force)
       init            Backup + clear the target for a fresh start
-      status         Show installed vs repo version
+      uninstall       Remove the installed version's manifest files from the target
+      status          Show installed vs repo version
       generate        Regenerate install/versions/<ver>.manifest.txt
       register        Install the global shim into ~/.local/bin
       unregister      Remove the global shim from ~/.local/bin
@@ -101,6 +102,7 @@ switch ($Subcommand) {
     'install'    { & $Install install  @Rest }
     'update'     { & $Install install -Force @Rest }
     'init'       { & $Install init     @Rest }
+    'uninstall'  { & $Install uninstall @Rest }
     'status'     { Invoke-Sub $Install 'status'     $Rest }
     'generate'   { Invoke-Sub $Install 'generate'   $Rest }
     'register'   { Invoke-Sub $Install 'register'   $Rest }

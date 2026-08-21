@@ -11,6 +11,7 @@
 #   install         Apply the current version's manifest to the default target
 #   update          Same as install, but forces reapply (-f)
 #   init            Backup + clear the target for a fresh start
+#   uninstall       Remove the installed version's manifest files from the target
 #   status          Show installed vs repo version
 #   generate        Regenerate install/versions/<ver>.manifest.txt
 #   register        Install the global shim into ~/.local/bin
@@ -58,6 +59,9 @@ case "$sub" in
         ;;
     init)
         exec "$INSTALL" init "$@"
+        ;;
+    uninstall)
+        exec "$INSTALL" uninstall "$@"
         ;;
     status)
         exec "$INSTALL" status "$@"

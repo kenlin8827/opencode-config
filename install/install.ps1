@@ -17,6 +17,7 @@
       generate    Scan repo, write manifest (no install).
       status      Show installed version vs repo version, no changes.
       init        Backup target to a timestamped sibling, then clear it.
+      uninstall   Remove the installed version's manifest files from the target.
       register    Install the global shim into ~/.local/bin.
       unregister  Remove the global shim from ~/.local/bin.
 
@@ -44,6 +45,8 @@
     pwsh ./install/install.ps1 init            # backup + clear target (fresh start)
     pwsh ./install/install.ps1 init -NoBackup  # clear without backup
     pwsh ./install/install.ps1 init -Yes       # skip confirmation prompt
+    pwsh ./install/install.ps1 uninstall       # remove installed files (precise, manifest-driven)
+    pwsh ./install/install.ps1 uninstall -Yes  # skip confirmation prompt
     pwsh ./install/install.ps1 register        # install global opencode-config command
     pwsh ./install/install.ps1 register -BinDir C:\Tools\bin
     pwsh ./install/install.ps1 unregister      # remove global command
@@ -72,9 +75,9 @@ $ErrorActionPreference = 'Stop'
 $script:OptRtk = $true
 
 # --- subcommand parse -------------------------------------------------------
-# Positional subcommand (install / generate / status / init), mirroring install.sh.
-# Named params (-Target, -Force, -NoBackup, -Yes) are bound by PowerShell's
-# parameter binder; everything else lands in $CommandArgs.
+# Positional subcommand (install / generate / status / init / uninstall),
+# mirroring install.sh. Named params (-Target, -Force, -NoBackup, -Yes) are
+# bound by PowerShell's parameter binder; everything else lands in $CommandArgs.
 $Mode = 'Install'
 if ($Help) {
     Get-Help $PSCommandPath -Detailed
@@ -87,6 +90,7 @@ if ($CommandArgs) {
             'generate'  { $Mode = 'Generate' }
             'status'    { $Mode = 'Status' }
             'init'      { $Mode = 'Init' }
+            'uninstall' { $Mode = 'Uninstall' }
             'register'  { $Mode = 'Register' }
             'unregister'{ $Mode = 'Unregister' }
             '--help'    { Get-Help $PSCommandPath -Detailed; exit 0 }
@@ -702,6 +706,64 @@ switch ($Mode) {
         Write-Host ''
         Write-Host 'next steps:'
         Write-Host '  pwsh install/install.ps1 install   # reinstall config files'
+    }
+    'Uninstall' {
+        # Reverse of install: read the target's marker, delete exactly the
+        # files that version's manifest lists (user-added files survive),
+        # then drop the installer-owned extras (options.jsonc, marker, stale
+        # marker backup). Refuses to guess when the manifest is missing.
+        $installed = Read-Installed-Version
+        if (-not $installed) {
+            Write-Host "nothing installed at $Target (no $markerRel)"
+            return
+        }
+        $prevMan = Join-Path $instDir "$installed.manifest.txt"
+        if (-not (Test-Path $prevMan)) {
+            throw "manifest missing: install/versions/$installed.manifest.txt — cannot uninstall precisely. Use 'init' to back up and clear the target instead."
+        }
+        $prevFiles = Read-Manifest $prevMan
+        Write-Host ("installed: {0} ({1} manifest file(s))" -f $installed, $prevFiles.Count)
+        if (-not $Yes) {
+            $confirm = Read-Host "remove these files from $Target? (y/N)"
+            if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+                Write-Host 'cancelled'
+                return
+            }
+        }
+        Remove-ManifestFiles $prevFiles $Target "uninstall"
+        # Installer-owned extras that never live in the manifest
+        foreach ($extra in @('options.jsonc', $markerRel, "$markerRel.bak")) {
+            $p = Join-Path $Target $extra
+            if (Test-Path $p) {
+                Remove-Item -LiteralPath $p -Force
+                Write-Host "[uninstall] rm $extra"
+            }
+        }
+        # Prune directories the manifest shipped: deepest first, only when
+        # empty — any user-added content keeps its folder alive. Repeated
+        # passes until nothing new empties out (a parent only becomes empty
+        # once its last emptied child is gone).
+        $dirs = @($prevFiles) | ForEach-Object { Split-Path (Join-Path $Target ($_ -replace '/', '\')) -Parent }
+        # dedupe on the full path FIRST — Sort-Object -Unique with a script
+        # block compares the property (Length), which silently drops equal-
+        # length siblings like plugins/project-manager vs plugins/review-fix-loop
+        $dirs = @($dirs | Where-Object { $_ -and $_ -ne $Target } | Sort-Object -Unique | Sort-Object { $_.Length } -Descending)
+        do {
+            $pruned = 0
+            foreach ($d in $dirs) {
+                if ((Test-Path $d) -and @(Get-ChildItem $d -Force).Count -eq 0) {
+                    Remove-Item -LiteralPath $d -Force
+                    Write-Host "[uninstall] rmdir $($d.Substring($Target.Length).TrimStart('\','/'))"
+                    $pruned++
+                }
+            }
+        } while ($pruned -gt 0)
+        Write-Host "uninstalled $installed"
+        Write-Host ''
+        Write-Host 'notes:'
+        Write-Host '  - files you added yourself were left in place; `init` clears everything'
+        Write-Host '  - the rtk binary + MCP CLIs are external tools and stay installed'
+        Write-Host '  - `unregister` removes the global opencode-config shim'
     }
     'Generate' {
         if (Test-Path $curMan) {

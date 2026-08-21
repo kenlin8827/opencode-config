@@ -16,6 +16,8 @@
 #   ./install/install.sh init           # backup + clear target (fresh start)
 #   ./install/install.sh init --no-backup  # clear without backup
 #   ./install/install.sh init -y        # skip confirmation prompt
+#   ./install/install.sh uninstall      # remove installed files (precise, manifest-driven)
+#   ./install/install.sh uninstall -y   # skip confirmation prompt
 #   ./install/install.sh register       # install global shim to ~/.local/bin
 #   ./install/install.sh unregister     # remove global shim
 #
@@ -60,13 +62,13 @@ YES=0
 OPT_RTK=1
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        generate|status|install|init|register|unregister) MODE="$1"; shift ;;
+        generate|status|install|init|uninstall|register|unregister) MODE="$1"; shift ;;
         -f|--force) FORCE=1; shift ;;
         --no-backup) NO_BACKUP=1; shift ;;
         -y|--yes) YES=1; shift ;;
         -t|--target) TARGET="$2"; shift 2 ;;
         --bin-dir) BIN_DIR="$2"; shift 2 ;;
-        -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
         *) echo "unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -681,6 +683,64 @@ case "$MODE" in
         echo
         echo "next steps:"
         echo "  ./install/install.sh install   # reinstall config files"
+        ;;
+    uninstall)
+        # Reverse of install: read the target's marker, delete exactly the
+        # files that version's manifest lists (user-added files survive),
+        # then drop the installer-owned extras (options.jsonc, marker, stale
+        # marker backup). Refuses to guess when the manifest is missing.
+        installed="$(read_installed_version || true)"
+        if [[ -z "$installed" ]]; then
+            echo "nothing installed at $TARGET (no $MARKER)"
+            exit 0
+        fi
+        prev_man="$INST_DIR/$installed.manifest.txt"
+        if [[ ! -f "$prev_man" ]]; then
+            echo "manifest missing: install/versions/$installed.manifest.txt — cannot uninstall precisely." >&2
+            echo "use 'init' to back up and clear the target instead." >&2
+            exit 1
+        fi
+        # `|| true` guards: read_manifest's grep chain exits 1 on a comment-
+        # only manifest, and pipefail would abort the whole uninstall on it
+        prev_count="$( { read_manifest "$prev_man" || true; } | wc -l | tr -d ' ')"
+        echo "installed: $installed ($prev_count manifest file(s))"
+        if [[ $YES -eq 0 ]]; then
+            printf 'remove these files from %s? (y/N): ' "$TARGET"
+            if ! read -r confirm; then echo; echo "cancelled"; exit 0; fi
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                echo "cancelled"
+                exit 0
+            fi
+        fi
+        { read_manifest "$prev_man" || true; } | remove_manifest_files "uninstall" "$TARGET"
+        # Installer-owned extras that never live in the manifest
+        for extra in options.jsonc "$MARKER" "$MARKER.bak"; do
+            if [[ -e "$TARGET/$extra" ]]; then
+                rm -f "$TARGET/$extra"
+                echo "[uninstall] rm $extra"
+            fi
+        done
+        # Prune directories the manifest shipped: deepest first, only when
+        # empty — any user-added content keeps its folder alive
+        { read_manifest "$prev_man" || true; } | while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            dir="$(dirname "$TARGET/$f")"
+            while [[ "$dir" != "$TARGET" && -d "$dir" ]]; do
+                if [[ -z "$(find "$dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+                    rmdir "$dir" 2>/dev/null || break
+                    echo "[uninstall] rmdir ${dir#"$TARGET"/}"
+                    dir="$(dirname "$dir")"
+                else
+                    break
+                fi
+            done
+        done
+        echo "uninstalled $installed"
+        echo
+        echo "notes:"
+        echo "  - files you added yourself were left in place; \`init\` clears everything"
+        echo "  - the rtk binary + MCP CLIs are external tools and stay installed"
+        echo "  - \`unregister\` removes the global opencode-config shim"
         ;;
     generate)
         if [[ -f "$CUR_MAN" ]]; then

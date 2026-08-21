@@ -22,6 +22,10 @@ pwsh install/install.ps1 generate
 pwsh install/install.ps1 init
 pwsh install/install.ps1 init -NoBackup   # clear without backup
 pwsh install/install.ps1 init -Yes       # skip confirmation prompt
+
+# Remove the installed files precisely (manifest-driven; user files survive):
+pwsh install/install.ps1 uninstall
+pwsh install/install.ps1 uninstall -Yes  # skip confirmation prompt
 ```
 
 Default target is `~/.config/opencode`. To test without touching your real
@@ -51,6 +55,8 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 ./install/install.sh init               # backup + clear target
 ./install/install.sh init --no-backup    # clear without backup
 ./install/install.sh init -y            # skip confirmation prompt
+./install/install.sh uninstall          # remove installed files (precise)
+./install/install.sh uninstall -y       # skip confirmation prompt
 
 # Global command:
 ./install/install.sh register
@@ -271,11 +277,37 @@ explicitly by the installer (not via the manifest) — see Options below.
 `.CONFIG_VERSION` holds the active version string (single line, no newline).
 On the next install, the script reads it, looks up
 `install/versions/<that>.manifest.txt`, deletes each entry from the target,
-then copies the current manifest and rewrites `.CONFIG_VERSION`. To uninstall
-a version manually, delete `<target>/.CONFIG_VERSION`.
+then copies the current manifest and rewrites `.CONFIG_VERSION`.
 
-`.CONFIG_VERSION` itself is never deleted by the script (even if an old
+`.CONFIG_VERSION` itself is never deleted during install (even if an old
 manifest listed it) — it is always rewritten at the end of each install.
+
+## Uninstall mode
+
+`uninstall` is the precise reverse of `install`: it reads the target's
+`.CONFIG_VERSION`, deletes exactly the files listed by that version's
+manifest (files you added yourself survive), then removes the
+installer-owned extras (`options.jsonc`, `.CONFIG_VERSION`, any stale
+`.CONFIG_VERSION.bak`).
+
+```pwsh
+pwsh install/install.ps1 uninstall        # confirmation prompt
+pwsh install/install.ps1 uninstall -Yes   # skip confirmation
+```
+
+```bash
+./install/install.sh uninstall          # confirmation prompt
+./install/install.sh uninstall -y       # skip confirmation
+```
+
+Behaviour notes:
+
+- No marker → nothing to do. A missing manifest for the installed version
+  aborts with an error — use `init` (backup + clear) instead.
+- External tools are untouched: the rtk binary and provisioned MCP CLIs
+  stay installed; remove them manually if wanted.
+- The global shim stays too — run `unregister` to remove it.
+- Use `init` instead when you want a total wipe (it backs up first).
 
 ## Init mode (fresh start)
 
@@ -374,7 +406,7 @@ literal key is never silently overwritten.
 
 | Script             | Language   | Purpose                                      |
 | ------------------ | ---------- | -------------------------------------------- |
-| `install.ps1`      | PowerShell | Install / generate / status / init / register |
+| `install.ps1`      | PowerShell | Install / generate / status / init / uninstall / register |
 | `install.sh`       | Bash 4+    | Same, with `jq` for JSON                     |
 
 The two implementations share the same contract — same manifest format, same
