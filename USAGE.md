@@ -388,6 +388,7 @@ Shall I proceed?
 | `/profile` | Open the dialog picker: shows all available model provider profiles (active one marked); picking one opens a tier review where each tier's model can be overridden via provider → model selection (providers and models come from the opencode server catalog: built-in + configured) before applying (rewrites the tier→model mappings in `opencode.jsonc`). The first entry shows the active profile and current tier→model mappings |
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
+| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites). While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
 | `/queue ...` | Queue the next prompt/command/shell while an agent runs — provided by the `opencode-queue` npm plugin (see [Queueing the next prompt](#queueing-the-next-prompt-while-an-agent-runs)) |
@@ -463,6 +464,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `goal.ts` (+ `goal.md`) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) into system prompt (LLM-only, not visible in chat UI) |
 | `deepseek-anchor.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/deepseek-anchor` slash command; manages anchor-based reasoning protocols and DeepSeek model integration |
 | `adr-guard.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — project-level switch (default off). When on: every `feat`/`refactor` commit must include a new/updated ADR — the protocol is injected into the system prompt and `git commit` is hard-blocked when no file under `docs/adr/` is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering) |
+| `project-manager.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` | Registers `/project` slash command (`init` scaffolds baseline files, never overwriting). File-as-switch: while `docs/git-commits.md` exists, a progressive-disclosure pointer (~50 tokens) is injected into the system prompt (agents read the file before committing) and `git commit` messages violating the structural rules (`type(scope): summary`, known type, ≤72-char first line) are hard-blocked; delete the file and both deactivate |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
@@ -491,6 +493,24 @@ Project-config fields (all optional, in the project's `opencode.jsonc`):
   "adrGuardDir": "docs/adr"    // ADR directory
 }
 ```
+
+### Commit discipline (`project-manager`)
+
+Per-project commit-convention enforcement with a **file-as-switch**: no state file, no on/off command — the discipline is active exactly while `docs/git-commits.md` exists.
+
+```text
+/project init       # scaffold baseline files (only when missing, never overwrites):
+                    #   .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
+/project            # help
+```
+
+While `docs/git-commits.md` exists:
+
+- **Soft layer (progressive disclosure)** — a compact pointer (~50 tokens) is injected into the system prompt naming the file; the document itself is never injected. Agents read it before committing; the mechanical gate backstops any commit made without reading it.
+- **Hard layer** — `git commit` is blocked when the message violates the structural subset of Conventional Commits: first line must match `type(scope): summary` with a known type (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`, `style`, `revert`) and stay ≤ 72 characters. `--amend` (per invocation), `Merge`/`Revert`/`fixup!`/`squash!` messages, and commits without an inline message are not gated.
+- Delete the file → both layers deactivate immediately.
+
+Note: the gate enforces the mechanically checkable structure only; the rest of `docs/git-commits.md` is guidance carried by the soft layer.
 
 ### Queueing the next prompt while an agent runs (`opencode-queue`)
 

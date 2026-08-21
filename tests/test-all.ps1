@@ -1,4 +1,4 @@
-# Run all tests sequentially
+﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -139,6 +139,13 @@ $allFiles = @(
     "plugins/adr-guard/adr-guard-tool-guard.ts",
     "plugins/adr-guard/adr-guard-command.ts",
     "plugins/adr-guard/adr-guard-announce.ts",
+    "plugins/project-manager.ts",
+    "plugins/project-manager/project-manager.ts",
+    "plugins/project-manager/project-manager-config.ts",
+    "plugins/project-manager/project-manager-scaffold.ts",
+    "plugins/project-manager/project-manager-command.ts",
+    "plugins/project-manager/project-manager-system-inject.ts",
+    "plugins/project-manager/project-manager-tool-guard.ts",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -226,6 +233,34 @@ Check "adr-guard-protocol.md: forbids type relabeling bypass" ($adrProtocol -mat
 
 $adrBarrel = Get-Content "$PSScriptRoot\..\plugins\adr-guard.ts" -Raw
 Check "adr-guard.ts: barrel re-exports AdrGuardPlugin" ($adrBarrel -match "export.*AdrGuardPlugin")
+
+# Project manager plugin checks (plugins/project-manager/ — file-as-switch commit discipline)
+$pmPlugin = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager.ts" -Raw
+$pmConfig = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-config.ts" -Raw
+$pmScaffold = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-scaffold.ts" -Raw
+$pmInject = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-system-inject.ts" -Raw
+$pmGuard = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-tool-guard.ts" -Raw
+Check "project-manager.ts: imports Plugin type" ($pmPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "project-manager.ts: has config hook registering command" ($pmPlugin -match "config:" -and $pmPlugin -match 'COMMAND_NAME')
+Check "project-manager.ts: has command.execute.before hook" ($pmPlugin -match '"command\.execute\.before"')
+Check "project-manager.ts: has system.transform hook" ($pmPlugin -match "experimental.chat.system.transform")
+Check "project-manager.ts: has tool.execute.before hook" ($pmPlugin -match '"tool\.execute\.before"')
+Check "project-manager.ts: injects project directory" ($pmPlugin -match "setProjectDir\(directory\)")
+Check "project-manager-config.ts: file-as-switch predicate" ($pmConfig -match "hasConventionFile")
+Check "project-manager-config.ts: GIT_COMMITS_REL = docs/git-commits.md" ($pmConfig -match 'GIT_COMMITS_REL = "docs/git-commits\.md"')
+Check "project-manager-scaffold.ts: existence check before write" ($pmScaffold -match "existsSync")
+Check "project-manager-scaffold.ts: documents mechanical enforcement" ($pmScaffold -match "mechanically enforced")
+Check "project-manager-system-inject.ts: progressive disclosure (no full-content injection)" ($pmInject -match "progressive" -and $pmInject -notmatch "readFileSync")
+Check "project-manager-system-inject.ts: line-start marker dedup" ($pmInject -match "MARKER_RE")
+Check "project-manager-system-inject.ts: appends to last entry only" ($pmInject -match "system\.length - 1")
+Check "project-manager-tool-guard.ts: structural validator" ($pmGuard -match "validateMessage")
+Check "project-manager-tool-guard.ts: 72-char first-line cap" ($pmGuard -match "MAX_FIRST_LINE = 72")
+Check "project-manager-tool-guard.ts: reuses adr-guard-runtime parsing" ($pmGuard -match "adr-guard/adr-guard-runtime")
+Check "project-manager-tool-guard.ts: --amend exempt per invocation" ($pmGuard -match "--amend")
+Check "project-manager-tool-guard.ts: merge/revert/fixup/squash exempt" ($pmGuard -match "Merge.*Revert.*fixup.*squash" -or $pmGuard -match "EXEMPT_PREFIX_RE")
+
+$pmBarrel = Get-Content "$PSScriptRoot\..\plugins\project-manager.ts" -Raw
+Check "project-manager.ts: barrel re-exports ProjectManagerPlugin" ($pmBarrel -match "export.*ProjectManagerPlugin")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw

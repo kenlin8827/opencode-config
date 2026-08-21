@@ -361,6 +361,7 @@ bridge 附带的额外能力：
 | `/profile` | 打开弹窗选择器：列出所有可用的模型服务商预设（活跃项带标记）；选中预设后进入层级审阅，可逐个 tier 通过 provider → model 选择修改模型再应用（provider/模型列表来自 opencode 服务目录：内置 + 已配置），重写 `opencode.jsonc` 中的层级→模型映射。首个条目用于查看当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
+| `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queue ...` | 在智能体运行时排队下一条提示/命令/Shell —— 由 `opencode-queue` 这个 npm 插件提供（详见 [排队下一条提示](#排队下一条提示（opencode-queue）)） |
@@ -436,6 +437,7 @@ bridge 附带的额外能力：
 | `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
 | `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
+| `project-manager.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` | 注册 `/project` 斜杠命令（`init` 脚手架生成基线文件，绝不覆盖）。文件即开关：`docs/git-commits.md` 存在期间，向 system prompt 注入渐进式披露指针（约 50 token，智能体提交前自行读取该文件），并硬阻断违反结构规则的 `git commit` 消息（`type(scope): summary` 格式、已知 type、首行 ≤72 字符）；删除文件即双层失效 |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。
@@ -464,6 +466,24 @@ bridge 附带的额外能力：
   "adrGuardDir": "docs/adr"    // ADR 目录
 }
 ```
+
+### 提交纪律（`project-manager`）
+
+按项目的提交规范强制机制，采用**文件即开关**：无状态文件、无 on/off 命令——`docs/git-commits.md` 存在即生效。
+
+```text
+/project init       # 脚手架生成基线文件（仅当缺失时创建，绝不覆盖）：
+                    #   .opencode/opencode.jsonc、docs/git-commits.md、AGENTS.md
+/project            # 帮助
+```
+
+`docs/git-commits.md` 存在期间：
+
+- **软层（渐进式披露）** —— 仅向 system prompt 注入紧凑指针（约 50 token）指明文件位置；文档全文绝不进上下文。智能体提交前自行读取；机械门控为未读先提交兜底。
+- **硬层** —— 当 commit message 违反 Conventional Commits 的可机械校验子集时阻断 `git commit`：首行须匹配 `type(scope): summary`（type 限 feat、fix、refactor、docs、test、chore、perf、ci、build、style、revert）且 ≤ 72 字符。`--amend`（逐次判定）、`Merge`/`Revert`/`fixup!`/`squash!` 消息、无内联 message 的提交不受限。
+- 删除文件 → 双层立即失效。
+
+注意：门控只强制机械可校验的结构；`docs/git-commits.md` 的其余内容由软层引导。
 
 ### 排队下一条提示（`opencode-queue`）
 
