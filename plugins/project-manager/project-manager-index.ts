@@ -7,6 +7,9 @@
  *                      `codegraph init`    (one-time; watcher keeps it fresh)
  *                      `gitnexus analyze`  (initial build when the index is
  *                                          missing entirely)
+ *                      dbhub.toml          scaffolded per project (never
+ *                                          overwritten) when the dbhub MCP
+ *                                          is enabled AND its CLI is on PATH
  *   /project index → manual rebuild/refresh, only for indexes that already
  *                    exist (a first index is init's job):
  *                      `codegraph sync`    incremental catch-up for changes
@@ -27,6 +30,7 @@ import { execSync, spawn } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
+import { DBHUB_TOML_REL, writeDbhubToml } from "./project-manager-scaffold"
 
 // ─── Probes ──────────────────────────────────────────────────────────
 
@@ -69,6 +73,18 @@ function gitnexusCliInstalled(): boolean {
   return false
 }
 
+/** dbhub has no `--version`/`--help` (every invocation demands a database
+ * config), so probe PATH presence instead — `where.exe` finds npm-global
+ * .cmd shims on Windows, `command -v` elsewhere. */
+function dbhubCliInstalled(): boolean {
+  const probe = process.platform === "win32" ? "where.exe dbhub" : "command -v dbhub"
+  try {
+    execSync(probe, { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
+    return true
+  } catch { /* not installed or not on PATH */ }
+  return false
+}
+
 /** Index state of .gitnexus/ vs HEAD — same staleness rule as the profiler:
  * any HEAD commit newer than the newest index file marks the index stale. */
 function gitnexusIndexState(root: string): "ready" | "stale" | "missing" {
@@ -99,12 +115,16 @@ export interface BackendProbe {
   gitnexusEnabled: boolean
   gitnexusCli: boolean
   gitnexusIndex: "ready" | "stale" | "missing"
+  dbhubEnabled: boolean
+  dbhubCli: boolean
+  dbhubToml: boolean
 }
 
 /** Probe both backends for the given project root (sync, cheap). */
 export function probeBackends(root: string): BackendProbe {
   const cgEnabled = mcpEnabled("codegraph")
   const gnEnabled = mcpEnabled("gitnexus")
+  const dhEnabled = mcpEnabled("dbhub")
   return {
     codegraphEnabled: cgEnabled,
     codegraphCli: cgEnabled && codegraphCliInstalled(),
@@ -112,16 +132,20 @@ export function probeBackends(root: string): BackendProbe {
     gitnexusEnabled: gnEnabled,
     gitnexusCli: gnEnabled && gitnexusCliInstalled(),
     gitnexusIndex: gnEnabled ? gitnexusIndexState(root) : "missing",
+    dbhubEnabled: dhEnabled,
+    dbhubCli: dhEnabled && dbhubCliInstalled(),
+    dbhubToml: existsSync(join(root, DBHUB_TOML_REL)),
   }
 }
 
 // ─── Planner (pure — unit-tested) ────────────────────────────────────
 
-export type BackendKind = "codegraph" | "gitnexus"
+export type BackendKind = "codegraph" | "gitnexus" | "dbhub"
 
 export interface BackendPlan {
   backend: BackendKind
-  /** Command to run in the project root; null → nothing to run. */
+  /** Command to run in the project root; null → nothing to run. dbhub has
+   * no CLI step — its init action is scaffolding dbhub.toml (see scaffold). */
   command: string | null
   /** User-visible explanation of the decision. */
   note: string
@@ -130,7 +154,9 @@ export interface BackendPlan {
 /** First-time init steps for `/project init` — one plan per backend.
  * codegraph: its own one-time init when not indexed yet.
  * gitnexus: the initial index build ONLY when the index is missing entirely
- * (a stale index is a rebuild, handled by `/project index`). */
+ * (a stale index is a rebuild, handled by `/project index`).
+ * dbhub: scaffold dbhub.toml (never overwrite) when the MCP is enabled AND
+ * its CLI is installed — the executor performs the file write, no CLI run. */
 export function planInitBackends(p: BackendProbe): BackendPlan[] {
   const codegraph: BackendPlan = !p.codegraphEnabled
     ? { backend: "codegraph", command: null, note: "disabled in options.jsonc" }
@@ -148,7 +174,15 @@ export function planInitBackends(p: BackendProbe): BackendPlan[] {
         ? { backend: "gitnexus", command: null, note: p.gitnexusIndex === "ready" ? "already indexed" : "stale — rebuild via /project index" }
         : { backend: "gitnexus", command: "gitnexus analyze", note: "initial index build" }
 
-  return [codegraph, gitnexus]
+  const dbhub: BackendPlan = !p.dbhubEnabled
+    ? { backend: "dbhub", command: null, note: "disabled in options.jsonc" }
+    : !p.dbhubCli
+      ? { backend: "dbhub", command: null, note: "CLI not installed" }
+      : p.dbhubToml
+        ? { backend: "dbhub", command: null, note: "dbhub.toml already present" }
+        : { backend: "dbhub", command: null, note: "scaffold dbhub.toml (set the DBHUB_DSN env var)" }
+
+  return [codegraph, gitnexus, dbhub]
 }
 
 /** Rebuild/refresh for `/project index` — only EXISTING indexes are touched
@@ -176,7 +210,9 @@ export function planIndexBackends(p: BackendProbe): BackendPlan[] {
           ? { backend: "gitnexus", command: null, note: "index up to date" }
           : { backend: "gitnexus", command: "gitnexus analyze", note: "rebuilding stale index" }
 
-  return [codegraph, gitnexus]
+  const dbhub: BackendPlan = { backend: "dbhub", command: null, note: "not an index — dbhub.toml is scaffolded by /project init" }
+
+  return [codegraph, gitnexus, dbhub]
 }
 
 // ─── Executor ────────────────────────────────────────────────────────
@@ -198,8 +234,24 @@ export function runBackends(plans: BackendPlan[], root: string): Promise<Backend
   )
 }
 
-/** Run one planned backend command (async, never throws). */
+/** Run one planned backend command (async, never throws). dbhub is special:
+ * its init action is a file scaffold (writeDbhubToml), not a CLI command. */
 function runBackend(plan: BackendPlan, root: string): Promise<BackendResult> {
+  if (plan.backend === "dbhub") {
+    if (!plan.note.startsWith("scaffold")) {
+      return Promise.resolve({ backend: "dbhub", status: "skipped", detail: plan.note })
+    }
+    try {
+      const status = writeDbhubToml(root)
+      return Promise.resolve({
+        backend: "dbhub",
+        status: status === "created" ? "ran" : "skipped",
+        detail: status === "created" ? "dbhub.toml created (set the DBHUB_DSN env var)" : "dbhub.toml already present",
+      })
+    } catch (e) {
+      return Promise.resolve({ backend: "dbhub", status: "failed", detail: String(e) })
+    }
+  }
   if (!plan.command) {
     return Promise.resolve({ backend: plan.backend, status: "skipped", detail: plan.note })
   }

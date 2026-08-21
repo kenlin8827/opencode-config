@@ -13,7 +13,9 @@
  *   - index bootstrap: first-time init (codegraph init, gitnexus analyze
  *     when the index is missing) in `/project init` vs manual refresh of
  *     EXISTING indexes in `/project index` (codegraph sync, gitnexus analyze
- *     only when stale), enabled+CLI AND-gate, mcp.enabled JSONC parsing
+ *     only when stale), enabled+CLI AND-gate, mcp.enabled JSONC parsing;
+ *     dbhub.toml scaffold gated on the dbhub MCP enabled flag AND the
+ *     installed CLI (never overwrites, env-var DSN only)
  *   - announce: session-created suggestion of `/project init` on
  *     uninitialized projects — subagent silence, once-per-run, initialized
  *     projects stay silent
@@ -32,11 +34,12 @@ import {
   parseSubcommand,
   setProjectDir,
 } from "../plugins/project-manager/project-manager-config"
-import { runInit } from "../plugins/project-manager/project-manager-scaffold"
+import { runInit, writeDbhubToml } from "../plugins/project-manager/project-manager-scaffold"
 import {
   mcpEnabledFrom,
   planIndexBackends,
   planInitBackends,
+  probeBackends,
   type BackendProbe,
 } from "../plugins/project-manager/project-manager-index"
 import { makeSystemHook, MARKER } from "../plugins/project-manager/project-manager-system-inject"
@@ -273,11 +276,14 @@ function probe(overrides: Partial<BackendProbe>): BackendProbe {
     gitnexusEnabled: true,
     gitnexusCli: true,
     gitnexusIndex: "missing",
+    dbhubEnabled: true,
+    dbhubCli: true,
+    dbhubToml: false,
     ...overrides,
   }
 }
 
-function planFor(plans: ReturnType<typeof planInitBackends>, backend: "codegraph" | "gitnexus") {
+function planFor(plans: ReturnType<typeof planInitBackends>, backend: "codegraph" | "gitnexus" | "dbhub") {
   return plans.find((p) => p.backend === backend)!
 }
 
@@ -294,6 +300,32 @@ function test08_IndexPlanning() {
   assert(planFor(planInitBackends(probe({ gitnexusCli: false })), "gitnexus").command === null, "gitnexus CLI missing → skipped, never invoked")
   assert(planFor(planInitBackends(probe({ codegraphEnabled: false })), "codegraph").command === null, "codegraph disabled → no run even with CLI")
   assert(planFor(planInitBackends(probe({ gitnexusEnabled: false })), "gitnexus").command === null, "gitnexus disabled → no run even with CLI")
+
+  // dbhub.toml scaffold — gated on enabled flag + installed CLI, never overwrites.
+  assert(planFor(planInitBackends(probe({})), "dbhub").note.startsWith("scaffold"), "init plans dbhub.toml scaffold when enabled + CLI + missing")
+  assert(planFor(planInitBackends(probe({ dbhubEnabled: false })), "dbhub").note.includes("disabled"), "dbhub disabled → no scaffold")
+  assert(planFor(planInitBackends(probe({ dbhubCli: false })), "dbhub").note.includes("CLI not installed"), "dbhub CLI missing → skipped silently")
+  assert(!planFor(planInitBackends(probe({ dbhubCli: false })), "dbhub").note.startsWith("scaffold"), "dbhub CLI missing → never scaffolds")
+  assert(planFor(planInitBackends(probe({ dbhubToml: true })), "dbhub").note.includes("already present"), "dbhub.toml exists → no scaffold")
+  assert(planFor(planIndexBackends(probe({})), "dbhub").note.includes("/project init"), "index never scaffolds dbhub.toml")
+
+  // writeDbhubToml — creates with env-var DSN, preserves existing content.
+  const dirDb = mkdtempSync(join(tmpdir(), "pm-dbh-"))
+  assert(writeDbhubToml(dirDb) === "created", "first call creates dbhub.toml")
+  const toml = readFileSync(join(dirDb, "dbhub.toml"), "utf-8")
+  assert(toml.includes("${DBHUB_DSN}"), "template uses env-var DSN (no credentials)")
+  assert(toml.includes("readonly = true"), "execute_sql stays read-only")
+  assert(writeDbhubToml(dirDb) === "skipped", "second call never overwrites")
+  writeFileSync(join(dirDb, "dbhub.toml"), "CUSTOM", "utf-8")
+  assert(writeDbhubToml(dirDb) === "skipped", "custom dbhub.toml preserved")
+  assert(readFileSync(join(dirDb, "dbhub.toml"), "utf-8") === "CUSTOM", "custom content untouched")
+  rmSync(dirDb, { recursive: true, force: true })
+
+  // probeBackends reports the dbhub fields (enabled from config, CLI on PATH, toml presence).
+  const pb = probeBackends(projectDir)
+  assert(typeof pb.dbhubEnabled === "boolean", "probe reports dbhubEnabled")
+  assert(typeof pb.dbhubCli === "boolean", "probe reports dbhubCli")
+  assert(pb.dbhubToml === false, "probe reports missing dbhub.toml")
 
   // `/project index` is manual refresh of EXISTING indexes only.
   assert(planFor(planIndexBackends(probe({ codegraphIndexed: true })), "codegraph").command === "codegraph sync", "codegraph indexed → incremental sync")
@@ -325,6 +357,7 @@ async function test09_Announce() {
   const probeFull: BackendProbe = {
     codegraphEnabled: true, codegraphCli: true, codegraphIndexed: false,
     gitnexusEnabled: true, gitnexusCli: true, gitnexusIndex: "missing",
+    dbhubEnabled: true, dbhubCli: true, dbhubToml: false,
   }
   const msg = suggestInitMessage(["AGENTS.md"], probeFull)
   assert(msg.includes("/project init"), "message names the command")

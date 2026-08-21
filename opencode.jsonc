@@ -95,7 +95,7 @@
     //   readonly = true
     "dbhub": {
       "type": "local",
-      "command": ["dbhub", "--transport", "stdio"],
+      "command": ["dbhub", "--transport", "stdio", "--config", "./dbhub.toml"],
       "install": "npm install -g @bytebase/dbhub",
       "enabled": false
     }

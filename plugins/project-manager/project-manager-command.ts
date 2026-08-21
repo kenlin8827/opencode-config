@@ -6,7 +6,9 @@
  *   /project init   → scaffold missing baseline files (never overwrites),
  *                     then run every FIRST-TIME backend init step, each only
  *                     when its CLI is installed + enabled:
- *                     `codegraph init`, `gitnexus analyze` (initial build)
+ *                     `codegraph init`, `gitnexus analyze` (initial build),
+ *                     dbhub.toml scaffold (only when the dbhub MCP is
+ *                     enabled AND its CLI is installed)
  *   /project index  → manual rebuild/refresh for existing indexes:
  *                     `codegraph sync` (incremental catch-up) and
  *                     `gitnexus analyze` when the index is stale
@@ -44,6 +46,10 @@ Usage:
                     skipped silently, never invoked):
                       codegraph init    one-time; watcher keeps it fresh
                       gitnexus analyze  initial index build (index missing)
+                      dbhub.toml        scaffolded when the dbhub MCP is
+                                        enabled and its CLI is installed
+                                        (never overwrites; set the DBHUB_DSN
+                                        env var afterwards)
 - /project index  → manual rebuild/refresh for EXISTING indexes (a first
                     index is init's job):
                       codegraph sync    incremental catch-up (watcher covers
