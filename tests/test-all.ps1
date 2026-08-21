@@ -139,6 +139,11 @@ $allFiles = @(
     "plugins/adr-guard/adr-guard-tool-guard.ts",
     "plugins/adr-guard/adr-guard-command.ts",
     "plugins/adr-guard/adr-guard-announce.ts",
+    "plugins/env-guard.ts",
+    "plugins/env-guard/env-guard.ts",
+    "plugins/env-guard/env-guard-config.ts",
+    "plugins/env-guard/env-guard-runtime.ts",
+    "plugins/env-guard/env-guard-tool-guard.ts",
     "plugins/project-manager.ts",
     "plugins/project-manager/project-manager.ts",
     "plugins/project-manager/project-manager-config.ts",
@@ -233,6 +238,27 @@ Check "adr-guard-protocol.md: forbids type relabeling bypass" ($adrProtocol -mat
 
 $adrBarrel = Get-Content "$PSScriptRoot\..\plugins\adr-guard.ts" -Raw
 Check "adr-guard.ts: barrel re-exports AdrGuardPlugin" ($adrBarrel -match "export.*AdrGuardPlugin")
+
+# Env guard plugin checks (plugins/env-guard/ — project-level switch, secret-file gate)
+$egPlugin = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard.ts" -Raw
+$egConfig = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-config.ts" -Raw
+$egRuntime = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-runtime.ts" -Raw
+$egGuard = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-tool-guard.ts" -Raw
+Check "env-guard.ts: imports Plugin type" ($egPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "env-guard.ts: has tool.execute.before hook" ($egPlugin -match '"tool\.execute\.before"')
+Check "env-guard.ts: injects project directory" ($egPlugin -match "setProjectDir\(directory\)")
+Check "env-guard-config.ts: project-level state file" ($egConfig -match '\.opencode.*\.env-guard')
+Check "env-guard-config.ts: default state is off" ($egConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "env-guard-config.ts: config field envGuard" ($egConfig -match "envGuard")
+Check "env-guard-runtime.ts: exempts .env.example" ($egRuntime -match '\.env\.example')
+Check "env-guard-runtime.ts: bash leak detection" ($egRuntime -match "bashLeaksEnv")
+Check "env-guard-tool-guard.ts: gates file tools" ($egGuard -match "multiedit")
+Check "env-guard-tool-guard.ts: gates grep tool" ($egGuard -match '"grep"')
+Check "env-guard-tool-guard.ts: gates bash via leak detection" ($egGuard -match "bashLeaksEnv")
+Check "env-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($egGuard -match "adr-guard/adr-guard-runtime")
+
+$egBarrel = Get-Content "$PSScriptRoot\..\plugins\env-guard.ts" -Raw
+Check "env-guard.ts: barrel re-exports EnvGuardPlugin" ($egBarrel -match "export.*EnvGuardPlugin")
 
 # Project manager plugin checks (plugins/project-manager/ — file-as-switch commit discipline)
 $pmPlugin = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager.ts" -Raw

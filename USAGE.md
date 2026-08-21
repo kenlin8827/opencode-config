@@ -465,6 +465,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `goal.ts` (+ `goal.md`) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) into system prompt (LLM-only, not visible in chat UI) |
 | `deepseek-anchor.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/deepseek-anchor` slash command; manages anchor-based reasoning protocols and DeepSeek model integration |
 | `adr-guard.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — project-level switch (default off). When on: every `feat`/`refactor` commit must include a new/updated ADR — the protocol is injected into the system prompt and `git commit` is hard-blocked when no file under `docs/adr/` is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering) |
+| `env-guard.ts` (+ helpers) | `tool.execute.before` | Secret-file gate — project-level switch (default off). When on: blocks agent reads/copies of secret-bearing `.env*` files (file tools, grep, bash read verbs, stdin redirection, copy-out) before execution; `.env.example` always allowed |
 | `project-manager.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/project` slash command (`init` scaffolds baseline files, never overwriting, and runs first-time backend init; `index` manually refreshes existing indexes). On a new top-level session in an uninitialized project, suggests `/project init` once (user-visible only, no LLM context). File-as-switch: while `docs/git-commits.md` exists, a progressive-disclosure pointer (~50 tokens) is injected into the system prompt (agents read the file before committing) and `git commit` messages violating the structural rules (`type(scope): summary`, known type, ≤72-char first line) are hard-blocked; delete the file and both deactivate |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
@@ -494,6 +495,25 @@ Project-config fields (all optional, in the project's `opencode.jsonc`):
   "adrGuardDir": "docs/adr"    // ADR directory
 }
 ```
+
+### Secret file guard (`env-guard`)
+
+Optional per-project gate keeping secret-bearing env files out of the LLM context. The switch is **project-level** and defaults to off:
+
+```text
+# enable for this project (either one)
+echo on > <project>/.opencode/.env-guard
+# or add "envGuard": "on" to the project's opencode.jsonc
+```
+
+When on, `tool.execute.before` blocks:
+
+- File tools (read/edit/write/patch/multiedit) and the grep tool targeting `.env`, `.env.local`, `.env.production`, …
+- bash/shell commands that read a sensitive `.env` file into output (`cat`, `grep`, `Get-Content`, …), redirect one into stdin (`< .env`), or copy one out to another path (`cp .env out`)
+
+Always allowed: `.env.example` (the sanctioned scaffold), `cp .env.example .env`, non-reading verbs (`touch`, `ls`, `rm`, `git`). The block message points to safe alternatives, including `npx envsitter keys` for inspecting key names without values.
+
+Known boundary (same posture as adr-guard): subshell wrappers (`bash -c '...'`), command substitution, and glob references (`*.env`) are not inspected — the guard is a hard wall on the common paths, not a formal sandbox.
 
 ### Commit discipline (`project-manager`)
 

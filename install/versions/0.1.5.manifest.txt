@@ -52,6 +52,11 @@ plugins/deepseek-anchor/deepseek-anchor-command.ts
 plugins/deepseek-anchor/deepseek-anchor-config.ts
 plugins/deepseek-anchor/index.ts
 plugins/design-token-guard.ts
+plugins/env-guard.ts
+plugins/env-guard/env-guard-config.ts
+plugins/env-guard/env-guard-runtime.ts
+plugins/env-guard/env-guard-tool-guard.ts
+plugins/env-guard/env-guard.ts
 plugins/goal.ts
 plugins/goal/goal.md
 plugins/goal/goal.ts

@@ -438,6 +438,7 @@ bridge 附带的额外能力：
 | `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
 | `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
+| `env-guard.ts`（+ 辅助模块） | `tool.execute.before` | 密钥文件门控——项目级开关（默认关闭）。开启后：在执行前阻断智能体对含密钥 `.env*` 文件的读取/拷贝（文件工具、grep、bash 读类动词、stdin 重定向、拷贝外带）；`.env.example` 始终放行 |
 | `project-manager.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/project` 斜杠命令（`init` 脚手架生成基线文件并做后端首次初始化，绝不覆盖；`index` 手动刷新已有索引）。未初始化的项目新建顶层会话时提示一次 `/project init`（仅用户可见，不进 LLM 上下文）。文件即开关：`docs/git-commits.md` 存在期间，向 system prompt 注入渐进式披露指针（约 50 token，智能体提交前自行读取该文件），并硬阻断违反结构规则的 `git commit` 消息（`type(scope): summary` 格式、已知 type、首行 ≤72 字符）；删除文件即双层失效 |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
@@ -467,6 +468,25 @@ bridge 附带的额外能力：
   "adrGuardDir": "docs/adr"    // ADR 目录
 }
 ```
+
+### 密钥文件门控（`env-guard`）
+
+按项目可选的门控，把含密钥的 env 文件挡在 LLM 上下文之外。开关为**项目级**，默认关闭：
+
+```text
+# 对本项目启用（二选一）
+echo on > <project>/.opencode/.env-guard
+# 或在项目 opencode.jsonc 中加 "envGuard": "on"
+```
+
+开启后，`tool.execute.before` 阻断：
+
+- 文件工具（read/edit/write/patch/multiedit）与 grep 工具针对 `.env`、`.env.local`、`.env.production` 等的访问
+- 将敏感 `.env` 文件内容读入输出的 bash/shell 命令（`cat`、`grep`、`Get-Content` 等）、stdin 重定向（`< .env`）、以及把文件拷贝到别处的命令（`cp .env out`）
+
+始终放行：`.env.example`（合法脚手架）、`cp .env.example .env`、不读内容的动词（`touch`、`ls`、`rm`、`git`）。阻断消息会给出安全替代方案，包括 `npx envsitter keys`（只看键名不看值）。
+
+已知边界（与 adr-guard 同一姿态）：子壳包装（`bash -c '...'`）、命令替换、glob 引用（`*.env`）不在机械检测范围——它是常见路径上的硬墙，不是形式化沙箱。
 
 ### 提交纪律（`project-manager`）
 
