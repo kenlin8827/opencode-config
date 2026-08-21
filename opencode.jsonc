@@ -17,9 +17,9 @@
   "plugin": ["@dietrichgebert/ponytail", "opencode-qoder-bridge", "@frankhommers/opencode-smart-title"],
   // Serena: LSP-based semantic code retrieval (symbol-level queries instead of
   // full file reads) — shared by all agents, avoids duplicate file reads.
-  // Prerequisite (one-time):
-  //   uv tool install -p 3.13 serena-agent@latest --prerelease=allow
-  //   uv tool update-shell   # ensure ~/.local/bin is on PATH
+  // CLI provisioning: the install script runs the `install` field automatically
+  // when `serena` is missing from PATH (requires uv; then `uv tool update-shell`
+  // once so ~/.local/bin is on PATH — see the opencode-config install output).
   // Uses the `ide` context: semantic query tools only — file editing stays
   // with the agents' native tools. `--project-from-cwd` activates the project
   // at the current working directory (.serena/project.yml or .git detected).
@@ -29,6 +29,7 @@
     "serena": {
       "type": "local",
       "command": ["serena", "start-mcp-server", "--context", "ide", "--project-from-cwd"],
+      "install": "uv tool install -p 3.13 serena-agent@latest --prerelease=allow",
       "enabled": true
     },
     // CodeGraph (default graph backend): pre-indexed code knowledge graph
@@ -38,13 +39,13 @@
     // Index lifecycle: ONE-TIME manual `codegraph init` per repo (MCP does NOT
     // auto-build a missing index); after that a built-in file watcher keeps it
     // in sync on every save + reconciliation on reconnect — never stale.
-    // Prerequisite:
-    //   npm install -g @colbymchenry/codegraph   (one-time)
-    //   codegraph init                           (per project, ~seconds)
+    // CLI provisioning: the install script runs the `install` field
+    // automatically when `codegraph` is missing (requires npm).
     // "enabled": false to skip.
     "codegraph": {
       "type": "local",
       "command": ["codegraph", "serve", "--mcp"],
+      "install": "npm install -g @colbymchenry/codegraph",
       "enabled": true
     },
     // GitNexus (optional): deeper graph analysis — arbitrary Cypher, Web UI
@@ -54,9 +55,14 @@
     // One MCP server serves every indexed repo (registry ~/.gitnexus/).
     // GITNEXUS_MCP_READ_ONLY=1: read-only graph tools only — edits stay with
     // the agents' native tools. "enabled": true only if licensed + indexed.
+    // `install` is pre-declared but dormant: while "enabled" stays false the
+    // install script skips it; flipping enabled to true makes the next install
+    // provision the CLI automatically (licensing + per-repo `gitnexus analyze`
+    // remain your decision).
     "gitnexus": {
       "type": "local",
       "command": ["gitnexus", "mcp"],
+      "install": "npm install -g gitnexus",
       "env": { "GITNEXUS_MCP_READ_ONLY": "1" },
       "enabled": false
     }

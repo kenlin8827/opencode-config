@@ -73,6 +73,7 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
+| Skip rtk provisioning | add `-NoRtk` | add `--no-rtk` | Skip the rtk download/plugin setup |
 | Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
 | Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
 
@@ -123,6 +124,12 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 | `agent.<name>.model` (per tier) | Your per-tier model assignments |
 
 All other fields come from the repo template. To discard preserved picks, remove `<target>/opencode.jsonc` before reinstalling.
+
+### Token savings (rtk)
+
+Install auto-provisions [rtk](https://github.com/rtk-ai/rtk) — a CLI proxy that compresses command output (git status, test runs, builds, ...) by 60-90% before it reaches the model. No manual steps: if `rtk` is not on PATH, the installer downloads the pinned release into `~/.local/bin` (SHA256-verified, added to the user PATH on Windows when needed), then runs `rtk init -g --opencode` to install rtk's official opencode plugin. Telemetry is disabled after setup.
+
+To opt out entirely: `install -NoRtk` / `install --no-rtk`. To remove afterwards: `rtk init -g --uninstall` and delete `~/.local/bin/rtk(.exe)`.
 
 ---
 
