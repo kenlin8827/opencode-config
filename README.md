@@ -154,7 +154,7 @@ All agents follow `output-protocol.md`:
 - **Layered exposition** — Summary → Key points → Details
 - **Content labeling** — [Fact] / [Inference] / [Assumption]
 - **Decision confirmation** — two-tier: non-blocking (state assumption, proceed) vs blocking (STOP, output options)
-- **Decision mode** — advisor modes `off | lite (default) | full` control `@advisor` consultation on blocking decisions. Toggle via `/auto-advisor off|lite|full` — see "Auto-advisor mode" below
+- **Decision mode** — advisor modes `off (default) | lite | full` control `@advisor` consultation on blocking decisions. Toggle via `/auto-advisor off|lite|full` — see "Auto-advisor mode" below
 - **Verifiable data** — cite `file:line`, show calculation steps
 
 ### 5. Ponytail protocol (shared, coding only, lite mode)
@@ -291,17 +291,17 @@ Output protocol and ponytail apply to ALL agents. Injecting via `instructions` e
 
 | Mode | Behavior |
 |------|----------|
-| **lite** (default) | Dispatch `@advisor`; present BOTH opinions to the user. User decides. |
+| **off** (default) | No auto-dispatch of `@advisor`; orchestrator decides alone. Manual `@advisor` still works. |
+| **lite** | Dispatch `@advisor`; present BOTH opinions to the user. User decides. |
 | **full** | Dispatch `@advisor`; confidence ≥ 8 → auto-execute (max 10/session); < 8 → lite flow. |
-| **off** | No auto-dispatch of `@advisor`; orchestrator decides alone. Manual `@advisor` still works. |
 
-**Toggle**: `/auto-advisor off|lite|full` — the `auto-advisor-mode` plugin writes the state file before the LLM sees the command, so the switch is code-level reliable.
+**Toggle**: `/auto-advisor off|lite|full` — the `auto-advisor-mode` plugin writes the config before the LLM sees the command, so the switch is code-level reliable.
 
-**State file**: `~/.config/opencode/.auto-advisor-mode` (`off`/`lite`/`full`; legacy `advisory`/`decisive` are auto-normalized). Cold start (no state file): `autoAdvisorMode` field in `opencode.jsonc` → env pin to `off` → `lite`.
+**Storage**: the `autoAdvisorMode` field in `opencode.jsonc` — no hidden state file, no env var. Read order: project config (`opencode.jsonc` / `.opencode/opencode.jsonc`) → global config (`~/.config/opencode/opencode.jsonc`) → `off` (default). `/auto-advisor` always writes the field to the project-level config only (comments and other fields preserved); legacy field `advisorMode` / values `advisory` / `decisive` are auto-normalized.
 
 **Four-hook enforcement** (`plugins/auto-advisor-mode.ts` + helpers in `plugins/auto-advisor/`):
 
-1. `command.execute.before` — `/auto-advisor <mode>` writes the state file
+1. `command.execute.before` — `/auto-advisor <mode>` upserts `autoAdvisorMode` in the project `opencode.jsonc`
 2. `experimental.chat.system.transform` — injects the active-mode marker + embedded protocol into every system prompt
 3. `tool.execute.before` — full-mode auto-answer enforcement (blocks question tool when advisor auto-answered); off-mode relies on system prompt soft guard (no auto-dispatch, manual @advisor allowed)
 4. `tool.execute.after` — parses confidence; full mode ≥ 8 gets the auto-execute directive (max 10/session, never on model fallback, never on red-team output)

@@ -431,9 +431,10 @@ The `auto-advisor-mode` plugin writes the state file before the LLM sees the com
 
 ### State persistence
 
-- **State file**: `~/.config/opencode/.auto-advisor-mode` (`off` / `lite` / `full`; legacy `advisory` / `decisive` auto-normalized)
-- **Cold start** (no state file): `autoAdvisorMode` field in `opencode.jsonc` → env pin to `off` → `lite` (default)
-- State persists across sessions and processes
+- **Storage**: the `autoAdvisorMode` field in `opencode.jsonc` — no hidden state file, no env var. Values: `off` / `lite` / `full` (legacy field `advisorMode` and values `advisory` / `decisive` auto-normalized).
+- **Resolution order**: project config (`opencode.jsonc` or `.opencode/opencode.jsonc`) → global config (`~/.config/opencode/opencode.jsonc`) → `off` (default)
+- **Writes are project-level only**: `/auto-advisor <mode>` upserts the field in the project's `opencode.jsonc` (comments and other fields preserved); the global config is never modified
+- The value persists across sessions and processes, scoped per project
 
 ### Red-team stance (adversarial design review)
 
@@ -680,13 +681,13 @@ Set credentials via the `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` environment
 
 ### Auto-advisor mode not switching
 
-Check the state file:
+Check the `autoAdvisorMode` field in the project's `opencode.jsonc` (run from the project root):
 
 ```powershell
-Get-Content "$HOME/.config/opencode/.auto-advisor-mode"
+Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 ```
 
-If missing, the cold-start chain applies: `autoAdvisorMode` in `opencode.jsonc` → env pin to `off` → `lite` (default). Run `/auto-advisor lite` to create the state file.
+If missing at project level, the global `~/.config/opencode/opencode.jsonc` field applies; if neither defines it, the mode is `off` (default). Run `/auto-advisor lite` to write the field into the project config and enable advisor consultation.
 
 ### Plugin type errors
 

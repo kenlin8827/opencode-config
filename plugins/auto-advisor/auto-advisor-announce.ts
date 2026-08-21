@@ -1,7 +1,8 @@
 /**
  * Hook: event — announce the active auto-advisor mode to the user.
  *
- * The mode is persisted in ~/.config/opencode/.auto-advisor-mode and silently
+ * The mode is persisted as `autoAdvisorMode` in the project's opencode.jsonc
+ * and silently
  * survives across sessions; without a visible signal the user can forget
  * full mode is on — and full mode auto-answers on their behalf.
  *

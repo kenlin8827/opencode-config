@@ -178,6 +178,7 @@ export function parseConfidence(text: string): number {
 import { readFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
+import { getProjectDir, stripJsonc } from "./auto-advisor-config"
 
 const CONFIG_DIR_FALLBACK = join(homedir(), ".config", "opencode")
 const CONFIG_FILE_FALLBACK = join(CONFIG_DIR_FALLBACK, "opencode.jsonc")
@@ -187,64 +188,35 @@ const CONFIG_FILE_LEGACY = join(CONFIG_DIR_FALLBACK, "opencode.json")
 let cachedAdvisorModel: string | null | undefined = undefined
 let cachedDefaultModel: string | null | undefined = undefined
 
-/**
- * Strip JSONC comments and trailing commas so we can JSON.parse a .jsonc file.
- * Minimal stripper: removes line comments and block comments while respecting
- * string literals, and removes trailing commas before } or ].
- */
-function stripJsonc(raw: string): string {
-  let result = ""
-  let i = 0
-  const len = raw.length
-  let state: "normal" | "string" | "lineComment" | "blockComment" = "normal"
-  while (i < len) {
-    const c = raw[i]
-    const next = i + 1 < len ? raw[i + 1] : ""
-    switch (state) {
-      case "normal":
-        if (c === '"') { result += c; state = "string" }
-        else if (c === "/" && next === "/") { state = "lineComment"; i++ }
-        else if (c === "/" && next === "*") { state = "blockComment"; i++ }
-        else { result += c }
-        break
-      case "string":
-        result += c
-        if (c === "\\") { i++; if (i < len) result += raw[i] }
-        else if (c === '"') { state = "normal" }
-        break
-      case "lineComment":
-        if (c === "\n") { result += c; state = "normal" }
-        break
-      case "blockComment":
-        if (c === "*" && next === "/") { state = "normal"; i++ }
-        break
-    }
-    i++
-  }
-  return result.replace(/,(\s*[}\]])/g, "$1")
-}
-
 function readAgentModels(): { advisor: string | null; default: string | null } {
   if (cachedAdvisorModel !== undefined && cachedDefaultModel !== undefined) {
     return { advisor: cachedAdvisorModel, default: cachedDefaultModel }
   }
   cachedAdvisorModel = null
   cachedDefaultModel = null
-  for (const path of [CONFIG_FILE_FALLBACK, CONFIG_FILE_LEGACY]) {
+  // Project config first (agent overrides live there), then global config.
+  const dir = getProjectDir()
+  const candidates = [
+    join(dir, "opencode.jsonc"),
+    join(dir, ".opencode", "opencode.jsonc"),
+    CONFIG_FILE_FALLBACK,
+    CONFIG_FILE_LEGACY,
+  ]
+  for (const path of candidates) {
     if (!existsSync(path)) continue
     try {
       const raw = readFileSync(path, "utf-8")
       const cfg = JSON.parse(stripJsonc(raw)) as Record<string, unknown>
       const agents = cfg?.agent as Record<string, Record<string, unknown>> | undefined
-      if (!agents) break
+      if (!agents) continue
       // Find the advisor agent's model (the agent named "advisor").
       const advisorAgent = agents["advisor"]
-      if (advisorAgent?.model && typeof advisorAgent.model === "string") {
+      if (!cachedAdvisorModel && advisorAgent?.model && typeof advisorAgent.model === "string") {
         cachedAdvisorModel = advisorAgent.model
       }
       // Find the default model: either root-level cfg.model, or the first
       // agent with tier "default".
-      if (cfg.model && typeof cfg.model === "string") {
+      if (!cachedDefaultModel && cfg.model && typeof cfg.model === "string") {
         cachedDefaultModel = cfg.model
       }
       if (!cachedDefaultModel) {
@@ -255,7 +227,11 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
           }
         }
       }
-      break
+      // Both models resolved — stop scanning. Breaking on advisor alone
+      // would strand cachedDefaultModel null when the project config only
+      // overrides the advisor agent, disabling the default-model fallback
+      // check in isModelFallback.
+      if (cachedAdvisorModel && cachedDefaultModel) break
     } catch {
       // config parse error — try next file
     }

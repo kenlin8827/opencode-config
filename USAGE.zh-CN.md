@@ -405,9 +405,10 @@ bridge 附带的额外能力：
 
 ### 状态持久化
 
-- **状态文件**：`~/.config/opencode/.auto-advisor-mode`（`off` / `lite` / `full`；旧值 `advisory` / `decisive` 自动归一化）
-- **冷启动**（无状态文件）：`opencode.jsonc` 中的 `autoAdvisorMode` 字段 → 环境锁定为 `off` → `lite`（默认）
-- 状态跨会话和跨进程持久化
+- **存储位置**：`opencode.jsonc` 中的 `autoAdvisorMode` 字段——无隐藏状态文件、无环境变量。取值：`off` / `lite` / `full`（旧字段名 `advisorMode` 和旧值 `advisory` / `decisive` 自动归一化）。
+- **解析顺序**：项目配置（`opencode.jsonc` 或 `.opencode/opencode.jsonc`）→ 全局配置（`~/.config/opencode/opencode.jsonc`）→ `off`（默认）
+- **写入仅限项目级**：`/auto-advisor <mode>` 在项目 `opencode.jsonc` 中更新该字段（保留注释和其他字段）；永远不修改全局配置
+- 取值跨会话和跨进程持久化，作用域为单个项目
 
 ### Red-team 立场（对抗式设计审查）
 
@@ -654,13 +655,13 @@ Invoke via `@<agent-name>` or <keywords>.
 
 ### Auto-advisor 模式不切换
 
-检查状态文件：
+检查项目 `opencode.jsonc` 中的 `autoAdvisorMode` 字段（在项目根目录运行）：
 
 ```powershell
-Get-Content "$HOME/.config/opencode/.auto-advisor-mode"
+Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 ```
 
-如果文件不存在，冷启动链生效：`opencode.jsonc` 中的 `autoAdvisorMode` → 环境锁定为 `off` → `lite`（默认）。运行 `/auto-advisor lite` 来创建状态文件。
+如果项目级没有该字段，则读取全局 `~/.config/opencode/opencode.jsonc` 中的同名字段；两级都没有时为 `off`（默认）。运行 `/auto-advisor lite` 将字段写入项目配置并启用 advisor 咨询。
 
 ### 插件类型错误
 

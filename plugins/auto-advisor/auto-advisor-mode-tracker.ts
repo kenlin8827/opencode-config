@@ -28,10 +28,15 @@ export function makeCommandHook(client: PluginInput["client"], handled: () => ne
     if (input.command !== COMMAND_NAME) return
     const mode = parseModeArg(input.arguments)
     if (!mode) return
-    setMode(mode)
+    const written = setMode(mode)
     clearAutoAnswerCounts()
     clearAutoAnswerSessions()
-    await log("info", `mode=${mode.toUpperCase()} — state file written`)
+    if (written) {
+      await log("info", `mode=${mode.toUpperCase()} — project opencode.jsonc written`)
+    } else {
+      // Read-only project dir or similar — never crash the command hook.
+      await log("warn", `mode=${mode.toUpperCase()} — project config write failed (project dir not writable)`)
+    }
     await announceSwitch(client, mode, input.sessionID)
     return handled()
   }

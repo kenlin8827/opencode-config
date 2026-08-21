@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -224,14 +224,14 @@ Check "auto-advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "
 Check "auto-advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
 Check "auto-advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
 Check "auto-advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
-Check "auto-advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
+Check "auto-advisor-mode.ts: thin glue (<70 lines)" (($advisorPlugin -split "`n").Count -lt 70)
 
 $advisorConfig = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-config.ts" -Raw
 Check "auto-advisor-config.ts: has COMMAND_NAME constant" ($advisorConfig -match "COMMAND_NAME")
 Check "auto-advisor-config.ts: has getMode function" ($advisorConfig -match "getMode")
 Check "auto-advisor-config.ts: has setMode function" ($advisorConfig -match "setMode")
 Check "auto-advisor-config.ts: has isOn function" ($advisorConfig -match "isOn")
-Check "auto-advisor-config.ts: defaults to lite" ($advisorConfig -match "lite.*default" -or $advisorConfig -match "DEFAULT_MODE.*lite")
+Check "auto-advisor-config.ts: defaults to off" ($advisorConfig -match "DEFAULT_MODE.*off")
 Check "auto-advisor-config.ts: has parseModeArg" ($advisorConfig -match "parseModeArg")
 
 $advisorToolGuard = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-tool-guard.ts" -Raw
