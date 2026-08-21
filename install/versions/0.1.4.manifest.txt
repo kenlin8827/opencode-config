@@ -52,6 +52,9 @@ plugins/grill/grill-me.ts
 plugins/grill/grill-with-docs.md
 plugins/grill/grill-with-docs.ts
 plugins/metrics.ts
+plugins/openrtk.ts
+plugins/openrtk/index.ts
+plugins/openrtk/rewrite.ts
 plugins/profile-wizard.ts
 plugins/project-profiler.ts
 plugins/project-profiler/project-profiler.ts

@@ -45,8 +45,9 @@ PRESERVE_KEYS=("baseURL" "apiKey")
 # rtk (https://github.com/rtk-ai/rtk) — CLI proxy that compresses command
 # output before it reaches the LLM (60-90% smaller bash output). Install
 # provisions it out of the box: if the binary is missing it's downloaded
-# into ~/.local/bin (PATH note printed when needed), then
-# `rtk init -g --opencode` installs rtk's official opencode plugin.
+# into ~/.local/bin (PATH note printed when needed). The opencode
+# integration ships in-tree as plugins/openrtk.ts (vendored openrtk) —
+# no `rtk init` step; the official rtk.ts plugin is removed if present.
 RTK_VERSION="0.45.0"
 
 # --- arg parse ----------------------------------------------------------
@@ -265,9 +266,11 @@ merge_providers() {
 }
 
 # Provisions rtk out of the box: download the pinned release into
-# ~/.local/bin when no rtk is on PATH (SHA256-verified), then run
-# `rtk init -g --opencode` so rtk installs its own opencode plugin. Any
-# failure only warns — install itself never fails because of rtk.
+# ~/.local/bin when no rtk is on PATH (SHA256-verified). The opencode hook
+# is the vendored openrtk plugin (plugins/openrtk.ts, shipped with the
+# config copy) — this function only removes a leftover official rtk.ts
+# plugin so commands aren't rewritten twice. Any failure only warns —
+# install itself never fails because of rtk.
 # Requires: curl, tar; sha256 verification uses sha256sum or shasum.
 # NOTE: inlined PATH check (path_contains is defined later in this file).
 ensure_rtk() {
@@ -332,18 +335,14 @@ ensure_rtk() {
     else
         echo "[rtk] binary present: $exe"
     fi
-    # rtk installs its own opencode plugin (tool.execute.before rewrite)
-    "$exe" init -g --opencode --auto-patch 2>&1 | sed 's/^/[rtk] /' || \
-        echo "WARN [rtk] init failed — continuing without rtk" >&2
-    # The official plugin probes `which rtk` — `which` may not exist (native
-    # Windows), which would silently disable the plugin. Swap the probe for a
-    # cross-platform `rtk --version`. Only applied while the file is still
-    # the pristine official template (idempotent). rtk init -g always targets
-    # the default config dir.
-    local rtk_plugin="$HOME/.config/opencode/plugins/rtk.ts"
-    if [[ -f "$rtk_plugin" ]] && grep -qF 'await $`which rtk`' "$rtk_plugin"; then
-        sed -i 's/await \$`which rtk`\.quiet()/await \$`rtk --version`.quiet()/' "$rtk_plugin"
-        echo "[rtk] patched plugin: which rtk -> rtk --version (Windows compat)"
+    # The opencode hook ships in-tree (plugins/openrtk.ts). Remove a
+    # leftover official plugin from a previous `rtk init -g --opencode`
+    # so tool.execute.before doesn't rewrite commands twice. Only files
+    # carrying the official marker are touched — user code stays put.
+    local rtk_plugin="$1/plugins/rtk.ts"
+    if [[ -f "$rtk_plugin" ]] && grep -qF 'RTK OpenCode plugin' "$rtk_plugin"; then
+        rm -f "$rtk_plugin"
+        echo "[rtk] removed official plugin plugins/rtk.ts (replaced by vendored openrtk)"
     fi
     # opt out of telemetry by default — users can re-enable with `rtk telemetry enable`.
     # Probe first: older builds (< ~0.40) have no telemetry subcommand and
@@ -467,7 +466,7 @@ copy_current_files() {
             echo "[cur: $VER] preserved $n field(s) (credentials + models) in opencode.jsonc"
         fi
     fi
-    # provision rtk + its official opencode plugin (warns, never fails)
+    # provision rtk binary + clean up the official plugin (warns, never fails)
     ensure_rtk "$TARGET"
 }
 

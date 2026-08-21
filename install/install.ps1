@@ -135,8 +135,9 @@ $markerRel = '.CONFIG_VERSION'  # active-version marker written into $Target (so
 # rtk (https://github.com/rtk-ai/rtk) — CLI proxy that compresses command
 # output before it reaches the LLM (60-90% smaller bash output). Install
 # provisions it out of the box: if the binary is missing it's downloaded
-# into ~/.local/bin (added to the user PATH when needed), then
-# `rtk init -g --opencode` installs rtk's official opencode plugin.
+# into ~/.local/bin (added to the user PATH when needed). The opencode
+# integration ships in-tree as plugins/openrtk.ts (vendored openrtk) —
+# no `rtk init` step; the official rtk.ts plugin is removed if present.
 $RtkVersion = '0.45.0'
 $RtkSha256  = '34cea9009a8099acdaf85147b971d95f65efabfa63fb3aea7d3e2b73e6f517c3'  # rtk-x86_64-pc-windows-msvc.zip
 
@@ -195,9 +196,10 @@ function Test-ShimOwned([string]$dest) {
 
 # Provisions rtk out of the box: download the pinned release into
 # ~/.local/bin when no rtk is on PATH (SHA256-verified, added to the user
-# PATH when needed), then run `rtk init -g --opencode` so rtk installs its
-# own opencode plugin. Any failure only warns — install itself never fails
-# because of rtk.
+# PATH when needed). The opencode hook is the vendored openrtk plugin
+# (plugins/openrtk.ts, shipped with the config copy) — this function only
+# removes a leftover official rtk.ts plugin so commands aren't rewritten
+# twice. Any failure only warns — install itself never fails because of rtk.
 function Ensure-Rtk([string]$dst) {
     if ($NoRtk) {
         Write-Host '[rtk] skipped (-NoRtk)'
@@ -249,19 +251,16 @@ function Ensure-Rtk([string]$dst) {
         } else {
             Write-Host "[rtk] binary present: $exe"
         }
-        # rtk installs its own opencode plugin (tool.execute.before rewrite)
-        & $exe init -g --opencode --auto-patch 2>&1 | ForEach-Object { Write-Host "[rtk] $_" }
-        # The official plugin probes `which rtk` — `which` doesn't exist on
-        # native Windows, which would silently disable the plugin. Swap the
-        # probe for a cross-platform `rtk --version`. Only applied while the
-        # file is still the pristine official template (idempotent).
-        $rtkPlugin = Join-Path $HOME '.config/opencode/plugins/rtk.ts'  # rtk init -g always targets the default config dir
+        # The opencode hook ships in-tree (plugins/openrtk.ts). Remove a
+        # leftover official plugin from a previous `rtk init -g --opencode`
+        # so tool.execute.before doesn't rewrite commands twice. Only files
+        # carrying the official marker are touched — user code stays put.
+        $rtkPlugin = Join-Path $dst 'plugins/rtk.ts'
         if (Test-Path $rtkPlugin) {
             $content = Get-Content $rtkPlugin -Raw
-            if ($content -match [regex]::Escape('await $`which rtk`.quiet()')) {
-                $content = $content.Replace('await $`which rtk`.quiet()', 'await $`rtk --version`.quiet()')
-                Set-Content -Path $rtkPlugin -Value $content -Encoding UTF8 -NoNewline
-                Write-Host '[rtk] patched plugin: which rtk -> rtk --version (Windows compat)'
+            if ($content -match 'RTK OpenCode plugin') {
+                Remove-Item -LiteralPath $rtkPlugin -Force
+                Write-Host '[rtk] removed official plugin plugins/rtk.ts (replaced by vendored openrtk)'
             }
         }
         # opt out of telemetry by default — users can re-enable with `rtk telemetry enable`.
@@ -712,7 +711,7 @@ switch ($Mode) {
             # Ensure-Mcp below provisions newly enabled entries)
             Set-McpEnabled $Target $EnableMcp $DisableMcp
 
-            # Provision rtk + its official opencode plugin (warns, never fails)
+            # Provision rtk binary + clean up the official plugin (warns, never fails)
             Ensure-Rtk $Target
 
             # Provision MCP CLIs for the `mcp` block (warns, never fails)
