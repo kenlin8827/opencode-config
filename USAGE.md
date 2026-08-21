@@ -73,7 +73,7 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
-| Skip rtk provisioning | add `-NoRtk` | add `--no-rtk` | Skip the rtk binary download |
+| Disable rtk | set `"rtk": false` in `options.jsonc` | same | Skips the binary download and removes the vendored openrtk plugin |
 | Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
 | Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
 
@@ -129,7 +129,7 @@ All other fields come from the repo template. To discard preserved picks, remove
 
 Install auto-provisions [rtk](https://github.com/rtk-ai/rtk) — a CLI proxy that compresses command output (git status, test runs, builds, ...) by 60-90% before it reaches the model. No manual steps: if `rtk` is not on PATH, the installer downloads the pinned release into `~/.local/bin` (SHA256-verified, added to the user PATH on Windows when needed). The opencode hook ships in-tree as the vendored [openrtk](https://github.com/martinstannard/openrtk) plugin (`plugins/openrtk.ts`) — it rewrites shell commands through rtk transparently, no `rtk init` step. A leftover official plugin from a previous `rtk init -g --opencode` is removed automatically. Telemetry is disabled after setup.
 
-To opt out entirely: `install -NoRtk` / `install --no-rtk`. To remove afterwards: delete `plugins/openrtk.ts` (and `plugins/openrtk/`) from the target and `~/.local/bin/rtk(.exe)`.
+To opt out entirely: set `"rtk": false` in `<target>/options.jsonc` (or `install/options.jsonc`) and re-run install — the download is skipped and the vendored openrtk plugin is removed from the target. To remove the binary afterwards: delete `~/.local/bin/rtk(.exe)`.
 
 ---
 

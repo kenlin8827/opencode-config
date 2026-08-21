@@ -10,13 +10,12 @@
 #   ./install/install.sh status         # show installed vs repo
 #   ./install/install.sh install -f     # force reinstall same version
 #   ./install/install.sh install -t DIR # target a different directory
-#   ./install/install.sh install --no-mcp  # skip MCP CLI provisioning
-#   ./install/install.sh install --enable-mcp gitnexus    # enable an MCP
-#   ./install/install.sh install --disable-mcp codegraph  # disable an MCP
+#   Component switches (rtk, MCPs, external plugins) live in
+#   install/options.jsonc — edit the file, then re-run install;
+#   choices survive reinstalls.
 #   ./install/install.sh init           # backup + clear target (fresh start)
 #   ./install/install.sh init --no-backup  # clear without backup
 #   ./install/install.sh init -y        # skip confirmation prompt
-#   ./install/install.sh install --no-rtk  # skip the rtk binary download
 #   ./install/install.sh register       # install global shim to ~/.local/bin
 #   ./install/install.sh unregister     # remove global shim
 #
@@ -38,7 +37,9 @@ BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 
 # Whitelist of runtime paths; nothing else ships.
 # providers/ ships as merge sources: install folds each providers/*.json into
-# opencode.jsonc's `provider` node (see merge_providers).
+# opencode.jsonc's `provider` node (see merge_providers). options.jsonc
+# lives in install/ (NOT in the manifest) and is copied over explicitly (see
+# copy_current_files + apply_options).
 INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
 PRESERVE_KEYS=("baseURL" "apiKey")
 
@@ -55,20 +56,14 @@ MODE="install"
 FORCE=0
 NO_BACKUP=0
 YES=0
-NO_RTK=0
-NO_MCP=0
-ENABLE_MCP=()
-DISABLE_MCP=()
+# rtk decision from options.jsonc (apply_options overrides; 1 = enabled)
+OPT_RTK=1
 while [[ $# -gt 0 ]]; do
     case "$1" in
         generate|status|install|init|register|unregister) MODE="$1"; shift ;;
         -f|--force) FORCE=1; shift ;;
         --no-backup) NO_BACKUP=1; shift ;;
         -y|--yes) YES=1; shift ;;
-        --no-rtk) NO_RTK=1; shift ;;
-        --no-mcp) NO_MCP=1; shift ;;
-        --enable-mcp) ENABLE_MCP+=("$2"); shift 2 ;;
-        --disable-mcp) DISABLE_MCP+=("$2"); shift 2 ;;
         -t|--target) TARGET="$2"; shift 2 ;;
         --bin-dir) BIN_DIR="$2"; shift 2 ;;
         -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
@@ -159,16 +154,27 @@ copy_manifest_files() {
     unset cp_from cp_to cp_label cp_src cp_dst
 }
 
-# snapshots user state from the target's existing opencode.jsonc before the
-# copy overwrites it: provider credentials, root model, and per-tier model
-# refs (agents of a tier share one ref — same tier semantics as the
-# /profile plugin).
-# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...}, mcpEnabled: {...}}
+# snapshots user state from the target before the copy overwrites it:
+# provider credentials, root model, and per-tier model refs (agents of a
+# tier share one ref — same tier semantics as the /profile plugin), plus
+# the options.jsonc switches (mcp + external plugins).
+# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...},
+# mcpEnabled: {...}, options: {...}|null}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
-    [[ -f "$rp_f" ]] || { unset rp_f; return 0; }
+    # fresh target: emit the empty bag so callers can --argjson it unconditionally
+    [[ -f "$rp_f" ]] || { echo '{"creds":[],"rootModel":null,"tiers":{},"mcpEnabled":{},"options":null}'; unset rp_f; return 0; }
+    # snapshot the user's option switches before the shipped copy lands
+    # (tr -d '\r': Windows-edited files are CRLF and jq chokes on that)
+    rp_comp='null'
+    if [[ -f "$1/options.jsonc" ]]; then
+        rp_comp="$(grep -v '^[[:space:]]*//' "$1/options.jsonc" | tr -d '\r' | jq -c '.' 2>/dev/null || echo null)"
+        if [[ "$rp_comp" == "null" ]]; then
+            echo "WARN [options] cannot parse installed options.jsonc — user switches not preserved" >&2
+        fi
+    fi
     # strip comment lines so plain jq can parse the JSONC
-    grep -v '^[[:space:]]*//' "$rp_f" | jq -c '
+    grep -v '^[[:space:]]*//' "$rp_f" | jq -c --argjson comp "$rp_comp" '
         {
           creds: [ .provider // {} | to_entries[] as $p |
                    ($p.value.options // {}) | to_entries[] |
@@ -179,13 +185,16 @@ read_preserve() {
                     select((.value.tier // null) != null and (.value.model // null) != null) |
                     {(.value.tier): .value.model} ] | add // {}),
           mcpEnabled: ((.mcp // {}) | with_entries(.value |= .enabled)
-                       | with_entries(select(.value != null)))
+                       | with_entries(select(.value != null))),
+          options: $comp
         }
-    ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{},"mcpEnabled":{}}'
-    unset rp_f
+    ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{},"mcpEnabled":{},"options":null}'
+    unset rp_f rp_comp
 }
 
-# restores preserved credentials + model picks into the freshly-copied opencode.jsonc
+# restores preserved credentials + model picks into the freshly-copied opencode.jsonc.
+# mcp switches are NOT restored here — apply_options owns them via
+# options.jsonc (bag.mcpEnabled only seeds the migration path).
 # reads the JSON object from stdin
 restore_preserve() {
     rp_dst="$1"
@@ -209,8 +218,6 @@ restore_preserve() {
                  (.value.tier // "") as $tier
                  | if ($t | has($tier)) then .value.model = $t[$tier] else . end)
            else . end)
-        | reduce (($b[0].mcpEnabled // {}) | to_entries[]) as $m (.;
-            if ((.mcp // {}) | has($m.key)) then .mcp[$m.key].enabled = $m.value else . end)
     ' "$rp_f" | style_json > "$rp_tmp"
     mv "$rp_tmp" "$rp_f"
     rm -f "$rp_bag_file"
@@ -221,12 +228,17 @@ restore_preserve() {
 # entry on one line, mirroring providers/*.json and the hand-written
 # opencode.jsonc — plain jq expands each model into ~15 lines.
 # Trick: jq stringifies model entries (tojson), pretty-prints, then awk
-# strips the string wrapper back off exactly those lines.
+# strips the string wrapper back off exactly those lines. Wrapper detection
+# uses index() instead of a regex: mawk/busybox awk interpret `\\"` inside
+# a bracket/escaped pattern differently, which silently ate the key's
+# closing quote and corrupted the output.
 style_json() {
     jq '.provider |= with_entries(.value.models? |= with_entries(.value |= tojson))' \
     | awk '
-        /^[[:space:]]*"[^"]+": "\{\\".*\}"[,]?$/ {
-            sub(/": "\{/ , ": {")
+        index($0, "\": \"{\\\"") > 0 && $0 ~ /}"[,]?$/ {
+            # strip only the string-wrapper quotes (the old sub(/": "\{/)
+            # variant also ate the closing quote of the key, corrupting output)
+            sub(/"\{/, "{")
             if (!sub(/}",$/, "},")) sub(/}"$/, "}")
             gsub(/\\"/, "\"")
             # re-add the spaces the repo style uses ({ "name": "...", ... })
@@ -277,8 +289,13 @@ ensure_rtk() {
     rtk_path_ok() {
         local IFS=':' d; for d in $PATH; do [[ "$d" == "$1" ]] && return 0; done; return 1
     }
-    if [[ $NO_RTK -eq 1 ]]; then
-        echo "[rtk] skipped (--no-rtk)"
+    if [[ $OPT_RTK -eq 0 ]]; then
+        # switched off in options.jsonc: the binary download is skipped AND
+        # the vendored openrtk plugin leaves the target, so opencode no
+        # longer rewrites commands through a (possibly absent) rtk
+        rm -f "$1/plugins/openrtk.ts"
+        rm -rf "$1/plugins/openrtk"
+        echo "[rtk] disabled (options.jsonc) — removed vendored openrtk plugin"
         return 0
     fi
     local exe home_bin="$HOME/.local/bin"
@@ -362,10 +379,6 @@ ensure_rtk() {
 # managers or install failures only warn — opencode degrades to grep/glob.
 # Never fails the install itself.
 ensure_mcp() {
-    if [[ $NO_MCP -eq 1 ]]; then
-        echo "[mcp] skipped (--no-mcp)"
-        return 0
-    fi
     local cfg="$TARGET/opencode.jsonc"
     [[ -f "$cfg" ]] || return 0
     local rows
@@ -402,36 +415,84 @@ ensure_mcp() {
     return 0
 }
 
-# Flips mcp.<name>.enabled in the target opencode.jsonc per --enable-mcp /
-# --disable-mcp (repeatable). Runs AFTER restore_preserve so explicit flags
-# win over preserved state; the new state is then preserved by future
-# reinstalls. Unknown entry names only warn. ensure_mcp runs afterwards and
-# provisions newly enabled entries.
-apply_mcp_flags() {
-    if [[ ${#ENABLE_MCP[@]} -eq 0 && ${#DISABLE_MCP[@]} -eq 0 ]]; then
+# Applies options.jsonc — the single source of truth for which MCPs and
+# external plugins are active — onto the target opencode.jsonc:
+#   mcp.<name>    → mcp.<name>.enabled
+#   plugin.<name> → membership in the `plugin` array
+# The shipped options.jsonc was just copied over the target, so first
+# re-merge the user's pre-install choices (snapshot in $preserve_bag) on top
+# of it — user wins, new entries keep shipped defaults; a pre-options
+# install migrates its preserved mcp flags in as seeds. Switches for entries
+# a newer template dropped are dropped too; entries a newer template ADDED
+# default to enabled and are picked up into options.jsonc. Runs AFTER
+# restore_preserve (options.jsonc wins over any preserved opencode.jsonc
+# flags); ensure_mcp afterwards provisions newly enabled CLIs. The merged
+# state goes back to options.jsonc so it survives future reinstalls.
+apply_options() {
+    local cfg="$TARGET/opencode.jsonc" comp="$TARGET/options.jsonc"
+    [[ -f "$comp" && -f "$cfg" ]] || return 0
+    local merged disc tmp summary bag_json comp_json
+    # merge shipped defaults + user snapshot (user wins; seed mcp from
+    # preserved flags when upgrading from a pre-options install).
+    # Preprocess through grep/tr instead of --slurpfile: jq chokes on CRLF
+    # line endings (Windows-edited options.jsonc), and comment lines must go.
+    bag_json="$(tr -d '\r' < "$preserve_bag")"
+    comp_json="$(grep -v '^[[:space:]]*//' "$comp" | tr -d '\r')" || return 0
+    merged="$(jq -n --argjson b "$bag_json" --argjson s "$comp_json" '
+        ($b.options // null) as $user
+        | ($b.mcpEnabled // {}) as $mig
+        | {
+            mcp: (($s.mcp // {}) +
+                  (if $user != null then ($user.mcp // {})
+                   elif ($mig | length) > 0 then $mig else {} end)),
+            plugin: (($s.plugin // {}) +
+                     (if $user != null then ($user.plugin // {}) else {} end)),
+            rtk: (if $user != null and ($user | has("rtk")) then ($user.rtk != false)
+                  else ($s.rtk != false) end)
+          }
+    ' 2>/dev/null)" || { echo "WARN [options] cannot parse options.jsonc — skipping" >&2; return 0; }
+    # drop stale user switches for entries a newer template removed, so a
+    # removed component stays gone instead of being resurrected later
+    disc="$(grep -v '^[[:space:]]*//' "$REPO_ROOT/opencode.jsonc" | jq -c '{m: [(.mcp // {}) | keys[]], p: (.plugin // [])}' 2>/dev/null)" || disc='{"m":null,"p":null}'
+    merged="$(jq -c --argjson t "$disc" '
+        if ($t.m != null) then .mcp |= with_entries(.key as $k | select($t.m | index($k) != null)) else . end
+        | if ($t.p != null) then .plugin |= with_entries(.key as $k | select($t.p | index($k) != null)) else . end
+    ' <<< "$merged")"
+    # pick up entries a newer template ADDED but options.jsonc lacks
+    disc="$(grep -v '^[[:space:]]*//' "$cfg" | jq -c '{m: [(.mcp // {}) | keys[]], p: (.plugin // [])}' 2>/dev/null)" || disc='{"m":[],"p":[]}'
+    merged="$(jq -c --argjson d "$disc" '
+        .mcp as $m | .plugin as $p
+        | .mcp += (([ $d.m[] | . as $k | select(($m | has($k)) | not) | {($k): true} ]) | add // {})
+        | .plugin += (([ $d.p[] | . as $k | select(($p | has($k)) | not) | {($k): true} ]) | add // {})
+    ' <<< "$merged")"
+    printf '%s\n' "$merged" | jq '.' > "$comp"
+    # export the rtk decision for ensure_rtk (runs right after this)
+    if [[ "$(jq -r '.rtk' <<< "$merged")" == "true" ]]; then OPT_RTK=1; else OPT_RTK=0; fi
+    # apply onto opencode.jsonc: mcp.<name>.enabled + plugin array membership
+    tmp="$(mktemp)"
+    grep -v '^[[:space:]]*//' "$cfg" | jq --argjson c "$merged" '
+        ($c.mcp // {}) as $cm | ($c.plugin // {}) as $cp
+        | .mcp = ((.mcp // {}) | with_entries(
+            # inside with_entries `.` is the {key,value} entry — the flag
+            # lives on .value.enabled
+            .key as $k | if $cm[$k] != null then .value.enabled = $cm[$k] else . end))
+        | .plugin = (
+            ((.plugin // []) | map(select($cp[.] != false))) as $kept
+            | $kept + ([ $cp | to_entries[] | select(.value != false)
+                         | .key as $k | select(($kept | index($k)) == null) | $k ])
+          )
+    ' | style_json > "$tmp" || true
+    # never clobber the config with an empty/broken file when jq aborted
+    if jq -e '.' "$tmp" >/dev/null 2>&1; then
+        mv "$tmp" "$cfg"
+    else
+        rm -f "$tmp"
+        echo "WARN [options] failed to apply switches to opencode.jsonc" >&2
         return 0
     fi
-    local cfg="$TARGET/opencode.jsonc"
-    [[ -f "$cfg" ]] || return 0
-    local en dis n tmp
-    en="$(printf '%s\n' "${ENABLE_MCP[@]}" | jq -R . | jq -s 'map(select(length > 0))')"
-    dis="$(printf '%s\n' "${DISABLE_MCP[@]}" | jq -R . | jq -s 'map(select(length > 0))')"
-    for n in "${ENABLE_MCP[@]}" "${DISABLE_MCP[@]}"; do
-        if ! grep -v '^[[:space:]]*//' "$cfg" | jq -e --arg n "$n" '(.mcp // {}) | has($n)' >/dev/null 2>&1; then
-            echo "WARN [mcp] unknown entry '$n' — flag ignored" >&2
-        fi
-    done
-    tmp="$(mktemp)"
-    grep -v '^[[:space:]]*//' "$cfg" | jq --argjson en "$en" --argjson dis "$dis" '
-        .mcp |= with_entries(
-            if ($en | index(.key)) then .value.enabled = true
-            elif ($dis | index(.key)) then .value.enabled = false
-            else . end)
-    ' | style_json > "$tmp"
-    mv "$tmp" "$cfg"
-    for n in "${ENABLE_MCP[@]}"; do echo "[mcp] enabled: $n"; done
-    for n in "${DISABLE_MCP[@]}"; do echo "[mcp] disabled: $n"; done
-    unset cfg en dis n tmp
+    summary="$(jq -r '"mcp: \([.mcp[]? | select(. == true)] | length) on / \([.mcp[]? | select(. != true)] | length) off; plugins: \([.plugin[]? | select(. == true)] | length) on / \([.plugin[]? | select(. != true)] | length) off; rtk: \(if .rtk == false then "off" else "on" end)"' <<< "$merged")"
+    echo "[options] applied options.jsonc ($summary)"
+    unset cfg comp merged disc tmp summary bag_json comp_json
 }
 
 # --- install orchestration ----------------------------------------------
@@ -458,6 +519,12 @@ copy_current_files() {
     # fold shipped providers/*.json into the `provider` node before the
     # preserve-restore, so user credentials override {env:...} placeholders
     merge_providers "$TARGET"
+    # options.jsonc ships with the installer, not the manifest — copy the
+    # shipped defaults over the target; apply_options re-merges the user
+    # snapshot (taken before removal) on top afterwards
+    if [[ -f "$SCRIPT_DIR/options.jsonc" ]]; then
+        cp "$SCRIPT_DIR/options.jsonc" "$TARGET/options.jsonc"
+    fi
     # restore the snapshot taken before removal (only if there is anything)
     if [[ -s "$preserve_bag" ]]; then
         n="$(jq '(.creds | length) + (.tiers | length) + (.mcpEnabled | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
@@ -466,8 +533,6 @@ copy_current_files() {
             echo "[cur: $VER] preserved $n field(s) (credentials + models) in opencode.jsonc"
         fi
     fi
-    # provision rtk binary + clean up the official plugin (warns, never fails)
-    ensure_rtk "$TARGET"
 }
 
 # 3) write the new version marker
@@ -492,9 +557,13 @@ do_install() {
 
     remove_old_files
     copy_current_files
-    # --enable-mcp/--disable-mcp flip flags (override preserved state;
-    # ensure_mcp below provisions newly enabled entries)
-    apply_mcp_flags
+    # options.jsonc decides which MCPs/plugins are active (overrides
+    # preserved state; ensure_mcp below provisions newly enabled entries)
+    apply_options
+    # provision rtk binary + clean up the official plugin (warns, never
+    # fails) — runs after apply_options so the options.jsonc rtk switch
+    # is already decided
+    ensure_rtk "$TARGET"
     # Provision MCP CLIs for the `mcp` block (warns, never fails)
     ensure_mcp
     write_new_marker

@@ -253,7 +253,7 @@ Everything else stays in the repo and never reaches the target:
 | `.git/`         | VCS metadata — not part of the config     |
 | `node_modules/` | Dependency cache — not part of the config |
 | `.metrics/`     | Runtime metrics — not part of the config  |
-| `install/`      | This installer and its manifests          |
+| `install/`      | This installer and its manifests (*)          |
 | `tests/`        | Test scripts — not part of the config     |
 | `package.json`, `bun.lock`, `package-lock.json` | npm metadata — not needed by opencode |
 | `tsconfig.json` | TS build config — not needed at runtime   |
@@ -262,6 +262,9 @@ Everything else stays in the repo and never reaches the target:
 
 In particular, **`.git/` is never copied to the target** — the target should
 be a clean config directory, not a working copy.
+
+(*) One exception: `install/options.jsonc` is copied to the target
+explicitly by the installer (not via the manifest) — see Options below.
 
 ## How cleanup works
 
@@ -307,6 +310,7 @@ then write it back afterwards:
 | `provider.<name>.options.apiKey`  | User's API key (secret)      |
 | `model` (root)             | User's model pick for `tier.default`  |
 | `agent.<name>.model`       | User's per-tier model picks           |
+| `options.jsonc` (file)     | User's option switches (see below)    |
 
 Model picks are preserved **per tier** (the same semantics the `/profile`
 plugin uses — every agent of a tier shares one `provider/model_id` ref):
@@ -318,6 +322,41 @@ before reinstalling.
 Everything else in `opencode.jsonc` is overwritten from the repo. To add more
 preserved credential fields, extend `$preserveJsonKeys` (PowerShell) or
 `PRESERVE_KEYS` (Bash).
+
+## Options (MCP + external plugin + rtk switches)
+
+`install/options.jsonc` is the single switch panel for every MCP server,
+external (npm) plugin, and the rtk proxy — it replaces the old
+`-EnableMcp` / `--enable-mcp` command-line flags. It ships with the
+installer (NOT in the version manifest): every install copies the shipped
+defaults to the target, then re-merges the user's switches on top.
+
+```jsonc
+{
+  "rtk": true,
+  "mcp":    { "serena": true, "codegraph": true, "gitnexus": false },
+  "plugin": { "@dietrichgebert/ponytail": true, "opencode-qoder-bridge": true }
+}
+```
+
+- `rtk` drives rtk provisioning: `true` downloads the binary when missing
+  and keeps the vendored `plugins/openrtk*`; `false` skips the download AND
+  removes `plugins/openrtk.ts` + `plugins/openrtk/` from the target (an
+  already-installed `rtk` binary on PATH stays put).
+- `mcp.<name>` drives `opencode.jsonc`'s `mcp.<name>.enabled`; enabling an
+  entry that declares an `install` field also provisions its CLI on the
+  next install (disabled entries are never provisioned).
+- `plugin.<name>` drives membership in `opencode.jsonc`'s `plugin` array.
+- Edit the file (repo copy or the installed copy) and re-run `install`; your
+  choices are snapshotted before the overwrite and re-merged on top of the
+  shipped defaults, so they survive reinstalls.
+- Options added by a future version keep their shipped defaults; entries
+  a newer template ADDS are picked up into `options.jsonc` automatically
+  (default enabled), and switches for entries a newer template removed are
+  dropped with them.
+- Bundled `plugins/*.ts` files are not toggled here — they ship wholesale and
+  are always active. The one exception is the vendored openrtk plugin, which
+  follows the `rtk` switch.
 
 **Note on the shipped template.** The repo's `opencode.jsonc` ships with
 `{env:LLM_ROUTER_BASE_URL}` / `{env:LLM_ROUTER_API_KEY}` as

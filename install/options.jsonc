@@ -1,0 +1,48 @@
+// Install options — single source of truth for which MCP servers, external
+// (npm) plugins, and the rtk proxy this config activates. Replaces the old
+// -EnableMcp/--enable-mcp command-line flags.
+//
+// Lives in install/ with the other installer machinery (VERSION, manifests):
+// every install copies it over the target, then re-merges the user's
+// pre-install switches on top. Edit this file (or the installed copy under
+// ~/.config/opencode) and re-run the installer:
+//   mcp.<name>     → opencode.jsonc's mcp.<name>.enabled; enabling an entry
+//                    that declares an `install` field also provisions its CLI
+//                    on the next install
+//   plugin.<name>  → membership in opencode.jsonc's `plugin` array
+//   rtk            → rtk binary provisioning + the vendored openrtk plugin
+//                    (false skips the download AND removes plugins/openrtk*
+//                    from the target)
+//
+// Your choices survive reinstalls (the installed copy is snapshotted before
+// the overwrite and re-merged on top of these shipped defaults). Entries a
+// newer template adds are picked up automatically (default enabled); entries
+// a newer template removes are dropped with it. Bundled plugins/*.ts files
+// are NOT options — they ship wholesale and are always active.
+{
+  // true = provision the rtk binary + keep the vendored openrtk plugin;
+  // false = skip the download and remove plugins/openrtk.ts + plugins/openrtk/
+  // from the target (an already-installed rtk binary on PATH stays put)
+  "rtk": true,
+  // true = enabled (CLI auto-provisioned via `install` if missing); false = skipped
+  "mcp": {
+    // LSP semantic code retrieval/editing; needs uv
+    "serena": true,
+    // Code-graph exploration; needs one-time manual `codegraph init` per repo
+    "codegraph": true,
+    // PolyForm Noncommercial license — enable only if licensed + indexed
+    // (see the gitnexus comment in opencode.jsonc)
+    "gitnexus": false,
+    // Needs per-project setup (dbhub.toml + DSN) — see opencode.jsonc
+    "dbhub": false
+  },
+  // true = in opencode.jsonc's `plugin` array; false = dropped
+  "plugin": {
+    // Lazy coding protocol: build what was asked, name the lazier alternative
+    "@dietrichgebert/ponytail": true,
+    // Injects qoder provider/models; needs Node ^22.18 || >=24.11 + `qoder login`
+    "opencode-qoder-bridge": true,
+    // Auto-generates session titles
+    "@frankhommers/opencode-smart-title": true
+  }
+}

@@ -10,6 +10,7 @@
 
     Each archive contains:
       install/VERSION
+      install/options.jsonc
       install/install.sh
       install/install.ps1
       install/versions/<ver>.manifest.txt   (auto-generated if missing)
@@ -114,6 +115,8 @@ New-Item -ItemType Directory -Path $versionsDest -Force | Out-Null
 Copy-Item (Join-Path $RepoRoot 'install/install.sh') $installDest -Force
 Copy-Item (Join-Path $RepoRoot 'install/install.ps1') $installDest -Force
 Copy-Item $VersionFile $installDest -Force
+$compSrc = Join-Path $RepoRoot 'install/options.jsonc'
+if (Test-Path $compSrc) { Copy-Item $compSrc $installDest -Force }
 Copy-Item $manifestPath $versionsDest -Force
 
 # 2. Copy bin dispatchers

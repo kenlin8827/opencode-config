@@ -68,6 +68,32 @@
       "install": "npm install -g gitnexus",
       "env": { "GITNEXUS_MCP_READ_ONLY": "1" },
       "enabled": false
+    },
+    // DBHub (optional): universal database gateway — PostgreSQL, MySQL,
+    // MariaDB, SQL Server, SQLite through one server. Token-efficient:
+    // 2 tools by default (~1.4k tokens). Bytebase project, MIT licensed.
+    // Requires Node >= 22.5. Configuration is PER-PROJECT, not shipped:
+    // dbhub auto-discovers ./dbhub.toml from the working directory (or
+    // --config / DSN env var). TOML values support ${ENV_VAR} interpolation
+    // — keep credentials out of any repo. Read-only is enforced per tool
+    // in the TOML ([[tools]] readonly = true); the old --readonly flag is
+    // removed upstream. `install` is pre-declared but dormant: while
+    // "enabled" stays false the install script skips it; flipping enabled
+    // to true makes the next install provision the CLI automatically
+    // (dbhub.toml + DSN in each project remain your setup).
+    // Example dbhub.toml in the project root:
+    //   [[sources]]
+    //   id = "default"
+    //   dsn = "${DBHUB_DSN}"
+    //   [[tools]]
+    //   name = "execute_sql"
+    //   source = "default"
+    //   readonly = true
+    "dbhub": {
+      "type": "local",
+      "command": ["dbhub", "--transport", "stdio"],
+      "install": "npm install -g @bytebase/dbhub",
+      "enabled": false
     }
   },
   "provider": {

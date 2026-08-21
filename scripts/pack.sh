@@ -7,6 +7,7 @@
 #
 # Each archive contains:
 #   install/VERSION
+#   install/options.jsonc
 #   install/install.sh
 #   install/install.ps1
 #   install/versions/<ver>.manifest.txt   (auto-generated if missing)
@@ -107,6 +108,9 @@ mkdir -p "$PKG_DIR/install/versions"
 cp "$REPO_ROOT/install/install.sh"     "$PKG_DIR/install/"
 cp "$REPO_ROOT/install/install.ps1"    "$PKG_DIR/install/"
 cp "$VERSION_FILE"                     "$PKG_DIR/install/"
+if [[ -f "$REPO_ROOT/install/options.jsonc" ]]; then
+    cp "$REPO_ROOT/install/options.jsonc" "$PKG_DIR/install/"
+fi
 cp "$MANIFEST"                         "$PKG_DIR/install/versions/"
 
 # 2. Copy bin dispatchers
