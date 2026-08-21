@@ -354,9 +354,11 @@ OpenCode plugin system provides runtime hooks that prompts alone cannot achieve.
 | `grill-me.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-me` slash command programmatically; arms session on command and injects grilling protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `grill-with-docs.ts` (+ `plugins/grill/` helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/grill-with-docs` slash command programmatically; arms session on command and injects grilling-with-docs protocol from markdown into system prompt (LLM-only, not visible in chat UI). |
 | `goal.ts` (+ `plugins/goal/` helpers) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) from markdown into system prompt (LLM-only, not visible in chat UI). |
+| `adr-guard.ts` (+ `plugins/adr-guard/` helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — PROJECT-LEVEL switch (default off). When on: injects the ADR iron-law protocol into the system prompt and hard-blocks `git commit` whose message type is `feat`/`refactor` unless a file under `docs/adr/` (configurable via `adrGuardDir`) is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering). |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 Profile state is stored in `~/.config/opencode/.active-profile`.
+ADR iron-law state is project-level: `<project>/.opencode/.adr-guard` (or the committed `adrGuard` field in the project's `opencode.jsonc`).
 
 ## File inventory
 

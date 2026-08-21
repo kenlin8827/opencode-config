@@ -1,5 +1,5 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "dependencies": {
     "@dietrichgebert/ponytail": "^4.9.0",
     "@opencode-ai/plugin": "1.18.15",

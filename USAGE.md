@@ -462,9 +462,35 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `review-fix-loop.ts` (+ `review-fix-loop.md`) | `config` + `command.execute.before` + `system.transform` | Registers `/review-fix-loop` slash command programmatically; arms session and injects protocol from markdown into system prompt (LLM-only, not visible in chat UI) |
 | `goal.ts` (+ `goal.md`) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) into system prompt (LLM-only, not visible in chat UI) |
 | `deepseek-anchor.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/deepseek-anchor` slash command; manages anchor-based reasoning protocols and DeepSeek model integration |
+| `adr-guard.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — project-level switch (default off). When on: every `feat`/`refactor` commit must include a new/updated ADR — the protocol is injected into the system prompt and `git commit` is hard-blocked when no file under `docs/adr/` is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering) |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
+
+### ADR iron law (`adr-guard`)
+
+Optional per-project enforcement of Architecture Decision Records. The switch is **project-level** and defaults to off:
+
+```text
+/adr-guard on       # enable for this project (writes <project>/.opencode/.adr-guard)
+/adr-guard off      # disable
+/adr-guard          # status report (state + ADR dir)
+```
+
+When on:
+
+- **Soft layer** — the iron-law protocol is injected into the system prompt: agents write/update the ADR proactively before committing.
+- **Hard layer** — `git commit` is blocked when the message type is `feat`/`refactor` (scoped/breaking variants included) and no file under the ADR directory appears in the working-tree change set (staged, unstaged, or untracked). `--amend`, other commit types, and commits without an inline message are not gated.
+- **ADR format** — strict MADR (industry standard, nothing added): frontmatter `status` + `date`, body `## Context and Problem Statement` + `## Decision Outcome`. Sequential numbering (`docs/adr/NNNN-slug.md`, never reset); changed decisions get a new superseding ADR (`status: superseded by NNNN`) instead of edits.
+
+Project-config fields (all optional, in the project's `opencode.jsonc`):
+
+```jsonc
+{
+  "adrGuard": "on",            // committed default for the whole team
+  "adrGuardDir": "docs/adr"    // ADR directory
+}
+```
 
 ### Queueing the next prompt while an agent runs (`opencode-queue`)
 

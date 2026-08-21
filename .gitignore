@@ -11,6 +11,9 @@ package-lock.json
 # lives in opencode.jsonc's autoAdvisorMode field instead)
 .advisor-mode
 
+# ADR iron-law plugin state (project-level switch written by /adr-guard)
+.adr-guard
+
 # OS files
 Thumbs.db
 .DS_Store

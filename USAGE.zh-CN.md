@@ -435,9 +435,35 @@ bridge 附带的额外能力：
 | `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
+| `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。
+
+### ADR 铁律（`adr-guard`）
+
+按项目可选的架构决策记录（ADR）强制机制。开关为**项目级**，默认关闭：
+
+```text
+/adr-guard on       # 对本项目启用（写入 <project>/.opencode/.adr-guard）
+/adr-guard off      # 关闭
+/adr-guard          # 状态报告（开关 + ADR 目录）
+```
+
+开启后：
+
+- **软层** —— 铁律协议注入 system prompt：智能体在提交前主动新增/更新 ADR。
+- **硬层** —— 当 commit message 类型为 `feat`/`refactor`（含 scope 和 breaking 变体）且工作区变更集（已暂存/未暂存/未跟踪）中没有任何 ADR 目录下的文件时，`git commit` 被阻断。`--amend`、其他提交类型、无内联 message 的提交不受限。
+- **ADR 格式** —— 严格 MADR（行业标准，不加料）：frontmatter `status` + `date`，正文 `## Context and Problem Statement` + `## Decision Outcome`。顺序编号（`docs/adr/NNNN-slug.md`，永不重置）；决策变更时写一条新的取代 ADR（旧 ADR 置 `status: superseded by NNNN`），不改写原文。
+
+项目配置字段（均可选，写在项目的 `opencode.jsonc`）：
+
+```jsonc
+{
+  "adrGuard": "on",            // 提交到仓库的团队默认值
+  "adrGuardDir": "docs/adr"    // ADR 目录
+}
+```
 
 ### 排队下一条提示（`opencode-queue`）
 

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -129,6 +129,16 @@ $allFiles = @(
     "plugins/goal/goal.md",
     "plugins/project-profiler.ts",
     "plugins/project-profiler/project-profiler.ts",
+    "plugins/adr-guard.ts",
+    "plugins/adr-guard/adr-guard.ts",
+    "plugins/adr-guard/adr-guard-config.ts",
+    "plugins/adr-guard/adr-guard-runtime.ts",
+    "plugins/adr-guard/adr-guard-protocol.md",
+    "plugins/adr-guard/adr-guard-instructions.ts",
+    "plugins/adr-guard/adr-guard-system-inject.ts",
+    "plugins/adr-guard/adr-guard-tool-guard.ts",
+    "plugins/adr-guard/adr-guard-command.ts",
+    "plugins/adr-guard/adr-guard-announce.ts",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -192,6 +202,30 @@ Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $go
 
 $goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
 Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
+
+# ADR iron-law plugin checks (plugins/adr-guard/ — project-level switch, hard commit gate)
+$adrPlugin = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard.ts" -Raw
+$adrProtocol = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-protocol.md" -Raw
+$adrGuard = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-tool-guard.ts" -Raw
+$adrConfig = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-config.ts" -Raw
+Check "adr-guard.ts: imports Plugin type" ($adrPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "adr-guard.ts: has config hook registering command" ($adrPlugin -match "config:" -and $adrPlugin -match 'COMMAND_NAME')
+Check "adr-guard.ts: has command.execute.before hook" ($adrPlugin -match '"command\.execute\.before"')
+Check "adr-guard.ts: has system.transform hook" ($adrPlugin -match "experimental.chat.system.transform")
+Check "adr-guard.ts: has tool.execute.before hook" ($adrPlugin -match '"tool\.execute\.before"')
+Check "adr-guard.ts: injects project directory" ($adrPlugin -match "setProjectDir\(directory\)")
+Check "adr-guard-config.ts: project-level state file" ($adrConfig -match '\.opencode.*\.adr-guard')
+Check "adr-guard-config.ts: default state is off" ($adrConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "adr-guard-config.ts: default ADR dir docs/adr" ($adrConfig -match 'DEFAULT_ADR_DIR = "docs/adr"')
+Check "adr-guard-tool-guard.ts: gates feat/refactor only" ($adrGuard -match "requiresAdr")
+Check "adr-guard-tool-guard.ts: checks ADR working-tree changes" ($adrGuard -match "hasAdrChanges")
+Check "adr-guard-protocol.md: has iron law" ($adrProtocol -match "iron law")
+Check "adr-guard-protocol.md: has MADR frontmatter" ($adrProtocol -match "status: accepted" -and $adrProtocol -match "date:")
+Check "adr-guard-protocol.md: has sequential numbering" ($adrProtocol -match "NNNN-slug")
+Check "adr-guard-protocol.md: forbids type relabeling bypass" ($adrProtocol -match "MUST NOT" -and $adrProtocol -match "relabeling the commit type")
+
+$adrBarrel = Get-Content "$PSScriptRoot\..\plugins\adr-guard.ts" -Raw
+Check "adr-guard.ts: barrel re-exports AdrGuardPlugin" ($adrBarrel -match "export.*AdrGuardPlugin")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
