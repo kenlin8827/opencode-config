@@ -28,6 +28,7 @@ export const COMMAND_NAME = "project"
 
 /** Subcommands accepted by `/project <subcommand>`. */
 export const SUBCOMMAND_INIT = "init"
+export const SUBCOMMAND_INDEX = "index"
 
 /**
  * Parse the first argument of a `/project <subcommand>` call.
@@ -35,6 +36,7 @@ export const SUBCOMMAND_INIT = "init"
  *
  *   /project       → null (help)
  *   /project init  → "init"
+ *   /project index → "index"
  */
 export function parseSubcommand(args: unknown): string | null {
   if (typeof args !== "string") return null

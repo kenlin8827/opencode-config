@@ -10,6 +10,13 @@
  *   - scaffold: creates missing files only (never overwrites)
  *   - injection: progressive-disclosure pointer only (file content never
  *     injected), byte-identical repeat, strip on file deletion
+ *   - index bootstrap: first-time init (codegraph init, gitnexus analyze
+ *     when the index is missing) in `/project init` vs manual refresh of
+ *     EXISTING indexes in `/project index` (codegraph sync, gitnexus analyze
+ *     only when stale), enabled+CLI AND-gate, mcp.enabled JSONC parsing
+ *   - announce: session-created suggestion of `/project init` on
+ *     uninitialized projects — subagent silence, once-per-run, initialized
+ *     projects stay silent
  *
  * Run: bun run tests/test-project-manager-unit.ts   (or: npx tsx tests/test-project-manager-unit.ts)
  */
@@ -26,7 +33,14 @@ import {
   setProjectDir,
 } from "../plugins/project-manager/project-manager-config"
 import { runInit } from "../plugins/project-manager/project-manager-scaffold"
+import {
+  mcpEnabledFrom,
+  planIndexBackends,
+  planInitBackends,
+  type BackendProbe,
+} from "../plugins/project-manager/project-manager-index"
 import { makeSystemHook, MARKER } from "../plugins/project-manager/project-manager-system-inject"
+import { makeAnnounceHook, suggestInitMessage } from "../plugins/project-manager/project-manager-announce"
 import { makeToolGuardHook, validateMessage } from "../plugins/project-manager/project-manager-tool-guard"
 
 // ─── Test framework ───────────────────────────────────────────────────────
@@ -247,6 +261,111 @@ async function test07_Injection() {
   assert(out.system[1] === "entry B", "deletion strips the pointer and restores the prompt")
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  8. Index bootstrap — first-time init vs manual refresh (pure planner)
+// ═══════════════════════════════════════════════════════════════════
+
+function probe(overrides: Partial<BackendProbe>): BackendProbe {
+  return {
+    codegraphEnabled: true,
+    codegraphCli: true,
+    codegraphIndexed: false,
+    gitnexusEnabled: true,
+    gitnexusCli: true,
+    gitnexusIndex: "missing",
+    ...overrides,
+  }
+}
+
+function planFor(plans: ReturnType<typeof planInitBackends>, backend: "codegraph" | "gitnexus") {
+  return plans.find((p) => p.backend === backend)!
+}
+
+function test08_IndexPlanning() {
+  section("08: index bootstrap — first-time init vs manual refresh")
+
+  // `/project init` runs every FIRST-TIME step, only when CLI installed.
+  assert(planFor(planInitBackends(probe({})), "codegraph").command === "codegraph init", "init plans codegraph init when CLI + enabled + not indexed")
+  assert(planFor(planInitBackends(probe({})), "gitnexus").command === "gitnexus analyze", "init plans gitnexus initial build when index missing")
+  assert(planFor(planInitBackends(probe({ codegraphIndexed: true })), "codegraph").command === null, "codegraph already indexed → no run")
+  assert(planFor(planInitBackends(probe({ gitnexusIndex: "ready" })), "gitnexus").command === null, "gitnexus already indexed → no run")
+  assert(planFor(planInitBackends(probe({ gitnexusIndex: "stale" })), "gitnexus").command === null, "gitnexus stale is a rebuild → deferred to /project index")
+  assert(planFor(planInitBackends(probe({ codegraphCli: false })), "codegraph").command === null, "codegraph CLI missing → skipped, never invoked")
+  assert(planFor(planInitBackends(probe({ gitnexusCli: false })), "gitnexus").command === null, "gitnexus CLI missing → skipped, never invoked")
+  assert(planFor(planInitBackends(probe({ codegraphEnabled: false })), "codegraph").command === null, "codegraph disabled → no run even with CLI")
+  assert(planFor(planInitBackends(probe({ gitnexusEnabled: false })), "gitnexus").command === null, "gitnexus disabled → no run even with CLI")
+
+  // `/project index` is manual refresh of EXISTING indexes only.
+  assert(planFor(planIndexBackends(probe({ codegraphIndexed: true })), "codegraph").command === "codegraph sync", "codegraph indexed → incremental sync")
+  assert(planFor(planIndexBackends(probe({})), "codegraph").command === null, "codegraph no index → init step, not a refresh")
+  assert(planFor(planIndexBackends(probe({ codegraphCli: false, codegraphIndexed: true })), "codegraph").command === null, "codegraph CLI missing → skipped, never invoked")
+  assert(planFor(planIndexBackends(probe({ codegraphEnabled: false, codegraphIndexed: true })), "codegraph").command === null, "codegraph disabled → no run even with CLI")
+  assert(planFor(planIndexBackends(probe({ gitnexusIndex: "stale" })), "gitnexus").command === "gitnexus analyze", "stale index → rebuild")
+  assert(planFor(planIndexBackends(probe({ gitnexusIndex: "ready" })), "gitnexus").command === null, "ready index → no run")
+  assert(planFor(planIndexBackends(probe({ gitnexusIndex: "missing" })), "gitnexus").command === null, "missing index → init step, not a rebuild")
+  assert(planFor(planIndexBackends(probe({ gitnexusCli: false })), "gitnexus").command === null, "CLI missing → skipped, never invoked")
+  assert(planFor(planIndexBackends(probe({ gitnexusEnabled: false })), "gitnexus").command === null, "disabled → no run even with CLI")
+
+  // mcp.<name>.enabled parsing (same JSONC subset rule as the profiler).
+  assert(mcpEnabledFrom('{"mcp":{"gitnexus":{"enabled":false}}}', "gitnexus") === false, "explicit false honored")
+  assert(mcpEnabledFrom('{"mcp":{"gitnexus":{"enabled":true}}}', "gitnexus") === true, "explicit true honored")
+  assert(mcpEnabledFrom('{"mcp":{}}', "gitnexus") === true, "missing entry → assume enabled")
+  const commented = '// "mcp":{"gitnexus":{"enabled":false}}\n{"mcp":{"gitnexus":{"enabled":true}}}'
+  assert(mcpEnabledFrom(commented, "gitnexus") === true, "whole-line // comments stripped")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  9. Announce — suggest /project init on uninitialized projects
+// ═══════════════════════════════════════════════════════════════════
+
+async function test09_Announce() {
+  section("09: announce — /project init suggestion")
+
+  // Pure message builder.
+  const probeFull: BackendProbe = {
+    codegraphEnabled: true, codegraphCli: true, codegraphIndexed: false,
+    gitnexusEnabled: true, gitnexusCli: true, gitnexusIndex: "missing",
+  }
+  const msg = suggestInitMessage(["AGENTS.md"], probeFull)
+  assert(msg.includes("/project init"), "message names the command")
+  assert(msg.includes("AGENTS.md"), "message lists missing files")
+  assert(msg.includes("codegraph"), "message hints unindexed installed backend")
+  const probeNoCli = { ...probeFull, codegraphCli: false, gitnexusCli: false }
+  assert(!suggestInitMessage(["AGENTS.md"], probeNoCli).includes("Also:"), "no backend hint when CLIs absent")
+
+  // Hook behavior with a capturing fake client.
+  const dir2 = mkdtempSync(join(tmpdir(), "pm-announce-"))
+  setProjectDir(dir2)
+  let prompts = 0
+  const hookClient: any = {
+    session: { prompt: async () => { prompts++ } },
+    tui: { showToast: async () => {} },
+  }
+  const hook = makeAnnounceHook(hookClient)
+  await hook({ event: { type: "session.created", properties: { info: { id: "sub", parentID: "main" } } } })
+  assert(prompts === 0, "subagent session → no suggestion")
+  await hook({ event: { type: "session.created", properties: { info: { id: "s1" } } } })
+  assert(prompts === 1, "uninitialized project → suggestion shown")
+  await hook({ event: { type: "session.created", properties: { info: { id: "s2" } } } })
+  assert(prompts === 1, "once per server run — no nag")
+
+  // Fully initialized project → silent.
+  const dir3 = mkdtempSync(join(tmpdir(), "pm-init-"))
+  setProjectDir(dir3)
+  mkdirSync(join(dir3, "docs"), { recursive: true })
+  mkdirSync(join(dir3, ".opencode"), { recursive: true })
+  writeFileSync(join(dir3, "AGENTS.md"), "x", "utf-8")
+  writeFileSync(join(dir3, "docs", "git-commits.md"), "x", "utf-8")
+  writeFileSync(join(dir3, ".opencode", "opencode.jsonc"), "{}", "utf-8")
+  const hook2 = makeAnnounceHook(hookClient)
+  await hook2({ event: { type: "session.created", properties: { info: { id: "s3" } } } })
+  assert(prompts === 1, "initialized project → no suggestion")
+
+  rmSync(dir2, { recursive: true, force: true })
+  rmSync(dir3, { recursive: true, force: true })
+  setProjectDir(projectDir)
+}
+
 test01_ValidateMessage()
 await test02_FileAsSwitch()
 await test03_ToolGuard()
@@ -254,6 +373,8 @@ await test04_SwitchOff()
 test05_Scaffold()
 test06_Command()
 await test07_Injection()
+test08_IndexPlanning()
+await test09_Announce()
 
 rmSync(projectDir, { recursive: true, force: true })
 

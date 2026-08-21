@@ -67,8 +67,10 @@ plugins/openrtk/index.ts
 plugins/openrtk/rewrite.ts
 plugins/profile-wizard.ts
 plugins/project-manager.ts
+plugins/project-manager/project-manager-announce.ts
 plugins/project-manager/project-manager-command.ts
 plugins/project-manager/project-manager-config.ts
+plugins/project-manager/project-manager-index.ts
 plugins/project-manager/project-manager-scaffold.ts
 plugins/project-manager/project-manager-system-inject.ts
 plugins/project-manager/project-manager-tool-guard.ts

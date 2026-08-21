@@ -121,7 +121,8 @@ function serenaCliInstalled(): boolean {
 
 function codegraphCliInstalled(): boolean {
   try {
-    execSync("codegraph version", { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
+    // `--version` — the CLI has no `version` subcommand (commander rejects it).
+    execSync("codegraph --version", { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
     return true
   } catch { /* not installed or not on PATH */ }
   return false

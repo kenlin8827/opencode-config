@@ -388,7 +388,8 @@ Shall I proceed?
 | `/profile` | Open the dialog picker: shows all available model provider profiles (active one marked); picking one opens a tier review where each tier's model can be overridden via provider → model selection (providers and models come from the opencode server catalog: built-in + configured) before applying (rewrites the tier→model mappings in `opencode.jsonc`). The first entry shows the active profile and current tier→model mappings |
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
-| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites). While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
+| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites); then runs each backend's first-time init (only when its CLI is installed and enabled): `codegraph init`, `gitnexus analyze` when the index is missing. While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
+| `/project index` | Manually refresh EXISTING indexes: `codegraph sync` (incremental catch-up for changes made while the watcher wasn't running), `gitnexus analyze` rebuild when stale. Refresh only — a first index is `/project init`'s job; a missing CLI is reported as skipped, never invoked |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
 | `/queue ...` | Queue the next prompt/command/shell while an agent runs — provided by the `opencode-queue` npm plugin (see [Queueing the next prompt](#queueing-the-next-prompt-while-an-agent-runs)) |
@@ -464,7 +465,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `goal.ts` (+ `goal.md`) | `config` + `system.transform` | Registers `/goal` slash command programmatically; injects goal execution protocol (5-section template, audit checklist, mechanical stop conditions, scenario skeletons) into system prompt (LLM-only, not visible in chat UI) |
 | `deepseek-anchor.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` | Registers `/deepseek-anchor` slash command; manages anchor-based reasoning protocols and DeepSeek model integration |
 | `adr-guard.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — project-level switch (default off). When on: every `feat`/`refactor` commit must include a new/updated ADR — the protocol is injected into the system prompt and `git commit` is hard-blocked when no file under `docs/adr/` is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering) |
-| `project-manager.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` | Registers `/project` slash command (`init` scaffolds baseline files, never overwriting). File-as-switch: while `docs/git-commits.md` exists, a progressive-disclosure pointer (~50 tokens) is injected into the system prompt (agents read the file before committing) and `git commit` messages violating the structural rules (`type(scope): summary`, known type, ≤72-char first line) are hard-blocked; delete the file and both deactivate |
+| `project-manager.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/project` slash command (`init` scaffolds baseline files, never overwriting, and runs first-time backend init; `index` manually refreshes existing indexes). On a new top-level session in an uninitialized project, suggests `/project init` once (user-visible only, no LLM context). File-as-switch: while `docs/git-commits.md` exists, a progressive-disclosure pointer (~50 tokens) is injected into the system prompt (agents read the file before committing) and `git commit` messages violating the structural rules (`type(scope): summary`, known type, ≤72-char first line) are hard-blocked; delete the file and both deactivate |
 | [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
@@ -501,6 +502,10 @@ Per-project commit-convention enforcement with a **file-as-switch**: no state fi
 ```text
 /project init       # scaffold baseline files (only when missing, never overwrites):
                     #   .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
+                    # then first-time backend init (only when CLI installed + enabled):
+                    #   codegraph init, gitnexus analyze when the index is missing
+/project index      # manually refresh existing indexes: codegraph sync,
+                    #   gitnexus analyze when stale
 /project            # help
 ```
 

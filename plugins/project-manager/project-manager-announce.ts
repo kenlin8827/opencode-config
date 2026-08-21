@@ -1,0 +1,96 @@
+/**
+ * Hook: event — suggest `/project init` when a new top-level session opens
+ * in a project that has never been initialized.
+ *
+ * Trigger: any baseline scaffold target missing (.opencode/opencode.jsonc,
+ * docs/git-commits.md, AGENTS.md). Backend indexes do NOT trigger the
+ * suggestion — a project can legitimately opt out of them; they only refine
+ * the message (e.g. "codegraph CLI installed but not indexed").
+ *
+ * Two surfaces, same pattern as adr-guard-announce:
+ *   - session.created → top-level sessions only (subagent sessions carry
+ *     parentID); fires ONCE per plugin instance (in-memory flag) so opening
+ *     several sessions in one server run never nags repeatedly.
+ *   - session.prompt({ ignored: true, noReply: true }) — visible in the main
+ *     chat UI, invisible to the LLM (no context pollution); falls back to
+ *     tui.showToast, then to silence. Never fatal.
+ */
+
+import type { PluginInput } from "@opencode-ai/plugin"
+import { getProjectDir, resolveTarget, SCAFFOLD_TARGETS } from "./project-manager-config"
+import { probeBackends, type BackendProbe } from "./project-manager-index"
+import { existsSync } from "node:fs"
+
+type Client = PluginInput["client"]
+
+/** Minimal shape we rely on; the SDK's Event union is broader. */
+type SessionCreatedEvent = {
+  type: string
+  properties?: { info?: { parentID?: string; id?: string } }
+}
+
+/** Pure message builder — exported for unit tests. */
+export function suggestInitMessage(missing: string[], probe: BackendProbe): string {
+  const hint: string[] = []
+  if (probe.codegraphEnabled && probe.codegraphCli && !probe.codegraphIndexed) {
+    hint.push("codegraph CLI is installed but not indexed")
+  }
+  if (probe.gitnexusEnabled && probe.gitnexusCli && probe.gitnexusIndex === "missing") {
+    hint.push("gitnexus CLI is installed but not indexed")
+  }
+  const files = `missing baseline files: ${missing.join(", ")}`
+  const extras = hint.length > 0 ? ` Also: ${hint.join("; ")} — init covers both.` : ""
+  return `[project-manager] This project has never been initialized (${files}). Run \`/project init\` to scaffold them (never overwrites) and run the first-time backend init.${extras}`
+}
+
+/** Probe result consumed by the hook — exported for tests. */
+export function detectUninitialized(): { missing: string[]; probe: BackendProbe } {
+  const missing = (SCAFFOLD_TARGETS as readonly string[]).filter(
+    (rel) => !existsSync(resolveTarget(rel as (typeof SCAFFOLD_TARGETS)[number])),
+  )
+  return { missing, probe: probeBackends(getProjectDir()) }
+}
+
+async function suggest(client: Client, message: string, sessionID?: string): Promise<void> {
+  if (sessionID) {
+    try {
+      await client.session.prompt({
+        path: { id: sessionID },
+        body: {
+          parts: [{ type: "text", text: message, ignored: true }],
+          noReply: true,
+        },
+        throwOnError: true,
+      })
+      return
+    } catch { /* fall through to toast */ }
+  }
+  try {
+    await client.tui.showToast({ body: { message, variant: "info" } })
+  } catch { /* headless / older server — degrade to silence, never fatal */ }
+}
+
+export function makeAnnounceHook(client: Client) {
+  // Once per plugin instance: the suggestion is about the project, and
+  // nagging on every new session of one server run would be noise.
+  let announced = false
+
+  return async (input: { event: SessionCreatedEvent }) => {
+    try {
+      if (announced) return
+      const event = input.event
+      if (event?.type !== "session.created") return
+      // Subagent sessions (task-dispatched) carry parentID — only suggest on
+      // the top-level session the user actually opened.
+      if (event.properties?.info?.parentID) return
+
+      const { missing, probe } = detectUninitialized()
+      if (missing.length === 0) return
+
+      announced = true
+      await suggest(client, suggestInitMessage(missing, probe), event.properties?.info?.id)
+    } catch {
+      // Never crash a session start — a missed suggestion is harmless.
+    }
+  }
+}
