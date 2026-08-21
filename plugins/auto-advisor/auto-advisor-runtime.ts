@@ -265,12 +265,15 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
 
 /**
  * Extract the model-id portion from a "provider/model-id" reference.
- * e.g. "deepseek/deepseek-v4-pro" → "deepseek-v4-pro"
- *      "llm-router/advisor" → "advisor"
+ * Splits on the FIRST slash to match opencode's own ref parsing, so
+ * nested model ids stay intact:
+ *   "deepseek/deepseek-v4-pro" → "deepseek-v4-pro"
+ *   "llm-router/advisor" → "advisor"
+ *   "openrouter/vendor/gpt-5.6" → "vendor/gpt-5.6"
  * Returns the input as-is if there's no slash.
  */
 function modelIdFromRef(ref: string): string {
-  const idx = ref.lastIndexOf("/")
+  const idx = ref.indexOf("/")
   return idx >= 0 ? ref.substring(idx + 1) : ref
 }
 

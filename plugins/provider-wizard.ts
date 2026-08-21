@@ -446,12 +446,21 @@ function promptModelKey(api: TuiPluginApi, id: string): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
       title: `${id} — new model key`,
-      placeholder: "Key used in refs '<provider>/<key>', e.g. gpt-5.6-low",
+      placeholder: "Key used in refs '<provider>/<key>', e.g. gpt-5.6-low or vendor/gpt-5.6",
       value: "",
       onConfirm: (value) => {
         const key = value.trim()
-        if (!key || /\s/.test(key) || key.includes("/")) {
-          toast(api, "Invalid key — must be non-empty, no spaces or '/'.", "error")
+        // opencode parses refs on the FIRST slash, so the key may contain
+        // '/' for nested ids (e.g. 'vendor/gpt-5.6') — only spaces, edge
+        // slashes and '//' are rejected.
+        if (
+          !key ||
+          /\s/.test(key) ||
+          key.startsWith("/") ||
+          key.endsWith("/") ||
+          key.includes("//")
+        ) {
+          toast(api, "Invalid key — no spaces; '/' allowed inside, not at edges or doubled.", "error")
           promptModelKey(api, id)
           return
         }
