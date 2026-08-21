@@ -40,15 +40,17 @@ function stripMarker(system: string[]): boolean {
   return changed
 }
 
+/** Append the fragment to the LAST string entry only — appending to every
+ * entry would duplicate it across multi-entry system prompts (same fix as
+ * project-profiler / project-manager). */
 function appendPrompt(system: string[], fragment: string): boolean {
-  let appended = false
-  for (let i = 0; i < system.length; i++) {
+  for (let i = system.length - 1; i >= 0; i--) {
     const s = system[i]
     if (typeof s !== "string") continue
     system[i] = s + fragment
-    appended = true
+    return true
   }
-  return appended
+  return false
 }
 
 export function makeSystemHook(client: PluginInput["client"]) {

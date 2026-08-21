@@ -232,6 +232,15 @@ async function test06_SystemHook() {
   const out2 = { system: ["base prompt"] }
   await hook({}, out2 as any)
   assert(out2.system[0] === "base prompt", "off + no marker → complete no-op")
+
+  // Multi-entry system prompt: the fragment must land in the LAST entry
+  // only — the old loop duplicated it across every entry.
+  setState("on")
+  const out3 = { system: ["entry A", "entry B"] }
+  await hook({}, out3 as any)
+  assert(out3.system[0] === "entry A", "multi-entry: first entry untouched")
+  assert(out3.system[1].includes("[ADR-GUARD: ON]"), "marker present in last entry only")
+  assert(out3.system.filter((s) => s.includes("[ADR-GUARD: ON]")).length === 1, "marker appears exactly once across entries")
 }
 
 // ═════════════════════════════════════════════════════════════════════════
