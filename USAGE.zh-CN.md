@@ -264,14 +264,14 @@ bridge 附带的额外能力：
   → 选中预设：进入层级审阅弹窗 — 可逐个 tier 修改模型：先选 provider，
     再选 model（列表来自 opencode 服务目录：内置 provider 如
     anthropic/openai + 已配置的自定义 provider；也可手动输入
-    '<provider>/<model_id>' 作为兜底），然后 "( Apply profile )" 应用
-    （重写 opencode.jsonc + .active-profile）；重启 opencode 后生效
-    （模型变更覆盖该层级下的所有智能体，因此不做当前会话的
-    实时切换）
+    '<provider>/<model_id>' 作为兜底），然后 "( Apply profile )" 应用：
+    优先走服务端全局配置 API 热生效（失效配置缓存、重建
+    instance，无需重启）；若该端点不可用（旧版 opencode）则
+    降级为直写 opencode.jsonc + .active-profile，需重启生效
   → Esc 取消
 ```
 
-被覆盖层级的所有智能体会被统一重写为预设的 `provider/model_id` 引用，根级 `model` 跟随 `default` 层级。预设未列出的层级保持不变。应用前会校验所有内容，并在写入前备份 `opencode.jsonc.bak`；重启 opencode 后生效。
+被覆盖层级的所有智能体会被统一重写为预设的 `provider/model_id` 引用，根级 `model` 跟随 `default` 层级。预设未列出的层级保持不变。应用前会校验所有内容；热应用路径由服务端用 patch 方式写 `opencode.jsonc`（保留注释），降级路径会先备份 `opencode.jsonc.bak` 再全量重写，且需重启生效。注意：热应用会销毁重建服务端 instance，切换瞬间正在进行的回复流可能被中断（会话历史不受影响）。
 
 ---
 

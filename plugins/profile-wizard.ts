@@ -27,18 +27,19 @@ import type {
  *                     added via /provider are pickable immediately);
  *                     manual '<provider>/<model_id>' entry as last
  *                     resort, or apply / cancel
- *   3. apply        — rewrite agent models per tier in opencode.jsonc
- *                     (with any per-tier overrides), update
- *                     .active-profile, toast the result; a restart is
- *                     required — the change only takes effect on the
- *                     next launch
+ *   3. apply        — rewrite agent models per tier (with any
+ *                     per-tier overrides), update .active-profile,
+ *                     toast the result. Live apply is attempted first
+ *                     via the server's global config API (invalidate +
+ *                     instance rebuild, no restart needed); if the
+ *                     endpoint is unavailable (older opencode builds)
+ *                     the change is written to opencode.jsonc directly
+ *                     and only takes effect on the next launch
  *   1b. current mapping — DialogAlert with active profile, root model
  *                     and per-tier refs
  *
  * Profiles are JSON files in ~/.config/opencode/profiles/ with shape:
  *   { "description": ..., "tiers": { "<tier>": "<provider>/<model_id>" } }
- *
- * Changes require an opencode restart to take effect.
  *
  * Note: this is a TUI-only module — a single module cannot export both
  * `server` and `tui`. It only runs inside the TUI; headless sessions
@@ -225,13 +226,19 @@ function setActiveProfile(name: string): void {
 // ─── Profile application (same semantics as the former plugin) ──────
 // Validates tier ref format, then rewrites every agent whose tier
 // matches. Mixed providers are allowed. Root `model` tracks tier.default.
+// Also emits a merge patch (agent names → model) so the live path can
+// go through the server's global config API instead of a raw rewrite.
 
-function applyProfile(
-  config: OpenCodeConfig,
-  profile: Profile,
-): { updated: number; details: string[] } {
+interface ApplyResult {
+  updated: number
+  details: string[]
+  patch: OpenCodeConfig
+}
+
+function applyProfile(config: OpenCodeConfig, profile: Profile): ApplyResult {
   const details: string[] = []
   let updated = 0
+  const patch: OpenCodeConfig = { agent: {} }
 
   if (!config.agent) {
     throw new Error("opencode.jsonc has no agent section")
@@ -247,9 +254,10 @@ function applyProfile(
 
   for (const [tier, ref] of Object.entries(profile.tiers)) {
     let count = 0
-    for (const agent of Object.values(config.agent)) {
+    for (const [name, agent] of Object.entries(config.agent)) {
       if (agent.tier === tier) {
         agent.model = ref
+        patch.agent![name] = { model: ref }
         count++
       }
     }
@@ -258,12 +266,30 @@ function applyProfile(
     }
     if (tier === "default") {
       config.model = ref
+      patch.model = ref
     }
     details.push(`tier.${tier} → ${ref} (${count} agent${count > 1 ? "s" : ""})`)
     updated += count
   }
 
-  return { updated, details }
+  return { updated, details, patch }
+}
+
+// Live apply via the server's global config API (PATCH /global/config):
+// the server patches opencode.jsonc (comments preserved), invalidates
+// its config cache and rebuilds instances — no restart needed. Returns
+// false when the endpoint is missing (older opencode builds) or fails,
+// so the caller can fall back to a raw file rewrite.
+async function applyLive(
+  api: TuiPluginApi,
+  patch: OpenCodeConfig,
+): Promise<boolean> {
+  try {
+    const res = await api.client.global.config.update({ config: patch })
+    return res.error === undefined
+  } catch {
+    return false
+  }
 }
 
 // Reads the first agent's model per tier (all agents of a tier share one
@@ -318,16 +344,26 @@ function showCurrentMapping(api: TuiPluginApi): void {
   )
 }
 
-function applySelection(api: TuiPluginApi, name: string, profile: Profile): void {
+async function applySelection(
+  api: TuiPluginApi,
+  name: string,
+  profile: Profile,
+): Promise<void> {
   try {
     const config = readConfig(CONFIG_FILE)
-    const { updated, details } = applyProfile(config, profile)
-    writeConfigAtomic(CONFIG_FILE, config)
+    const { updated, details, patch } = applyProfile(config, profile)
+    const live = await applyLive(api, patch)
+    if (!live) {
+      // Server rejected/misses the global config API — raw rewrite,
+      // effective only after a restart.
+      writeConfigAtomic(CONFIG_FILE, config)
+    }
     setActiveProfile(name)
     api.ui.dialog.clear()
     toast(
       api,
-      `Switched to '${name}' — ${updated} agent(s) updated (${details.join("; ")}). Restart opencode to apply.`,
+      `Switched to '${name}' — ${updated} agent(s) updated (${details.join("; ")}). ` +
+        (live ? "Applied live, no restart needed." : "Restart opencode to apply."),
       "success",
     )
   } catch (err) {
@@ -534,7 +570,7 @@ function reviewTiers(
       ],
       onSelect: (option) => {
         if (option.value === APPLY) {
-          applySelection(api, name, {
+          void applySelection(api, name, {
             ...profile,
             tiers: { ...profile.tiers, ...overrides },
           })

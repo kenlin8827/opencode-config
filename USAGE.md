@@ -290,14 +290,15 @@ Profiles are applied from within an opencode session via the `/profile` slash co
     provider and a model from the opencode catalog (built-in providers
     like anthropic/openai plus configured ones; typing a custom
     '<provider>/<model_id>' ref is available as fallback), then
-    "( Apply profile )" writes opencode.jsonc + .active-profile;
-    restart opencode for the change to take effect (the model switch
-    applies to all agents of the covered tiers, so no live session
-    switch is attempted)
+    "( Apply profile )" applies the mapping live through the
+    server's global config API (config cache invalidated, instances
+    rebuilt — no restart needed); if that endpoint is unavailable
+    (older opencode builds) it falls back to rewriting
+    opencode.jsonc + .active-profile, which needs a restart
   → Esc cancels
 ```
 
-Every agent of a covered tier is rewritten to the profile's `provider/model_id` ref in lockstep, and the root `model` tracks the `default` tier. Tiers not listed by a profile are left untouched. Applying validates everything up front and backs up `opencode.jsonc.bak` before writing; restart opencode for the change to take effect.
+Every agent of a covered tier is rewritten to the profile's `provider/model_id` ref in lockstep, and the root `model` tracks the `default` tier. Tiers not listed by a profile are left untouched. Applying validates everything up front; the live path lets the server patch `opencode.jsonc` (comments preserved), while the fallback backs up `opencode.jsonc.bak` before a raw rewrite and requires a restart. Note: a live apply disposes server instances, so a message stream in flight at the moment of switching may be interrupted (session history is persisted).
 
 ---
 
