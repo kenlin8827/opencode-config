@@ -43,6 +43,9 @@
     // Injects qoder provider/models; needs Node ^22.18 || >=24.11 + `qoder login`
     "opencode-qoder-bridge": true,
     // Auto-generates session titles
-    "@frankhommers/opencode-smart-title": true
+    "@frankhommers/opencode-smart-title": true,
+    // Persistent project memory (vector store, per-machine under ~/.opencode-mem/);
+    // heavy — auto-capture costs an LLM call per idle session (see its docs)
+    "opencode-mem@2.24.3": false
   }
 }
