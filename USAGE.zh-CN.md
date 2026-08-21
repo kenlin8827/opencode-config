@@ -233,6 +233,7 @@ bridge 附带的额外能力：
 | `llm-router` | 服务端路由基线 |
 | `codex-router` | 自建 codex 网关（Sol/Luna 系列） |
 | `qoder-router` | 自建 qoder 网关（Ultimate/Performance/Lite） |
+| `claude-code-router` | 自建 Claude Code 网关（Anthropic 协议，Fable/Opus/Sonnet/Haiku 系列） |
 | `qoder` | Qoder 订阅，经 opencode-qoder-bridge（官方 Qoder Agent SDK；需 `qoder login`） |
 | `qoder-deepseek` | Qoder 上的全 DeepSeek 系列备选（dmodel = DeepSeek-V4-Pro，dfmodel = DeepSeek-V4-Flash） |
 | `qoder-qwen` | Qoder 上的全通义千问系列备选（qmodel_preview = Qwen3.8-Max-Preview，qmodel_latest = Qwen3.7-Max，qmodel = Qwen3.7-Plus） |

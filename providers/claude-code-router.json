@@ -1,0 +1,16 @@
+{
+  "claude-code-router": {
+    "npm": "@ai-sdk/anthropic",
+    "name": "claude-code-router",
+    "options": {
+      "baseURL": "{env:CLAUDE_CODE_ROUTER_BASE_URL}",
+      "apiKey": "{env:CLAUDE_CODE_ROUTER_API_KEY}"
+    },
+    "models": {
+      "claude-fable-5":   { "name": "Claude Fable 5",   "id": "cc/claude-fable-5",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "claude-opus-5":    { "name": "Claude Opus 5",    "id": "cc/claude-opus-5",    "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "claude-sonnet-5":  { "name": "Claude Sonnet 5",  "id": "cc/claude-sonnet-5",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "claude-haiku-4-5": { "name": "Claude Haiku 4.5", "id": "cc/claude-haiku-4-5", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
+    }
+  }
+}

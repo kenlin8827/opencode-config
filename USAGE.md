@@ -258,6 +258,7 @@ A profile is a named preset that bundles a provider with a per-tier model pick, 
 | `llm-router` | Server-side routing baseline |
 | `codex-router` | Self-hosted codex gateway (Sol/Luna) |
 | `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
+| `claude-code-router` | Self-hosted Claude Code gateway, Anthropic protocol (Fable/Opus/Sonnet/Haiku) |
 | `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
 | `qoder-deepseek` | All-DeepSeek family on Qoder (dmodel = DeepSeek-V4-Pro, dfmodel = DeepSeek-V4-Flash) |
 | `qoder-qwen` | All-Qwen family on Qoder (qmodel_preview = Qwen3.8-Max-Preview, qmodel_latest = Qwen3.7-Max, qmodel = Qwen3.7-Plus) |

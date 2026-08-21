@@ -61,6 +61,7 @@ profiles/alibaba-coding-plan.json
 profiles/alibaba-token-plan-cn.json
 profiles/alibaba-token-plan.json
 profiles/anthropic.json
+profiles/claude-code-router.json
 profiles/codex-router.json
 profiles/deepseek.json
 profiles/google.json
@@ -90,6 +91,7 @@ profiles/xiaomi-token-plan-cn.json
 profiles/xiaomi-token-plan-sgp.json
 profiles/zai-coding-plan.json
 profiles/zhipuai-coding-plan.json
+providers/claude-code-router.json
 providers/codex-router.json
 providers/qoder-router.json
 tui.json
