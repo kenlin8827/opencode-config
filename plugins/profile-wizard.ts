@@ -22,10 +22,11 @@ import type {
  *   2. tier review  — DialogSelect listing the picked profile's tiers;
  *                     pick a tier, then pick a provider and a model —
  *                     providers/models come from the opencode server
- *                     (built-ins + configured), falling back to the
- *                     opencode.jsonc definitions; manual
- *                     '<provider>/<model_id>' entry as last resort, or
- *                     apply / cancel
+ *                     (built-ins + configured) merged with the
+ *                     opencode.jsonc definitions (so custom models
+ *                     added via /provider are pickable immediately);
+ *                     manual '<provider>/<model_id>' entry as last
+ *                     resort, or apply / cancel
  *   3. apply        — rewrite agent models per tier in opencode.jsonc
  *                     (with any per-tier overrides), update
  *                     .active-profile, toast the result; a restart is
@@ -398,24 +399,10 @@ function pickModel(
   )
 }
 
-async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
-  // Preferred: the opencode server catalog (built-in + configured providers).
-  try {
-    const res = await api.client.provider.list()
-    const all = (res as { data?: { all?: CatalogProvider[] } }).data?.all
-    if (res.error === undefined && Array.isArray(all) && all.length > 0) {
-      const catalog: Catalog = {}
-      for (const p of all) {
-        if (!p?.id || !p.models || Object.keys(p.models).length === 0) continue
-        catalog[p.id] = p
-      }
-      if (Object.keys(catalog).length > 0) return catalog
-    }
-  } catch {
-    // fall through to the config-file catalog
-  }
-
-  // Fallback: provider definitions merged into opencode.jsonc.
+// Reads provider models from opencode.jsonc — reflects custom models
+// added via /provider without a restart (the live server catalog still
+// holds the pre-edit snapshot).
+function configCatalog(): Catalog {
   const catalog: Catalog = {}
   try {
     const config = readConfig(CONFIG_FILE)
@@ -426,6 +413,39 @@ async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
     }
   } catch {
     // empty catalog — the custom-ref fallback still works
+  }
+  return catalog
+}
+
+async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
+  // Preferred: the opencode server catalog (built-in + configured providers).
+  const catalog: Catalog = {}
+  try {
+    const res = await api.client.provider.list()
+    const all = (res as { data?: { all?: CatalogProvider[] } }).data?.all
+    if (res.error === undefined && Array.isArray(all) && all.length > 0) {
+      for (const p of all) {
+        if (!p?.id || !p.models || Object.keys(p.models).length === 0) continue
+        catalog[p.id] = p
+      }
+    }
+  } catch {
+    // fall through to the config-file catalog
+  }
+
+  // Merge the opencode.jsonc definitions on top: models added via
+  // /provider after launch are missing from the server catalog until
+  // restart, so they must not be shadowed by it.
+  for (const [id, cfgProvider] of Object.entries(configCatalog())) {
+    const existing = catalog[id]
+    if (!existing) {
+      catalog[id] = cfgProvider
+      continue
+    }
+    catalog[id] = {
+      ...existing,
+      models: { ...existing.models, ...cfgProvider.models },
+    }
   }
   return catalog
 }
