@@ -2,6 +2,7 @@ agents/advisor.md
 agents/architect.md
 agents/build.md
 agents/code-review.md
+agents/coding.md
 agents/dba.md
 agents/devops.md
 agents/explorer.md

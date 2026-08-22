@@ -87,12 +87,29 @@ Check "node-dev.md: security rules intact" ($nodeContent -match "Validate all in
 $researcherContent = Get-Content "$PSScriptRoot\..\agents\researcher.md" -Raw
 Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notmatch "ponytail|lazy coding")
 
+# Coding agent contract (direct developer: codes itself, no proactive
+# delegation, never delegated to; vision is a three-tier cascade)
+$codingContent = Get-Content "$PSScriptRoot\..\agents\coding.md" -Raw
+Check "opencode.jsonc: coding agent registered" ($null -ne $config.agent.coding)
+Check "opencode.jsonc: coding mode is primary" ($config.agent.coding.mode -eq "primary")
+Check "opencode.jsonc: coding prompt references coding.md" ($config.agent.coding.prompt -match "agents/coding\.md")
+Check "coding.md: no proactive delegation rule" ($codingContent -match "No proactive delegation")
+Check "coding.md: never delegated rule" ($codingContent -match "Never delegated")
+Check "coding.md: core coding stays in-house" ($codingContent -match "NEVER hand the core coding task")
+Check "coding.md: image three-tier cascade (self first)" ($codingContent -match "Self first")
+Check "coding.md: image cascade delegates to @vision only" ($codingContent -match "your own model cannot read")
+Check "coding.md: image fallback to user, no guessing" ($codingContent -match "NEVER guess")
+$buildContent = Get-Content "$PSScriptRoot\..\agents\build.md" -Raw
+$planContent = Get-Content "$PSScriptRoot\..\agents\plan.md" -Raw
+Check "build.md: never routes to @coding" ($buildContent -notmatch "@coding")
+Check "plan.md: never routes to @coding" ($planContent -notmatch "@coding")
+
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
     "instructions/context-efficiency.md",
     "instructions/test-scope.md",
-    "agents/build.md", "agents/plan.md", "agents/explorer.md",
+    "agents/build.md", "agents/plan.md", "agents/coding.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
     "agents/researcher.md", "agents/architect.md", "agents/code-review.md",

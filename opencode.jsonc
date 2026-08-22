@@ -136,6 +136,15 @@
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
     },
+    "coding": {
+      "tier": "code",
+      "description": "Coding — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
+      "mode": "primary",
+      "model": "llm-router/code",
+      "temperature": 0.3,
+      "variant": "medium",
+      "prompt": "{file:~/.config/opencode/agents/coding.md}"
+    },
     "advisor": {
       "tier": "advisor",
       "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",

@@ -30,6 +30,8 @@ User
  │
   ├── @plan (primary) ── read-only analysis coordinator
   │
+  ├── @coding (primary) ── direct developer, delegation only on request (advisor/explorer/code-review/vision)
+  │
   └── Shared instructions (injected into all agents via `opencode.jsonc:instructions`)
       ├── output-protocol.md       — structured output format (in `~/.config/opencode/instructions/`)
       └── instructions/test-scope.md  — tiered test scope policy (in this repo)
