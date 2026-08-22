@@ -1,54 +1,35 @@
 /**
- * Shared env-guard config — project-level switch.
+ * Shared env-guard config — project opencode.jsonc switch field.
  * Single source of truth for reading, writing, and normalizing the switch.
  *
- * State is PROJECT-LEVEL. State file: <project>/.opencode/.env-guard
+ * State is PROJECT-LEVEL and lives in the `envGuard` field of the project's
+ * opencode.json/opencode.jsonc — there is NO separate state file.
  *   - absent or "off" → off (default — no enforcement)
  *   - "on"            → on (secret-bearing .env* access is hard-blocked)
  *
- * Resolution order (first hit wins):
- *   1. Project state file <project>/.opencode/.env-guard
- *   2. Project config `envGuard` field
- *      (<project>/opencode.jsonc or <project>/.opencode/opencode.jsonc)
- *   3. "off"
+ * Resolution: project config `envGuard` field → "off". Scanned in order:
+ *   <project>/.opencode/opencode.jsonc, <project>/opencode.jsonc, then the
+ *   .json variants. Setting the switch writes the field into the
+ * project-level config only (targeted upsert; comments preserved).
  *
  * The project directory is injected by the plugin entry via setProjectDir()
  * (PluginInput.directory); until then we fall back to process.cwd().
  *
- * JSONC parsing reuses adr-guard-config's quote-aware stripJsonc (pure
- * function, no shared state) — same reuse pattern project-manager uses for
- * the adr-guard-runtime tokenizer.
+ * Config-file plumbing (project dir resolution, JSONC parsing, field
+ * upsert/remove, never-throw write) is shared with adr-guard and auto-advisor
+ * via ../shared/opencode-config; this file keeps only the env-guard-specific
+ * switch semantics.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
-import { stripJsonc } from "../adr-guard/adr-guard-config"
+import {
+  clearConfigField,
+  readProjectConfig,
+  setConfigField,
+  setProjectDir,
+} from "../shared/opencode-config"
 
-// ─── Project directory ───────────────────────────────────────────────
-// Injected by the plugin entry (env-guard.ts) from PluginInput.directory.
-
-let projectDir = process.cwd()
-
-export function setProjectDir(dir: string): void {
-  if (typeof dir === "string" && dir.trim() !== "") projectDir = dir
-}
-
-export function getProjectDir(): string {
-  return projectDir
-}
-
-function projectStateFile(): string {
-  return join(projectDir, ".opencode", ".env-guard")
-}
-
-function projectConfigFiles(): string[] {
-  return [
-    join(projectDir, "opencode.jsonc"),
-    join(projectDir, ".opencode", "opencode.jsonc"),
-    join(projectDir, "opencode.json"),
-    join(projectDir, ".opencode", "opencode.json"),
-  ]
-}
+// Re-export the shared plumbing so the plugin entry keeps its import path.
+export { setProjectDir }
 
 const VALID_STATES = ["on", "off"] as const
 export type GuardState = (typeof VALID_STATES)[number]
@@ -71,35 +52,18 @@ export function normalizeState(state: unknown): GuardState | null {
   return STATE_ALIASES[s] ?? null
 }
 
-function readStateFile(path: string): GuardState | null {
-  if (!existsSync(path)) return null
-  return normalizeState(readFileSync(path, "utf-8"))
-}
+// ─── Switch resolution ───────────────────────────────────────────────
+// The switch is the `envGuard` field of the project-level opencode.jsonc.
 
-/** First parseable project config as a plain object, or null. */
-export function readProjectConfig(): Record<string, unknown> | null {
-  for (const path of projectConfigFiles()) {
-    if (!existsSync(path)) continue
-    try {
-      return JSON.parse(stripJsonc(readFileSync(path, "utf-8")))
-    } catch {
-      // unreadable or unparseable — try next source
-    }
-  }
-  return null
-}
+const GUARD_FIELD = "envGuard"
 
-export type GuardStateSource = "state-file" | "config" | "default"
+export type GuardStateSource = "config" | "default"
 
 function resolveState(): { state: GuardState; source: GuardStateSource } {
-  // 1. Project state file — machine-local override.
-  const s = readStateFile(projectStateFile())
-  if (s) return { state: s, source: "state-file" }
-  // 2. Project config — cross-session default committed with the repo.
+  // Project config — the single source of truth for the switch.
   const cfg = readProjectConfig()
   const fromCfg = normalizeState(cfg?.envGuard)
   if (fromCfg) return { state: fromCfg, source: "config" }
-  // 3. Default.
   return { state: DEFAULT_STATE, source: "default" }
 }
 
@@ -112,17 +76,18 @@ export function getStateSource(): GuardStateSource {
   return resolveState().source
 }
 
-export function setState(state: GuardState): void {
-  // Project-level write — every switch is scoped to the current project.
-  const file = projectStateFile()
-  mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, state, "utf-8")
+/**
+ * Write the switch into the project-level opencode.jsonc. Project-scoped and
+ * never throws: a read-only project dir degrades to a false return instead
+ * of crashing a plugin hook.
+ */
+export function setState(state: GuardState): boolean {
+  return setConfigField(GUARD_FIELD, state)
 }
 
-/** Delete the project state file so the state falls back to config/default. */
-export function clearState(): void {
-  const file = projectStateFile()
-  if (existsSync(file)) rmSync(file)
+/** Remove the `envGuard` field so the state reverts to the default off. */
+export function clearState(): boolean {
+  return clearConfigField(GUARD_FIELD)
 }
 
 export function isEnabled(): boolean {

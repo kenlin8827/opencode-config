@@ -144,6 +144,7 @@ $allFiles = @(
     "plugins/env-guard/env-guard-config.ts",
     "plugins/env-guard/env-guard-runtime.ts",
     "plugins/env-guard/env-guard-tool-guard.ts",
+    "plugins/shared/opencode-config.ts",
     "plugins/project-manager.ts",
     "plugins/project-manager/project-manager.ts",
     "plugins/project-manager/project-manager-config.ts",
@@ -219,6 +220,13 @@ Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $go
 $goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
 Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
 
+# Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, auto-advisor)
+$sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-config.ts" -Raw
+Check "shared/opencode-config.ts: exports never-throw field writer" ($sharedConfig -match 'export function setConfigField')
+Check "shared/opencode-config.ts: exports field remover" ($sharedConfig -match 'export function clearConfigField')
+Check "shared/opencode-config.ts: exports quote-aware stripJsonc" ($sharedConfig -match 'export function stripJsonc')
+Check "shared/opencode-config.ts: exports project config file resolution" ($sharedConfig -match 'export function projectConfigFiles')
+
 # ADR iron-law plugin checks (plugins/adr-guard/ — project-level switch, hard commit gate)
 $adrPlugin = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard.ts" -Raw
 $adrProtocol = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-protocol.md" -Raw
@@ -230,7 +238,7 @@ Check "adr-guard.ts: has command.execute.before hook" ($adrPlugin -match '"comma
 Check "adr-guard.ts: has system.transform hook" ($adrPlugin -match "experimental.chat.system.transform")
 Check "adr-guard.ts: has tool.execute.before hook" ($adrPlugin -match '"tool\.execute\.before"')
 Check "adr-guard.ts: injects project directory" ($adrPlugin -match "setProjectDir\(directory\)")
-Check "adr-guard-config.ts: project-level state file" ($adrConfig -match '\.opencode.*\.adr-guard')
+Check "adr-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($adrConfig -match 'shared/opencode-config' -and $adrConfig -match 'adrGuard')
 Check "adr-guard-config.ts: default state is off" ($adrConfig -match 'DEFAULT_STATE: GuardState = "off"')
 Check "adr-guard-config.ts: default ADR dir docs/adr" ($adrConfig -match 'DEFAULT_ADR_DIR = "docs/adr"')
 Check "adr-guard-tool-guard.ts: gates feat/refactor only" ($adrGuard -match "requiresAdr")
@@ -251,7 +259,7 @@ $egGuard = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-tool-guard.
 Check "env-guard.ts: imports Plugin type" ($egPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
 Check "env-guard.ts: has tool.execute.before hook" ($egPlugin -match '"tool\.execute\.before"')
 Check "env-guard.ts: injects project directory" ($egPlugin -match "setProjectDir\(directory\)")
-Check "env-guard-config.ts: project-level state file" ($egConfig -match '\.opencode.*\.env-guard')
+Check "env-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($egConfig -match 'shared/opencode-config' -and $egConfig -match 'envGuard')
 Check "env-guard-config.ts: default state is off" ($egConfig -match 'DEFAULT_STATE: GuardState = "off"')
 Check "env-guard-config.ts: config field envGuard" ($egConfig -match "envGuard")
 Check "env-guard-runtime.ts: exempts .env.example" ($egRuntime -match '\.env\.example')

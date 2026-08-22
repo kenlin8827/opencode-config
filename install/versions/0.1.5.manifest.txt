@@ -90,6 +90,7 @@ plugins/provider-wizard.ts
 plugins/review-fix-loop.ts
 plugins/review-fix-loop/review-fix-loop.md
 plugins/review-fix-loop/review-fix-loop.ts
+plugins/shared/opencode-config.ts
 profiles/alibaba-coding-plan-cn.json
 profiles/alibaba-coding-plan.json
 profiles/alibaba-token-plan-cn.json

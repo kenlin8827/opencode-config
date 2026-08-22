@@ -1,8 +1,9 @@
 /**
  * Hook: event — announce the ADR iron-law state to the user.
  *
- * The switch is persisted in the project's <project>/.opencode/.adr-guard
- * and silently survives across sessions; without a visible signal the user
+ * The switch is persisted as the `adrGuard` field of the project's
+ * opencode.jsonc and silently survives across sessions; without a visible
+ * signal the user
  * can forget the iron law is on — and commits may get blocked unexpectedly.
  *
  * Two surfaces, one message builder:
@@ -51,7 +52,7 @@ export function statusMessage(): string {
   const adrDir = getAdrDir()
   return (
     `[adr-guard] Status: ${state.toUpperCase()} | ADR dir: ${adrDir}/ | ` +
-    `switch: /adr-guard on|off (project-level, stored in .opencode/.adr-guard)`
+    `switch: /adr-guard on|off (project-level, stored in opencode.jsonc)`
   )
 }
 

@@ -15,7 +15,7 @@
  * Run: bun run tests/test-adr-guard-unit.ts   (or: npx tsx tests/test-adr-guard-unit.ts)
  */
 
-import { existsSync, mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -187,7 +187,7 @@ function test05_StateParsing() {
   const tmp = mkdtempSync(join(tmpdir(), "adr-guard-"))
   try {
     setProjectDir(tmp)
-    assert(getState() === "off", "default state is OFF (no state file, no config field)")
+    assert(getState() === "off", "default state is OFF (no config field)")
   } finally {
     setProjectDir(REPO_ROOT)
     rmSync(tmp, { recursive: true, force: true })
@@ -317,13 +317,15 @@ async function main() {
   console.log("║  ADR Iron Law — Unit Tests (no API)                     ║")
   console.log("╚══════════════════════════════════════════════════════════╝")
 
-  // Pin the project dir to the repo root so state file + git queries run
-  // against a real git repo; restore and clean up afterwards.
+  // Pin the project dir to the repo root so config writes + git queries run
+  // against a real git repo. The switch now lives in the repo's opencode.jsonc,
+  // so snapshot it up front and restore it afterwards — the tests flip the
+  // guard on/off and must not pollute the committed config.
   const origDir = getProjectDir()
   setProjectDir(REPO_ROOT)
-  const stateFile = join(REPO_ROOT, ".opencode", ".adr-guard")
-  const preexisting = existsSync(stateFile)
-  const origState = preexisting ? getState() : null
+  const cfgFile = join(REPO_ROOT, "opencode.jsonc")
+  const cfgPreexisting = existsSync(cfgFile)
+  const origCfg = cfgPreexisting ? readFileSync(cfgFile, "utf-8") : null
 
   try {
     test01_Tokenizer()
@@ -336,8 +338,8 @@ async function main() {
     await test07_ToolGuard()
     await test08_ConfigHook()
   } finally {
-    if (preexisting && origState) setState(origState)
-    else if (existsSync(stateFile)) rmSync(stateFile)
+    if (cfgPreexisting && origCfg !== null) writeFileSync(cfgFile, origCfg, "utf-8")
+    else if (existsSync(cfgFile)) rmSync(cfgFile)
     setProjectDir(origDir)
   }
 

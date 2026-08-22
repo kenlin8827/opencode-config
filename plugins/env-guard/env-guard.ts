@@ -8,12 +8,12 @@
  *   off — default; the plugin is a complete no-op.
  *
  * File layout: one entry + one job per file.
- *   env-guard-config.ts    — state normalize, project state file IO
+ *   env-guard-config.ts    — state normalize, project opencode.jsonc field IO
  *   env-guard-runtime.ts   — path classification, bash leak detection,
  *                              block message
  *   env-guard-tool-guard.ts — tool.before hook: blocks sensitive access
  *
- * State file: <project>/.opencode/.env-guard (project-level only).
+ * Switch: `envGuard` field in the project-level opencode.jsonc (no state file).
  */
 
 import type { Plugin } from "@opencode-ai/plugin"

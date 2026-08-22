@@ -1,52 +1,44 @@
 /**
- * Shared adr-guard config — state file and ADR directory.
+ * Shared adr-guard config — project opencode.jsonc switch field + ADR directory.
  * Single source of truth for reading, writing, and normalizing the switch.
  *
- * State is PROJECT-LEVEL. State file: <project>/.opencode/.adr-guard
+ * State is PROJECT-LEVEL and lives in the `adrGuard` field of the project's
+ * opencode.json/opencode.jsonc — there is NO separate state file.
  *   - absent or "off" → off (default — no enforcement)
  *   - "on"            → on (every feat/refactor commit needs a new/updated ADR)
  *
- * Resolution order (first hit wins):
- *   1. Project state file <project>/.opencode/.adr-guard
- *   2. Project config `adrGuard` field
- *      (<project>/opencode.jsonc or <project>/.opencode/opencode.jsonc)
- *   3. "off"
+ * Resolution: project config `adrGuard` field → "off". Scanned in order:
+ *   <project>/.opencode/opencode.jsonc, <project>/opencode.jsonc, then the
+ *   .json variants.
+ *
+ * /adr-guard on|off writes the field into the project-level config only
+ * (targeted upsert; comments and other fields preserved). /adr-guard reset
+ * removes the field, reverting to the default off.
  *
  * Extra project-config field (optional):
  *   - `adrGuardDir` — ADR directory, default "docs/adr"
  *
  * The project directory is injected by the plugin entry via setProjectDir()
- * (PluginInput.directory); until then we fall back to process.cwd().
+ * (PluginInput.directory); until then it falls back to process.cwd().
+ *
+ * Config-file plumbing (project dir resolution, JSONC parsing, field
+ * upsert/remove, never-throw write) is shared with env-guard and auto-advisor
+ * via ../shared/opencode-config; this file keeps only the adr-guard-specific
+ * switch semantics.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import {
+  clearConfigField,
+  getProjectDir,
+  readProjectConfig,
+  setConfigField,
+  setProjectDir,
+  stripJsonc,
+} from "../shared/opencode-config"
 
-// ─── Project directory ───────────────────────────────────────────────
-// Injected by the plugin entry (adr-guard.ts) from PluginInput.directory.
-
-let projectDir = process.cwd()
-
-export function setProjectDir(dir: string): void {
-  if (typeof dir === "string" && dir.trim() !== "") projectDir = dir
-}
-
-export function getProjectDir(): string {
-  return projectDir
-}
-
-function projectStateFile(): string {
-  return join(projectDir, ".opencode", ".adr-guard")
-}
-
-function projectConfigFiles(): string[] {
-  return [
-    join(projectDir, "opencode.jsonc"),
-    join(projectDir, ".opencode", "opencode.jsonc"),
-    join(projectDir, "opencode.json"),
-    join(projectDir, ".opencode", "opencode.json"),
-  ]
-}
+// Re-export the shared plumbing so existing importers (plugin entry, tool
+// guard, tests) keep their current import paths.
+export { getProjectDir, readProjectConfig, setProjectDir, stripJsonc }
 
 const VALID_STATES = ["on", "off"] as const
 export type GuardState = (typeof VALID_STATES)[number]
@@ -69,103 +61,18 @@ export function normalizeState(state: unknown): GuardState | null {
   return STATE_ALIASES[s] ?? null
 }
 
-/**
- * Strip JSONC comments and trailing commas so we can JSON.parse a .jsonc file.
- * Two quote-aware passes:
- *   1. stripComments — removes line/block comments while respecting string
- *      literals (a `//` inside a quoted value is kept).
- *   2. stripTrailingCommas — drops a `,` only when the next non-whitespace
- *      char is `}` or `]`, skipping string literals so values like `"x,}"`
- *      survive untouched (a naive global replace would silently corrupt them).
- */
-export function stripJsonc(raw: string): string {
-  return stripTrailingCommas(stripComments(raw))
-}
+// ─── Switch resolution ───────────────────────────────────────────────
+// The switch is the `adrGuard` field of the project-level opencode.jsonc.
 
-function stripComments(raw: string): string {
-  let result = ""
-  let i = 0
-  const len = raw.length
-  let state: "normal" | "string" | "lineComment" | "blockComment" = "normal"
-  while (i < len) {
-    const c = raw[i]
-    const next = i + 1 < len ? raw[i + 1] : ""
-    switch (state) {
-      case "normal":
-        if (c === '"') { result += c; state = "string" }
-        else if (c === "/" && next === "/") { state = "lineComment"; i++ }
-        else if (c === "/" && next === "*") { state = "blockComment"; i++ }
-        else { result += c }
-        break
-      case "string":
-        result += c
-        if (c === "\\") { i++; if (i < len) result += raw[i] }
-        else if (c === '"') { state = "normal" }
-        break
-      case "lineComment":
-        if (c === "\n") { result += c; state = "normal" }
-        break
-      case "blockComment":
-        if (c === "*" && next === "/") { state = "normal"; i++ }
-        break
-    }
-    i++
-  }
-  return result
-}
+const GUARD_FIELD = "adrGuard"
 
-function stripTrailingCommas(src: string): string {
-  let result = ""
-  let inString = false
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i]
-    if (inString) {
-      result += c
-      if (c === "\\") { if (i + 1 < src.length) result += src[++i] }
-      else if (c === '"') { inString = false }
-      continue
-    }
-    if (c === '"') { inString = true; result += c; continue }
-    if (c === ",") {
-      // Trailing when only whitespace separates it from the closing brace.
-      let j = i + 1
-      while (j < src.length && /\s/.test(src[j])) j++
-      if (j < src.length && (src[j] === "}" || src[j] === "]")) continue
-    }
-    result += c
-  }
-  return result
-}
-
-function readStateFile(path: string): GuardState | null {
-  if (!existsSync(path)) return null
-  return normalizeState(readFileSync(path, "utf-8"))
-}
-
-/** First parseable project config as a plain object, or null. */
-export function readProjectConfig(): Record<string, unknown> | null {
-  for (const path of projectConfigFiles()) {
-    if (!existsSync(path)) continue
-    try {
-      return JSON.parse(stripJsonc(readFileSync(path, "utf-8")))
-    } catch {
-      // unreadable or unparseable — try next source
-    }
-  }
-  return null
-}
-
-export type GuardStateSource = "state-file" | "config" | "default"
+export type GuardStateSource = "config" | "default"
 
 function resolveState(): { state: GuardState; source: GuardStateSource } {
-  // 1. Project state file — written by /adr-guard in this project.
-  const s = readStateFile(projectStateFile())
-  if (s) return { state: s, source: "state-file" }
-  // 2. Project config — cross-session default committed with the repo.
+  // Project config — the single source of truth for the switch.
   const cfg = readProjectConfig()
   const fromCfg = normalizeState(cfg?.adrGuard)
   if (fromCfg) return { state: fromCfg, source: "config" }
-  // 3. Default.
   return { state: DEFAULT_STATE, source: "default" }
 }
 
@@ -178,20 +85,21 @@ export function getStateSource(): GuardStateSource {
   return resolveState().source
 }
 
-export function setState(state: GuardState): void {
-  // Project-level write — every switch is scoped to the current project.
-  const file = projectStateFile()
-  mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, state, "utf-8")
+/**
+ * Write the switch into the project-level opencode.jsonc. Project-scoped and
+ * never throws: a read-only project dir degrades to a false return instead
+ * of crashing a plugin hook.
+ */
+export function setState(state: GuardState): boolean {
+  return setConfigField(GUARD_FIELD, state)
 }
 
 /**
- * Delete the project state file so the state falls back to the committed
- * `adrGuard` config field (or the default off). Used by `/adr-guard reset`.
+ * Remove the `adrGuard` field from the project config so the state reverts
+ * to the default off. Used by `/adr-guard reset`. Never throws.
  */
-export function clearState(): void {
-  const file = projectStateFile()
-  if (existsSync(file)) rmSync(file)
+export function clearState(): boolean {
+  return clearConfigField(GUARD_FIELD)
 }
 
 export function isEnabled(): boolean {
@@ -231,7 +139,7 @@ export function parseStateArg(args: unknown): GuardState | null {
 
 const RESET_ALIASES = ["reset", "default", "clear"]
 
-/** True when the first argument asks to drop the local state file. */
+/** True when the first argument asks to reset the switch to the default off. */
 export function parseResetArg(args: unknown): boolean {
   if (typeof args !== "string") return false
   const first = args.trim().split(/\s+/)[0]?.toLowerCase()
