@@ -105,7 +105,7 @@ Remove-Item -Recurse -Force $tmp
 
 安装时自动配置 [rtk](https://github.com/rtk-ai/rtk) —— 一个在命令输出（git status、测试、构建等）到达模型前将其压缩 60-90% 的 CLI 代理。无需任何手动步骤：若 PATH 中没有 `rtk`，安装器会将固定版本的二进制下载到 `~/.local/bin`（SHA256 校验，Windows 上必要时自动加入用户 PATH）。opencode 钩子以仓库内置的 vendored [openrtk](https://github.com/martinstannard/openrtk) 插件（`plugins/openrtk.ts`）形式随配置分发 —— 透明地把 shell 命令经 rtk 重写，无需 `rtk init` 步骤；若之前通过 `rtk init -g --opencode` 装过官方插件，安装时会自动清理。安装后遥测默认关闭。
 
-完全不需要时：在 `<target>/options.jsonc`（或 `install/options.jsonc`）中设 `"rtk": false` 后重新安装 —— 跳过下载并自动从目标目录移除内置 openrtk 插件。事后移除二进制：删除 `~/.local/bin/rtk(.exe)`。
+完全不需要时：在 `install/options.jsonc` 中设 `"rtk": false` 后重新安装 —— options 文件每次安装都会覆盖目标，因此跳过下载并自动从目标目录移除内置 openrtk 插件。事后移除二进制：删除 `~/.local/bin/rtk(.exe)`。
 
 ---
 

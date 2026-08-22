@@ -3,9 +3,10 @@
 // -EnableMcp/--enable-mcp command-line flags.
 //
 // Lives in install/ with the other installer machinery (VERSION, manifests):
-// every install copies it over the target, then re-merges the user's
-// pre-install switches on top. Edit this file (or the installed copy under
-// ~/.config/opencode) and re-run the installer:
+// every install reads it in place and forces the target state onto it — it
+// overwrites unconditionally on EVERY install and never ships to the target.
+// Edit THIS file and re-run the installer (`install -Force` when the version
+// is unchanged):
 //   mcp.<name>     → opencode.jsonc's mcp.<name>.enabled; enabling an entry
 //                    that declares an `install` field also provisions its CLI
 //                    on the next install
@@ -14,11 +15,12 @@
 //                    (false skips the download AND removes plugins/openrtk*
 //                    from the target)
 //
-// Your choices survive reinstalls (the installed copy is snapshotted before
-// the overwrite and re-merged on top of these shipped defaults). Entries a
-// newer template adds are picked up automatically (default enabled); entries
-// a newer template removes are dropped with it. Bundled plugins/*.ts files
-// are NOT options — they ship wholesale and are always active.
+// Your choices persist in this file (git). No copy is installed under
+// ~/.config/opencode — the switches apply straight onto opencode.jsonc
+// (mcp.*.enabled + the plugin array), so nothing in the target looks like
+// an editable options file. Entries this file doesn't list keep the shipped
+// opencode.jsonc value. Bundled plugins/*.ts files are NOT options — they
+// ship wholesale and are always active.
 {
   // true = provision the rtk binary + keep the vendored openrtk plugin;
   // false = skip the download and remove plugins/openrtk.ts + plugins/openrtk/
@@ -33,8 +35,10 @@
     // PolyForm Noncommercial license — enable only if licensed + indexed
     // (see the gitnexus comment in opencode.jsonc)
     "gitnexus": false,
-    // Needs per-project setup (dbhub.toml + DSN) — see opencode.jsonc
-    "dbhub": false
+    // Universal DB gateway (MIT, ~1.4k tokens); CLI auto-provisioned.
+    // Still needs per-project dbhub.toml + DSN (see opencode.jsonc) —
+    // without one, dbhub just fails to connect at session start
+    "dbhub": true
   },
   // true = in opencode.jsonc's `plugin` array; false = dropped
   "plugin": {

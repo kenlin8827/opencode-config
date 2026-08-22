@@ -11,8 +11,8 @@
 #   ./install/install.sh install -f     # force reinstall same version
 #   ./install/install.sh install -t DIR # target a different directory
 #   Component switches (rtk, MCPs, external plugins) live in
-#   install/options.jsonc — edit the file, then re-run install;
-#   choices survive reinstalls.
+#   install/options.jsonc — the single source of truth; it overwrites the
+#   target on every install. Edit the file, then re-run install.
 #   ./install/install.sh init           # backup + clear target (fresh start)
 #   ./install/install.sh init --no-backup  # clear without backup
 #   ./install/install.sh init -y        # skip confirmation prompt
@@ -40,8 +40,8 @@ BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 # Whitelist of runtime paths; nothing else ships.
 # providers/ ships as merge sources: install folds each providers/*.json into
 # opencode.jsonc's `provider` node (see merge_providers). options.jsonc
-# lives in install/ (NOT in the manifest) and is copied over explicitly (see
-# copy_current_files + apply_options).
+# stays in install/ and NEVER ships to the target — apply_options reads it
+# in place and applies its switches to opencode.jsonc.
 INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
 PRESERVE_KEYS=("baseURL" "apiKey")
 
@@ -158,25 +158,16 @@ copy_manifest_files() {
 
 # snapshots user state from the target before the copy overwrites it:
 # provider credentials, root model, and per-tier model refs (agents of a
-# tier share one ref — same tier semantics as the /profile plugin), plus
-# the options.jsonc switches (mcp + external plugins).
-# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...},
-# mcpEnabled: {...}, options: {...}|null}
+# tier share one ref — same tier semantics as the /profile plugin).
+# Option switches are NOT snapshotted — the repo's install/options.jsonc
+# is the single source of truth and overwrites the target on every install.
+# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
     # fresh target: emit the empty bag so callers can --argjson it unconditionally
-    [[ -f "$rp_f" ]] || { echo '{"creds":[],"rootModel":null,"tiers":{},"mcpEnabled":{},"options":null}'; unset rp_f; return 0; }
-    # snapshot the user's option switches before the shipped copy lands
-    # (tr -d '\r': Windows-edited files are CRLF and jq chokes on that)
-    rp_comp='null'
-    if [[ -f "$1/options.jsonc" ]]; then
-        rp_comp="$(grep -v '^[[:space:]]*//' "$1/options.jsonc" | tr -d '\r' | jq -c '.' 2>/dev/null || echo null)"
-        if [[ "$rp_comp" == "null" ]]; then
-            echo "WARN [options] cannot parse installed options.jsonc — user switches not preserved" >&2
-        fi
-    fi
+    [[ -f "$rp_f" ]] || { echo '{"creds":[],"rootModel":null,"tiers":{}}'; unset rp_f; return 0; }
     # strip comment lines so plain jq can parse the JSONC
-    grep -v '^[[:space:]]*//' "$rp_f" | jq -c --argjson comp "$rp_comp" '
+    grep -v '^[[:space:]]*//' "$rp_f" | jq -c '
         {
           creds: [ .provider // {} | to_entries[] as $p |
                    ($p.value.options // {}) | to_entries[] |
@@ -185,18 +176,15 @@ read_preserve() {
           rootModel: (.model // null),
           tiers: ([ .agent // {} | to_entries[] |
                     select((.value.tier // null) != null and (.value.model // null) != null) |
-                    {(.value.tier): .value.model} ] | add // {}),
-          mcpEnabled: ((.mcp // {}) | with_entries(.value |= .enabled)
-                       | with_entries(select(.value != null))),
-          options: $comp
+                    {(.value.tier): .value.model} ] | add // {})
         }
-    ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{},"mcpEnabled":{},"options":null}'
-    unset rp_f rp_comp
+    ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{}}'
+    unset rp_f
 }
 
 # restores preserved credentials + model picks into the freshly-copied opencode.jsonc.
-# mcp switches are NOT restored here — apply_options owns them via
-# options.jsonc (bag.mcpEnabled only seeds the migration path).
+# mcp/plugin switches are NOT restored here — apply_options owns them via
+# the repo's options.jsonc.
 # reads the JSON object from stdin
 restore_preserve() {
     rp_dst="$1"
@@ -417,60 +405,40 @@ ensure_mcp() {
     return 0
 }
 
-# Applies options.jsonc — the single source of truth for which MCPs and
-# external plugins are active — onto the target opencode.jsonc:
+# Applies the repo's install/options.jsonc — the single source of truth for
+# which MCPs and external plugins are active — onto the target opencode.jsonc:
 #   mcp.<name>    → mcp.<name>.enabled
 #   plugin.<name> → membership in the `plugin` array
-# The shipped options.jsonc was just copied over the target, so first
-# re-merge the user's pre-install choices (snapshot in $preserve_bag) on top
-# of it — user wins, new entries keep shipped defaults; a pre-options
-# install migrates its preserved mcp flags in as seeds. Switches for entries
-# a newer template dropped are dropped too; entries a newer template ADDED
-# default to enabled and are picked up into options.jsonc. Runs AFTER
-# restore_preserve (options.jsonc wins over any preserved opencode.jsonc
-# flags); ensure_mcp afterwards provisions newly enabled CLIs. The merged
-# state goes back to options.jsonc so it survives future reinstalls.
+# The file is read IN PLACE from install/ and overwrites the target state on
+# EVERY install — nothing is copied to the target, so there is no installed
+# copy that could be mistaken for an editable config (user choices persist
+# in the repo file itself, which the install runs from). Entries the options
+# file doesn't list keep the shipped opencode.jsonc value; entries the
+# target carries but the options file doesn't know survive as-is (user
+# additions). Runs AFTER restore_preserve (options.jsonc wins over any
+# preserved opencode.jsonc flags); ensure_mcp afterwards provisions newly
+# enabled CLIs.
 apply_options() {
-    local cfg="$TARGET/opencode.jsonc" comp="$TARGET/options.jsonc"
+    local cfg="$TARGET/opencode.jsonc" comp="$SCRIPT_DIR/options.jsonc"
     [[ -f "$comp" && -f "$cfg" ]] || return 0
-    local merged disc tmp summary bag_json comp_json
-    # merge shipped defaults + user snapshot (user wins; seed mcp from
-    # preserved flags when upgrading from a pre-options install).
-    # Preprocess through grep/tr instead of --slurpfile: jq chokes on CRLF
-    # line endings (Windows-edited options.jsonc), and comment lines must go.
-    bag_json="$(tr -d '\r' < "$preserve_bag")"
+    local merged tmp summary comp_json
+    # the repo file is authoritative — build the switch state straight from
+    # it. Preprocess through grep/tr: jq chokes on CRLF line endings
+    # (Windows-edited options.jsonc), and comment lines must go.
     comp_json="$(grep -v '^[[:space:]]*//' "$comp" | tr -d '\r')" || return 0
-    merged="$(jq -n --argjson b "$bag_json" --argjson s "$comp_json" '
-        ($b.options // null) as $user
-        | ($b.mcpEnabled // {}) as $mig
-        | {
-            mcp: (($s.mcp // {}) +
-                  (if $user != null then ($user.mcp // {})
-                   elif ($mig | length) > 0 then $mig else {} end)),
-            plugin: (($s.plugin // {}) +
-                     (if $user != null then ($user.plugin // {}) else {} end)),
-            rtk: (if $user != null and ($user | has("rtk")) then ($user.rtk != false)
-                  else ($s.rtk != false) end)
-          }
+    merged="$(jq -c --argjson s "$comp_json" '
+        {
+            mcp: ($s.mcp // {}),
+            plugin: ($s.plugin // {}),
+            rtk: ($s.rtk != false)
+        }
     ' 2>/dev/null)" || { echo "WARN [options] cannot parse options.jsonc — skipping" >&2; return 0; }
-    # drop stale user switches for entries a newer template removed, so a
-    # removed component stays gone instead of being resurrected later
-    disc="$(grep -v '^[[:space:]]*//' "$REPO_ROOT/opencode.jsonc" | jq -c '{m: [(.mcp // {}) | keys[]], p: (.plugin // [])}' 2>/dev/null)" || disc='{"m":null,"p":null}'
-    merged="$(jq -c --argjson t "$disc" '
-        if ($t.m != null) then .mcp |= with_entries(.key as $k | select($t.m | index($k) != null)) else . end
-        | if ($t.p != null) then .plugin |= with_entries(.key as $k | select($t.p | index($k) != null)) else . end
-    ' <<< "$merged")"
-    # pick up entries a newer template ADDED but options.jsonc lacks
-    disc="$(grep -v '^[[:space:]]*//' "$cfg" | jq -c '{m: [(.mcp // {}) | keys[]], p: (.plugin // [])}' 2>/dev/null)" || disc='{"m":[],"p":[]}'
-    merged="$(jq -c --argjson d "$disc" '
-        .mcp as $m | .plugin as $p
-        | .mcp += (([ $d.m[] | . as $k | select(($m | has($k)) | not) | {($k): true} ]) | add // {})
-        | .plugin += (([ $d.p[] | . as $k | select(($p | has($k)) | not) | {($k): true} ]) | add // {})
-    ' <<< "$merged")"
-    printf '%s\n' "$merged" | jq '.' > "$comp"
     # export the rtk decision for ensure_rtk (runs right after this)
     if [[ "$(jq -r '.rtk' <<< "$merged")" == "true" ]]; then OPT_RTK=1; else OPT_RTK=0; fi
-    # apply onto opencode.jsonc: mcp.<name>.enabled + plugin array membership
+    # apply onto opencode.jsonc: mcp.<name>.enabled (only entries the
+    # options file lists get forced; unlisted keep the shipped value) +
+    # plugin array membership (drop disabled, add enabled-but-missing,
+    # keep unknown)
     tmp="$(mktemp)"
     grep -v '^[[:space:]]*//' "$cfg" | jq --argjson c "$merged" '
         ($c.mcp // {}) as $cm | ($c.plugin // {}) as $cp
@@ -494,7 +462,7 @@ apply_options() {
     fi
     summary="$(jq -r '"mcp: \([.mcp[]? | select(. == true)] | length) on / \([.mcp[]? | select(. != true)] | length) off; plugins: \([.plugin[]? | select(. == true)] | length) on / \([.plugin[]? | select(. != true)] | length) off; rtk: \(if .rtk == false then "off" else "on" end)"' <<< "$merged")"
     echo "[options] applied options.jsonc ($summary)"
-    unset cfg comp merged disc tmp summary bag_json comp_json
+    unset cfg comp merged tmp summary comp_json
 }
 
 # --- install orchestration ----------------------------------------------
@@ -521,15 +489,13 @@ copy_current_files() {
     # fold shipped providers/*.json into the `provider` node before the
     # preserve-restore, so user credentials override {env:...} placeholders
     merge_providers "$TARGET"
-    # options.jsonc ships with the installer, not the manifest — copy the
-    # shipped defaults over the target; apply_options re-merges the user
-    # snapshot (taken before removal) on top afterwards
-    if [[ -f "$SCRIPT_DIR/options.jsonc" ]]; then
-        cp "$SCRIPT_DIR/options.jsonc" "$TARGET/options.jsonc"
-    fi
+    # options.jsonc never ships to the target — apply_options reads the
+    # repo file in place. Older installers left a copy behind; delete it so
+    # nobody mistakes it for an editable config
+    rm -f "$TARGET/options.jsonc"
     # restore the snapshot taken before removal (only if there is anything)
     if [[ -s "$preserve_bag" ]]; then
-        n="$(jq '(.creds | length) + (.tiers | length) + (.mcpEnabled | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
+        n="$(jq '(.creds | length) + (.tiers | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
         if [[ "$n" -gt 0 ]]; then
             restore_preserve "$TARGET" < "$preserve_bag"
             echo "[cur: $VER] preserved $n field(s) (credentials + models) in opencode.jsonc"
@@ -559,8 +525,9 @@ do_install() {
 
     remove_old_files
     copy_current_files
-    # options.jsonc decides which MCPs/plugins are active (overrides
-    # preserved state; ensure_mcp below provisions newly enabled entries)
+    # options.jsonc decides which MCPs/plugins are active — the repo file
+    # overwrites the target unconditionally (ensure_mcp below provisions
+    # newly enabled entries)
     apply_options
     # provision rtk binary + clean up the official plugin (warns, never
     # fails) — runs after apply_options so the options.jsonc rtk switch
@@ -713,7 +680,9 @@ case "$MODE" in
             fi
         fi
         { read_manifest "$prev_man" || true; } | remove_manifest_files "uninstall" "$TARGET"
-        # Installer-owned extras that never live in the manifest
+        # Installer-owned extras that never live in the manifest (the
+        # options.jsonc copy is a leftover of older installers — install
+        # no longer ships it)
         for extra in options.jsonc "$MARKER" "$MARKER.bak"; do
             if [[ -e "$TARGET/$extra" ]]; then
                 rm -f "$TARGET/$extra"

@@ -269,8 +269,8 @@ Everything else stays in the repo and never reaches the target:
 In particular, **`.git/` is never copied to the target** — the target should
 be a clean config directory, not a working copy.
 
-(*) One exception: `install/options.jsonc` is copied to the target
-explicitly by the installer (not via the manifest) — see Options below.
+(*) `install/options.jsonc` never ships to the target: the installer reads
+it in place and applies its switches to `opencode.jsonc` — see Options below.
 
 ## How cleanup works
 
@@ -287,8 +287,8 @@ manifest listed it) — it is always rewritten at the end of each install.
 `uninstall` is the precise reverse of `install`: it reads the target's
 `.CONFIG_VERSION`, deletes exactly the files listed by that version's
 manifest (files you added yourself survive), then removes the
-installer-owned extras (`options.jsonc`, `.CONFIG_VERSION`, any stale
-`.CONFIG_VERSION.bak`).
+installer-owned extras (`.CONFIG_VERSION`, any stale `.CONFIG_VERSION.bak`,
+and a legacy `options.jsonc` copy left behind by older installers).
 
 ```pwsh
 pwsh install/install.ps1 uninstall        # confirmation prompt
@@ -342,7 +342,6 @@ then write it back afterwards:
 | `provider.<name>.options.apiKey`  | User's API key (secret)      |
 | `model` (root)             | User's model pick for `tier.default`  |
 | `agent.<name>.model`       | User's per-tier model picks           |
-| `options.jsonc` (file)     | User's option switches (see below)    |
 
 Model picks are preserved **per tier** (the same semantics the `/profile`
 plugin uses — every agent of a tier shares one `provider/model_id` ref):
@@ -357,11 +356,14 @@ preserved credential fields, extend `$preserveJsonKeys` (PowerShell) or
 
 ## Options (MCP + external plugin + rtk switches)
 
-`install/options.jsonc` is the single switch panel for every MCP server,
-external (npm) plugin, and the rtk proxy — it replaces the old
-`-EnableMcp` / `--enable-mcp` command-line flags. It ships with the
-installer (NOT in the version manifest): every install copies the shipped
-defaults to the target, then re-merges the user's switches on top.
+`install/options.jsonc` is the single switch panel AND the single source of
+truth for every MCP server, external (npm) plugin, and the rtk proxy — it
+replaces the old `-EnableMcp` / `--enable-mcp` command-line flags. It lives
+in install/ (NOT in the version manifest) and never ships to the target —
+every install reads it in place and forces the target state onto it,
+unconditionally on every install. Nothing in the target directory looks like
+an editable options file (a copy left behind by older installers is deleted
+on install).
 
 ```jsonc
 {
@@ -377,15 +379,13 @@ defaults to the target, then re-merges the user's switches on top.
   already-installed `rtk` binary on PATH stays put).
 - `mcp.<name>` drives `opencode.jsonc`'s `mcp.<name>.enabled`; enabling an
   entry that declares an `install` field also provisions its CLI on the
-  next install (disabled entries are never provisioned).
-- `plugin.<name>` drives membership in `opencode.jsonc`'s `plugin` array.
-- Edit the file (repo copy or the installed copy) and re-run `install`; your
-  choices are snapshotted before the overwrite and re-merged on top of the
-  shipped defaults, so they survive reinstalls.
-- Options added by a future version keep their shipped defaults; entries
-  a newer template ADDS are picked up into `options.jsonc` automatically
-  (default enabled), and switches for entries a newer template removed are
-  dropped with them.
+  next install (disabled entries are never provisioned). Entries the options
+  file doesn't list keep the shipped `opencode.jsonc` value.
+- `plugin.<name>` drives membership in `opencode.jsonc`'s `plugin` array;
+  plugins the target carries but the options file doesn't list survive as-is.
+- Edit this file and re-run `install` (`-Force`/`-f` when the version is
+  unchanged). Your choices persist in this file (git); no installed copy
+  exists.
 - Bundled `plugins/*.ts` files are not toggled here — they ship wholesale and
   are always active. The one exception is the vendored openrtk plugin, which
   follows the `rtk` switch.

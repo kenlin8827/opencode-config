@@ -81,10 +81,10 @@
     // --config / DSN env var). TOML values support ${ENV_VAR} interpolation
     // — keep credentials out of any repo. Read-only is enforced per tool
     // in the TOML ([[tools]] readonly = true); the old --readonly flag is
-    // removed upstream. `install` is pre-declared but dormant: while
-    // "enabled" stays false the install script skips it; flipping enabled
-    // to true makes the next install provision the CLI automatically
-    // (dbhub.toml + DSN in each project remain your setup).
+    // removed upstream. Enabled by default in install/options.jsonc, so
+    // installs provision the CLI and flip `enabled` — the false below is
+    // only the shipped template fallback (direct copies without the
+    // installer). dbhub.toml + DSN in each project remain your setup.
     // Example dbhub.toml in the project root:
     //   [[sources]]
     //   id = "default"
