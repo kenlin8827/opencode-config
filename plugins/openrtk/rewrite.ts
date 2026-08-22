@@ -3,8 +3,9 @@
  *
  * Vendored from https://github.com/martinstannard/openrtk
  * Copyright (c) 2026 Martin Stannard, MIT License.
- * Source: src/rewrite.ts, kept verbatim so upstream updates can be
- * diffed in.
+ * Source: src/rewrite.ts — RULES kept verbatim so upstream updates can
+ * be diffed in; the only local deviation is the WIN_SKIP gate in
+ * rewrite() below.
  *
  * Each entry maps a regex pattern (matched against the first command in a
  * pipeline) to a function that rewrites the full command string through RTK.
@@ -13,6 +14,32 @@
 
 /** Env-var prefix pattern: `FOO=bar BAZ=qux ` */
 const ENV_PREFIX_RE = /^([A-Za-z_][A-Za-z0-9_]*=[^ ]* +)+/
+
+/**
+ * Windows gate. RULES stays shared unless the rewrite turns a working
+ * command into a broken one or trades a clear error for a confusing
+ * one (all verified on Windows 11 / rtk 0.45.0):
+ *
+ *   ls, wget → rtk proxies native binaries that Windows lacks on PATH,
+ *              while the PowerShell aliases (Get-ChildItem,
+ *              Invoke-WebRequest) work — skip, keep the alias.
+ *   grep, rg → rtk grep is native for single file/dir targets, but
+ *              -r/-R/--recursive (the dominant agent form) proxies
+ *              native grep and fails; worse, rg is often genuinely
+ *              installed (choco/scoop) and rewriting breaks its own
+ *              flags (--type, -g). Skipping yields the clear
+ *              "not recognized" error that points the model at
+ *              Select-String / the built-in grep tool.
+ *
+ * Kept on Windows: cat → rtk read (single-file is rtk-native and the
+ * dominant form; multi-file fails equally rewritten or not), find /
+ * diff (fully rtk-native — they also FIX semantics: PowerShell `find`
+ * resolves to the unrelated FIND.EXE text filter, `diff` is the
+ * object-based Compare-Object alias), tree (proxies tree.com, which
+ * exists), and every real-exe toolchain rule (git, cargo, ...).
+ */
+const WIN_SKIP: RegExp[] = [/^ls(\s|$)/, /^wget\s+/, /^(rg|grep)(\s|$)/]
+const IS_WINDOWS = process.platform === "win32"
 
 const RULES: [RegExp, (cmd: string) => string][] = [
   // --- Git ---
@@ -118,6 +145,10 @@ export function rewrite(command: unknown): string | null {
   const envMatch = command.match(ENV_PREFIX_RE)
   const envPrefix = envMatch ? envMatch[0] : ""
   const body = envPrefix ? command.slice(envPrefix.length) : command
+
+  // Windows: leave commands to their working PowerShell aliases when
+  // the rtk target binary doesn't exist on this platform (see WIN_SKIP)
+  if (IS_WINDOWS && WIN_SKIP.some((p) => p.test(body))) return null
 
   for (const [pattern, rewriter] of RULES) {
     if (pattern.test(body)) {

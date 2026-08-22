@@ -357,7 +357,22 @@ ensure_rtk() {
     if "$exe" --help 2>&1 | grep -qE '^[[:space:]]*telemetry\b'; then
         "$exe" telemetry disable 2>&1 | sed 's/^/[rtk] /' || true
     fi
-    unset exe home_bin rtk_plugin
+    # Suppress rtk's "No hook installed" banner. The vendored openrtk
+    # plugin replaces rtk's official hook mechanism, so the banner is
+    # noise. rtk's hook_check rate-limits via a marker file at
+    # dirs::data_local_dir()/rtk/.hook_warn_last — touching it silences
+    # the warning for 24h; the vendored openrtk plugin refreshes it at
+    # every opencode launch. Best-effort: any failure only warns.
+    local rtk_data_dir
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        rtk_data_dir="$HOME/Library/Application Support/rtk"
+    else
+        rtk_data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/rtk"
+    fi
+    if mkdir -p "$rtk_data_dir" 2>/dev/null; then
+        : > "$rtk_data_dir/.hook_warn_last" 2>/dev/null || true
+    fi
+    unset exe home_bin rtk_plugin rtk_data_dir
 }
 
 # Config-driven MCP CLI provisioning: walks opencode.jsonc's `mcp` block and

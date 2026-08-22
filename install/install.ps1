@@ -260,6 +260,16 @@ function Ensure-Rtk([string]$dst) {
         if ($hasTelemetry -match '(?m)^\s*telemetry\b') {
             & $exe telemetry disable 2>&1 | ForEach-Object { Write-Host "[rtk] $_" }
         }
+        # Suppress rtk's "No hook installed" banner. On Windows the bash
+        # hook can never be installed (rtk init -g requires bash/jq/POSIX
+        # perms), so the banner pollutes every command's stderr. rtk's
+        # hook_check rate-limits via a marker file at
+        # %LOCALAPPDATA%\rtk\.hook_warn_last — touching it silences the
+        # warning for 24h; the vendored openrtk plugin refreshes it at
+        # every opencode launch.
+        $rtkDataDir = Join-Path $env:LOCALAPPDATA 'rtk'
+        if (-not (Test-Path $rtkDataDir)) { New-Item -ItemType Directory -Path $rtkDataDir -Force | Out-Null }
+        [IO.File]::WriteAllText((Join-Path $rtkDataDir '.hook_warn_last'), '')
     } catch {
         Write-Warning "[rtk] setup failed — continuing without rtk. Cause: $($_.Exception.Message)"
     }
