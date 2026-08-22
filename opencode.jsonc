@@ -136,14 +136,14 @@
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
     },
-    "coding": {
+    "code": {
       "tier": "code",
-      "description": "Coding — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
+      "description": "Code — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
       "mode": "primary",
       "model": "llm-router/code",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/coding.md}"
+      "prompt": "{file:~/.config/opencode/agents/code.md}"
     },
     "advisor": {
       "tier": "advisor",

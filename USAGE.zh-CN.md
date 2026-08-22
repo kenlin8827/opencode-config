@@ -56,7 +56,9 @@ macOS / Linux / WSL：
 ./install/install.sh
 ```
 
-完成后，在你的项目目录中启动 `opencode` — 在会话内配置服务商（`/connect`、`/provider`、`/profile`，见[配置](#配置)）；`@build` 编排器是默认智能体，会自动路由你的任务。
+完成后，在你的项目目录中启动 `opencode` — 在会话内配置服务商（`/connect`、`/provider`、`/profile`，见[配置](#配置)）；`@build` 编排器是默认智能体，会自动把你的任务路由给专家团里合适的成员。
+
+> **术语约定**：下文中的"专家团"指各专家智能体（`@java-dev`、`@security` 等）组成的团队；`@build` / `@plan` 是调度它们的编排器（团长）。技术标识符（agent 名、`@` 引用）保持英文，是 opencode 平台约定。
 
 ---
 
@@ -295,7 +297,7 @@ bridge 附带的额外能力：
 
 ### Build 模式（默认）
 
-`@build` 是默认入口。它会自动将你的任务路由到合适的专家智能体：
+`@build` 是默认入口。它会自动将你的任务路由给专家团里合适的成员：
 
 ```
 > 添加一个 Spring Boot 用户注册接口，使用 JPA 和 BCrypt
@@ -322,20 +324,20 @@ bridge 附带的额外能力：
 
 通过 Tab 或 `@plan` / `@build` 在两种模式间切换。
 
-### Coding 模式（直接开发）
+### Code 模式（直接开发）
 
-切换到 `@coding` 处理单一领域的编码任务 — 它自己动手写代码，不主动委托；但仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）：
+切换到 `@code` 处理单一领域的编码任务 — 它自己动手写代码，不主动委托；但仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）：
 
 ```
-> @coding 修复分页逻辑里的差一错误
-> @coding 给注册表单加上输入校验
+> @code 修复分页逻辑里的差一错误
+> @code 给注册表单加上输入校验
 ```
 
-如果任务实际上是跨领域的，`@coding` 会建议切换到 `@build`。
+如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
 
-### 直接调用智能体
+### 直接调用专家
 
-你可以跳过编排器，直接调用专家智能体：
+你可以跳过编排器，直接调用专家团的成员：
 
 ```
 > @dba 优化 orders 表的索引

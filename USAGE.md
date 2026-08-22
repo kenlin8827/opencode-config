@@ -349,16 +349,16 @@ Switch to `@plan` for analysis-only tasks (no code changes):
 
 Switch between Build and Plan via Tab or `@plan` / `@build`.
 
-### Coding mode (direct development)
+### Code mode (direct development)
 
-Switch to `@coding` for single-domain coding tasks — it writes the code itself and never proactively delegates. Manual delegation stays available for assists (`@advisor`, `@explorer`, `@code-review`, `@vision`):
+Switch to `@code` for single-domain coding tasks — it writes the code itself and never proactively delegates. Manual delegation stays available for assists (`@advisor`, `@explorer`, `@code-review`, `@vision`):
 
 ```
-> @coding Fix the off-by-one error in the pagination logic
-> @coding Add input validation to the signup form
+> @code Fix the off-by-one error in the pagination logic
+> @code Add input validation to the signup form
 ```
 
-If the task turns out to be multi-domain, `@coding` suggests switching to `@build`.
+If the task turns out to be multi-domain, `@code` suggests switching to `@build`.
 
 ### Direct agent invocation
 

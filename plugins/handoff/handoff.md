@@ -48,7 +48,7 @@ Produce ONE markdown handoff document and tell the user where it is. No coding w
 
 ## Suggested agents
 <which @agents / slash commands the next session should reach for, and why —
- e.g. "@coding for the implementation", "/review-fix-loop last commit before merge">
+ e.g. "@code for the implementation", "/review-fix-loop last commit before merge">
 ```
 
 ## Hard rules

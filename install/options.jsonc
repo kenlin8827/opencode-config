@@ -11,6 +11,10 @@
 //                    that declares an `install` field also provisions its CLI
 //                    on the next install
 //   plugin.<name>  → membership in opencode.jsonc's `plugin` array
+//   default_agent  → opencode.jsonc's root `default_agent` — which primary
+//                    agent (build / code / plan) opencode enters first;
+//                    must name an agent that exists in the shipped `agent`
+//                    block (unknown names are rejected, template value kept)
 //   rtk            → rtk binary provisioning + the vendored openrtk plugin
 //                    (false skips the download AND removes plugins/openrtk*
 //                    from the target)
@@ -26,6 +30,12 @@
   // false = skip the download and remove plugins/openrtk.ts + plugins/openrtk/
   // from the target (an already-installed rtk binary on PATH stays put)
   "rtk": true,
+  // Which primary agent opencode enters by default:
+  //   code  — direct developer; does the coding work itself (daily driver)
+  //   build — orchestrator; routes coding tasks to specialists
+  //   plan  — read-only coordinator for analysis / design work
+  // Unknown names are rejected with a warning (template value kept).
+  "default_agent": "code",
   // true = enabled (CLI auto-provisioned via `install` if missing); false = skipped
   "mcp": {
     // LSP semantic code retrieval/editing; needs uv

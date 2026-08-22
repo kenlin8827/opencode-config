@@ -516,9 +516,12 @@ function Restore-Preserve([string]$dst, $bag) {
 }
 
 # Applies the repo's install/options.jsonc — the single source of truth for
-# which MCPs and external plugins are active — onto the target opencode.jsonc:
+# which MCPs and external plugins are active, plus the default agent — onto
+# the target opencode.jsonc:
 #   mcp.<name>    -> mcp.<name>.enabled
 #   plugin.<name> -> membership in the `plugin` array
+#   default_agent -> root `default_agent` (validated against the `agent`
+#                    block; unknown names are rejected, template value kept)
 # The file is read IN PLACE from install/ and overwrites the target state on
 # EVERY install — nothing is copied to the target, so there is no installed
 # copy that could be mistaken for an editable config (user choices persist
@@ -557,6 +560,26 @@ function Apply-Options([string]$dst) {
     }
     if ($obj.PSObject.Properties.Name -contains 'plugin') { $obj.plugin = @($kept) }
     else { $obj | Add-Member -NotePropertyName 'plugin' -NotePropertyValue @($kept) -Force }
+    # default_agent: forced onto the root field, but only when it names an
+    # agent that actually exists in the shipped `agent` block — a typo
+    # here would leave opencode without an entry agent, so unknown names
+    # are rejected with a warning (template value kept)
+    $optAgent = ''
+    if ($comp.PSObject.Properties.Name -contains 'default_agent' -and $comp.default_agent -is [string] -and $comp.default_agent) {
+        $optAgent = [string]$comp.default_agent
+        if ($obj.agent -and $obj.agent.PSObject.Properties.Name -contains $optAgent) {
+            if ($obj.PSObject.Properties.Name -contains 'default_agent') {
+                $obj.default_agent = $optAgent
+            } else {
+                $obj | Add-Member -NotePropertyName 'default_agent' -NotePropertyValue $optAgent -Force
+            }
+        } else {
+            Write-Warning "[options] default_agent '$optAgent' not found in the agent block — keeping '$($obj.default_agent)'"
+            $optAgent = [string]$obj.default_agent   # report what actually stays
+        }
+    } else {
+        $optAgent = [string]$obj.default_agent   # not listed: keep the shipped value
+    }
     Write-ConfigJson $cfg $obj
     # export the rtk decision for Ensure-Rtk (runs right after this)
     $script:OptRtk = if ($comp.PSObject.Properties.Name -contains 'rtk') { [bool]$comp.rtk } else { $true }
@@ -564,7 +587,7 @@ function Apply-Options([string]$dst) {
     $pProps = @($comp.plugin.PSObject.Properties)
     $mOn = @($mProps | Where-Object { [bool]$_.Value }).Count
     $pOn = @($pProps | Where-Object { [bool]$_.Value }).Count
-    Write-Host ("[options] applied options.jsonc (mcp: {0} on / {1} off; plugins: {2} on / {3} off; rtk: {4})" -f $mOn, ($mProps.Count - $mOn), $pOn, ($pProps.Count - $pOn), $(if ($script:OptRtk) { 'on' } else { 'off' }))
+    Write-Host ("[options] applied options.jsonc (mcp: {0} on / {1} off; plugins: {2} on / {3} off; rtk: {4}; default_agent: {5})" -f $mOn, ($mProps.Count - $mOn), $pOn, ($pProps.Count - $pOn), $(if ($script:OptRtk) { 'on' } else { 'off' }), $optAgent)
 }
 
 $ver     = Read-Version

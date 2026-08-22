@@ -421,9 +421,12 @@ ensure_mcp() {
 }
 
 # Applies the repo's install/options.jsonc — the single source of truth for
-# which MCPs and external plugins are active — onto the target opencode.jsonc:
+# which MCPs and external plugins are active, plus the default agent — onto
+# the target opencode.jsonc:
 #   mcp.<name>    → mcp.<name>.enabled
 #   plugin.<name> → membership in the `plugin` array
+#   default_agent → root `default_agent` (validated against the `agent`
+#                   block; unknown names are rejected, template value kept)
 # The file is read IN PLACE from install/ and overwrites the target state on
 # EVERY install — nothing is copied to the target, so there is no installed
 # copy that could be mistaken for an editable config (user choices persist
@@ -436,27 +439,35 @@ ensure_mcp() {
 apply_options() {
     local cfg="$TARGET/opencode.jsonc" comp="$SCRIPT_DIR/options.jsonc"
     [[ -f "$comp" && -f "$cfg" ]] || return 0
-    local merged tmp summary comp_json
+    local merged tmp summary ao_da ao_cur comp_file
     # the repo file is authoritative — build the switch state straight from
-    # it. Preprocess through grep/tr: jq chokes on CRLF line endings
-    # (Windows-edited options.jsonc), and comment lines must go.
-    comp_json="$(grep -v '^[[:space:]]*//' "$comp" | tr -d '\r')" || return 0
-    merged="$(jq -c --argjson s "$comp_json" '
+    # it. Preprocess through grep/tr into a TEMP FILE which jq reads as a
+    # file argument: comment lines must go, and jq chokes on CRLF line
+    # endings (Windows-edited options.jsonc) — file input sidesteps any
+    # shell-level mangling of the cleaned payload.
+    comp_file="$(mktemp)"
+    grep -v '^[[:space:]]*//' "$comp" | tr -d '\r' > "$comp_file" || return 0
+    merged="$(jq -c '
         {
-            mcp: ($s.mcp // {}),
-            plugin: ($s.plugin // {}),
-            rtk: ($s.rtk != false)
+            mcp: (.mcp // {}),
+            plugin: (.plugin // {}),
+            default_agent: ((.default_agent | select(type == "string" and . != "")) // null),
+            rtk: (.rtk != false)
         }
-    ' 2>/dev/null)" || { echo "WARN [options] cannot parse options.jsonc — skipping" >&2; return 0; }
+    ' "$comp_file" 2>/dev/null)" || { rm -f "$comp_file"; echo "WARN [options] cannot parse options.jsonc — skipping" >&2; return 0; }
+    rm -f "$comp_file"
     # export the rtk decision for ensure_rtk (runs right after this)
     if [[ "$(jq -r '.rtk' <<< "$merged")" == "true" ]]; then OPT_RTK=1; else OPT_RTK=0; fi
     # apply onto opencode.jsonc: mcp.<name>.enabled (only entries the
     # options file lists get forced; unlisted keep the shipped value) +
     # plugin array membership (drop disabled, add enabled-but-missing,
-    # keep unknown)
+    # keep unknown) + default_agent (only when it names an agent that
+    # exists in the `agent` block — a typo would leave opencode without
+    # an entry agent, so unknown names keep the template value)
     tmp="$(mktemp)"
     grep -v '^[[:space:]]*//' "$cfg" | jq --argjson c "$merged" '
         ($c.mcp // {}) as $cm | ($c.plugin // {}) as $cp
+        | ($c.default_agent // null) as $da
         | .mcp = ((.mcp // {}) | with_entries(
             # inside with_entries `.` is the {key,value} entry — the flag
             # lives on .value.enabled
@@ -466,6 +477,9 @@ apply_options() {
             | $kept + ([ $cp | to_entries[] | select(.value != false)
                          | .key as $k | select(($kept | index($k)) == null) | $k ])
           )
+        | if $da != null then
+            if ((.agent // {}) | has($da)) then .default_agent = $da else . end
+          else . end
     ' | style_json > "$tmp" || true
     # never clobber the config with an empty/broken file when jq aborted
     if jq -e '.' "$tmp" >/dev/null 2>&1; then
@@ -475,9 +489,18 @@ apply_options() {
         echo "WARN [options] failed to apply switches to opencode.jsonc" >&2
         return 0
     fi
-    summary="$(jq -r '"mcp: \([.mcp[]? | select(. == true)] | length) on / \([.mcp[]? | select(. != true)] | length) off; plugins: \([.plugin[]? | select(. == true)] | length) on / \([.plugin[]? | select(. != true)] | length) off; rtk: \(if .rtk == false then "off" else "on" end)"' <<< "$merged")"
+    # warn about an invalid default_agent pick (jq above silently kept the
+    # template value for it)
+    ao_da="$(jq -r '.default_agent // ""' <<< "$merged")"
+    if [[ -n "$ao_da" ]] && ! { grep -v '^[[:space:]]*//' "$cfg" | jq -e --arg a "$ao_da" '(.agent // {}) | has($a)' >/dev/null 2>&1; }; then
+        ao_cur="$(grep -v '^[[:space:]]*//' "$cfg" | jq -r '.default_agent // ""' 2>/dev/null)"
+        echo "WARN [options] default_agent '$ao_da' not found in the agent block — keeping '$ao_cur'" >&2
+        ao_da=""
+    fi
+    [[ -n "$ao_da" ]] || ao_da="$(grep -v '^[[:space:]]*//' "$cfg" | jq -r '.default_agent // ""' 2>/dev/null)"
+    summary="$(jq -r --arg da "$ao_da" '"mcp: \([.mcp[]? | select(. == true)] | length) on / \([.mcp[]? | select(. != true)] | length) off; plugins: \([.plugin[]? | select(. == true)] | length) on / \([.plugin[]? | select(. != true)] | length) off; rtk: \(if .rtk == false then "off" else "on" end); default_agent: \($da)"' <<< "$merged")"
     echo "[options] applied options.jsonc ($summary)"
-    unset cfg comp merged tmp summary comp_json
+    unset cfg comp merged tmp summary ao_da ao_cur comp_file
 }
 
 # --- install orchestration ----------------------------------------------

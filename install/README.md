@@ -354,11 +354,12 @@ Everything else in `opencode.jsonc` is overwritten from the repo. To add more
 preserved credential fields, extend `$preserveJsonKeys` (PowerShell) or
 `PRESERVE_KEYS` (Bash).
 
-## Options (MCP + external plugin + rtk switches)
+## Options (default agent + MCP + external plugin + rtk switches)
 
 `install/options.jsonc` is the single switch panel AND the single source of
-truth for every MCP server, external (npm) plugin, and the rtk proxy — it
-replaces the old `-EnableMcp` / `--enable-mcp` command-line flags. It lives
+truth for the default agent, every MCP server, external (npm) plugin, and
+the rtk proxy — it replaces the old `-EnableMcp` / `--enable-mcp`
+command-line flags. It lives
 in install/ (NOT in the version manifest) and never ships to the target —
 every install reads it in place and forces the target state onto it,
 unconditionally on every install. Nothing in the target directory looks like
@@ -368,11 +369,17 @@ on install).
 ```jsonc
 {
   "rtk": true,
+  "default_agent": "build",
   "mcp":    { "serena": true, "codegraph": true, "gitnexus": false },
   "plugin": { "@dietrichgebert/ponytail": true, "opencode-qoder-bridge": true }
 }
 ```
 
+- `default_agent` drives `opencode.jsonc`'s root `default_agent` — which
+  primary agent opencode enters first (`build` orchestrator, `code` direct
+  developer, `plan` read-only coordinator). The pick is validated against the
+  shipped `agent` block: unknown names are rejected with a warning and the
+  template value is kept. Omit the field to keep the shipped default.
 - `rtk` drives rtk provisioning: `true` downloads the binary when missing
   and keeps the vendored `plugins/openrtk*`; `false` skips the download AND
   removes `plugins/openrtk.ts` + `plugins/openrtk/` from the target (an

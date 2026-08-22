@@ -89,27 +89,27 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 
 # Coding agent contract (direct developer: codes itself, no proactive
 # delegation, never delegated to; vision is a three-tier cascade)
-$codingContent = Get-Content "$PSScriptRoot\..\agents\coding.md" -Raw
-Check "opencode.jsonc: coding agent registered" ($null -ne $config.agent.coding)
-Check "opencode.jsonc: coding mode is primary" ($config.agent.coding.mode -eq "primary")
-Check "opencode.jsonc: coding prompt references coding.md" ($config.agent.coding.prompt -match "agents/coding\.md")
-Check "coding.md: no proactive delegation rule" ($codingContent -match "No proactive delegation")
-Check "coding.md: never delegated rule" ($codingContent -match "Never delegated")
-Check "coding.md: core coding stays in-house" ($codingContent -match "NEVER hand the core coding task")
-Check "coding.md: image three-tier cascade (self first)" ($codingContent -match "Self first")
-Check "coding.md: image cascade delegates to @vision only" ($codingContent -match "your own model cannot read")
-Check "coding.md: image fallback to user, no guessing" ($codingContent -match "NEVER guess")
+$codeContent = Get-Content "$PSScriptRoot\..\agents\code.md" -Raw
+Check "opencode.jsonc: code agent registered" ($null -ne $config.agent.code)
+Check "opencode.jsonc: code mode is primary" ($config.agent.code.mode -eq "primary")
+Check "opencode.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "agents/code\.md")
+Check "code.md: no proactive delegation rule" ($codeContent -match "No proactive delegation")
+Check "code.md: never delegated rule" ($codeContent -match "Never delegated")
+Check "code.md: core coding stays in-house" ($codeContent -match "NEVER hand the core coding task")
+Check "code.md: image three-tier cascade (self first)" ($codeContent -match "Self first")
+Check "code.md: image cascade delegates to @vision only" ($codeContent -match "your own model cannot read")
+Check "code.md: image fallback to user, no guessing" ($codeContent -match "NEVER guess")
 $buildContent = Get-Content "$PSScriptRoot\..\agents\build.md" -Raw
 $planContent = Get-Content "$PSScriptRoot\..\agents\plan.md" -Raw
-Check "build.md: never routes to @coding" ($buildContent -notmatch "@coding")
-Check "plan.md: never routes to @coding" ($planContent -notmatch "@coding")
+Check "build.md: never routes to @code" ($buildContent -notmatch "@code(?!-)")
+Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
     "instructions/context-efficiency.md",
     "instructions/test-scope.md",
-    "agents/build.md", "agents/plan.md", "agents/coding.md", "agents/explorer.md",
+    "agents/build.md", "agents/plan.md", "agents/code.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
     "agents/researcher.md", "agents/architect.md", "agents/code-review.md",
