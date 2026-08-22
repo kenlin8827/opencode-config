@@ -3,7 +3,6 @@ description: Java/Spring Boot engineer. Use for Java, Spring Boot, Spring Securi
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

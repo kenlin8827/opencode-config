@@ -3,7 +3,6 @@ description: Node.js/TypeScript engineer. Use for Node.js, TypeScript, NestJS, E
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

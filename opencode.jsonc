@@ -124,7 +124,6 @@
       "mode": "primary",
       "model": "llm-router/default",
       "temperature": 0.3,
-      "steps": 80,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/build.md}"
     },
@@ -134,7 +133,6 @@
       "mode": "primary",
       "model": "llm-router/default",
       "temperature": 0.3,
-      "steps": 60,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
     },
@@ -144,7 +142,7 @@
       "mode": "subagent",
       "model": "llm-router/advisor",
       "temperature": 0.3,
-      "steps": 20,
+      "steps": 25,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/advisor.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
@@ -155,7 +153,7 @@
       "mode": "subagent",
       "model": "llm-router/explorer",
       "temperature": 0.2,
-      "steps": 30,
+      "steps": 40,
       "variant": "low",
       "prompt": "{file:~/.config/opencode/agents/explorer.md}",
       "permission": { "edit": "deny", "webfetch": "deny", "websearch": "deny" }
@@ -166,7 +164,6 @@
       "mode": "subagent",
       "model": "llm-router/default",
       "temperature": 0.3,
-      "steps": 40,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/researcher.md}",
       "permission": { "edit": "deny" }
@@ -177,7 +174,6 @@
       "mode": "subagent",
       "model": "llm-router/default",
       "temperature": 0.4,
-      "steps": 60,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/architect.md}",
       "permission": { "edit": "deny" }
@@ -188,7 +184,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.2,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/dba.md}"
     },
@@ -198,7 +193,6 @@
       "mode": "subagent",
       "model": "llm-router/default",
       "temperature": 0.2,
-      "steps": 50,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/security.md}",
       "permission": { "edit": "deny" }
@@ -209,7 +203,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/java-dev.md}"
     },
@@ -219,7 +212,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/python-dev.md}"
     },
@@ -229,7 +221,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/go-dev.md}"
     },
@@ -239,7 +230,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/rust-dev.md}"
     },
@@ -249,7 +239,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/node-dev.md}"
     },
@@ -259,7 +248,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}"
     },
@@ -269,7 +257,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/qa.md}",
       "permission": { "webfetch": "ask" }
@@ -280,7 +267,6 @@
       "mode": "subagent",
       "model": "llm-router/advisor",
       "temperature": 0.3,
-      "steps": 50,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/code-review.md}",
       "permission": { "edit": "deny", "webfetch": "ask", "websearch": "ask" }
@@ -291,7 +277,6 @@
       "mode": "subagent",
       "model": "llm-router/code",
       "temperature": 0.2,
-      "steps": 50,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/devops.md}"
     },
@@ -301,7 +286,6 @@
       "mode": "subagent",
       "model": "llm-router/default",
       "temperature": 0.3,
-      "steps": 40,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/tech-writer.md}"
     },
@@ -311,7 +295,7 @@
       "mode": "subagent",
       "model": "llm-router/vision",
       "temperature": 0.2,
-      "steps": 25,
+      "steps": 30,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/vision.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }

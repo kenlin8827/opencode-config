@@ -3,7 +3,6 @@ description: Python engineer. Use for Python, FastAPI, Django, Flask, async Pyth
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

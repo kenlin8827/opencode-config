@@ -3,7 +3,6 @@ description: Tech researcher. Use for evaluating technologies, frameworks, libra
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 30
 permission:
   read: allow
   bash: allow

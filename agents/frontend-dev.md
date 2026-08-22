@@ -3,7 +3,6 @@ description: Frontend engineer. Use for React/Vue/Svelte/Next.js/Nuxt, TypeScrip
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

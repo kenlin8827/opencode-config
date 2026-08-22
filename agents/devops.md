@@ -3,7 +3,6 @@ description: DevOps engineer. Use for Docker, Kubernetes, CI/CD pipelines, Terra
 mode: subagent
 variant: medium
 temperature: 0.2
-steps: 50
 permission:
   read: allow
   bash: allow

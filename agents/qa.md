@@ -3,7 +3,6 @@ description: QA Engineer. Use for test planning, test generation, coverage analy
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

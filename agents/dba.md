@@ -3,7 +3,6 @@ description: Database architect. Use for schema design, SQL optimization, index 
 mode: subagent
 variant: medium
 temperature: 0.2
-steps: 50
 permission:
   read: allow
   bash: allow

@@ -3,7 +3,7 @@ description: Visual / vision analyst. Use for any task involving images — scre
 mode: subagent
 variant: medium
 temperature: 0.2
-steps: 25
+steps: 30
 permission:
   read: allow
   bash: deny

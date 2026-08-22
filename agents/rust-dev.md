@@ -3,7 +3,6 @@ description: Rust engineer. Use for Rust, Cargo, Axum, Actix, Tokio, serde, WASM
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

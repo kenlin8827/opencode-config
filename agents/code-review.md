@@ -3,7 +3,6 @@ description: Code reviewer. Use for reviewing code changes — git diffs, PRs, s
 mode: subagent
 variant: high
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

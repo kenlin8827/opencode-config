@@ -3,7 +3,7 @@ description: Decision advisor. Use for providing independent second-opinion anal
 mode: subagent
 variant: high
 temperature: 0.3
-steps: 20
+steps: 25
 permission:
   read: allow
   bash: deny

@@ -3,7 +3,6 @@ description: Security engineer. Use for security analysis, vulnerability assessm
 mode: subagent
 variant: high
 temperature: 0.2
-steps: 50
 permission:
   read: allow
   bash: allow

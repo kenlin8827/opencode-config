@@ -3,7 +3,6 @@ description: Technical writer. Use for writing or improving README files, API do
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 40
 permission:
   read: allow
   bash: allow

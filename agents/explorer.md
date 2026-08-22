@@ -3,7 +3,7 @@ description: Fast read-only codebase explorer. Use for rapid code search, patter
 mode: subagent
 variant: low
 temperature: 0.2
-steps: 30
+steps: 40
 permission:
   read: allow
   bash: allow

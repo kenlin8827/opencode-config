@@ -3,7 +3,6 @@ description: Go engineer. Use for Go, Gin, Echo, Fiber, gRPC, protobuf, CLI tool
 mode: subagent
 variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

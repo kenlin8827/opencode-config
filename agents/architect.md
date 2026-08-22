@@ -3,7 +3,6 @@ description: Tech Lead / Software Architect. Use for technical architecture desi
 mode: subagent
 variant: high
 temperature: 0.4
-steps: 60
 permission:
   read: allow
   bash: allow
