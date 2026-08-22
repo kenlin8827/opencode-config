@@ -144,6 +144,9 @@ $allFiles = @(
     "plugins/goal.ts",
     "plugins/goal/goal.ts",
     "plugins/goal/goal.md",
+    "plugins/handoff.ts",
+    "plugins/handoff/handoff.ts",
+    "plugins/handoff/handoff.md",
     "plugins/project-profiler.ts",
     "plugins/project-profiler/project-profiler.ts",
     "plugins/adr-guard.ts",
@@ -236,6 +239,23 @@ Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $go
 
 $goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
 Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
+
+# Handoff plugin checks (plugins/handoff/ — registered programmatically, no commands/*.md)
+$handoffPlugin = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.ts" -Raw
+$handoffProtocol = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.md" -Raw
+Check "handoff.ts: imports Plugin type" ($handoffPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "handoff.ts: has config hook registering command" ($handoffPlugin -match "config:" -and $handoffPlugin -match 'COMMAND_NAME')
+Check "handoff.ts: NO command.execute.before hook" (-not ($handoffPlugin -match '"command\.execute\.before"'))
+Check "handoff.ts: has system.transform hook" ($handoffPlugin -match "experimental.chat.system.transform")
+Check "handoff.ts: agent is build" ($handoffPlugin -match 'agent:.*"build"')
+Check "handoff.md: writes to OS temp dir, not workspace" ($handoffProtocol -match "Temp directory only")
+Check "handoff.md: references artifacts instead of duplicating" ($handoffProtocol -match "Reference, don't duplicate")
+Check "handoff.md: redacts sensitive information" ($handoffProtocol -match "Redact sensitive information")
+Check "handoff.md: has suggested agents section" ($handoffProtocol -match "Suggested agents")
+Check "handoff.md: ends with paste-ready opener" ($handoffProtocol -match "and continue from there")
+
+$handoffBarrel = Get-Content "$PSScriptRoot\..\plugins\handoff.ts" -Raw
+Check "handoff.ts: barrel re-exports HandoffPlugin" ($handoffBarrel -match "export.*HandoffPlugin")
 
 # Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, auto-advisor)
 $sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-config.ts" -Raw

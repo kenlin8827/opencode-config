@@ -372,6 +372,7 @@ bridge 附带的额外能力：
 | `/profile` | 打开弹窗选择器：列出所有可用的模型服务商预设（活跃项带标记）；选中预设后进入层级审阅，可逐个 tier 通过 provider → model 选择修改模型再应用（provider/模型列表来自 opencode 服务目录：内置 + 已配置），重写 `opencode.jsonc` 中的层级→模型映射。首个条目用于查看当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
+| `/handoff [focus]` | 将当前会话压缩为一份交接文档（保存到操作系统临时目录），让新会话能接手工作。可选参数用于把文档聚焦到下一会话要处理的方向 |
 | `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）；随后执行各后端的首次初始化（仅当对应 CLI 已安装且启用）：`codegraph init`、索引缺失时的 `gitnexus analyze`。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
 | `/project index` | 手动刷新已有索引：`codegraph sync`（增量追平 watcher 未运行期间的变更）、索引过期时的 `gitnexus analyze` 重建。只刷新、不首次建库（首次归 `/project init`）；CLI 未安装则跳过报告、绝不调用 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
@@ -447,6 +448,7 @@ bridge 附带的额外能力：
 | `auto-advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式软约束（不自动 dispatch，手动 @ 放行）、full 模式自动执行、red-team 抑制 |
 | `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
+| `handoff.ts`（+ `handoff.md`） | `config` + `system.transform` | 程序化注册 `/handoff` 斜杠命令；将会话交接协议（压缩会话为 OS 临时目录文档、按路径引用既有工件、脱敏密钥、建议下一会话智能体）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
 | `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
 | `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
 | `env-guard.ts`（+ 辅助模块） | `tool.execute.before` | 密钥文件门控——项目级开关（默认关闭）。开启后：在执行前阻断智能体对含密钥 `.env*` 文件的读取/拷贝（文件工具、grep、bash 读类动词、stdin 重定向、拷贝外带）；`.env.example` 始终放行 |

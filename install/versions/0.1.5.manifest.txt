@@ -67,6 +67,9 @@ plugins/grill/grill-me.md
 plugins/grill/grill-me.ts
 plugins/grill/grill-with-docs.md
 plugins/grill/grill-with-docs.ts
+plugins/handoff.ts
+plugins/handoff/handoff.md
+plugins/handoff/handoff.ts
 plugins/metrics.ts
 plugins/openrtk.ts
 plugins/openrtk/index.ts
