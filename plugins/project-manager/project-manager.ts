@@ -18,7 +18,10 @@
  *
  * File layout: one entry + one job per file (same pattern as adr-guard).
  *   project-manager-config.ts        — command name, project dir, target list
- *   project-manager-scaffold.ts      — templates + exists-check-then-write init
+ *   project-manager-scaffold.ts      — exists-check-then-write init; template
+ *                                      bodies live in templates/ (read once)
+ *   templates/                       — opencode.jsonc, git-commits.md,
+ *                                      AGENTS.md, dbhub.toml scaffold bodies
  *   project-manager-index.ts         — backend probes + plan + run
  *                                      (codegraph init / gitnexus analyze)
  *   project-manager-command.ts       — command hook (/project init|index, help)

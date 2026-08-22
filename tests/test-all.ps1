@@ -151,6 +151,10 @@ $allFiles = @(
     "plugins/project-manager/project-manager-command.ts",
     "plugins/project-manager/project-manager-system-inject.ts",
     "plugins/project-manager/project-manager-tool-guard.ts",
+    "plugins/project-manager/templates/opencode.jsonc",
+    "plugins/project-manager/templates/git-commits.md",
+    "plugins/project-manager/templates/AGENTS.md",
+    "plugins/project-manager/templates/dbhub.toml",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     # Config
@@ -264,6 +268,7 @@ Check "env-guard.ts: barrel re-exports EnvGuardPlugin" ($egBarrel -match "export
 $pmPlugin = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager.ts" -Raw
 $pmConfig = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-config.ts" -Raw
 $pmScaffold = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-scaffold.ts" -Raw
+$pmGitTemplate = Get-Content "$PSScriptRoot\..\plugins\project-manager\templates\git-commits.md" -Raw
 $pmInject = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-system-inject.ts" -Raw
 $pmGuard = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-tool-guard.ts" -Raw
 Check "project-manager.ts: imports Plugin type" ($pmPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
@@ -275,7 +280,8 @@ Check "project-manager.ts: injects project directory" ($pmPlugin -match "setProj
 Check "project-manager-config.ts: file-as-switch predicate" ($pmConfig -match "hasConventionFile")
 Check "project-manager-config.ts: GIT_COMMITS_REL = docs/git-commits.md" ($pmConfig -match 'GIT_COMMITS_REL = "docs/git-commits\.md"')
 Check "project-manager-scaffold.ts: existence check before write" ($pmScaffold -match "existsSync")
-Check "project-manager-scaffold.ts: documents mechanical enforcement" ($pmScaffold -match "mechanically enforced")
+Check "project-manager-scaffold.ts: templates loaded from templates/ dir" ($pmScaffold -match "readTemplate" -and $pmScaffold -match "templates")
+Check "templates/git-commits.md: documents mechanical enforcement" ($pmGitTemplate -match "mechanically enforced")
 Check "project-manager-system-inject.ts: progressive disclosure (no full-content injection)" ($pmInject -match "progressive" -and $pmInject -notmatch "readFileSync")
 Check "project-manager-system-inject.ts: line-start marker dedup" ($pmInject -match "MARKER_RE")
 Check "project-manager-system-inject.ts: appends to last entry only" ($pmInject -match "system\.length - 1")
