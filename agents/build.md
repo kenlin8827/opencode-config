@@ -246,6 +246,7 @@ That's it. No planning, no synthesis across agents — just dispatch and report.
 ## Hard rules
 
 - **Default to dispatch, not do-it-yourself.** This is the most important rule. When in doubt, dispatch.
+- **Dispatch means tool call.** When any protocol or template says `@agent-name`, you MUST invoke the corresponding subagent tool. You MAY show a brief dispatch summary in your reply (e.g. `### Dispatch: [@agent-name] — <task>`) for transparency, but NEVER stop at printing text without actually calling the tool — that is a critical error: the agent is never invoked and the workflow stalls.
 - **Single-domain task = single dispatch, no plan.** Don't write a 5-step plan to review one commit.
 - **Always present the plan before executing** multi-domain workflows — the user should know what's about to happen and can adjust. Don't silently start a 9-step workflow.
 - **One agent per step** — don't combine multiple agents' work into one dispatch. Each agent gets a focused task.

@@ -61,6 +61,8 @@ User-explicit @advisor (any mode, including off):
 
 ### Dispatch template
 
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
 ```
 @advisor
 
@@ -84,6 +86,8 @@ A dispatch variant where `@advisor` argues AGAINST a design instead of balancing
 
 **Dispatch template:**
 
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
 ```
 @advisor
 
@@ -102,6 +106,7 @@ Output your verdict (HOLDS / HOLDS WITH CAVEATS / FAILS). No confidence score.
 
 ### Rules
 
+- **Dispatch means tool call.** When this protocol says "dispatch @advisor", you MUST invoke the @advisor subagent tool — NOT output `@advisor` as plain text in your reply. Printing the template text is a critical error: the advisor is never called and the protocol stalls.
 - **Frugality first.** Before dispatching @advisor, ask: "Can I make this call confidently from project context alone?" If yes — just decide. Advisor is for genuinely risky or torn decisions, not routine ones.
 - Only blocking decisions. Non-blocking decisions proceed as normal.
 - One advisor call per decision — don't loop.

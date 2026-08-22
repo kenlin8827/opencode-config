@@ -188,6 +188,8 @@ Once the loop exits (cleared or max rounds reached):
 
 ## Dispatching guidelines
 
+**IMPORTANT:** All dispatch templates below are prompts you must send to the corresponding subagent by invoking the subagent tool. Do NOT output `@code-review`, `@advisor`, `@<domain-dev>`, or any dispatch template as plain text in your reply — that is a critical error that prevents the agent from being called.
+
 When dispatching to `@code-review`:
 ```
 @code-review
@@ -214,7 +216,7 @@ Question: Is this finding a real bug that must be fixed, or a false positive tha
 Expected output: One of — "Agree: false positive" / "Disagree: real bug" / "Inconclusive", with a one-paragraph rationale.
 ```
 
-When dispatching to a specialist for a fix:
+When dispatching to a specialist for a fix (invoke the matching subagent tool, NOT plain text):
 ```
 @<domain-dev>
 
@@ -230,6 +232,7 @@ Expected output: The fix applied, with a brief explanation of what changed and w
 
 ## Hard rules
 
+- **Dispatch means tool call.** Every `@code-review`, `@advisor`, `@<domain-dev>`, or `@qa` reference in this protocol is a subagent dispatch — you MUST invoke the corresponding subagent tool. Outputting agent names or dispatch templates as plain text is WRONG and stalls the loop.
 - **Carry context forward** — pass prior round findings (including dismissed false positives + advisor concurrence, and their reasons) to the next `@code-review` dispatch so it doesn't re-report fixed or dismissed issues.
 - **Fix only verified P0/P1 issues** — do not fix P2/P3/nits unless they directly block the review loop. Collect P2/P3 findings reported by `@code-review` and list them in the final summary under "Recommended next steps" — do not silently drop them.
 - **Do not stop after the first review** if blocking issues remain — that defeats the purpose of the loop.
