@@ -17,6 +17,22 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $template = Join-Path $root 'opencode.jsonc'
 $profilesDir = Join-Path $root 'profiles'
+$tiersFile = Join-Path $root 'tiers.json'
+
+# Agent → tier mapping from tiers.json (kept out of opencode.jsonc because
+# opencode forwards unknown agent fields to the provider as model options).
+if (-not (Test-Path $tiersFile)) { throw "tiers.json missing at repo root: $tiersFile" }
+$agentTier = @{}
+$tiersObj = Get-Content -Raw $tiersFile | ConvertFrom-Json
+foreach ($k in $tiersObj.PSObject.Properties.Name) {
+    if ($k.StartsWith('$')) { continue }
+    $agentTier[$k] = [string]$tiersObj.$k
+}
+
+function Get-AgentTier($agents, [string]$name) {
+    if ($agentTier.ContainsKey($name)) { return $agentTier[$name] }
+    return $agents[$name].tier  # legacy pre-migration configs
+}
 
 # Apply a profile to $obj in place: rewrite every agent of a covered tier to
 # the profile ref in lockstep; root `model` tracks tier.default. Mirrors the
@@ -25,8 +41,8 @@ function Apply-ProfileInPlace([hashtable]$obj, [hashtable]$p) {
     foreach ($tier in $p.tiers.Keys) {
         $ref = $p.tiers[$tier]
         $n = 0
-        foreach ($a in $obj.agent.Values) {
-            if ($a.tier -eq $tier) { $a.model = $ref; $n++ }
+        foreach ($aname in $obj.agent.Keys) {
+            if ((Get-AgentTier $obj.agent $aname) -eq $tier) { $obj.agent[$aname].model = $ref; $n++ }
         }
         if ($n -eq 0) { throw "no agent currently uses tier $tier" }
         if ($tier -eq 'default') { $obj['model'] = $ref }
@@ -41,8 +57,9 @@ try {
     $tpl = Get-Content -Raw $template | ConvertFrom-Json -AsHashtable
     # expected per-tier ref in the untouched template
     $tplTierRef = @{}
-    foreach ($a in $tpl.agent.Values) {
-        if ($a.tier -and -not $tplTierRef.ContainsKey($a.tier)) { $tplTierRef[$a.tier] = $a.model }
+    foreach ($aname in $tpl.agent.Keys) {
+        $t = Get-AgentTier $tpl.agent $aname
+        if ($t -and -not $tplTierRef.ContainsKey($t)) { $tplTierRef[$t] = $tpl.agent[$aname].model }
     }
 
     $fail = 0
@@ -65,20 +82,21 @@ try {
         foreach ($tier in $p.tiers.Keys) {
             $ref = $p.tiers[$tier]
             $n = 0
-            foreach ($a in $obj.agent.Values) {
-                if ($a.tier -eq $tier) {
+            foreach ($aname in $obj.agent.Keys) {
+                if ((Get-AgentTier $obj.agent $aname) -eq $tier) {
                     $n++
-                    if ($a.model -ne $ref) { $errors += "tier ${tier}: agent model '$($a.model)' != '$ref'" }
+                    if ($obj.agent[$aname].model -ne $ref) { $errors += "tier ${tier}: agent $aname model '$($obj.agent[$aname].model)' != '$ref'" }
                 }
             }
             if ($n -eq 0) { $errors += "tier ${tier}: no agent matched" }
             if ($tier -eq 'default' -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
         }
         # uncovered tiers: agents must keep the template ref
-        foreach ($a in $obj.agent.Values) {
-            if ($a.tier -and -not $p.tiers.Contains($a.tier)) {
-                $expected = $tplTierRef[$a.tier]
-                if ($a.model -ne $expected) { $errors += "untouched tier $($a.tier): '$($a.model)' != template '$expected'" }
+        foreach ($aname in $obj.agent.Keys) {
+            $t = Get-AgentTier $obj.agent $aname
+            if ($t -and -not $p.tiers.Contains($t)) {
+                $expected = $tplTierRef[$t]
+                if ($obj.agent[$aname].model -ne $expected) { $errors += "untouched tier ${t} ($aname): '$($obj.agent[$aname].model)' != template '$expected'" }
             }
         }
         if ($errors.Count -eq 0) {

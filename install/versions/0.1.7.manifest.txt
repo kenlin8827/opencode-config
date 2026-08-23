@@ -134,4 +134,5 @@ profiles/zhipuai-coding-plan.json
 providers/claude-code-router.json
 providers/codex-router.json
 providers/qoder-router.json
+tiers.json
 tui.json

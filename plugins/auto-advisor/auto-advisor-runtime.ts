@@ -176,7 +176,7 @@ export function parseConfidence(text: string): number {
 // 'advisor' — e.g. DeepSeek ("deepseek-v4-pro"), Qwen, MiniMax, etc.
 
 import { readFileSync, existsSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { homedir } from "node:os"
 import { getProjectDir, stripJsonc } from "./auto-advisor-config"
 
@@ -187,6 +187,25 @@ const CONFIG_FILE_LEGACY = join(CONFIG_DIR_FALLBACK, "opencode.json")
 // Cache the config read — it doesn't change during a session.
 let cachedAdvisorModel: string | null | undefined = undefined
 let cachedDefaultModel: string | null | undefined = undefined
+
+// Agent → tier mapping from tiers.json (kept out of opencode.jsonc because
+// opencode forwards unknown agent fields to the provider as model options).
+// Missing/invalid file → empty map; a legacy agent-level tier field still
+// fills in for agents the map doesn't list.
+function readTierMap(dir: string): Record<string, string> {
+  try {
+    const raw = readFileSync(join(dir, "tiers.json"), "utf-8")
+    const data = JSON.parse(raw) as Record<string, unknown>
+    const map: Record<string, string> = {}
+    for (const [agent, tier] of Object.entries(data)) {
+      if (agent.startsWith("$")) continue
+      if (typeof tier === "string") map[agent] = tier
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
 
 function readAgentModels(): { advisor: string | null; default: string | null } {
   if (cachedAdvisorModel !== undefined && cachedDefaultModel !== undefined) {
@@ -209,19 +228,24 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
       const cfg = JSON.parse(stripJsonc(raw)) as Record<string, unknown>
       const agents = cfg?.agent as Record<string, Record<string, unknown>> | undefined
       if (!agents) continue
+      // tiers.json sits next to the config file; fall back to the global
+      // one for project configs that don't ship their own.
+      let tierMap = readTierMap(dirname(path))
+      if (Object.keys(tierMap).length === 0) tierMap = readTierMap(CONFIG_DIR_FALLBACK)
       // Find the advisor agent's model (the agent named "advisor").
       const advisorAgent = agents["advisor"]
       if (!cachedAdvisorModel && advisorAgent?.model && typeof advisorAgent.model === "string") {
         cachedAdvisorModel = advisorAgent.model
       }
       // Find the default model: either root-level cfg.model, or the first
-      // agent with tier "default".
+      // agent in tier "default".
       if (!cachedDefaultModel && cfg.model && typeof cfg.model === "string") {
         cachedDefaultModel = cfg.model
       }
       if (!cachedDefaultModel) {
-        for (const a of Object.values(agents)) {
-          if (a?.tier === "default" && typeof a.model === "string") {
+        for (const [name, a] of Object.entries(agents)) {
+          const tier = tierMap[name] ?? (a?.tier as string | undefined)
+          if (tier === "default" && typeof a.model === "string") {
             cachedDefaultModel = a.model
             break
           }

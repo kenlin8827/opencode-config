@@ -42,7 +42,7 @@ BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 # opencode.jsonc's `provider` node (see merge_providers). options.jsonc
 # stays in install/ and NEVER ships to the target — apply_options reads it
 # in place and applies its switches to opencode.jsonc.
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/")
 PRESERVE_KEYS=("baseURL" "apiKey")
 
 # rtk (https://github.com/rtk-ai/rtk) — CLI proxy that compresses command
@@ -161,13 +161,23 @@ copy_manifest_files() {
 # tier share one ref — same tier semantics as the /profile plugin).
 # Option switches are NOT snapshotted — the repo's install/options.jsonc
 # is the single source of truth and overwrites the target on every install.
+# Agent→tier mapping: agent-level `tier` fields are gone (opencode forwards
+# unknown agent fields to the provider as model options — strict gateways
+# reject them). The mapping now lives in tiers.json; the snapshot reads the
+# target's copy, falling back to the repo's for pre-migration targets, and a
+# legacy agent-level tier field still wins for agents it lists.
 # outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
     # fresh target: emit the empty bag so callers can --argjson it unconditionally
     [[ -f "$rp_f" ]] || { echo '{"creds":[],"rootModel":null,"tiers":{}}'; unset rp_f; return 0; }
+    rp_tm="$1/tiers.json"
+    rp_tm_tmp=""
+    if [[ ! -f "$rp_tm" ]]; then rp_tm="$REPO_ROOT/tiers.json"; fi
+    if [[ ! -f "$rp_tm" ]]; then rp_tm_tmp="$(mktemp)"; echo '{}' > "$rp_tm_tmp"; rp_tm="$rp_tm_tmp"; fi
     # strip comment lines so plain jq can parse the JSONC
-    grep -v '^[[:space:]]*//' "$rp_f" | jq -c '
+    grep -v '^[[:space:]]*//' "$rp_f" | jq -c --slurpfile tm "$rp_tm" '
+        ($tm[0] // {}) as $map |
         {
           creds: [ .provider // {} | to_entries[] as $p |
                    ($p.value.options // {}) | to_entries[] |
@@ -175,11 +185,13 @@ read_preserve() {
                    {provider: $p.key, key: .key, value: .value} ],
           rootModel: (.model // null),
           tiers: ([ .agent // {} | to_entries[] |
-                    select((.value.tier // null) != null and (.value.model // null) != null) |
-                    {(.value.tier): .value.model} ] | add // {})
+                    (.value.tier // $map[.key] // null) as $tier |
+                    select($tier != null and (.value.model // null) != null) |
+                    {($tier): .value.model} ] | add // {})
         }
     ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{}}'
-    unset rp_f
+    [[ -n "$rp_tm_tmp" ]] && rm -f "$rp_tm_tmp"
+    unset rp_f rp_tm rp_tm_tmp
 }
 
 # restores preserved credentials + model picks into the freshly-copied opencode.jsonc.
@@ -192,9 +204,15 @@ restore_preserve() {
     rp_bag_file="$(mktemp)"
     cat > "$rp_bag_file"
     rp_tmp="$(mktemp)"
-    jq --slurpfile b "$rp_bag_file" '
+    # Agent→tier comes from the freshly-copied target tiers.json (the new
+    # manifest ships it); a legacy agent-level tier field still fills in.
+    rp_tm="$rp_dst/tiers.json"
+    rp_tm_tmp=""
+    if [[ ! -f "$rp_tm" ]]; then rp_tm_tmp="$(mktemp)"; echo '{}' > "$rp_tm_tmp"; rp_tm="$rp_tm_tmp"; fi
+    jq --slurpfile b "$rp_bag_file" --slurpfile tm "$rp_tm" '
         ($b[0].creds // []) as $c |
         ($b[0].tiers // {}) as $t |
+        ($tm[0] // {}) as $map |
         reduce ($c[] | .provider) as $pn (.;
             .provider[$pn] //= {} |
             .provider[$pn].options //= {} |
@@ -205,13 +223,15 @@ restore_preserve() {
         | (if ($b[0].rootModel // null) != null then .model = $b[0].rootModel else . end)
         | (if ($t | length) > 0 and ((.agent // {}) | length) > 0 then
              .agent |= with_entries(
-                 (.value.tier // "") as $tier
+                 (.key) as $aname
+                 | (.value.tier // $map[$aname] // "") as $tier
                  | if ($t | has($tier)) then .value.model = $t[$tier] else . end)
            else . end)
     ' "$rp_f" | style_json > "$rp_tmp"
     mv "$rp_tmp" "$rp_f"
     rm -f "$rp_bag_file"
-    unset rp_dst rp_f rp_bag_file rp_tmp
+    [[ -n "$rp_tm_tmp" ]] && rm -f "$rp_tm_tmp"
+    unset rp_dst rp_f rp_bag_file rp_tmp rp_tm rp_tm_tmp
 }
 
 # Pretty-prints JSON (stdin -> stdout) while keeping every provider model

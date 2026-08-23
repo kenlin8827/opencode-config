@@ -59,6 +59,7 @@ import { homedir } from "node:os"
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
+const TIERS_FILE = join(CONFIG_DIR, "tiers.json")
 const STATE_FILE = join(CONFIG_DIR, ".active-profile")
 const PROFILES_DIR = join(CONFIG_DIR, "profiles")
 const PLUGIN_ID = "opencode-config.profile"
@@ -223,6 +224,25 @@ function setActiveProfile(name: string): void {
   writeFileSync(STATE_FILE, name, "utf-8")
 }
 
+// Agent → tier mapping lives in tiers.json, NOT in the agent block of
+// opencode.jsonc: opencode forwards every unknown agent field to the
+// provider as a model option, and strict upstream gateways reject it
+// ("Extra inputs are not permitted, field: 'tier'").
+function loadTierMap(): Record<string, string> {
+  if (!existsSync(TIERS_FILE)) return {}
+  try {
+    const data = JSON.parse(readFileSync(TIERS_FILE, "utf-8")) as Record<string, unknown>
+    const map: Record<string, string> = {}
+    for (const [agent, tier] of Object.entries(data)) {
+      if (agent.startsWith("$")) continue
+      if (typeof tier === "string") map[agent] = tier
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
 // ─── Profile application (same semantics as the former plugin) ──────
 // Validates tier ref format, then rewrites every agent whose tier
 // matches. Mixed providers are allowed. Root `model` tracks tier.default.
@@ -235,13 +255,20 @@ interface ApplyResult {
   patch: OpenCodeConfig
 }
 
-function applyProfile(config: OpenCodeConfig, profile: Profile): ApplyResult {
+function applyProfile(
+  config: OpenCodeConfig,
+  profile: Profile,
+  tierMap: Record<string, string>,
+): ApplyResult {
   const details: string[] = []
   let updated = 0
   const patch: OpenCodeConfig = { agent: {} }
 
   if (!config.agent) {
     throw new Error("opencode.jsonc has no agent section")
+  }
+  if (Object.keys(tierMap).length === 0) {
+    throw new Error(`tiers.json missing or empty: ${TIERS_FILE}`)
   }
 
   for (const [tier, ref] of Object.entries(profile.tiers)) {
@@ -255,7 +282,10 @@ function applyProfile(config: OpenCodeConfig, profile: Profile): ApplyResult {
   for (const [tier, ref] of Object.entries(profile.tiers)) {
     let count = 0
     for (const [name, agent] of Object.entries(config.agent)) {
-      if (agent.tier === tier) {
+      // tiers.json is authoritative; a legacy agent.tier field (pre-migration
+      // configs) only fills in for agents the map doesn't list.
+      const agentTier = tierMap[name] ?? agent.tier
+      if (agentTier === tier) {
         agent.model = ref
         patch.agent![name] = { model: ref }
         count++
@@ -294,12 +324,16 @@ async function applyLive(
 
 // Reads the first agent's model per tier (all agents of a tier share one
 // ref — rewritten in lockstep on apply).
-function getCurrentTierMapping(config: OpenCodeConfig): Record<string, string> {
+function getCurrentTierMapping(
+  config: OpenCodeConfig,
+  tierMap: Record<string, string>,
+): Record<string, string> {
   const map: Record<string, string> = {}
   if (!config.agent) return map
-  for (const agent of Object.values(config.agent)) {
-    if (agent.tier && agent.model && !(agent.tier in map)) {
-      map[agent.tier] = agent.model
+  for (const [name, agent] of Object.entries(config.agent)) {
+    const tier = tierMap[name] ?? agent.tier
+    if (tier && agent.model && !(tier in map)) {
+      map[tier] = agent.model
     }
   }
   return map
@@ -327,7 +361,7 @@ function showCurrentMapping(api: TuiPluginApi): void {
   try {
     const config = readConfig(CONFIG_FILE)
     lines.push(`model → ${config.model ?? "(unset)"}  (tracks tier.default)`)
-    const tiers = getCurrentTierMapping(config)
+    const tiers = getCurrentTierMapping(config, loadTierMap())
     for (const [tier, ref] of Object.entries(tiers).sort()) {
       lines.push(`tier.${tier} → ${ref}`)
     }
@@ -351,7 +385,7 @@ async function applySelection(
 ): Promise<void> {
   try {
     const config = readConfig(CONFIG_FILE)
-    const { updated, details, patch } = applyProfile(config, profile)
+    const { updated, details, patch } = applyProfile(config, profile, loadTierMap())
     const live = await applyLive(api, patch)
     if (!live) {
       // Server rejected/misses the global config API — raw rewrite,
