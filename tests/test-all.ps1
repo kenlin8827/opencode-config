@@ -165,6 +165,13 @@ $allFiles = @(
     "plugins/env-guard/env-guard-config.ts",
     "plugins/env-guard/env-guard-runtime.ts",
     "plugins/env-guard/env-guard-tool-guard.ts",
+    "plugins/e2e-guard.ts",
+    "plugins/e2e-guard/e2e-guard.ts",
+    "plugins/e2e-guard/e2e-guard-config.ts",
+    "plugins/e2e-guard/e2e-guard-runtime.ts",
+    "plugins/e2e-guard/e2e-guard-tool-guard.ts",
+    "plugins/e2e-guard/e2e-guard-command.ts",
+    "plugins/e2e-guard/e2e-guard-announce.ts",
     "plugins/shared/opencode-config.ts",
     "plugins/project-manager.ts",
     "plugins/project-manager/project-manager.ts",
@@ -259,7 +266,7 @@ Check "handoff.md: ends with paste-ready opener" ($handoffProtocol -match "and c
 $handoffBarrel = Get-Content "$PSScriptRoot\..\plugins\handoff.ts" -Raw
 Check "handoff.ts: barrel re-exports HandoffPlugin" ($handoffBarrel -match "export.*HandoffPlugin")
 
-# Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, auto-advisor)
+# Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
 $sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-config.ts" -Raw
 Check "shared/opencode-config.ts: exports never-throw field writer" ($sharedConfig -match 'export function setConfigField')
 Check "shared/opencode-config.ts: exports field remover" ($sharedConfig -match 'export function clearConfigField')
@@ -310,6 +317,35 @@ Check "env-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($egGuard -mat
 
 $egBarrel = Get-Content "$PSScriptRoot\..\plugins\env-guard.ts" -Raw
 Check "env-guard.ts: barrel re-exports EnvGuardPlugin" ($egBarrel -match "export.*EnvGuardPlugin")
+
+# E2E guard plugin checks (plugins/e2e-guard/ — project-level switch, E2E runs gated behind user confirmation)
+$e2ePlugin = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard.ts" -Raw
+$e2eConfig = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-config.ts" -Raw
+$e2eRuntime = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-runtime.ts" -Raw
+$e2eGuard = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-tool-guard.ts" -Raw
+$e2eCommand = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-command.ts" -Raw
+Check "e2e-guard.ts: imports Plugin type" ($e2ePlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "e2e-guard.ts: has config hook registering command" ($e2ePlugin -match "config:" -and $e2ePlugin -match 'COMMAND_NAME')
+Check "e2e-guard.ts: has command.execute.before hook" ($e2ePlugin -match '"command\.execute\.before"')
+Check "e2e-guard.ts: has tool.execute.before hook" ($e2ePlugin -match '"tool\.execute\.before"')
+Check "e2e-guard.ts: injects project directory" ($e2ePlugin -match "setProjectDir\(directory\)")
+Check "e2e-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($e2eConfig -match 'shared/opencode-config' -and $e2eConfig -match 'e2eGuard')
+Check "e2e-guard-config.ts: default state is off" ($e2eConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "e2e-guard-config.ts: allow argument parsing" ($e2eConfig -match "parseAllowArg")
+Check "e2e-guard-config.ts: allow scope full vs targeted" ($e2eConfig -match "AllowScope" -and $e2eConfig -match "targeted")
+Check "e2e-guard-runtime.ts: detects runner CLIs" ($e2eRuntime -match "playwright" -and $e2eRuntime -match "cypress")
+Check "e2e-guard-runtime.ts: detects Python runners on e2e evidence" ($e2eRuntime -match "pytestRisk" -and $e2eRuntime -match "tox")
+Check "e2e-guard-runtime.ts: risk classification full vs targeted" ($e2eRuntime -match "classifyE2e" -and $e2eRuntime -match '"targeted"')
+Check "e2e-guard-runtime.ts: approval store is in-memory + one-shot" ($e2eRuntime -match "consumeApproval" -and $e2eRuntime -match "new Set")
+Check "e2e-guard-runtime.ts: sticky unlock survives one-shot consume" ($e2eRuntime -match "isUnlocked" -and $e2eRuntime -match "unlocked")
+Check "e2e-guard-tool-guard.ts: gates bash/shell only" ($e2eGuard -match '"bash"' -and $e2eGuard -match '"shell"')
+Check "e2e-guard-tool-guard.ts: graded gating via classifyE2e" ($e2eGuard -match "classifyE2e" -and $e2eGuard -match '"targeted"')
+Check "e2e-guard-tool-guard.ts: approval consumed on pass-through" ($e2eGuard -match "consumeApproval")
+Check "e2e-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($e2eGuard -match "adr-guard/adr-guard-runtime")
+Check "e2e-guard-command.ts: allow grants session approval" ($e2eCommand -match "approveSession")
+
+$e2eBarrel = Get-Content "$PSScriptRoot\..\plugins\e2e-guard.ts" -Raw
+Check "e2e-guard.ts: barrel re-exports E2eGuardPlugin" ($e2eBarrel -match "export.*E2eGuardPlugin")
 
 # Project manager plugin checks (plugins/project-manager/ — file-as-switch commit discipline)
 $pmPlugin = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager.ts" -Raw

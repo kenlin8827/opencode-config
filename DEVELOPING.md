@@ -270,7 +270,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
 - **npm plugins**: listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`, `opencode-qoder-bridge`, `@frankhommers/opencode-smart-title`, `opencode-mem@2.24.3` — the latter gated by `install/options.jsonc`, default off).
-- **Shared plumbing**: `plugins/shared/opencode-config.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, project-manager.
+- **Shared plumbing**: `plugins/shared/opencode-config.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
 ### Hook inventory
 
@@ -287,6 +287,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `deepseek-anchor.ts` (+ `plugins/deepseek-anchor/`) | `config` + `command.execute.before` + `system.transform` | `/deepseek-anchor` command; anchor-based reasoning protocols with DeepSeek models. |
 | `adr-guard.ts` (+ `plugins/adr-guard/`) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | `/adr-guard` command; ADR iron-law protocol injection; hard-blocks `feat`/`refactor` commits without an ADR in the change set. |
 | `env-guard.ts` (+ `plugins/env-guard/`) | `tool.execute.before` | Secret-file gate: blocks reads/copies of secret-bearing `.env*` files. |
+| `e2e-guard.ts` (+ `plugins/e2e-guard/`) | `config` + `command.execute.before` + `tool.execute.before` + `event: session.created/deleted` | `/e2e-guard` command; hard-blocks E2E runs (`*e2e*` run scripts, playwright/cypress/nightwatch/codeceptjs CLIs, pytest/tox invocations that say e2e) until the user confirms and `/e2e-guard allow` grants a pass (or `allow targeted` unlocks affected-spec re-runs only) — graded by risk: full-suite runs pay the one-shot pass every time, targeted spec runs auto-pass once the session is unlocked. |
 | `project-manager.ts` (+ `plugins/project-manager/`) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | `/project init|index` commands; file-as-switch commit discipline; one-time `/project init` suggestion. |
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/`) | `config` + `command.execute.before` + `system.transform` | `/review-fix-loop` command; arms session and injects protocol from markdown into system prompt. |
 | `grill-me.ts` / `grill-with-docs.ts` (+ `plugins/grill/`) | `config` + `command.execute.before` + `system.transform` | `/grill-me` and `/grill-with-docs` commands; inject grilling protocols. |
@@ -356,6 +357,7 @@ pwsh -ExecutionPolicy Bypass -File tests/test-profiles.ps1
 # Unit tests (Bun) for individual plugins
 bun tests/test-adr-guard-unit.ts
 bun tests/test-env-guard-unit.ts
+bun tests/test-e2e-guard-unit.ts
 bun tests/test-project-manager-unit.ts
 bun tests/test-queue-manager-unit.ts
 bun tests/test-anchor-unit.ts
@@ -378,7 +380,7 @@ $env:LLM_ROUTER_API_KEY  = "<your-api-key>"
 | Decision strategy | Two-tier decision strategy, subagent no-ask rule, blocking markers |
 | Advisor e2e | `/auto-advisor off/lite/full` state writes, invalid-arg no-op, off-mode soft guard (no auto-dispatch, manual @ allowed), cross-process persistence |
 | Profiles | Every profile applies cleanly to a fresh template (agent refs, root model, untouched tiers) |
-| Plugin units | adr-guard commit gating, env-guard blocking matrix, project-manager gates, queue-manager behavior, deepseek-anchor protocol |
+| Plugin units | adr-guard commit gating, env-guard blocking matrix, e2e-guard detection + risk classification + graded approval, project-manager gates, queue-manager behavior, deepseek-anchor protocol |
 | build.md / plan.md | Routing table, team table, workflow templates, identity, read-only rule |
 
 ---
@@ -457,6 +459,8 @@ plugins/
 ├── adr-guard/                     # Config, runtime, guards, protocol, per-hook helpers
 ├── env-guard.ts                   # Barrel: secret-file gate
 ├── env-guard/                     # Config, runtime, tool guard
+├── e2e-guard.ts                   # Barrel: E2E confirmation gate
+├── e2e-guard/                     # Config, runtime, tool guard, command, announce
 ├── project-manager.ts             # Barrel: /project + commit discipline
 ├── project-manager/               # Command, scaffold, index, guards, templates/
 ├── project-profiler.ts            # Barrel: project profile injection
@@ -485,7 +489,7 @@ tests/
 ├── test-all.ps1              # Main test runner (structural + prompt tests)
 ├── test-profiles.ps1         # Profile stress test
 ├── test-advisor-e2e.ps1      # Advisor-mode end-to-end (needs opencode CLI)
-├── test-*-unit.ts            # Bun unit tests (adr-guard, env-guard,
+├── test-*-unit.ts            # Bun unit tests (adr-guard, env-guard, e2e-guard,
 │                             #   project-manager, queue-manager, anchor)
 ├── test-build/plan/subagent/ # Prompt dispatch tests
 ├── test-decisions.ps1        # Decision strategy checks

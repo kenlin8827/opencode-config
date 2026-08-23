@@ -17,7 +17,7 @@
 | **一键安装器** | PowerShell + Bash 双平台，基于清单升级；凭证和模型选择在每次重装后完好保留 |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
 | **工作流斜杠命令** | `/review-fix-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
-| **可选护栏** | 按项目启用的 ADR 强制（`/adr-guard`）、密钥文件门控（`env-guard`）、提交纪律（`/project`）—— 全部默认关闭 |
+| **可选护栏** | 按项目启用的 ADR 强制（`/adr-guard`）、密钥文件门控（`env-guard`）、E2E 门控（`/e2e-guard`）、提交纪律（`/project`）—— 全部默认关闭 |
 | **Token 节省** | 安装时自动配置 [rtk](https://github.com/rtk-ai/rtk) 输出压缩（60–90%） |
 | **第二意见顾问** | `@advisor` 为阻塞性决策提供独立意见，设计审查时可切换对抗式 red-team 立场 |
 
@@ -514,6 +514,7 @@ bridge 附带的额外能力：
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |
 | `adr-guard.ts` | `/adr-guard` 命令 —— 按项目的 ADR 强制（见下文） |
 | `env-guard.ts` | 按项目的密钥文件门控（见下文） |
+| `e2e-guard.ts` | `/e2e-guard` 命令 —— 按项目门控：E2E 运行需用户确认；整套运行每次消耗一次性放行，定向 spec 重跑在首次确认后解锁（见下文） |
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
 | `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
@@ -563,6 +564,45 @@ echo on > <project>/.opencode/.env-guard
 始终放行：`.env.example`（合法脚手架）、`cp .env.example .env`、不读内容的动词（`touch`、`ls`、`rm`、`git`）。阻断消息会给出安全替代方案，包括 `npx envsitter keys`（只看键名不看值）。
 
 已知边界：子壳包装（`bash -c '...'`）、命令替换、glob 引用（`*.env`）不在机械检测范围 —— 它是常见路径上的硬墙，不是形式化沙箱。
+
+### E2E 门控（`e2e-guard`）
+
+按项目可选的门控：任何 E2E 套件运行前必须获得用户明确确认。E2E 慢、易抖动、成本高，是最后手段的测试层级 —— 仅靠提示词软规则无法保证智能体遵守，此门控直接拦截执行本身。开关为**项目级**，默认关闭：
+
+```text
+/e2e-guard on       # 对本项目启用（写入项目 opencode.jsonc 的 "e2eGuard": "on"）
+/e2e-guard off      # 关闭
+/e2e-guard          # 状态报告
+```
+
+开启后，运行 E2E 套件的 bash/shell 调用会在执行前被阻断：
+
+- 名称含 `e2e` 的包管理器脚本（`npm|pnpm|yarn|bun [run] e2e`、`test:e2e`、`e2e:smoke` 等）
+- 运行器 CLI：`playwright test`、`cypress run`、`nightwatch`、`codeceptjs run`（`playwright install` 等纯安装动词不管控）
+- Python 运行器 —— 仅当调用本身带 e2e 证据时门控：`pytest tests/e2e/...`、`pytest -m e2e`、`python -m pytest ...`、`uv|poetry|pdm|pipenv run pytest ...`、`tox -e e2e`（裸 `pytest` 不管控 —— 它通常是单测套件）
+- 链式命令逐段判断 —— 只要有一段是 E2E，整条命令被门控（取最高风险级别）
+
+门控按风险分级：
+
+| 风险级别 | 形态 | 门控 |
+|---|---|---|
+| **full（整套）** | 无明确目标的套件运行（`npm run e2e`、裸 `playwright test`） | 每次运行都需要新的一次性 `/e2e-guard allow` 放行 |
+| **targeted（定向）** | 带明确 spec/测试文件参数（`playwright test tests/login.spec.ts`、`cypress run --spec ...`） | 会话内有过任一已确认放行后自动通过 |
+
+确有必要跑 E2E 时的流程：
+
+1. 智能体通过交互式问答给出选项：(a) 推荐 —— 只跑受当前 diff 影响的 spec；(b) 仍要跑整套；(c) 跳过 E2E，用轻量层验证。
+2. 你的选择对应不同放行：
+   - 只跑受影响的 → `/e2e-guard allow targeted` —— 会话内解锁定向重跑，整套运行仍被门控
+   - 跑整套 → `/e2e-guard allow` —— 下一次整套运行的一次性放行（同时获得定向解锁）
+3. 智能体重试所选命令。整套放行被消耗（下次整套运行需重新确认）；定向重跑 —— 典型的修复后重试循环 —— 在会话剩余时间内保持解锁。放行随会话结束作废，绝不持久化。
+
+```jsonc
+// 项目 opencode.jsonc —— 提交到仓库的团队默认值（可选）
+{ "e2eGuard": "on" }
+```
+
+已知边界：壳包装（`bash -c '...'`）不在机械检测范围 —— 它是常见路径上的硬墙，不是形式化沙箱。
 
 ### 提交纪律（`project-manager`）
 

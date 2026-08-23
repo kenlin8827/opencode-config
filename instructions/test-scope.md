@@ -41,7 +41,7 @@ A bug fix with zero tests is not a real bug fix. Default to at least the 2–5-f
 
 ## Skip rules (when NOT to run a higher tier)
 
-- **E2E**: slow + flaky + expensive. Last resort. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation path.
+- **E2E**: slow + flaky + expensive. Last resort. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation path. Even then, confirm the run with the user before executing. Projects can enforce this at the tool level via the `e2eGuard` switch (the e2e-guard plugin blocks ungated E2E runs until the user grants a one-shot pass).
 - **Full suite**: only when requested, on release branches, or when the change is genuinely cross-cutting and module-scoped tests give no confidence.
 
 ## Transparency rule

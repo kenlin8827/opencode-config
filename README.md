@@ -17,7 +17,7 @@ A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of spec
 | **One-command installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
 | **Workflow slash commands** | `/review-fix-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
-| **Optional guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), commit discipline (`/project`) — all default off |
+| **Optional guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
 | **Token savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install |
 | **Second-opinion advisor** | `@advisor` for blocking decisions, with an adversarial red-team stance for design review |
 
@@ -514,6 +514,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |
 | `adr-guard.ts` | `/adr-guard` command — per-project ADR enforcement (see below) |
 | `env-guard.ts` | Per-project secret-file gate (see below) |
+| `e2e-guard.ts` | `/e2e-guard` command — per-project gate: E2E runs need user confirmation; full suites pay a one-shot pass each time, targeted spec re-runs unlock after the first approval (see below) |
 | `project-manager.ts` | `/project` command + commit discipline (see below) |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy (see below) |
 | `profile-wizard.ts`, `provider-wizard.ts` | `/profile` and `/provider` TUI dialog wizards |
@@ -563,6 +564,45 @@ When on, agent access is blocked before execution for:
 Always allowed: `.env.example` (the sanctioned scaffold), `cp .env.example .env`, non-reading verbs (`touch`, `ls`, `rm`, `git`). The block message points to safe alternatives, including `npx envsitter keys` for inspecting key names without values.
 
 Known boundary: subshell wrappers (`bash -c '...'`), command substitution, and glob references (`*.env`) are not inspected — the guard is a hard wall on the common paths, not a formal sandbox.
+
+### E2E gate (`e2e-guard`)
+
+Optional per-project gate requiring explicit user confirmation before any E2E suite runs. E2E is slow, flaky, and expensive — the last-resort test tier — and a soft prompt rule alone does not guarantee an agent honors that; this gate blocks the execution itself. The switch is **project-level** and defaults to off:
+
+```text
+/e2e-guard on       # enable for this project ("e2eGuard": "on" in the project opencode.jsonc)
+/e2e-guard off      # disable
+/e2e-guard          # status report
+```
+
+When on, bash/shell calls that run an E2E suite are blocked before execution:
+
+- Package-manager run scripts whose name contains `e2e` (`npm|pnpm|yarn|bun [run] e2e`, `test:e2e`, `e2e:smoke`, …)
+- Runner CLIs: `playwright test`, `cypress run`, `nightwatch`, `codeceptjs run` (setup-only verbs like `playwright install` are not gated)
+- Python runners — gated only when the invocation itself says e2e: `pytest tests/e2e/...`, `pytest -m e2e`, `python -m pytest ...`, `uv|poetry|pdm|pipenv run pytest ...`, `tox -e e2e` (bare `pytest` is not gated — it is usually the unit suite)
+- Chained commands are judged per segment — one E2E segment gates the whole command (highest risk wins)
+
+Gating is graded by risk:
+
+| Risk level | Shape | Gate |
+|---|---|---|
+| **full** | Suite run with no explicit target (`npm run e2e`, bare `playwright test`) | Every run needs a fresh one-shot `/e2e-guard allow` pass |
+| **targeted** | Explicit spec/test-file argument (`playwright test tests/login.spec.ts`, `cypress run --spec ...`) | Passes automatically once the session has any confirmed approval |
+
+Flow when an E2E run is genuinely warranted:
+
+1. The agent proposes an interactive choice: (a) RECOMMENDED — run only the specs affected by the current diff; (b) run the full suite anyway; (c) skip E2E and verify with lighter tiers.
+2. Your choice maps to a grant:
+   - affected only → `/e2e-guard allow targeted` — unlocks targeted re-runs for the session; full suites stay gated
+   - full suite → `/e2e-guard allow` — one-shot pass for the next full run (plus the same targeted unlock)
+3. The agent retries the chosen command. Full-suite passes are consumed (a later suite run needs a fresh confirmation); targeted re-runs — the typical fix-and-retry loop — stay unlocked for the rest of the session. Approvals die with the session and are never persisted.
+
+```jsonc
+// project opencode.jsonc — committed team default (optional)
+{ "e2eGuard": "on" }
+```
+
+Known boundary: shell wrappers (`bash -c '...'`) are not inspected — the gate is a hard wall on the common paths, not a formal sandbox.
 
 ### Commit discipline (`project-manager`)
 
