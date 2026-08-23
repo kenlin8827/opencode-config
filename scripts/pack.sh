@@ -87,6 +87,10 @@ done
 
 # --- main ----------------------------------------------------------------
 
+# Resolve OUT_DIR to an absolute path now — the tar/zip steps below run from
+# the staging directory, so a relative --out would break there.
+OUT_DIR="$(mkdir -p "$OUT_DIR" && cd "$OUT_DIR" && pwd)"
+
 # Ensure manifest exists
 if [[ ! -f "$MANIFEST" ]]; then
     echo "manifest missing for version $VERSION, generating..."
@@ -95,8 +99,6 @@ if [[ ! -f "$MANIFEST" ]]; then
     manifest_n=$(wc -l < "$MANIFEST" | tr -d ' ')
     echo "wrote $MANIFEST ($manifest_n files)"
 fi
-
-mkdir -p "$OUT_DIR"
 
 # Build a staging directory with the exact layout we want in the archive.
 STAGE="$(mktemp -d)"
