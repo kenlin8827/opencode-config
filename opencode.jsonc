@@ -6,7 +6,6 @@
   "default_agent": "build",
   "instructions": [
     "~/.config/opencode/instructions/output-protocol.md",
-    "~/.config/opencode/instructions/context-efficiency.md",
     "instructions/test-scope.md",
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md"
@@ -40,8 +39,9 @@
       "enabled": true
     },
     // CodeGraph (default graph backend): pre-indexed code knowledge graph
-    // (Tree-sitter → SQLite). Complements Serena: adds macro queries —
-    // impact/blast radius, dependency chains, call paths, framework-aware
+    // (Tree-sitter → SQLite). Complements Serena: adds structural macro
+    // queries — "how does X work" / flows, impact/blast radius, dependency
+    // chains, area surveys, framework-aware
     // routes. MIT licensed. Fixed tool surface: a single `codegraph_explore`.
     // Index lifecycle: ONE-TIME manual `codegraph init` per repo (MCP does NOT
     // auto-build a missing index); after that a built-in file watcher keeps it

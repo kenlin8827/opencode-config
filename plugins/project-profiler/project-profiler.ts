@@ -9,28 +9,41 @@
  * classes — the agents should pick the right backend without spending a
  * turn discovering what kind of project they're in.
  *
- * Detection (all cheap, sync, one-shot per process):
+ * Detection (config-driven, zero process spawning — probing CLIs with
+ * execSync at session start was a real latency source, especially cold on
+ * Windows):
  *   - Language composition via bounded file scan (extension counts)
- *   - opencode.jsonc enabled flags (CLI installed but disabled → not recommended)
- *   - Serena: CLI installed? (.local/bin or uv tools dir)
- *   - CodeGraph: CLI installed? index present in .codegraph/?
- *   - GitNexus (optional): index present in .gitnexus/? stale vs HEAD?
+ *   - Backend availability = mcp.<name>.enabled in the installed
+ *     opencode.jsonc. That flag is the source of truth: enabled → opencode
+ *     itself loads the MCP server (and surfaces any launch error); the
+ *     profiler must not re-validate what the runtime already enforces.
+ *   - Plus two sub-ms existsSync signals: .codegraph/ (indexed?) and
+ *     .gitnexus/ (present?) — they steer the status text, never spawn.
  *
  * Cache-friendly strategy (same pattern as goal / auto-advisor plugins):
  *   - Marker "[PROJECT PROFILE]" present → pure no-op, prompt-cache stays warm.
  *   - First injection (or after compaction) → compute profile once, append.
  *
+ * Weight reinforcement: system-prompt guidance decays over long sessions, so
+ * `experimental.chat.messages.transform` appends a one-line reminder to the
+ * latest user message every REMIND_EVERY messages (~8 user turns) — the
+ * recency position carries the highest attention weight. A WeakSet on the
+ * message objects plus an inline marker keep the reminder single-shot even
+ * if the transform fires repeatedly for one turn; no backend → never fires.
+ *
  * Plugin hooks must NEVER crash the session — everything is wrapped and
  * failures degrade to "no injection".
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, type Dirent } from "node:fs"
+import { existsSync, readFileSync, readdirSync, type Dirent } from "node:fs"
 import { join, basename } from "node:path"
 import { homedir } from "node:os"
-import { execSync } from "node:child_process"
 import type { Plugin } from "@opencode-ai/plugin"
 
 const MARKER = "[PROJECT PROFILE]"
+const REMIND_EVERY = 16
+const REMIND_MARKER = "[PROFILE REMINDER]"
+const REMINDER = `${REMIND_MARKER} Session profile standing rule: query the available code-intelligence backend FIRST (one graph/symbol call) before any grep/read loop; you MUST NOT crawl files for structure the index already knows.`
 const MAX_FILES = 20000
 const MAX_DEPTH = 8
 
@@ -64,13 +77,11 @@ interface ProjectProfile {
   languages: { lang: string; count: number }[]
   dominant: { lang: string; share: number } | null
   polyglot: boolean
-  serenaEnabled: boolean
-  serenaCli: boolean
+  serenaActive: boolean
   serenaLspFit: boolean
-  codegraphEnabled: boolean
-  codegraphCli: boolean
+  codegraphActive: boolean
   codegraphIndexed: boolean
-  gitnexusIndex: "ready" | "stale" | "missing"
+  gitnexusIndexed: boolean
 }
 
 function scanLanguages(root: string): { fileCount: number; counts: Map<string, number> } {
@@ -103,31 +114,6 @@ function scanLanguages(root: string): { fileCount: number; counts: Map<string, n
   return { fileCount, counts }
 }
 
-function serenaCliInstalled(): boolean {
-  const home = homedir()
-  const candidates = [
-    join(home, ".local", "bin", "serena"),
-    join(home, ".local", "bin", "serena.exe"),
-    join(home, ".local", "bin", "serena.cmd"),
-  ]
-  if (candidates.some((p) => existsSync(p))) return true
-  // uv tool installs also live under the uv tools dir (e.g. D:\dev\uv\tools).
-  try {
-    const out = execSync("uv tool dir", { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim()
-    if (out && existsSync(join(out, "serena-agent"))) return true
-  } catch { /* uv not installed — fall through */ }
-  return false
-}
-
-function codegraphCliInstalled(): boolean {
-  try {
-    // `--version` — the CLI has no `version` subcommand (commander rejects it).
-    execSync("codegraph --version", { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
-    return true
-  } catch { /* not installed or not on PATH */ }
-  return false
-}
-
 /** Parse mcp.<name>.enabled out of opencode.jsonc text — exported so it can
  * be unit-tested. Strips whole-line // comments (the JSONC subset the config
  * uses), then reads the real object: a regex can't cross nested braces like
@@ -142,35 +128,14 @@ export function mcpEnabledFrom(text: string, name: string): boolean {
   } catch { /* unparseable — assume enabled */ return true }
 }
 
-/** mcp.<name>.enabled from the installed opencode.jsonc — a CLI on PATH that
- * is disabled in config must NOT be recommended (its MCP server never loads).
- * Degrades to true when the config is missing/unreadable. */
+/** mcp.<name>.enabled from the installed opencode.jsonc — the single source
+ * of truth for backend availability (enabled → opencode loads the MCP server
+ * itself). Degrades to true when the config is missing/unreadable. */
 function mcpEnabled(name: string): boolean {
   try {
     const cfg = join(homedir(), ".config", "opencode", "opencode.jsonc")
     return mcpEnabledFrom(readFileSync(cfg, "utf8"), name)
   } catch { /* no config — assume enabled */ return true }
-}
-
-function gitnexusIndexState(root: string): "ready" | "stale" | "missing" {
-  const idx = join(root, ".gitnexus")
-  if (!existsSync(idx)) return "missing"
-  try {
-    let indexMtime = 0
-    for (const e of readdirSync(idx)) {
-      try {
-        const m = statSync(join(idx, e)).mtimeMs
-        if (m > indexMtime) indexMtime = m
-      } catch { /* entry vanished — ignore */ }
-    }
-    const head = execSync("git log -1 --format=%ct", {
-      cwd: root, encoding: "utf8", timeout: 5000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim()
-    const headSec = parseInt(head, 10)
-    if (!Number.isNaN(headSec) && headSec * 1000 > indexMtime) return "stale"
-  } catch { /* not a git repo or git unavailable — treat index as ready */ }
-  return "ready"
 }
 
 /** Build the profile — exported so it can be unit-tested without opencode. */
@@ -192,13 +157,11 @@ export function buildProfile(root: string = process.cwd()): ProjectProfile {
     languages: languages.slice(0, 4),
     dominant,
     polyglot,
-    serenaEnabled: mcpEnabled("serena"),
-    serenaCli: serenaCliInstalled() && mcpEnabled("serena"),
+    serenaActive: mcpEnabled("serena"),
     serenaLspFit: !!dominant && LSP_FRIENDLY.has(dominant.lang),
-    codegraphEnabled: mcpEnabled("codegraph"),
-    codegraphCli: codegraphCliInstalled() && mcpEnabled("codegraph"),
+    codegraphActive: mcpEnabled("codegraph"),
     codegraphIndexed: existsSync(join(root, ".codegraph")) && mcpEnabled("codegraph"),
-    gitnexusIndex: mcpEnabled("gitnexus") ? gitnexusIndexState(root) : "missing",
+    gitnexusIndexed: existsSync(join(root, ".gitnexus")) && mcpEnabled("gitnexus"),
   }
 }
 
@@ -212,30 +175,55 @@ function langSummary(p: ProjectProfile): string {
 }
 
 function recommendation(p: ProjectProfile): string[] {
-  const serena = p.serenaCli
-    ? `yes${p.serenaLspFit ? "" : " — no LSP fit for dominant language"}`
-    : p.serenaEnabled
-      ? "CLI not installed"
-      : "disabled in options.jsonc"
+  const serena = p.serenaActive
+    ? "yes" + (p.serenaLspFit ? "" : " — no LSP fit for dominant language")
+    : "disabled in options.jsonc"
   const graph = p.codegraphIndexed
     ? "indexed (auto-synced)"
-    : p.codegraphCli
-      ? "CLI installed, not indexed — run `codegraph init` once (fast; the watcher keeps it fresh after)"
-      : p.codegraphEnabled
-        ? "not installed — suggest `npm install -g @colbymchenry/codegraph` + `codegraph init`"
-        : "disabled in options.jsonc"
+    : p.codegraphActive
+      ? "enabled, not indexed — run `codegraph init` once (fast; the watcher keeps it fresh after)"
+      : "disabled in options.jsonc"
 
-  const pick: string[] = []
-  if (p.serenaCli && p.serenaLspFit) {
-    pick.push("symbol lookups (definitions/references/outlines) → Serena MCP tools")
+  // Each ENABLED backend gets its own capability card stating what it is best
+  // at — the model picks per question. Preferences are soft tie-breakers for
+  // asymmetries the model cannot infer (payload cost, index freshness).
+  const cards: string[] = []
+  if (p.serenaActive && p.serenaLspFit) {
+    cards.push("Serena MCP tools (`find_symbol`, `find_referencing_symbols`, `get_symbols_overview`) — live LSP, always current. Symbol-level lookups: definitions, references, file outlines. Minimal payload, returns only what's asked")
   }
   if (p.codegraphIndexed) {
-    pick.push("impact/blast radius, dependency chains, call paths, architecture → CodeGraph MCP (`codegraph_explore`)")
-  } else if (p.gitnexusIndex === "ready") {
-    pick.push("impact/flow questions → GitNexus MCP tools (CodeGraph not active here)")
+    cards.push("CodeGraph MCP (`codegraph_explore`) — pre-built knowledge graph, auto-synced. Structural understanding: \"how does X work\", flows / call paths (incl. dynamic dispatch), impact / blast radius, dependency chains, area surveys. One call returns the relevant symbols' source + call paths + blast radius — name the file/symbol in the query; honor the ⚠️ staleness banner")
   }
-  if (pick.length === 0) pick.push("no code-intelligence backend available — grep/glob, one @explorer pass for multi-step workflows")
-  return [`- Serena: ${serena} · CodeGraph: ${graph}`, ...pick.map((s) => `  - ${s}`)]
+  if (p.gitnexusIndexed) {
+    cards.push("GitNexus MCP tools — deep graph analysis: arbitrary Cypher, precomputed clusters/processes, API-impact, cross-repo (group) questions; impact/flow queries also available. Re-index (`gitnexus analyze`) after big changes")
+  }
+  const prefs: string[] = []
+  if (p.serenaActive && p.serenaLspFit && p.codegraphIndexed) {
+    prefs.push("pure single-hop symbol lookup → SHOULD use Serena (minimal payload); CodeGraph's dense response stays resident in context")
+  }
+  if (p.codegraphIndexed && p.gitnexusIndexed) {
+    prefs.push("everyday flow/impact questions → SHOULD use CodeGraph (auto-synced, never stale); GitNexus for Cypher / clusters / API-impact / cross-repo")
+  }
+  if (p.codegraphIndexed || p.gitnexusIndexed) {
+    prefs.push("graph queries return dense payloads — SHOULD keep them focused, one query per question")
+  }
+  if (cards.length === 0) cards.push("no code-intelligence backend available — grep/glob, then targeted file reads; one @explorer pass for multi-step workflows")
+  const lines = [`- Serena: ${serena} · CodeGraph: ${graph}`,
+    "Available backends — pick per question:", ...cards.map((s) => `  - ${s}`)]
+  if (prefs.length > 0) lines.push("Preferences when several fit:", ...prefs.map((s) => `  - ${s}`))
+  return lines
+}
+
+/** Universal context-efficiency rules — injected with the profile so they
+ * travel with the backend routing (no static instructions file). */
+function rules(): string[] {
+  return [
+    "Rules:",
+    "- Read files only for semantic understanding (intent, conventions, \"why is this built this way\") — or for files changed since the dispatch context was written.",
+    "- MUST NOT read a whole file to locate a symbol — use a symbol index when one is available; grep/glob only when no backend covers the question.",
+    "- Treat code-intelligence output as already read — no grep re-verification, no re-reading returned code.",
+    "- If the dispatch includes a `Files changed` list (typical for `qa`, `code-review`, `security` follow-ups), read ONLY those files plus missing gaps — no full re-exploration.",
+  ]
 }
 
 /** Compose the injected fragment — exported for testing. */
@@ -245,15 +233,37 @@ export function renderProfileBlock(p: ProjectProfile): string {
     "---",
     MARKER,
     "",
-    `Detected at session start — use it to pick code-intelligence tools without re-discovering the project:`,
+    `Detected at session start — MUST query the code-intelligence index before crawling code files: every file read costs tokens, so answer structural questions from the backends below directly instead of grep/read loops (applies to primary agents coding alone exactly as to subagents):`,
     `- Project "${p.name}": ${langSummary(p)}`,
     ...recommendation(p),
+    ...rules(),
     "",
   ]
   return lines.join("\n")
 }
 
 let cachedBlock: string | null = null
+let cachedProfile: ProjectProfile | null = null
+
+/** Profile + rendered block computed once per process (file scans are not
+ * free) — exported pieces reused by both transform hooks. */
+function profile(): ProjectProfile {
+  if (cachedProfile === null) cachedProfile = buildProfile()
+  return cachedProfile
+}
+function block(): string {
+  if (cachedBlock === null) cachedBlock = renderProfileBlock(profile())
+  return cachedBlock
+}
+
+/** Exported for testing — true when at least one backend is usable. */
+export function hasBackend(p: ProjectProfile): boolean {
+  return (p.serenaActive && p.serenaLspFit) || p.codegraphIndexed || p.gitnexusIndexed
+}
+
+// Messages already reminded — identity-based, so the transform stays
+// single-shot per message even when it fires repeatedly for one turn.
+const reminded = new WeakSet<object>()
 
 export const ProjectProfilerPlugin: Plugin = async () => ({
   "experimental.chat.system.transform": async (
@@ -279,6 +289,37 @@ export const ProjectProfilerPlugin: Plugin = async () => ({
       }
     } catch {
       // Never crash the session — degrade to no injection.
+    }
+  },
+
+  // Long-session attention decay: re-assert the query-first discipline at
+  // the recency position (latest user message) every ~8 user turns.
+  "experimental.chat.messages.transform": async (
+    _input: unknown,
+    output: { messages: { info: { role?: string }; parts: unknown[] }[] },
+  ) => {
+    try {
+      const msgs = output.messages
+      if (!Array.isArray(msgs) || msgs.length < REMIND_EVERY) return
+      if (msgs.length % REMIND_EVERY !== 0) return
+
+      if (!hasBackend(profile())) return
+      block() // keep cachedBlock warm alongside the profile
+
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].info?.role !== "user") continue
+        if (reminded.has(msgs[i].info)) return
+        const text = (msgs[i].parts as { type?: string; text?: string }[])
+          .filter((pt) => pt?.type === "text" && typeof pt.text === "string")
+          .map((pt) => pt.text)
+          .join("\n")
+        if (text.includes(REMIND_MARKER)) return
+        reminded.add(msgs[i].info)
+        msgs[i].parts.push({ type: "text", text: `\n\n${REMINDER}` })
+        return
+      }
+    } catch {
+      // Never crash the session — degrade to no reminder.
     }
   },
 })

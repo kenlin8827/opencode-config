@@ -43,10 +43,12 @@ Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
-# instructions array: output-protocol.md + context-efficiency.md + test-scope.md + rfc-keywords.md + coding-principles.md
-Check "instructions count = 5" ($config.instructions.Count -eq 5)
-Check "instructions contains context-efficiency.md" `
-    ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md")
+# instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md
+# (context-efficiency.md was removed — backend routing + token rules are now
+# injected dynamically by plugins/project-profiler with the session profile)
+Check "instructions count = 4" ($config.instructions.Count -eq 4)
+Check "instructions does NOT include context-efficiency.md" `
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
@@ -107,7 +109,6 @@ Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
-    "instructions/context-efficiency.md",
     "instructions/test-scope.md",
     "agents/build.md", "agents/plan.md", "agents/code.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",

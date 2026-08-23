@@ -67,7 +67,12 @@ Expected output: <structured report with findings and recommendations>
 
 Emphasize: **analyze and report, NEVER modify files**.
 
-**Token discipline:** subagent contexts are isolated — every duplicate file read costs tokens (backend choice follows the shared Context efficiency instructions). Pass `Key symbols/files:` in each dispatch; if the analysis needs codebase exploration, dispatch `@explorer` ONCE and share its compressed findings (conclusions + `file:line` map) with all analysts. Never let two analysts re-read the same file wholesale.
+**Token discipline — keep dispatches self-contained.** Subagent contexts are isolated; every file an analyst reads costs tokens. Backend choice follows the session profile injected at session start (code-intelligence indexes when available, grep/glob otherwise) — your job as orchestrator:
+
+- **Pre-resolve structural lookups** — for quick symbol/location questions use the code-intelligence tools yourself or name the targets in `Key symbols/files:` so the analyst queries instead of re-discovering.
+- **Exploration runs once** — if the analysis needs codebase exploration, dispatch `@explorer` ONCE as step 1 and pass its compressed findings (one-line conclusions + `file:line` map) to every analyst. Never let two analysts re-read the same file wholesale.
+- **Follow-ups read only changed files** — when re-dispatching after a change, pass the previous agent's `Files changed` list; no full re-exploration.
+- **Don't re-read after dispatch** — synthesize from the analyst's report instead of reading the same files again.
 
 ### 4. Synthesize findings
 

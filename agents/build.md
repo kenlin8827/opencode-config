@@ -166,7 +166,7 @@ Expected output: <what the agent should produce>
 
 ### Token discipline — keep dispatches self-contained
 
-Subagent contexts are isolated; every file an agent reads costs tokens. Backend choice (Serena/graph/grep) follows the shared Context efficiency instructions — your job as orchestrator:
+Subagent contexts are isolated; every file an agent reads costs tokens. Backend choice follows the session profile injected at session start (code-intelligence indexes when available, grep/glob otherwise) — your job as orchestrator:
 
 - **Pre-resolve structural lookups** — for quick symbol/location questions use the code-intelligence tools yourself or name the targets in `Key symbols/files:` so the specialist queries instead of re-discovering.
 - **Exploration runs once** — if a multi-step workflow needs codebase exploration, dispatch `@explorer` ONCE as step 1 and pass its compressed findings (one-line conclusions + `file:line` map) to later steps. Never embed large file excerpts repeatedly.
