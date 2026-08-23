@@ -157,8 +157,11 @@ copy_manifest_files() {
 }
 
 # snapshots user state from the target before the copy overwrites it:
-# provider credentials, root model, and per-tier model refs (agents of a
-# tier share one ref — same tier semantics as the /profile plugin).
+# provider credentials, the whole provider.*.models map (deep-merged back:
+# user-edited model entries — incl. custom model ids and user-added models —
+# win over the template, template-only models and fields still get in), root
+# model, and per-tier model refs (agents of a tier share one ref — same tier
+# semantics as the /profile plugin).
 # Option switches are NOT snapshotted — the repo's install/options.jsonc
 # is the single source of truth and overwrites the target on every install.
 # Agent→tier mapping: agent-level `tier` fields are gone (opencode forwards
@@ -166,11 +169,11 @@ copy_manifest_files() {
 # reject them). The mapping now lives in tiers.json; the snapshot reads the
 # target's copy, falling back to the repo's for pre-migration targets, and a
 # legacy agent-level tier field still wins for agents it lists.
-# outputs a JSON object: {creds: [...], rootModel: "...", tiers: {...}}
+# outputs a JSON object: {creds: [...], models: {...}, rootModel: "...", tiers: {...}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
     # fresh target: emit the empty bag so callers can --argjson it unconditionally
-    [[ -f "$rp_f" ]] || { echo '{"creds":[],"rootModel":null,"tiers":{}}'; unset rp_f; return 0; }
+    [[ -f "$rp_f" ]] || { echo '{"creds":[],"models":{},"rootModel":null,"tiers":{}}'; unset rp_f; return 0; }
     rp_tm="$1/tiers.json"
     rp_tm_tmp=""
     if [[ ! -f "$rp_tm" ]]; then rp_tm="$REPO_ROOT/tiers.json"; fi
@@ -183,13 +186,14 @@ read_preserve() {
                    ($p.value.options // {}) | to_entries[] |
                    select(.key == "baseURL" or .key == "apiKey") |
                    {provider: $p.key, key: .key, value: .value} ],
+          models: (.provider // {} | with_entries(.value |= (.models // {}))),
           rootModel: (.model // null),
           tiers: ([ .agent // {} | to_entries[] |
                     (.value.tier // $map[.key] // null) as $tier |
                     select($tier != null and (.value.model // null) != null) |
                     {($tier): .value.model} ] | add // {})
         }
-    ' 2>/dev/null || echo '{"creds":[],"rootModel":null,"tiers":{}}'
+    ' 2>/dev/null || echo '{"creds":[],"models":{},"rootModel":null,"tiers":{}}'
     [[ -n "$rp_tm_tmp" ]] && rm -f "$rp_tm_tmp"
     unset rp_f rp_tm rp_tm_tmp
 }
@@ -211,6 +215,7 @@ restore_preserve() {
     if [[ ! -f "$rp_tm" ]]; then rp_tm_tmp="$(mktemp)"; echo '{}' > "$rp_tm_tmp"; rp_tm="$rp_tm_tmp"; fi
     jq --slurpfile b "$rp_bag_file" --slurpfile tm "$rp_tm" '
         ($b[0].creds // []) as $c |
+        ($b[0].models // {}) as $um |
         ($b[0].tiers // {}) as $t |
         ($tm[0] // {}) as $map |
         reduce ($c[] | .provider) as $pn (.;
@@ -220,6 +225,21 @@ restore_preserve() {
                 .provider[$pn].options[$k] = ($c | map(select(.provider == $pn and .key == $k))[0].value)
             )
         )
+        # merge the user'\''s model definitions into the shipped ones, one
+        # model level deep (same semantics as install.ps1): per-model the
+        # user'\''s fields win wholesale, template-only fields of the same
+        # model survive, user-added models are re-created, template-only
+        # models stay. NOTE: plain `+` on objects is a SHALLOW merge whose
+        # right side wins per key — ($tm + $userModels) alone would drop
+        # every template-only field of a shared model, hence the second
+        # per-entry merge against $tm.
+        | .provider |= with_entries(
+            ($um[.key] // {}) as $userModels |
+            if ($userModels | length) > 0 then
+                .value.models = ((.value.models // {}) as $tm
+                    | ($tm + $userModels)
+                    | with_entries(.value = (($tm[.key] // {}) + .value)))
+            else . end)
         | (if ($b[0].rootModel // null) != null then .model = $b[0].rootModel else . end)
         | (if ($t | length) > 0 and ((.agent // {}) | length) > 0 then
              .agent |= with_entries(
@@ -553,10 +573,10 @@ copy_current_files() {
     rm -f "$TARGET/options.jsonc"
     # restore the snapshot taken before removal (only if there is anything)
     if [[ -s "$preserve_bag" ]]; then
-        n="$(jq '(.creds | length) + (.tiers | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
+        n="$(jq '(.creds | length) + ([.models[] | length] | add // 0) + (.tiers | length) + (if .rootModel != null then 1 else 0 end)' "$preserve_bag" 2>/dev/null || echo 0)"
         if [[ "$n" -gt 0 ]]; then
             restore_preserve "$TARGET" < "$preserve_bag"
-            echo "[cur: $VER] preserved $n field(s) (credentials + models) in opencode.jsonc"
+            echo "[cur: $VER] preserved $n field(s) (credentials + models + model definitions) in opencode.jsonc"
         fi
     fi
 }

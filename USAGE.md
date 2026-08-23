@@ -120,6 +120,7 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 |---|---|
 | `provider.<name>.options.baseURL` | Your API endpoint |
 | `provider.<name>.options.apiKey` | Your API key |
+| `provider.<name>.models` | Your model definitions (custom model ids, user-added models) — deep-merged back: your fields win per model, template-only models and fields still get in |
 | `model` (root) | Your default-tier model pick |
 | `agent.<name>.model` (per tier) | Your per-tier model assignments |
 

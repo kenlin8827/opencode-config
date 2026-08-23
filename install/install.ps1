@@ -425,8 +425,11 @@ function Merge-Providers([string]$dst) {
 }
 
 # Preserved across reinstalls: the two credential fields under provider.*.options,
-# the root `model`, and one model ref per tier (agents of a tier share one ref —
-# same tier semantics as the /profile plugin). Everything else comes from the repo.
+# the whole provider.*.models map (deep-merged back: user-edited model entries
+# — incl. custom model ids — win over the template, template-only models and
+# fields still get in), the root `model`, and one model ref per tier (agents of
+# a tier share one ref — same tier semantics as the /profile plugin).
+# Everything else comes from the repo.
 # Agent→tier mapping: agent-level `tier` fields are gone (opencode forwards
 # unknown agent fields to the provider as model options — strict gateways
 # reject them). The mapping now lives in tiers.json; snapshot reads the
@@ -450,14 +453,22 @@ function Read-TierMap([string]$dir) {
 
 function Read-Preserve([string]$dst) {
     # returns hashtable of "provider.<name>.options.<key>" => value,
-    # "model" => root model, "tier.<name>" => tier model ref; or $null if
-    # no prior opencode.jsonc
+    # "provider.<name>.models" => models map, "model" => root model,
+    # "tier.<name>" => tier model ref; or $null if no prior opencode.jsonc
     $f = Join-Path $dst 'opencode.jsonc'
     if (-not (Test-Path $f)) { return $null }
     try {
         $obj = Get-Content $f -Raw | ConvertFrom-Json
         $bag = @{}
         foreach ($pname in $obj.provider.PSObject.Properties.Name) {
+            # custom model definitions (llm-router ids, added models, ...) —
+            # snapshotted independently of the options block so providers
+            # without credentials (auth-based, local routers) are covered too.
+            # Deep-copied via JSON round-trip so the snapshot bag holds plain
+            # values and the later merge can never mutate it through aliasing
+            if ($obj.provider.$pname.models) {
+                $bag["provider.$pname.models"] = $obj.provider.$pname.models | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+            }
             $opts = $obj.provider.$pname.options
             if (-not $opts) { continue }
             foreach ($k in $preserveJsonKeys) {
@@ -504,6 +515,38 @@ function Restore-Preserve([string]$dst, $bag) {
             continue
         }
         if ($key -like 'tier.*') { continue }  # applied after this loop
+        # NOTE: dotted-key match; -like would work too but regex keeps intent explicit
+        if ($key -match '^provider\.[^.]+\.models$') {
+            # deep-merge the user's model definitions over the shipped ones:
+            # per-model the user's fields win (custom ids survive), models
+            # only the template knows about stay in place
+            $parts = $key -split '\.'
+            $pname = $parts[1]
+            if (-not $obj.provider.$pname) {
+                $obj.provider | Add-Member -NotePropertyName $pname -NotePropertyValue ([pscustomobject]@{}) -Force
+            }
+            $models = $obj.provider.$pname.models
+            if (-not $models) {
+                $obj.provider.$pname | Add-Member -NotePropertyName models -NotePropertyValue ([pscustomobject]@{}) -Force
+                $models = $obj.provider.$pname.models
+            }
+            # NOTE: distinct loop vars — a reused $f here would shadow the
+            # function's config-file path and Write-ConfigJson below would
+            # write the merged result to a stray file instead of opencode.jsonc
+            foreach ($modelKey in ($bag[$key]).PSObject.Properties.Name) {
+                $um = $bag[$key].$modelKey
+                if ($models.PSObject.Properties.Name -contains $modelKey) {
+                    $target = $models.PSObject.Properties[$modelKey].Value
+                    foreach ($fld in $um.PSObject.Properties.Name) {
+                        if ($target.PSObject.Properties.Name -contains $fld) { $target.$fld = $um.$fld }
+                        else { $target | Add-Member -NotePropertyName $fld -NotePropertyValue $um.$fld -Force }
+                    }
+                } else {
+                    $models | Add-Member -NotePropertyName $modelKey -NotePropertyValue $um -Force
+                }
+            }
+            continue
+        }
         # dotted path: provider.<name>.options.<field>
         $parts = $key -split '\.'
         if ($parts.Count -ne 4 -or $parts[0] -ne 'provider' -or $parts[2] -ne 'options') { continue }
@@ -823,7 +866,14 @@ switch ($Mode) {
 
             if ($preserve) {
                 Restore-Preserve $Target $preserve
-                Write-Host ("[cur: {0}] preserved {1} field(s) (credentials + models) in opencode.jsonc" -f $ver, $preserve.Count)
+                # models entries count per model, not per provider, so the
+                # message reflects the actual number of restored fields
+                $kept = 0
+                foreach ($k in $preserve.Keys) {
+                    if ($k -match '^provider\.[^.]+\.models$') { $kept += ($preserve[$k]).PSObject.Properties.Name.Count }
+                    else { $kept++ }
+                }
+                Write-Host ("[cur: {0}] preserved {1} field(s) (credentials + models + model definitions) in opencode.jsonc" -f $ver, $kept)
             }
 
             # options.jsonc decides which MCPs/plugins are active — the repo

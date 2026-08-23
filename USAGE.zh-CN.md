@@ -98,6 +98,7 @@ Remove-Item -Recurse -Force $tmp
 |---|---|
 | `provider.<name>.options.baseURL` | 你的 API 端点 |
 | `provider.<name>.options.apiKey` | 你的 API 密钥 |
+| `provider.<name>.models` | 你的模型定义（自定义 model id、用户自加的模型）—— 深度合并回填：逐模型你的字段优先，仅模板中存在的模型和字段照常保留 |
 | `model`（根级别） | 你为 default 层级选择的模型 |
 | `agent.<name>.model`（每个层级） | 你为各层级分配的模型 |
 
