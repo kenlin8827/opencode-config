@@ -1,0 +1,28 @@
+{
+  "antigravity-router": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "antigravity-router",
+    "options": {
+      "baseURL": "{env:ANTIGRAVITY_ROUTER_BASE_URL}",
+      "apiKey": "{env:ANTIGRAVITY_ROUTER_API_KEY}"
+    },
+    "models": {
+      "gemini-3.7-flash-high":     { "name": "Gemini 3.7 Flash (High)",       "id": "ag/gemini-3.7-flash-high",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.7-flash-medium":   { "name": "Gemini 3.7 Flash (Medium)",     "id": "ag/gemini-3.7-flash-medium",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.7-flash-low":      { "name": "Gemini 3.7 Flash (Low)",        "id": "ag/gemini-3.7-flash-low",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.6-flash-high":     { "name": "Gemini 3.6 Flash (High)",       "id": "ag/gemini-3.6-flash-high",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.6-flash-medium":   { "name": "Gemini 3.6 Flash (Medium)",     "id": "ag/gemini-3.6-flash-medium",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.6-flash-low":      { "name": "Gemini 3.6 Flash (Low)",        "id": "ag/gemini-3.6-flash-low",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.5-flash-high":     { "name": "Gemini 3.5 Flash (High)",       "id": "ag/gemini-3.5-flash-high",     "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3-flash-agent":      { "name": "Gemini 3 Flash (Agent)",        "id": "ag/gemini-3-flash-agent",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.5-flash-low":      { "name": "Gemini 3.5 Flash (Low)",        "id": "ag/gemini-3.5-flash-low",      "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.5-flash-extra-low":{ "name": "Gemini 3.5 Flash (Extra Low)",  "id": "ag/gemini-3.5-flash-extra-low","attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3-flash":            { "name": "Gemini 3 Flash",                "id": "ag/gemini-3-flash",            "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-pro-agent":          { "name": "Gemini 3.1 Pro (High)",         "id": "ag/gemini-pro-agent",          "attachment": true,                    "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gemini-3.1-pro-low":        { "name": "Gemini 3.1 Pro (Low)",          "id": "ag/gemini-3.1-pro-low",        "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "claude-sonnet-4-6":         { "name": "Claude Sonnet 4.6 (Thinking)",  "id": "ag/claude-sonnet-4-6",         "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "claude-opus-4-6-thinking":  { "name": "Claude Opus 4.6 (Thinking)",    "id": "ag/claude-opus-4-6-thinking",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+      "gpt-oss-120b-medium":       { "name": "GPT-OSS 120B (Medium)",         "id": "ag/gpt-oss-120b-medium",                            "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } }
+    }
+  }
+}
