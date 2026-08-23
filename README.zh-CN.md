@@ -1,8 +1,25 @@
-# 使用指南
+# OpenCode 多智能体配置
 
-从克隆到日常工作流 — 使用本多智能体 OpenCode 配置所需的一切。
+开箱即用的 [OpenCode](https://opencode.ai) 配置：一支专家智能体团队、三种编排模式、一键模型预设、工作流斜杠命令、可选的项目级护栏 —— 一条命令安装到 `~/.config/opencode`。
 
-> [English](USAGE.md) | **中文**
+> [English](README.md) | **中文**
+>
+> 本 README 是用户手册。如果你想修改本仓库本身（智能体、插件、测试、发布），请看 **[DEVELOPING.md](DEVELOPING.md)**。
+
+---
+
+## 你将获得什么
+
+| 特性 | 对你的意义 |
+|---|---|
+| **专家智能体团队** | 17 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev` 等），提示词按领域调优，自动路由 |
+| **三种工作模式** | `@build`（编排执行，默认）、`@plan`（只读分析）、`@code`（直接开发） |
+| **一键安装器** | PowerShell + Bash 双平台，基于清单升级；凭证和模型选择在每次重装后完好保留 |
+| **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
+| **工作流斜杠命令** | `/review-fix-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
+| **可选护栏** | 按项目启用的 ADR 强制（`/adr-guard`）、密钥文件门控（`env-guard`）、提交纪律（`/project`）—— 全部默认关闭 |
+| **Token 节省** | 安装时自动配置 [rtk](https://github.com/rtk-ai/rtk) 输出压缩（60–90%） |
+| **第二意见顾问** | `@advisor` 为阻塞性决策提供独立意见，设计审查时可切换对抗式 red-team 立场 |
 
 ---
 
@@ -13,8 +30,9 @@
 | [opencode](https://opencode.ai) CLI | 运行时，读取配置并调度智能体 | `curl -fsSL https://opencode.ai/install \| bash` |
 | PowerShell 7+（Windows） | 安装脚本 | `winget install Microsoft.PowerShell` |
 | Bash 4+ + `jq`（macOS / Linux / WSL） | 同上，Bash 版本 | `brew install jq` 或 `sudo apt install jq` |
-| [Bun](https://bun.sh) | TypeScript 插件编译 | `curl -fsSL https://bun.sh/install \| bash` |
 | Git | 版本控制 & 清单回退 | — |
+
+> Bun 仅在开发本仓库时需要（见 [DEVELOPING.md](DEVELOPING.md)）—— opencode 会在运行时编译内置的 TypeScript 插件。
 
 ## 快速上手
 
@@ -76,6 +94,8 @@ macOS / Linux / WSL：
 | 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
 | 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
 | 禁用 rtk | 在 `options.jsonc` 中设 `"rtk": false` | 同左 | 跳过二进制下载并移除内置 openrtk 插件 |
+| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-config` shim 安装到 `~/.local/bin` |
+| 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除 shim |
 
 ### 自定义目标目录（安全测试）
 
@@ -88,6 +108,28 @@ Remove-Item -Recurse -Force $tmp
 
 ```bash
 ./install/install.sh install -t /tmp/opencode-test
+```
+
+### 全局命令
+
+首次安装后，可将仓库注册为全局 `opencode-config` 命令：
+
+```powershell
+pwsh install/install.ps1 register              # shim 位于 ~/.local/bin
+pwsh install/install.ps1 register -BinDir C:\Tools\bin  # 自定义目录
+```
+
+```bash
+./install/install.sh register
+./install/install.sh register --bin-dir ~/bin
+```
+
+`register` 创建的是一个跳板，会重新执行仓库内的调度脚本，因此 `git pull` 后命令立即更新。它拒绝覆盖不是自己创建的文件。将 `~/.local/bin` 加入用户 PATH 后即可使用：
+
+```powershell
+opencode-config status
+opencode-config install -Force
+opencode-config unregister   # 移除 shim
 ```
 
 ### 重装时保留的字段
@@ -115,18 +157,18 @@ Remove-Item -Recurse -Force $tmp
 ## 配置
 
 所有服务商/模型配置均在 opencode 会话内完成 — 旧的 `install/config.ps1` /
-`install/config.sh` 脚本已废弃（替代方案由后续 ADR 跟踪）：
+`install/config.sh` 脚本已废弃：
 
 1. **现有服务商配置** — 通过 `/connect` 斜杠命令连接官方 API（推荐）
 2. **自定义服务商配置** — 针对仓库自带的路由定义（`codex-router`、`qoder-router` 等）使用 `/provider` 弹窗向导：凭证（baseURL/apiKey）和模型清单维护全部通过弹窗完成
 3. **LLM Router 配置** — 自建或第三方路由服务，通过环境变量设置凭证（或直接编辑 `opencode.jsonc`）
 4. **Qoder 配置** — `opencode-qoder-bridge` 插件已全局启用，启动时自动注入 `qoder` 服务商；只需用 Qoder CLI 登录（`qoder login`）并应用 `qoder` 预设即可
 
-> **选择指南**：如需直接连接DeepSeek、Kimi等官方API，请选择方式1（更简单快速）；使用仓库自带的路由定义请选方式2；如需自建LLM Router或使用第三方路由服务，请选择方式3；如果你有 Qoder 订阅、想通过官方 Qoder Agent SDK 使用其模型目录（Ultimate/Performance/Kimi/DeepSeek/Qwen/GLM/…），请选择方式4。
+> **选择指南**：如需直接连接 DeepSeek、Kimi 等官方 API，请选择方式 1（更简单快速）；使用仓库自带的路由定义请选方式 2；如需自建 LLM Router 或使用第三方路由服务，请选择方式 3；如果你有 Qoder 订阅、想通过官方 Qoder Agent SDK 使用其模型目录（Ultimate/Performance/Kimi/DeepSeek/Qwen/GLM/…），请选择方式 4。
 
 ### 在 opencode 内配置服务商（推荐）
 
-对于现有服务商（如官方DeepSeek、Kimi、通义千问等API，非自建LLM Router），通过OpenCode的斜杠命令配置：
+对于现有服务商（如官方 DeepSeek、Kimi、通义千问等 API，非自建 LLM Router），通过 OpenCode 的斜杠命令配置：
 
 ```
 /connect <provider-name>    # 连接到现有服务商
@@ -135,23 +177,23 @@ Remove-Item -Recurse -Force $tmp
 
 **配置流程：**
 
-1. **连接服务商** — 使用 `/connect` 命令连接到已存在的provider
+1. **连接服务商** — 使用 `/connect` 命令连接到已存在的 provider
 2. **选择预设** — 使用 `/profile` 打开选择弹窗，选中该服务商对应的配置预设
 
 **示例：**
 
 ```
 > /connect deepseek
-  → 连接到DeepSeek服务商
+  → 连接到 DeepSeek 服务商
 > /profile
-  → 弹窗打开 — 选中 "deepseek" 条目即可应用官方API预设配置
+  → 弹窗打开 — 选中 "deepseek" 条目即可应用官方 API 预设配置
 ```
 
-**重要提示：** 配置完成后请退出当前opencode会话并重新进入，以确保新的provider和profile配置完全生效。
+**重要提示：** 配置完成后请退出当前 opencode 会话并重新进入，以确保新的 provider 和 profile 配置完全生效。
 
 这种配置方式适用于：
-- 已有现成的LLM服务商（如DeepSeek、Kimi、通义千问等）
-- 不想自建LLM Router的用户
+- 已有现成的 LLM 服务商（如 DeepSeek、Kimi、通义千问等）
+- 不想自建 LLM Router 的用户
 - 希望通过交互方式快速配置的场景
 
 预设会自动配置各层级的模型映射，无需手动设置每个层级的模型。
@@ -252,10 +294,10 @@ bridge 附带的额外能力：
 | `opencode-go-economy` | 性价比平衡 |
 | `opencode-go-lite` | 最低可用成本 |
 | `opencode-go-qwen` | 全通义千问系列备选 |
-| `opencode-go-kimi` | 全Kimi系列备选 |
+| `opencode-go-kimi` | 全 Kimi 系列备选 |
 | `kimi-code` | Kimi For Coding（官方计划） |
-| `opencode-go-deepseek` | 全DeepSeek系列备选 |
-| `opencode-go-glm` | 全GLM系列备选 |
+| `opencode-go-deepseek` | 全 DeepSeek 系列备选 |
+| `opencode-go-glm` | 全 GLM 系列备选 |
 
 ### 使用预设
 
@@ -282,15 +324,15 @@ bridge 附带的额外能力：
 
 系统使用 5 个模型层级，每个层级映射到一组智能体：
 
-| 层级 | 模型 ID | 用途 | 智能体 |
-|---|---|---|---|
-| `default` | `llm-router/default` | 通用，强推理 | build, plan, researcher, architect, security, tech-writer |
-| `code` | `llm-router/code` | 代码生成，实现 | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | `llm-router/advisor` | 分析，审查，反馈 | code-review, advisor |
-| `explorer` | `llm-router/explorer` | 快速，廉价，高吞吐 | explorer |
-| `vision` | `llm-router/vision` | 图像理解 | vision |
+| 层级 | 用途 | 智能体 |
+|---|---|---|
+| `default` | 通用，强推理 | build, plan, code, researcher, architect, security, tech-writer |
+| `code` | 代码生成，实现 | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `advisor` | 分析，审查，反馈 | code-review, advisor |
+| `explorer` | 快速，廉价，高吞吐 | explorer |
+| `vision` | 图像理解 | vision |
 
-> **Variant**（low/medium/high）控制每个智能体的思考/推理深度。如果后端模型不支持 variant，会被静默忽略。
+每个层级解析到当前活跃预设为它映射的 provider/模型。**Variant**（low/medium/high）控制每个智能体的思考/推理深度；如果后端模型不支持 variant，会被静默忽略。
 
 ---
 
@@ -323,7 +365,7 @@ bridge 附带的额外能力：
   → 汇总报告，按优先级给出建议
 ```
 
-通过 Tab 或 `@plan` / `@build` 在两种模式间切换。
+通过 Tab 或 `@plan` / `@build` 在两种模式之间切换。
 
 ### Code 模式（直接开发）
 
@@ -371,7 +413,7 @@ bridge 附带的额外能力：
 | 命令 | 说明 |
 |---|---|
 | `/auto-advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
-| `/provider` | 打开服务商向导（仅限 TUI）：为已激活或仓库自带的服务商配置凭证（baseURL → apiKey 输入），或管理服务商的模型清单（按 key/上游 id/显示名三步新增，删除需确认）。详见[自定义服务商](#自定义服务商-provider-向导) |
+| `/provider` | 打开服务商向导（仅限 TUI）：为已激活或仓库自带的服务商配置凭证（baseURL → apiKey 输入），或管理服务商的模型清单（按 key/上游 id/显示名三步新增，删除需确认）。详见[自定义服务商](#自定义服务商provider-向导) |
 | `/profile` | 打开弹窗选择器：列出所有可用的模型服务商预设（活跃项带标记）；选中预设后进入层级审阅，可逐个 tier 通过 provider → model 选择修改模型再应用（provider/模型列表来自 opencode 服务目录：内置 + 已配置），重写 `opencode.jsonc` 中的层级→模型映射。首个条目用于查看当前活跃预设和层级→模型映射 |
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
@@ -389,7 +431,7 @@ bridge 附带的额外能力：
   → @code-review 发现 P0/P1 问题
   → 验证每个发现（读代码、追踪数据流、检查上游守卫）
   → 若为误报 → @advisor 确认后方可跳过
-  → 若确认真BUG → @<领域开发> 修复每个已验证问题
+  → 若确认真 BUG → @<领域开发> 修复每个已验证问题
   → @code-review 复审
   → 重复直到清零或达到最大轮次（默认 5）
   → 输出总结：结论 + 统计数据
@@ -402,13 +444,13 @@ bridge 附带的额外能力：
 
 ## Auto-advisor 模式
 
-`@advisor` 在**阻塞性**决策上提供独立的第二意见。非阻塞决策始终以声明假设的方式继续推进。
+`@advisor` 仅在**阻塞性**决策上提供独立的第二意见 —— 且仅在确有必要时（见 advisor 协议中的节俭规则）。非阻塞决策始终以声明假设的方式继续推进。
 
 | 模式 | 行为 |
 |---|---|
-| **lite**（默认） | 调度 `@advisor`；向用户同时展示两方意见，由用户决定。 |
+| **off**（默认） | 不调度 `@advisor`；编排器独自决策。手动 `@advisor` 仍可用。 |
+| **lite** | 调度 `@advisor`；向用户同时展示两方意见，由用户决定。 |
 | **full** | 调度 `@advisor`；FACTUAL 类问题置信度 >= 8 → 自动执行（每会话最多 10 次，之后降级为 lite）；否则走 lite 流程。 |
-| **off** | 不调度 `@advisor`；编排器独自决策。 |
 
 ### 切换
 
@@ -418,13 +460,13 @@ bridge 附带的额外能力：
 /auto-advisor full
 ```
 
-`auto-advisor-mode` 插件在 LLM 看到命令之前就写入了状态文件，因此切换是代码级可靠的。
+`auto-advisor-mode` 插件在 LLM 看到命令之前就写入了配置，因此切换是代码级可靠的。
 
 ### 状态持久化
 
 - **存储位置**：`opencode.jsonc` 中的 `autoAdvisorMode` 字段——无隐藏状态文件、无环境变量。取值：`off` / `lite` / `full`（旧字段名 `advisorMode` 和旧值 `advisory` / `decisive` 自动归一化）。
-- **解析顺序**：项目配置（`opencode.jsonc` 或 `.opencode/opencode.jsonc`）→ 全局配置（`~/.config/opencode/opencode.jsonc`）→ `off`（默认）
-- **写入仅限项目级**：`/auto-advisor <mode>` 在项目 `opencode.jsonc` 中更新该字段（保留注释和其他字段）；永远不修改全局配置
+- **解析顺序**：项目配置（`opencode.jsonc` 或 `.opencode/opencode.jsonc`）→ `off`（默认）。纯项目级 —— 没有全局回退。
+- **写入仅限项目级**：`/auto-advisor <mode>` 在项目 `opencode.jsonc` 中更新该字段（保留注释与其他字段）；永远不修改全局配置
 - 取值跨会话和跨进程持久化，作用域为单个项目
 
 ### Red-team 立场（对抗式设计审查）
@@ -433,32 +475,33 @@ bridge 附带的额外能力：
 
 - **触发条件**：用户明确要求（"压测这个方案" / "red team this" / "唱反调"），或编排器在不可逆设计决策前自动触发（schema 迁移、公开 API 契约、认证重构、破坏性数据操作）
 - **输出**：裁决（`HOLDS` / `HOLDS WITH CAVEATS` / `FAILS`）+ 按严重性排序的攻击列表 + 钢铁人辩护
-- **FAILS 时**：编排器将攻击发回设计负责人（`@architect`）要求反驳/修订，然后向用户同时展示攻击和反驳
-- **自动执行隔离**：red-team 输出不携带置信度分数；代码级守卫抑制所有自动执行指令 — 对抗式裁决永远不会触发 full 模式自动执行
+- **FAILS 时**：编排器将攻击发回设计负责人要求反驳/修订，然后向用户同时展示攻击和反驳
+- **自动执行隔离**：red-team 输出不携带置信度分数；代码级守卫抑制所有自动执行指令 —— 对抗式裁决永远不会触发 full 模式自动执行
 
 ---
 
-## 插件（平台级强制执行）
+## 插件
 
-插件提供仅靠提示词无法实现运行时 hook：
+插件提供仅靠提示词无法实现的运行时强制与工作流。以下全部随安装默认启用 —— 无需额外安装。
 
-| 插件 | Hook | 功能 |
-|---|---|---|
-| `design-token-guard.ts` | `tool.execute.before` | 阻止写入硬编码的颜色/间距/圆角 |
-| `ai-slop-scanner.ts` | `event: file.edited` | 扫描前端文件中的 AI 反模式（渐变汤、div 汤等） |
-| `metrics.ts` | `tool.execute.after` + `session.idle` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式 |
-| `auto-format.ts` | `event: file.edited` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
-| `auto-advisor-mode.ts`（+ 辅助模块） | 4 个 hook | Advisor 模式、协议注入、off 模式软约束（不自动 dispatch，手动 @ 放行）、full 模式自动执行、red-team 抑制 |
-| `review-fix-loop.ts`（+ `review-fix-loop.md`） | `config` + `command.execute.before` + `system.transform` | 程序化注册 `/review-fix-loop` 斜杠命令；将完整协议注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
-| `goal.ts`（+ `goal.md`） | `config` + `system.transform` | 程序化注册 `/goal` 斜杠命令；将目标执行协议（5 段式模板、审计清单、机械停止条件、场景骨架）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
-| `handoff.ts`（+ `handoff.md`） | `config` + `system.transform` | 程序化注册 `/handoff` 斜杠命令；将会话交接协议（压缩会话为 OS 临时目录文档、按路径引用既有工件、脱敏密钥、建议下一会话智能体）注入 system prompt（仅 LLM 可见，不污染聊天 UI） |
-| `deepseek-anchor.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` | 注册 `/deepseek-anchor` 斜杠命令；管理基于锚点的推理协议和 DeepSeek 模型集成 |
-| `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
-| `env-guard.ts`（+ 辅助模块） | `tool.execute.before` | 密钥文件门控——项目级开关（默认关闭）。开启后：在执行前阻断智能体对含密钥 `.env*` 文件的读取/拷贝（文件工具、grep、bash 读类动词、stdin 重定向、拷贝外带）；`.env.example` 始终放行 |
-| `project-manager.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/project` 斜杠命令（`init` 脚手架生成基线文件并做后端首次初始化，绝不覆盖；`index` 手动刷新已有索引）。未初始化的项目新建顶层会话时提示一次 `/project init`（仅用户可见，不进 LLM 上下文）。文件即开关：`docs/git-commits.md` 存在期间，向 system prompt 注入渐进式披露指针（约 50 token，智能体提交前自行读取该文件），并硬阻断违反结构规则的 `git commit` 消息（`type(scope): summary` 格式、已知 type、首行 ≤72 字符）；删除文件即双层失效 |
-| `queue-manager.ts` | TUI 插件（`tui.json`） | 注册 `/queued` 斜杠命令 + "Manage queued messages" 命令面板入口 —— 交互式对话框查看 / 编辑 / 取消会话忙碌时排队的用户消息；空闲时干净删除，忙碌时降级为墓碑清空 |
+| 插件 | 对你的作用 |
+|---|---|
+| `design-token-guard.ts` | 阻止写入硬编码的颜色/间距/圆角 —— 让前端代码坚守设计令牌 |
+| `ai-slop-scanner.ts` | 警告前端文件中的 AI 反模式（渐变汤、div 汤等） |
+| `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
+| `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
+| `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制（见 [Auto-advisor 模式](#auto-advisor-模式)） |
+| `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
+| `goal.ts` | `/goal` 命令与协议 |
+| `handoff.ts` | `/handoff` 命令与协议 |
+| `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |
+| `adr-guard.ts` | `/adr-guard` 命令 —— 按项目的 ADR 强制（见下文） |
+| `env-guard.ts` | 按项目的密钥文件门控（见下文） |
+| `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
+| `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
+| `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
 
-指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。
+各插件使用的 OpenCode hook 与注册方式等内部细节，见 [DEVELOPING.md](DEVELOPING.md#plugin-system)。
 
 ### ADR 铁律（`adr-guard`）
 
@@ -495,25 +538,26 @@ echo on > <project>/.opencode/.env-guard
 # 或在项目 opencode.jsonc 中加 "envGuard": "on"
 ```
 
-开启后，`tool.execute.before` 阻断：
+开启后，智能体的以下访问会在执行前被阻断：
 
 - 文件工具（read/edit/write/patch/multiedit）与 grep 工具针对 `.env`、`.env.local`、`.env.production` 等的访问
 - 将敏感 `.env` 文件内容读入输出的 bash/shell 命令（`cat`、`grep`、`Get-Content` 等）、stdin 重定向（`< .env`）、以及把文件拷贝到别处的命令（`cp .env out`）
 
 始终放行：`.env.example`（合法脚手架）、`cp .env.example .env`、不读内容的动词（`touch`、`ls`、`rm`、`git`）。阻断消息会给出安全替代方案，包括 `npx envsitter keys`（只看键名不看值）。
 
-已知边界（与 adr-guard 同一姿态）：子壳包装（`bash -c '...'`）、命令替换、glob 引用（`*.env`）不在机械检测范围——它是常见路径上的硬墙，不是形式化沙箱。
+已知边界：子壳包装（`bash -c '...'`）、命令替换、glob 引用（`*.env`）不在机械检测范围 —— 它是常见路径上的硬墙，不是形式化沙箱。
 
 ### 提交纪律（`project-manager`）
 
-按项目的提交规范强制机制，采用**文件即开关**：无状态文件、无 on/off 命令——`docs/git-commits.md` 存在即生效。
+按项目的提交规范强制机制，采用**文件即开关**：无状态文件、无 on/off 命令 —— `docs/git-commits.md` 存在即生效。
 
 ```text
 /project init       # 脚手架生成基线文件（仅当缺失时创建，绝不覆盖）：
                     #   .opencode/opencode.jsonc、docs/git-commits.md、AGENTS.md
                     # 随后做后端首次初始化（CLI 已安装且启用才执行）：
                     #   codegraph init、索引缺失时的 gitnexus analyze
-/project index      # 手动刷新已有索引：codegraph sync、stale 时的 gitnexus analyze
+/project index      # 手动刷新已有索引：codegraph sync、
+                    #   stale 时的 gitnexus analyze
 /project            # 帮助
 ```
 
@@ -538,58 +582,6 @@ echo on > <project>/.opencode/.env-guard
 - 取消在会话空闲时直接删除消息。忙碌时 OpenCode 拒绝删除消息（409），插件改为清空该消息 —— 文本替换为墓碑说明、附件删除 —— 模型永远收不到原指令。
 - 仅 TUI 插件；headless 会话没有等价入口。
 
-### 编译插件（一次性，工具链安装后）
-
-```bash
-bun install
-bunx tsc --noEmit    # 仅类型检查 — opencode 运行时编译
-```
-
----
-
-## 测试
-
-### 结构检查（无 API 调用 — 快速）
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly
-```
-
-验证：文件存在性、frontmatter、协议注入、内容模式、red-team 守卫、预设应用。
-
-### 完整测试（结构 + API 提示测试）
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1
-```
-
-### 包含 ponytail 行为测试
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -IncludePrompts
-```
-
-### Auto-advisor 模式端到端（需要 opencode CLI + 环境变量）
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tests/test-advisor-e2e.ps1
-```
-
-### 预设压力测试（无 API 调用）
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tests/test-profiles.ps1
-```
-
-每个预设被应用到一个全新的模板副本；验证智能体引用、根模型、未触及的层级。
-
-### API 测试前置条件
-
-```powershell
-$env:LLM_ROUTER_BASE_URL = "https://router.example.com/v1"
-$env:LLM_ROUTER_API_KEY  = "<your-api-key>"
-```
-
 ---
 
 ## 升级
@@ -613,28 +605,11 @@ git pull origin main
 
 安装器读取目标目录中的 `.CONFIG_VERSION`，查找该版本的清单，删除其文件，然后复制当前清单。你的凭证和模型选择会被保留。
 
-### 发布新版本（维护者）
-
-1. 编辑 `install/VERSION`（一行，例如 `0.0.3`）
-2. 生成清单：`pwsh install/install.ps1 generate`
-3. 运行结构测试：`pwsh tests/test-all.ps1 -StructuralOnly`
-4. 类型检查插件：`bun install && bunx tsc --noEmit`
-5. 提交 + 打标签
+从 Release 安装的用户：下载新归档后再次运行安装器即可 —— 保留规则相同。
 
 ---
 
 ## 卸载
-
-### 移除特定版本
-
-删除 `<target>/.CONFIG_VERSION` — 下次安装将不知道要清理什么，因此还需手动删除 `~/.config/opencode/`：
-
-```powershell
-# 查看已安装的内容
-pwsh install/install.ps1 status
-# 然后手动删除目标目录：
-Remove-Item -Recurse -Force "$HOME/.config/opencode"
-```
 
 ### 彻底卸载
 
@@ -642,16 +617,20 @@ Remove-Item -Recurse -Force "$HOME/.config/opencode"
 rm -rf ~/.config/opencode
 ```
 
-这会移除所有智能体、命令、插件、指令和配置。`~/.config/opencode/.metrics/` 中的指标也会被删除。
+```powershell
+Remove-Item -Recurse -Force "$HOME/.config/opencode"
+```
+
+这会移除所有智能体、命令、插件、指令和配置。`~/.config/opencode/.metrics/` 中的指标也会被删除。如果注册过全局命令，请先运行 `opencode-config unregister`（或删除 `~/.local/bin` 中的 shim）。
 
 ### Init 模式（备份 + 清空）
 
-使用 `init` 将整个目标目录备份到带时间戳的同级目录（`~/.config/opencode.backup.YYYYMMDD-HHMMSS`），然后清空其中所有内容 — 为全新安装做准备。
+使用 `init` 将整个目标目录备份到带时间戳的同级目录（`~/.config/opencode.backup.YYYYMMDD-HHMMSS`），然后清空其中所有内容 —— 为全新安装做准备。
 
 ```powershell
 pwsh install/install.ps1 init             # 备份 + 清空
 pwsh install/install.ps1 init -NoBackup   # 不备份直接清空
-pwsh install/install.ps1 init -Yes         # 跳过确认提示
+pwsh install/install.ps1 init -Yes        # 跳过确认提示
 ```
 
 ```bash
@@ -661,52 +640,6 @@ pwsh install/install.ps1 init -Yes         # 跳过确认提示
 ```
 
 `init` 之后，运行 `install` 重装配置文件，然后在 opencode 内配置凭证和模型（`/connect` + `/profile`）。
-
----
-
-## 添加新智能体
-
-1. **创建 `agents/<name>.md`** — 遵循结构模板（frontmatter + 操作循环 + 核心能力 + 硬规则 + 输出格式）
-2. **添加到 `build.md`** — 路由表 + 触发词
-3. **添加到 `plan.md`** — 团队表（如果具备分析能力）
-4. **添加到 `opencode.jsonc`** — `agent.<name>` 块，包含 tier、model、mode 等
-5. **添加到 `tests/test-all.ps1`** — `$allFiles` 数组 + 内容检查
-6. **生成清单** — `pwsh install/install.ps1 generate`（在更新 VERSION 之后）
-7. **测试** — `pwsh tests/test-all.ps1 -StructuralOnly`
-
-### Frontmatter 模板
-
-```markdown
----
-description: <何时调用 — 用于 build.md 路由>
-mode: subagent
-variant: <low|medium|high>
-temperature: <0.0-0.4>
-steps: <最大工具调用数>
-permission:
-  read: allow
-  bash: allow
-  edit: <allow|deny>
-  webfetch: <allow|ask|deny>
-  websearch: <allow|ask|deny>
----
-
-You are a **senior <role>**. <one-line scope>.
-
-## Operating loop
-<3-5 step sequential workflow>
-
-## Core competencies
-<domain knowledge, bullet lists — NOT compressed>
-
-## Hard rules
-<RFC 2119 keywords, 5-12 words/bullet>
-
-## Output format (mandatory — structured)
-<markdown template with placeholders>
-
-Invoke via `@<agent-name>` or <keywords>.
-```
 
 ---
 
@@ -724,17 +657,23 @@ Invoke via `@<agent-name>` or <keywords>.
 Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 ```
 
-如果项目级没有该字段，则读取全局 `~/.config/opencode/opencode.jsonc` 中的同名字段；两级都没有时为 `off`（默认）。运行 `/auto-advisor lite` 将字段写入项目配置并启用 advisor 咨询。
-
-### 插件类型错误
-
-```bash
-bun install
-bunx tsc --noEmit
-```
-
-修复报告的错误。opencode 运行时编译插件，但类型错误通常表示逻辑问题。
+如果字段不存在，模式为 `off`（默认）。运行 `/auto-advisor lite` 将字段写入项目配置并启用 advisor 咨询。
 
 ### `/profile` 不保留 JSONC 注释
 
-`/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 — 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。
+`/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 —— 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。
+
+### 其他问题？
+
+安装器内部机制（清单、保留字段、自定义目标）见 [`install/README.md`](install/README.md)。仓库开发类问题（插件类型错误、测试）见 [`DEVELOPING.md`](DEVELOPING.md)。
+
+---
+
+## 文档地图
+
+| 文档 | 面向读者 |
+|---|---|
+| [`README.md`](README.md) / `README.zh-CN.md`（本文件） | 用户 —— 安装、配置、日常工作流 |
+| [`DEVELOPING.md`](DEVELOPING.md) | 贡献者 —— 架构、提示词规范、测试、发布 |
+| [`install/README.md`](install/README.md) | 安装器内部机制 —— 清单、保留字段、init、自定义目标 |
+| [`tests/README.md`](tests/README.md) | 测试套件参考 |
