@@ -50,7 +50,7 @@ read_manifest() {
 
 # --- generate manifest if missing (inline, no dependency on install.sh) --
 
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/")
 
 generate_manifest() {
     local out="$1"

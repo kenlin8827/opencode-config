@@ -71,7 +71,7 @@ function Read-Manifest([string]$path) {
 
 # --- generate manifest if missing ----------------------------------------
 
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'tui.json', 'profiles/', 'providers/')
+$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'tui.json', 'tiers.json', 'profiles/', 'providers/')
 
 function Generate-Manifest([string]$ver) {
     $out = Join-Path $InstDir "$ver.manifest.txt"
