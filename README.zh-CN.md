@@ -435,8 +435,9 @@ bridge 附带的额外能力：
 | `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
 | `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
 | `/handoff [focus]` | 将当前会话压缩为一份交接文档（保存到操作系统临时目录），让新会话能接手工作。可选参数用于把文档聚焦到下一会话要处理的方向 |
-| `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）；随后执行各后端的首次初始化（仅当对应 CLI 已安装且启用）：`codegraph init`、索引缺失时的 `gitnexus analyze`。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
+| `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）；已存在的项目配置会做只追加补齐：模板在 init 之后新增的开关注释行自动补入（既有内容不动）；随后执行各后端的首次初始化（仅当对应 CLI 已安装且启用）：`codegraph init`、索引缺失时的 `gitnexus analyze`。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
 | `/project index` | 手动刷新已有索引：`codegraph sync`（增量追平 watcher 未运行期间的变更）、索引过期时的 `gitnexus analyze` 重建。只刷新、不首次建库（首次归 `/project init`）；CLI 未安装则跳过报告、绝不调用 |
+| `/project sync` | 只做配置补齐：把模板中新增、而现有 `.opencode/opencode.jsonc` 还没有的开关注释行追加进去（只追加、不改既有内容；文件不存在时提示跑 `/project init`） |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
@@ -609,12 +610,14 @@ echo on > <project>/.opencode/.env-guard
 按项目的提交规范强制机制，采用**文件即开关**：无状态文件、无 on/off 命令 —— `docs/git-commits.md` 存在即生效。
 
 ```text
-/project init       # 脚手架生成基线文件（仅当缺失时创建，绝不覆盖）：
+/project init       # 脚手架生成基线文件（仅当缺失时创建，绝不覆盖；
+                    #   已存在的项目配置自动追加模板新增的开关行）：
                     #   .opencode/opencode.jsonc、docs/git-commits.md、AGENTS.md
                     # 随后做后端首次初始化（CLI 已安装且启用才执行）：
                     #   codegraph init、索引缺失时的 gitnexus analyze
 /project index      # 手动刷新已有索引：codegraph sync、
                     #   stale 时的 gitnexus analyze
+/project sync       # 只做配置补齐（只追加）
 /project            # 帮助
 ```
 

@@ -29,6 +29,7 @@ export const COMMAND_NAME = "project"
 /** Subcommands accepted by `/project <subcommand>`. */
 export const SUBCOMMAND_INIT = "init"
 export const SUBCOMMAND_INDEX = "index"
+export const SUBCOMMAND_SYNC = "sync"
 
 /**
  * Parse the first argument of a `/project <subcommand>` call.
@@ -37,6 +38,7 @@ export const SUBCOMMAND_INDEX = "index"
  *   /project       → null (help)
  *   /project init  → "init"
  *   /project index → "index"
+ *   /project sync  → "sync"
  */
 export function parseSubcommand(args: unknown): string | null {
   if (typeof args !== "string") return null
@@ -50,8 +52,11 @@ export function parseSubcommand(args: unknown): string | null {
 
 export const GIT_COMMITS_REL = "docs/git-commits.md"
 
+/** Project-level OpenCode config — scaffolded by init, topped up by sync. */
+export const CONFIG_REL = ".opencode/opencode.jsonc" as const
+
 export const SCAFFOLD_TARGETS = [
-  ".opencode/opencode.jsonc",
+  CONFIG_REL,
   GIT_COMMITS_REL,
   "AGENTS.md",
 ] as const

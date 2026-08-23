@@ -29,12 +29,20 @@ import { join } from "node:path"
 
 import {
   COMMAND_NAME,
+  CONFIG_REL,
   GIT_COMMITS_REL,
   hasConventionFile,
   parseSubcommand,
   setProjectDir,
 } from "../plugins/project-manager/project-manager-config"
-import { runInit, writeDbhubToml } from "../plugins/project-manager/project-manager-scaffold"
+import {
+  contentHasKey,
+  extractSwitchLines,
+  mergeSwitchLines,
+  runInit,
+  runSync,
+  writeDbhubToml,
+} from "../plugins/project-manager/project-manager-scaffold"
 import {
   mcpEnabledFrom,
   planIndexBackends,
@@ -399,6 +407,75 @@ async function test09_Announce() {
   setProjectDir(projectDir)
 }
 
+// ═════════════════════════════════════════════════════════════════════
+// 10. Sync — append-only template top-up for an existing project config
+// ═════════════════════════════════════════════════════════════════════
+
+const TEMPLATE_SNIPPET = [
+  "// \"adrGuard\": \"on\",",
+  "// \"adrGuardDir\": \"docs/adr\",",
+  "// \"e2eGuard\": \"on\",",
+].join("\n")
+
+function test10_Sync() {
+  section("10: sync — append-only config top-up")
+
+  // Pure: switch-line extraction and key presence.
+  const switches = extractSwitchLines(TEMPLATE_SNIPPET)
+  assert(switches.length === 3, "extracts every commented switch line")
+  assert(switches.some((s) => s.key === "e2eGuard"), "extracts the e2eGuard key")
+  assert(contentHasKey('{"e2eGuard": "on"}', "e2eGuard"), "active key counts as present")
+  assert(contentHasKey('// "e2eGuard": "on",', "e2eGuard"), "commented key counts as present")
+  assert(!contentHasKey('{"e2eGuardDir": "x"}', "e2eGuard"), "prefix collision not matched")
+  assert(!contentHasKey('{"adrGuardDir": "x"}', "adrGuard"), "adrGuard vs adrGuardDir distinguished")
+
+  // Pure: merge semantics.
+  const upToDate = mergeSwitchLines('{"e2eGuard": "on",\n"adrGuard": "off",\n"adrGuardDir": "d"\n}', TEMPLATE_SNIPPET)
+  assert(upToDate !== null && upToDate.added.length === 0, "all keys present → nothing added")
+  assert(upToDate !== null && upToDate.content.includes("e2eGuard"), "content untouched when up to date")
+  const merged = mergeSwitchLines('{\n  "custom": 1\n}\n', TEMPLATE_SNIPPET)
+  assert(merged !== null && merged.added.length === 3, "missing keys all appended")
+  assert(merged !== null && merged.content.includes('"custom": 1'), "existing content preserved")
+  assert(merged !== null && merged.content.lastIndexOf('"e2eGuard"') < merged.content.lastIndexOf("}"), "appended before the closing brace")
+  const partial = mergeSwitchLines('{\n  // "adrGuard": "off"\n}\n', TEMPLATE_SNIPPET)
+  assert(partial !== null && partial.added.length === 2 && !partial.added.includes("adrGuard"), "commented key not duplicated")
+  assert(mergeSwitchLines('{ "broken"', TEMPLATE_SNIPPET) === null, "no closing brace → refuse to touch")
+
+  // Stateful: runSync status machine.
+  const dirSync = mkdtempSync(join(tmpdir(), "pm-sync-"))
+  setProjectDir(dirSync)
+  assert(runSync().status === "missing", "no config → missing (init's job)")
+
+  mkdirSync(join(dirSync, ".opencode"), { recursive: true })
+  const cfgPath = join(dirSync, ".opencode", "opencode.jsonc")
+  writeFileSync(cfgPath, '{\n  "custom": 1\n}\n', "utf-8")
+  const s1 = runSync()
+  assert(s1.status === "added", "outdated config → switches appended")
+  assert(s1.added.includes("e2eGuard"), "e2eGuard among the appended keys")
+  const after = readFileSync(cfgPath, "utf-8")
+  assert(after.includes('"custom": 1'), "custom content untouched by sync")
+  assert(after.includes("e2eGuard"), "e2eGuard line landed in the file")
+  assert(runSync().status === "up-to-date", "second sync is a no-op")
+
+  writeFileSync(cfgPath, '{ "broken"', "utf-8")
+  assert(runSync().status === "invalid", "brace-less config → invalid")
+  assert(readFileSync(cfgPath, "utf-8") === '{ "broken"', "invalid file left byte-identical")
+
+  // runInit tops up an existing config ("updated"), then stays quiet.
+  writeFileSync(cfgPath, '{\n  "custom": 1\n}\n', "utf-8")
+  writeFileSync(join(dirSync, "AGENTS.md"), "x", "utf-8")
+  mkdirSync(join(dirSync, "docs"), { recursive: true })
+  writeFileSync(join(dirSync, "docs", "git-commits.md"), "x", "utf-8")
+  const ri1 = runInit()
+  assert(ri1.find((r) => r.relPath === CONFIG_REL)?.status === "updated", "init reports the config top-up as updated")
+  assert(ri1.find((r) => r.relPath === "AGENTS.md")?.status === "skipped", "other baseline files still never touched")
+  const ri2 = runInit()
+  assert(ri2.every((r) => r.status === "skipped"), "repeat init → everything skipped again")
+
+  rmSync(dirSync, { recursive: true, force: true })
+  setProjectDir(projectDir)
+}
+
 test01_ValidateMessage()
 await test02_FileAsSwitch()
 await test03_ToolGuard()
@@ -408,6 +485,7 @@ test06_Command()
 await test07_Injection()
 test08_IndexPlanning()
 await test09_Announce()
+test10_Sync()
 
 rmSync(projectDir, { recursive: true, force: true })
 

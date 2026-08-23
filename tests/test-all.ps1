@@ -364,6 +364,7 @@ Check "project-manager-config.ts: file-as-switch predicate" ($pmConfig -match "h
 Check "project-manager-config.ts: GIT_COMMITS_REL = docs/git-commits.md" ($pmConfig -match 'GIT_COMMITS_REL = "docs/git-commits\.md"')
 Check "project-manager-scaffold.ts: existence check before write" ($pmScaffold -match "existsSync")
 Check "project-manager-scaffold.ts: templates loaded from templates/ dir" ($pmScaffold -match "readTemplate" -and $pmScaffold -match "templates")
+Check "project-manager-scaffold.ts: append-only config sync" ($pmScaffold -match "mergeSwitchLines" -and $pmScaffold -match "runSync")
 Check "templates/git-commits.md: documents mechanical enforcement" ($pmGitTemplate -match "mechanically enforced")
 Check "project-manager-system-inject.ts: progressive disclosure (no full-content injection)" ($pmInject -match "progressive" -and $pmInject -notmatch "readFileSync")
 Check "project-manager-system-inject.ts: line-start marker dedup" ($pmInject -match "MARKER_RE")

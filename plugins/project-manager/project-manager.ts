@@ -68,7 +68,7 @@ export const ProjectManagerPlugin: Plugin = async ({ client, directory }) => {
       cfg.command[COMMAND_NAME] = {
         template: "",
         description:
-          "Project scaffolding + index bootstrap — /project init creates missing baseline files (never overwrites) and runs first-time backend init (codegraph init, gitnexus analyze) when each CLI is installed + enabled; /project index manually refreshes existing indexes (codegraph sync, gitnexus analyze when stale)",
+          "Project scaffolding + index bootstrap — /project init creates missing baseline files (never overwrites; an existing project config gets new template switches appended) and runs first-time backend init (codegraph init, gitnexus analyze) when each CLI is installed + enabled; /project index manually refreshes existing indexes; /project sync tops up the project config alone",
       }
     },
     "command.execute.before": makeCommandHook(client, handled),

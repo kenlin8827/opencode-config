@@ -435,8 +435,9 @@ Shall I proceed?
 | `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
 | `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
 | `/handoff [focus]` | Compact the current conversation into a handoff document (saved to the OS temp directory) so a fresh session can pick up the work. Optional arg focuses the doc on what the next session should work on |
-| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites); then runs each backend's first-time init (only when its CLI is installed and enabled): `codegraph init`, `gitnexus analyze` when the index is missing. While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
+| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites); an EXISTING project config gets an append-only top-up with switch lines the template gained since init (existing content untouched); then runs each backend's first-time init (only when its CLI is installed and enabled): `codegraph init`, `gitnexus analyze` when the index is missing. While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
 | `/project index` | Manually refresh EXISTING indexes: `codegraph sync` (incremental catch-up for changes made while the watcher wasn't running), `gitnexus analyze` rebuild when stale. Refresh only — a first index is `/project init`'s job; a missing CLI is reported as skipped, never invoked |
+| `/project sync` | The config top-up alone: append template switch lines missing from an existing `.opencode/opencode.jsonc` (append-only — nothing existing is changed; missing file → run `/project init`) |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
 | `/queued` | Manage queued prompts — interactive TUI dialogs to list / edit / cancel messages submitted while the session is busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
@@ -609,12 +610,14 @@ Known boundary: shell wrappers (`bash -c '...'`) are not inspected — the gate 
 Per-project commit-convention enforcement with a **file-as-switch**: no state file, no on/off command — the discipline is active exactly while `docs/git-commits.md` exists.
 
 ```text
-/project init       # scaffold baseline files (only when missing, never overwrites):
+/project init       # scaffold baseline files (only when missing, never overwrites;
+                    #   an existing project config gets new template switches appended):
                     #   .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
                     # then first-time backend init (only when CLI installed + enabled):
                     #   codegraph init, gitnexus analyze when the index is missing
 /project index      # manually refresh existing indexes: codegraph sync,
                     #   gitnexus analyze when stale
+/project sync       # the config top-up alone (append-only)
 /project            # help
 ```
 
