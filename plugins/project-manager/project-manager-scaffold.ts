@@ -64,7 +64,7 @@ export function writeDbhubToml(root: string): ScaffoldStatus {
 
 // ─── Init ────────────────────────────────────────────────────────────
 
-export type ScaffoldStatus = "created" | "updated" | "skipped"
+export type ScaffoldStatus = "created" | "updated" | "skipped" | "invalid"
 
 export interface ScaffoldResult {
   relPath: ScaffoldTarget
@@ -86,7 +86,9 @@ export function runInit(): ScaffoldResult[] {
     if (existsSync(absPath)) {
       if (relPath === CONFIG_REL) {
         const sync = runSync()
-        results.push({ relPath, status: sync.status === "added" ? "updated" : "skipped" })
+        const status: ScaffoldStatus =
+          sync.status === "added" ? "updated" : sync.status === "invalid" ? "invalid" : "skipped"
+        results.push({ relPath, status })
         continue
       }
       results.push({ relPath, status: "skipped" })
@@ -131,15 +133,16 @@ export function contentHasKey(content: string, key: string): boolean {
 /**
  * Additive merge of template switch lines into `existing`. Returns the
  * rewritten content plus the keys that were added; null when `existing`
- * has no closing brace (malformed — the file must not be touched).
- * Zero missing keys → content returned unchanged.
+ * is malformed — no closing brace, or anything but whitespace after it
+ * (the file must not be touched). Zero missing keys → content returned
+ * unchanged.
  */
 export function mergeSwitchLines(
   existing: string,
   templateContent: string,
 ): { content: string; added: string[] } | null {
   const close = existing.lastIndexOf("}")
-  if (close < 0) return null
+  if (close < 0 || existing.slice(close + 1).trim() !== "") return null
   const missing = extractSwitchLines(templateContent).filter((s) => !contentHasKey(existing, s.key))
   if (missing.length === 0) return { content: existing, added: [] }
   const eol = existing.includes("\r\n") ? "\r\n" : "\n"
@@ -160,8 +163,8 @@ export interface SyncResult {
 /**
  * Run `/project sync`: top up the EXISTING project config with template
  * switch lines it does not have yet. Append-only (see above). A missing
- * config is `missing` (that is init's job); a brace-less file is `invalid`
- * and left untouched.
+ * config is `missing` (that is init's job); a malformed file (no closing
+ * brace, or trailing content after it) is `invalid` and left untouched.
  */
 export function runSync(): SyncResult {
   const absPath = resolveTarget(CONFIG_REL)

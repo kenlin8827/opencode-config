@@ -440,6 +440,8 @@ function test10_Sync() {
   const partial = mergeSwitchLines('{\n  // "adrGuard": "off"\n}\n', TEMPLATE_SNIPPET)
   assert(partial !== null && partial.added.length === 2 && !partial.added.includes("adrGuard"), "commented key not duplicated")
   assert(mergeSwitchLines('{ "broken"', TEMPLATE_SNIPPET) === null, "no closing brace → refuse to touch")
+    assert(mergeSwitchLines('{\n  "a": 1\n}\n// stray note', TEMPLATE_SNIPPET) === null, "trailing content after closing brace → refuse to touch")
+    assert(mergeSwitchLines('{\n  "a": 1\n}\n// stray } in comment', TEMPLATE_SNIPPET) === null, "brace inside trailing comment → refuse to touch")
 
   // Stateful: runSync status machine.
   const dirSync = mkdtempSync(join(tmpdir(), "pm-sync-"))
@@ -460,6 +462,9 @@ function test10_Sync() {
   writeFileSync(cfgPath, '{ "broken"', "utf-8")
   assert(runSync().status === "invalid", "brace-less config → invalid")
   assert(readFileSync(cfgPath, "utf-8") === '{ "broken"', "invalid file left byte-identical")
+  const riBroken = runInit()
+  assert(riBroken.find((r) => r.relPath === CONFIG_REL)?.status === "invalid", "init surfaces the invalid config instead of swallowing it")
+  assert(readFileSync(cfgPath, "utf-8") === '{ "broken"', "init leaves an invalid config byte-identical")
 
   // runInit tops up an existing config ("updated"), then stays quiet.
   writeFileSync(cfgPath, '{\n  "custom": 1\n}\n', "utf-8")

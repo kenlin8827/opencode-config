@@ -72,16 +72,18 @@ Note: when docs/git-commits.md exists, a pointer to it is injected into
 the system prompt (progressive disclosure — agents read the file before
 committing) and structural rules are enforced at git commit time.`
 
-/** One report line per target: ✅ created / ♻️ updated / ⏭️ skipped. */
+/** One report line per target: ✅ created / ♻️ updated / ⏭️ skipped / ⚠️ invalid. */
 function initReport(results: ScaffoldResult[], backends: BackendResult[]): string {
   const lines = results.map((r) => {
     if (r.status === "created") return `  ✅ created ${r.relPath}`
     if (r.status === "updated") return `  ♻️ updated ${r.relPath} (appended new template switches; existing content untouched)`
+    if (r.status === "invalid") return `  ⚠️ ${r.relPath} is malformed (no proper closing brace) — left untouched, fix it manually`
     return `  ⏭️ skipped ${r.relPath} (already exists)`
   })
   const created = results.filter((r) => r.status === "created").length
   const updated = results.filter((r) => r.status === "updated").length
-  return `[project-manager] init done in ${getProjectDir()} — ${created} created, ${updated} updated, ${results.length - created - updated} skipped\n${lines.join("\n")}\n${backends.map(backendLine).join("\n")}`
+  const invalid = results.filter((r) => r.status === "invalid").length
+  return `[project-manager] init done in ${getProjectDir()} — ${created} created, ${updated} updated, ${invalid} invalid, ${results.length - created - updated - invalid} skipped\n${lines.join("\n")}\n${backends.map(backendLine).join("\n")}`
 }
 
 /** ✅ ran / ⏭️ skipped / ❌ failed — one line per backend result. */
@@ -100,7 +102,7 @@ function indexReport(results: BackendResult[]): string {
 function syncReport(r: SyncResult): string {
   const head = `[project-manager] sync in ${getProjectDir()}`
   if (r.status === "missing") return `${head}: ${CONFIG_REL} does not exist — run /project init first`
-  if (r.status === "invalid") return `${head}: ${CONFIG_REL} has no closing brace — left untouched, fix it manually`
+  if (r.status === "invalid") return `${head}: ${CONFIG_REL} is malformed (no proper closing brace) — left untouched, fix it manually`
   if (r.status === "up-to-date") return `${head}: ${CONFIG_REL} already has every template switch — nothing to add`
   return `${head}: appended ${r.added.length} new switch line(s) to ${CONFIG_REL} (existing content untouched):\n${r.added.map((k) => `  + ${k}`).join("\n")}`
 }
