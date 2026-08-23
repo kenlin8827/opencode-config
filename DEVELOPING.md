@@ -28,7 +28,7 @@ tiers.json       # Tier definitions sidecar (consumed by profile-wizard)
 ```
 User
  │
- ├── @build (primary, default) ── routes to ──┐
+ ├── @build (primary) ── routes to ──┐
  │                                            ├── @explorer      (read-only explorer, efficient model)
  │                                            ├── @researcher    (tech evaluation)
  │                                            ├── @architect     (system design, ADR)
@@ -49,8 +49,12 @@ User
  │
  ├── @plan (primary) ── read-only analysis coordinator
  │
- ├── @code (primary) ── direct developer, delegation only on request
- │                      (advisor/explorer/code-review/vision)
+ ├── @code (primary, default) ── direct developer, delegation only on request
+ │                                (advisor/explorer/code-review/vision)
+ │
+ │   (default agent is set by install/options.jsonc:default_agent —
+ │    the installer applies it to opencode.jsonc's root `default_agent`
+ │    on every install; valid values: code / build / plan)
  │
  ├── Shared instructions (injected into all agents via `opencode.jsonc:instructions`)
  │   ├── output-protocol.md       — structured output format
@@ -418,9 +422,9 @@ instructions/
 └── coding-principles.md      # Shared coding principles
 
 agents/
-├── build.md                  # Primary: execution coordinator (default)
+├── build.md                  # Primary: execution coordinator
 ├── plan.md                   # Primary: read-only analysis coordinator
-├── code.md                   # Primary: direct developer
+├── code.md                   # Primary: direct developer (default entry)
 ├── advisor.md                # Decision advisor + red-team stance
 ├── architect.md              # System design, ADR
 ├── code-review.md            # Diff/PR review

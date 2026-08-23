@@ -13,7 +13,7 @@
 | 特性 | 对你的意义 |
 |---|---|
 | **专家智能体团队** | 17 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev` 等），提示词按领域调优，自动路由 |
-| **三种工作模式** | `@build`（编排执行，默认）、`@plan`（只读分析）、`@code`（直接开发） |
+| **三种工作模式** | `@code`（直接开发，默认）、`@build`（编排执行）、`@plan`（只读分析）—— 可在 `install/options.jsonc` 中切换 |
 | **一键安装器** | PowerShell + Bash 双平台，基于清单升级；凭证和模型选择在每次重装后完好保留 |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
 | **工作流斜杠命令** | `/review-fix-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
@@ -74,7 +74,7 @@ macOS / Linux / WSL：
 ./install/install.sh
 ```
 
-完成后，在你的项目目录中启动 `opencode` — 在会话内配置服务商（`/connect`、`/provider`、`/profile`，见[配置](#配置)）；`@build` 编排器是默认智能体，会自动把你的任务路由给专家团里合适的成员。
+完成后，在你的项目目录中启动 `opencode` — 在会话内配置服务商（`/connect`、`/provider`、`/profile`，见[配置](#配置)）；默认智能体是 `@code` 直接开发者（可通过[默认智能体](#默认智能体optionsjsonc)小节调整）。
 
 > **术语约定**：下文中的"专家团"指各专家智能体（`@java-dev`、`@security` 等）组成的团队；`@build` / `@plan` 是调度它们的编排器（团长）。技术标识符（agent 名、`@` 引用）保持英文，是 opencode 平台约定。
 
@@ -94,8 +94,25 @@ macOS / Linux / WSL：
 | 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
 | 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
 | 禁用 rtk | 在 `options.jsonc` 中设 `"rtk": false` | 同左 | 跳过二进制下载并移除内置 openrtk 插件 |
+| 切换默认智能体 | 在 `options.jsonc` 中设 `"default_agent"` | 同左 | opencode 启动时进入哪个主控智能体（`code` / `build` / `plan`） |
 | 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-config` shim 安装到 `~/.local/bin` |
 | 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除 shim |
+
+### 默认智能体（options.jsonc）
+
+opencode 启动时进入哪个主控智能体，由 [`install/options.jsonc`](install/options.jsonc) 中的 `default_agent` 字段控制 —— 安装器在**每次**安装时把它应用到 `opencode.jsonc` 根级 `default_agent` 字段：
+
+```jsonc
+// install/options.jsonc
+{
+  // code  — 直接开发者；自己动手写代码（日常主力）
+  // build — 编排器；把编码任务路由给专家团
+  // plan  — 只读协调器；分析与设计类工作
+  "default_agent": "code"
+}
+```
+
+切换方法：修改该字段的值，然后重新运行安装器（版本未变时用 `install -Force`）。未知的智能体名会被拒绝并给出警告，保留模板值。会话内无论默认值是什么，都可以随时通过 Tab 或 `@code` / `@build` / `@plan` 切换模式。
 
 ### 自定义目标目录（安全测试）
 
@@ -338,9 +355,20 @@ bridge 附带的额外能力：
 
 ## 日常使用
 
-### Build 模式（默认）
+### Code 模式（默认）
 
-`@build` 是默认入口。它会自动将你的任务路由给专家团里合适的成员：
+`@code` 是默认入口 —— 直接开发者，自己动手编写、修改、测试和验证代码，不主动委托：
+
+```
+> @code 修复分页逻辑里的差一错误
+> @code 给注册表单加上输入校验
+```
+
+仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）。如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
+
+### Build 模式（编排）
+
+跨领域任务切换到 `@build` — 它会自动将你的任务路由给专家团里合适的成员：
 
 ```
 > 添加一个 Spring Boot 用户注册接口，使用 JPA 和 BCrypt
@@ -365,18 +393,7 @@ bridge 附带的额外能力：
   → 汇总报告，按优先级给出建议
 ```
 
-通过 Tab 或 `@plan` / `@build` 在两种模式之间切换。
-
-### Code 模式（直接开发）
-
-切换到 `@code` 处理单一领域的编码任务 — 它自己动手写代码，不主动委托；但仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）：
-
-```
-> @code 修复分页逻辑里的差一错误
-> @code 给注册表单加上输入校验
-```
-
-如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
+通过 Tab 或 `@code` / `@build` / `@plan` 在三种模式之间切换。
 
 ### 直接调用专家
 

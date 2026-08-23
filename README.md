@@ -13,7 +13,7 @@ A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of spec
 | Feature | What it means for you |
 |---|---|
 | **Specialist agent team** | 17 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, …) with domain-tuned prompts, routed automatically |
-| **Three working modes** | `@build` (orchestrated execution, default), `@plan` (read-only analysis), `@code` (direct development) |
+| **Three working modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
 | **One-command installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
 | **Workflow slash commands** | `/review-fix-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
@@ -74,7 +74,7 @@ macOS / Linux / WSL:
 ./install/install.sh
 ```
 
-Now launch `opencode` in your project directory — configure providers inside the session (`/connect`, `/provider`, `/profile`, see [Configuration](#configuration)); the `@build` orchestrator is the default agent and will route your tasks automatically.
+Now launch `opencode` in your project directory — configure providers inside the session (`/connect`, `/provider`, `/profile`, see [Configuration](#configuration)); the `@code` direct developer is the default agent (change it via [Default agent](#default-agent-optionsjsonc)).
 
 ---
 
@@ -92,8 +92,25 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
 | Disable rtk | set `"rtk": false` in `options.jsonc` | same | Skips the binary download and removes the vendored openrtk plugin |
+| Change default agent | set `"default_agent"` in `options.jsonc` | same | Which primary agent opencode enters first (`code` / `build` / `plan`) |
 | Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
 | Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
+
+### Default agent (options.jsonc)
+
+Which primary agent opencode enters first is controlled by the `default_agent` field in [`install/options.jsonc`](install/options.jsonc) — the installer applies it to the root `default_agent` field of `opencode.jsonc` on **every** install:
+
+```jsonc
+// install/options.jsonc
+{
+  // code  — direct developer; does the coding work itself (daily driver)
+  // build — orchestrator; routes coding tasks to specialists
+  // plan  — read-only coordinator for analysis / design work
+  "default_agent": "code"
+}
+```
+
+To change it: edit the value, then re-run the installer (`install -Force` when the version is unchanged). Unknown agent names are rejected with a warning and the template value is kept. Inside a session you can always switch modes via Tab or `@build` / `@plan` / `@code` regardless of the default.
 
 ### Custom target (safe testing)
 
@@ -338,9 +355,20 @@ Each tier resolves to whatever provider/model your active profile mapped it to. 
 
 ## Daily usage
 
-### Build mode (default)
+### Code mode (default)
 
-`@build` is the default entry point. It routes your task to the right specialist automatically:
+`@code` is the default entry point — a direct developer that writes, modifies, tests, and verifies code itself, without proactive delegation:
+
+```
+> @code Fix the off-by-one error in the pagination logic
+> @code Add input validation to the signup form
+```
+
+Manual delegation stays available for assists (`@advisor`, `@explorer`, `@code-review`, `@vision`). If the task turns out to be multi-domain, `@code` suggests switching to `@build`.
+
+### Build mode (orchestrated)
+
+Switch to `@build` for multi-domain tasks — it routes your task to the right specialist automatically:
 
 ```
 > Add a Spring Boot endpoint for user registration with JPA and BCrypt
@@ -365,18 +393,7 @@ Switch to `@plan` for analysis-only tasks (no code changes):
   → Synthesized report with prioritized recommendations
 ```
 
-Switch between Build and Plan via Tab or `@plan` / `@build`.
-
-### Code mode (direct development)
-
-Switch to `@code` for single-domain coding tasks — it writes the code itself and never proactively delegates. Manual delegation stays available for assists (`@advisor`, `@explorer`, `@code-review`, `@vision`):
-
-```
-> @code Fix the off-by-one error in the pagination logic
-> @code Add input validation to the signup form
-```
-
-If the task turns out to be multi-domain, `@code` suggests switching to `@build`.
+Switch between modes via Tab or `@code` / `@build` / `@plan`.
 
 ### Direct agent invocation
 
