@@ -1,8 +1,8 @@
 ---
 description: Python engineer. Use for Python, FastAPI, Django, Flask, async Python, data processing (pandas/numpy), scripting, and Python ecosystem tasks. Always invoke when the user mentions Python, FastAPI, Django, Flask, pandas, numpy, pytest, or pip.
 mode: subagent
+variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

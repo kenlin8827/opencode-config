@@ -176,8 +176,9 @@ export function parseConfidence(text: string): number {
 // 'advisor' — e.g. DeepSeek ("deepseek-v4-pro"), Qwen, MiniMax, etc.
 
 import { readFileSync, existsSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { homedir } from "node:os"
+import { getProjectDir, stripJsonc } from "./auto-advisor-config"
 
 const CONFIG_DIR_FALLBACK = join(homedir(), ".config", "opencode")
 const CONFIG_FILE_FALLBACK = join(CONFIG_DIR_FALLBACK, "opencode.jsonc")
@@ -187,41 +188,23 @@ const CONFIG_FILE_LEGACY = join(CONFIG_DIR_FALLBACK, "opencode.json")
 let cachedAdvisorModel: string | null | undefined = undefined
 let cachedDefaultModel: string | null | undefined = undefined
 
-/**
- * Strip JSONC comments and trailing commas so we can JSON.parse a .jsonc file.
- * Minimal stripper: removes line comments and block comments while respecting
- * string literals, and removes trailing commas before } or ].
- */
-function stripJsonc(raw: string): string {
-  let result = ""
-  let i = 0
-  const len = raw.length
-  let state: "normal" | "string" | "lineComment" | "blockComment" = "normal"
-  while (i < len) {
-    const c = raw[i]
-    const next = i + 1 < len ? raw[i + 1] : ""
-    switch (state) {
-      case "normal":
-        if (c === '"') { result += c; state = "string" }
-        else if (c === "/" && next === "/") { state = "lineComment"; i++ }
-        else if (c === "/" && next === "*") { state = "blockComment"; i++ }
-        else { result += c }
-        break
-      case "string":
-        result += c
-        if (c === "\\") { i++; if (i < len) result += raw[i] }
-        else if (c === '"') { state = "normal" }
-        break
-      case "lineComment":
-        if (c === "\n") { result += c; state = "normal" }
-        break
-      case "blockComment":
-        if (c === "*" && next === "/") { state = "normal"; i++ }
-        break
+// Agent → tier mapping from tiers.json (kept out of opencode.jsonc because
+// opencode forwards unknown agent fields to the provider as model options).
+// Missing/invalid file → empty map; a legacy agent-level tier field still
+// fills in for agents the map doesn't list.
+function readTierMap(dir: string): Record<string, string> {
+  try {
+    const raw = readFileSync(join(dir, "tiers.json"), "utf-8")
+    const data = JSON.parse(raw) as Record<string, unknown>
+    const map: Record<string, string> = {}
+    for (const [agent, tier] of Object.entries(data)) {
+      if (agent.startsWith("$")) continue
+      if (typeof tier === "string") map[agent] = tier
     }
-    i++
+    return map
+  } catch {
+    return {}
   }
-  return result.replace(/,(\s*[}\]])/g, "$1")
 }
 
 function readAgentModels(): { advisor: string | null; default: string | null } {
@@ -230,32 +213,49 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
   }
   cachedAdvisorModel = null
   cachedDefaultModel = null
-  for (const path of [CONFIG_FILE_FALLBACK, CONFIG_FILE_LEGACY]) {
+  // Project config first (agent overrides live there), then global config.
+  const dir = getProjectDir()
+  const candidates = [
+    join(dir, "opencode.jsonc"),
+    join(dir, ".opencode", "opencode.jsonc"),
+    CONFIG_FILE_FALLBACK,
+    CONFIG_FILE_LEGACY,
+  ]
+  for (const path of candidates) {
     if (!existsSync(path)) continue
     try {
       const raw = readFileSync(path, "utf-8")
       const cfg = JSON.parse(stripJsonc(raw)) as Record<string, unknown>
       const agents = cfg?.agent as Record<string, Record<string, unknown>> | undefined
-      if (!agents) break
+      if (!agents) continue
+      // tiers.json sits next to the config file; fall back to the global
+      // one for project configs that don't ship their own.
+      let tierMap = readTierMap(dirname(path))
+      if (Object.keys(tierMap).length === 0) tierMap = readTierMap(CONFIG_DIR_FALLBACK)
       // Find the advisor agent's model (the agent named "advisor").
       const advisorAgent = agents["advisor"]
-      if (advisorAgent?.model && typeof advisorAgent.model === "string") {
+      if (!cachedAdvisorModel && advisorAgent?.model && typeof advisorAgent.model === "string") {
         cachedAdvisorModel = advisorAgent.model
       }
       // Find the default model: either root-level cfg.model, or the first
-      // agent with tier "default".
-      if (cfg.model && typeof cfg.model === "string") {
+      // agent in tier "default".
+      if (!cachedDefaultModel && cfg.model && typeof cfg.model === "string") {
         cachedDefaultModel = cfg.model
       }
       if (!cachedDefaultModel) {
-        for (const a of Object.values(agents)) {
-          if (a?.tier === "default" && typeof a.model === "string") {
+        for (const [name, a] of Object.entries(agents)) {
+          const tier = tierMap[name] ?? (a?.tier as string | undefined)
+          if (tier === "default" && typeof a.model === "string") {
             cachedDefaultModel = a.model
             break
           }
         }
       }
-      break
+      // Both models resolved — stop scanning. Breaking on advisor alone
+      // would strand cachedDefaultModel null when the project config only
+      // overrides the advisor agent, disabling the default-model fallback
+      // check in isModelFallback.
+      if (cachedAdvisorModel && cachedDefaultModel) break
     } catch {
       // config parse error — try next file
     }
@@ -265,12 +265,15 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
 
 /**
  * Extract the model-id portion from a "provider/model-id" reference.
- * e.g. "deepseek/deepseek-v4-pro" → "deepseek-v4-pro"
- *      "llm-router/advisor" → "advisor"
+ * Splits on the FIRST slash to match opencode's own ref parsing, so
+ * nested model ids stay intact:
+ *   "deepseek/deepseek-v4-pro" → "deepseek-v4-pro"
+ *   "llm-router/advisor" → "advisor"
+ *   "openrouter/vendor/gpt-5.6" → "vendor/gpt-5.6"
  * Returns the input as-is if there's no slash.
  */
 function modelIdFromRef(ref: string): string {
-  const idx = ref.lastIndexOf("/")
+  const idx = ref.indexOf("/")
   return idx >= 0 ? ref.substring(idx + 1) : ref
 }
 

@@ -1,0 +1,10 @@
+{
+  "description": "qoder-router (self-hosted qoder gateway) — Ultimate flags judge and code, Performance is the daily default, Lite explores cheaply, Auto takes vision (server-side pick). Requires QODER_ROUTER_BASE_URL + QODER_ROUTER_API_KEY environment variables.",
+  "tiers": {
+    "default": "qoder-router/performance",
+    "code": "qoder-router/ultimate",
+    "advisor": "qoder-router/ultimate",
+    "explorer": "qoder-router/lite",
+    "vision": "qoder-router/auto"
+  }
+}

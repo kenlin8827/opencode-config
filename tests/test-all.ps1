@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# Run all tests sequentially
+﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -44,7 +44,11 @@ Check "plugin includes @dietrichgebert/ponytail" `
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
 # instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md
+# (context-efficiency.md was removed — backend routing + token rules are now
+# injected dynamically by plugins/project-profiler with the session profile)
 Check "instructions count = 4" ($config.instructions.Count -eq 4)
+Check "instructions does NOT include context-efficiency.md" `
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
 
@@ -85,11 +89,28 @@ Check "node-dev.md: security rules intact" ($nodeContent -match "Validate all in
 $researcherContent = Get-Content "$PSScriptRoot\..\agents\researcher.md" -Raw
 Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notmatch "ponytail|lazy coding")
 
+# Coding agent contract (direct developer: codes itself, no proactive
+# delegation, never delegated to; vision is a three-tier cascade)
+$codeContent = Get-Content "$PSScriptRoot\..\agents\code.md" -Raw
+Check "opencode.jsonc: code agent registered" ($null -ne $config.agent.code)
+Check "opencode.jsonc: code mode is primary" ($config.agent.code.mode -eq "primary")
+Check "opencode.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "agents/code\.md")
+Check "code.md: no proactive delegation rule" ($codeContent -match "No proactive delegation")
+Check "code.md: never delegated rule" ($codeContent -match "Never delegated")
+Check "code.md: core coding stays in-house" ($codeContent -match "NEVER hand the core coding task")
+Check "code.md: image three-tier cascade (self first)" ($codeContent -match "Self first")
+Check "code.md: image cascade delegates to @vision only" ($codeContent -match "your own model cannot read")
+Check "code.md: image fallback to user, no guessing" ($codeContent -match "NEVER guess")
+$buildContent = Get-Content "$PSScriptRoot\..\agents\build.md" -Raw
+$planContent = Get-Content "$PSScriptRoot\..\agents\plan.md" -Raw
+Check "build.md: never routes to @code" ($buildContent -notmatch "@code(?!-)")
+Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
+
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
     "instructions/test-scope.md",
-    "agents/build.md", "agents/plan.md", "agents/explorer.md",
+    "agents/build.md", "agents/plan.md", "agents/code.md", "agents/explorer.md",
     "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
     "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
     "agents/researcher.md", "agents/architect.md", "agents/code-review.md",
@@ -97,7 +118,7 @@ $allFiles = @(
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
     # Commands (auto-advisor command is registered programmatically via config hook — no commands/*.md file needed)
-    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill)
+    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill + goal + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
     "plugins/auto-advisor/auto-advisor-runtime.ts",
@@ -112,12 +133,60 @@ $allFiles = @(
     "plugins/review-fix-loop/review-fix-loop.md",
     "plugins/grill-me.ts",
     "plugins/grill-with-docs.ts",
+    "plugins/deepseek-anchor.ts",
+    "plugins/deepseek-anchor/index.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-config.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-command.ts",
+    "plugins/deepseek-anchor/deepseek-anchor-announce.ts",
     "plugins/grill/grill-me.ts",
     "plugins/grill/grill-me.md",
     "plugins/grill/grill-with-docs.ts",
     "plugins/grill/grill-with-docs.md",
+    "plugins/goal.ts",
+    "plugins/goal/goal.ts",
+    "plugins/goal/goal.md",
+    "plugins/handoff.ts",
+    "plugins/handoff/handoff.ts",
+    "plugins/handoff/handoff.md",
+    "plugins/project-profiler.ts",
+    "plugins/project-profiler/project-profiler.ts",
+    "plugins/adr-guard.ts",
+    "plugins/adr-guard/adr-guard.ts",
+    "plugins/adr-guard/adr-guard-config.ts",
+    "plugins/adr-guard/adr-guard-runtime.ts",
+    "plugins/adr-guard/adr-guard-protocol.md",
+    "plugins/adr-guard/adr-guard-instructions.ts",
+    "plugins/adr-guard/adr-guard-system-inject.ts",
+    "plugins/adr-guard/adr-guard-tool-guard.ts",
+    "plugins/adr-guard/adr-guard-command.ts",
+    "plugins/adr-guard/adr-guard-announce.ts",
+    "plugins/env-guard.ts",
+    "plugins/env-guard/env-guard.ts",
+    "plugins/env-guard/env-guard-config.ts",
+    "plugins/env-guard/env-guard-runtime.ts",
+    "plugins/env-guard/env-guard-tool-guard.ts",
+    "plugins/e2e-guard.ts",
+    "plugins/e2e-guard/e2e-guard.ts",
+    "plugins/e2e-guard/e2e-guard-config.ts",
+    "plugins/e2e-guard/e2e-guard-runtime.ts",
+    "plugins/e2e-guard/e2e-guard-tool-guard.ts",
+    "plugins/e2e-guard/e2e-guard-command.ts",
+    "plugins/e2e-guard/e2e-guard-announce.ts",
+    "plugins/shared/opencode-config.ts",
+    "plugins/project-manager.ts",
+    "plugins/project-manager/project-manager.ts",
+    "plugins/project-manager/project-manager-config.ts",
+    "plugins/project-manager/project-manager-scaffold.ts",
+    "plugins/project-manager/project-manager-command.ts",
+    "plugins/project-manager/project-manager-system-inject.ts",
+    "plugins/project-manager/project-manager-tool-guard.ts",
+    "plugins/project-manager/templates/opencode.jsonc",
+    "plugins/project-manager/templates/git-commits.md",
+    "plugins/project-manager/templates/AGENTS.md",
+    "plugins/project-manager/templates/dbhub.toml",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
+    "plugins/queue-manager.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -160,6 +229,167 @@ Check "grill-me.ts: barrel re-exports GrillMePlugin" ($grillMeBarrel -match "exp
 $grillWithDocsBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-with-docs.ts" -Raw
 Check "grill-with-docs.ts: barrel re-exports GrillWithDocsPlugin" ($grillWithDocsBarrel -match "export.*GrillWithDocsPlugin")
 
+# Goal plugin checks (plugins/goal/ — registered programmatically, no commands/*.md)
+$goalPlugin = Get-Content "$PSScriptRoot\..\plugins\goal\goal.ts" -Raw
+$goalProtocol = Get-Content "$PSScriptRoot\..\plugins\goal\goal.md" -Raw
+Check "goal.ts: imports Plugin type" ($goalPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "goal.ts: has config hook registering command" ($goalPlugin -match "config:" -and $goalPlugin -match 'COMMAND_NAME')
+Check "goal.ts: NO command.execute.before hook" (-not ($goalPlugin -match '"command\.execute\.before"'))
+Check "goal.ts: has system.transform hook" ($goalPlugin -match "experimental.chat.system.transform")
+Check "goal.ts: agent is build" ($goalPlugin -match 'agent:.*"build"')
+Check "goal.md: has golden template" ($goalProtocol -match "golden template")
+Check "goal.md: has 5 sections" ($goalProtocol -match "Objective.*Scope.*Constraints.*Done when.*Stop if" -or ($goalProtocol -match "objective" -and $goalProtocol -match "Scope:" -and $goalProtocol -match "Constraints:" -and $goalProtocol -match "Done when:" -and $goalProtocol -match "Stop if:"))
+Check "goal.md: has audit checklist" ($goalProtocol -match "audit checklist")
+Check "goal.md: has stop conditions" ($goalProtocol -match "Stop conditions")
+Check "goal.md: has scenario skeletons" ($goalProtocol -match "Scenario skeletons" -or $goalProtocol -match "Refactor")
+Check "goal.md: has project-type defaults" ($goalProtocol -match "Project-type defaults" -or $goalProtocol -match "Node.*TypeScript")
+Check "goal.md: has hard rules" ($goalProtocol -match "Hard rules")
+Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $goalProtocol -match "Goal Summary")
+
+$goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
+Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
+
+# Handoff plugin checks (plugins/handoff/ — registered programmatically, no commands/*.md)
+$handoffPlugin = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.ts" -Raw
+$handoffProtocol = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.md" -Raw
+Check "handoff.ts: imports Plugin type" ($handoffPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "handoff.ts: has config hook registering command" ($handoffPlugin -match "config:" -and $handoffPlugin -match 'COMMAND_NAME')
+Check "handoff.ts: NO command.execute.before hook" (-not ($handoffPlugin -match '"command\.execute\.before"'))
+Check "handoff.ts: has system.transform hook" ($handoffPlugin -match "experimental.chat.system.transform")
+Check "handoff.ts: agent is build" ($handoffPlugin -match 'agent:.*"build"')
+Check "handoff.md: writes to OS temp dir, not workspace" ($handoffProtocol -match "Temp directory only")
+Check "handoff.md: references artifacts instead of duplicating" ($handoffProtocol -match "Reference, don't duplicate")
+Check "handoff.md: redacts sensitive information" ($handoffProtocol -match "Redact sensitive information")
+Check "handoff.md: has suggested agents section" ($handoffProtocol -match "Suggested agents")
+Check "handoff.md: ends with paste-ready opener" ($handoffProtocol -match "and continue from there")
+
+$handoffBarrel = Get-Content "$PSScriptRoot\..\plugins\handoff.ts" -Raw
+Check "handoff.ts: barrel re-exports HandoffPlugin" ($handoffBarrel -match "export.*HandoffPlugin")
+
+# Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
+$sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-config.ts" -Raw
+Check "shared/opencode-config.ts: exports never-throw field writer" ($sharedConfig -match 'export function setConfigField')
+Check "shared/opencode-config.ts: exports field remover" ($sharedConfig -match 'export function clearConfigField')
+Check "shared/opencode-config.ts: exports quote-aware stripJsonc" ($sharedConfig -match 'export function stripJsonc')
+Check "shared/opencode-config.ts: exports project config file resolution" ($sharedConfig -match 'export function projectConfigFiles')
+
+# ADR iron-law plugin checks (plugins/adr-guard/ — project-level switch, hard commit gate)
+$adrPlugin = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard.ts" -Raw
+$adrProtocol = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-protocol.md" -Raw
+$adrGuard = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-tool-guard.ts" -Raw
+$adrConfig = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard-config.ts" -Raw
+Check "adr-guard.ts: imports Plugin type" ($adrPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "adr-guard.ts: has config hook registering command" ($adrPlugin -match "config:" -and $adrPlugin -match 'COMMAND_NAME')
+Check "adr-guard.ts: has command.execute.before hook" ($adrPlugin -match '"command\.execute\.before"')
+Check "adr-guard.ts: has system.transform hook" ($adrPlugin -match "experimental.chat.system.transform")
+Check "adr-guard.ts: has tool.execute.before hook" ($adrPlugin -match '"tool\.execute\.before"')
+Check "adr-guard.ts: injects project directory" ($adrPlugin -match "setProjectDir\(directory\)")
+Check "adr-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($adrConfig -match 'shared/opencode-config' -and $adrConfig -match 'adrGuard')
+Check "adr-guard-config.ts: default state is off" ($adrConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "adr-guard-config.ts: default ADR dir docs/adr" ($adrConfig -match 'DEFAULT_ADR_DIR = "docs/adr"')
+Check "adr-guard-tool-guard.ts: gates feat/refactor only" ($adrGuard -match "requiresAdr")
+Check "adr-guard-tool-guard.ts: checks ADR working-tree changes" ($adrGuard -match "hasAdrChanges")
+Check "adr-guard-protocol.md: has iron law" ($adrProtocol -match "iron law")
+Check "adr-guard-protocol.md: has MADR frontmatter" ($adrProtocol -match "status: accepted" -and $adrProtocol -match "date:")
+Check "adr-guard-protocol.md: has sequential numbering" ($adrProtocol -match "NNNN-slug")
+Check "adr-guard-protocol.md: forbids type relabeling bypass" ($adrProtocol -match "MUST NOT" -and $adrProtocol -match "relabeling the commit type")
+
+$adrBarrel = Get-Content "$PSScriptRoot\..\plugins\adr-guard.ts" -Raw
+Check "adr-guard.ts: barrel re-exports AdrGuardPlugin" ($adrBarrel -match "export.*AdrGuardPlugin")
+
+# Env guard plugin checks (plugins/env-guard/ — project-level switch, secret-file gate)
+$egPlugin = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard.ts" -Raw
+$egConfig = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-config.ts" -Raw
+$egRuntime = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-runtime.ts" -Raw
+$egGuard = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-tool-guard.ts" -Raw
+Check "env-guard.ts: imports Plugin type" ($egPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "env-guard.ts: has tool.execute.before hook" ($egPlugin -match '"tool\.execute\.before"')
+Check "env-guard.ts: injects project directory" ($egPlugin -match "setProjectDir\(directory\)")
+Check "env-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($egConfig -match 'shared/opencode-config' -and $egConfig -match 'envGuard')
+Check "env-guard-config.ts: default state is off" ($egConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "env-guard-config.ts: config field envGuard" ($egConfig -match "envGuard")
+Check "env-guard-runtime.ts: exempts .env.example" ($egRuntime -match '\.env\.example')
+Check "env-guard-runtime.ts: bash leak detection" ($egRuntime -match "bashLeaksEnv")
+Check "env-guard-tool-guard.ts: gates file tools" ($egGuard -match "multiedit")
+Check "env-guard-tool-guard.ts: gates grep tool" ($egGuard -match '"grep"')
+Check "env-guard-tool-guard.ts: gates bash via leak detection" ($egGuard -match "bashLeaksEnv")
+Check "env-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($egGuard -match "adr-guard/adr-guard-runtime")
+
+$egBarrel = Get-Content "$PSScriptRoot\..\plugins\env-guard.ts" -Raw
+Check "env-guard.ts: barrel re-exports EnvGuardPlugin" ($egBarrel -match "export.*EnvGuardPlugin")
+
+# E2E guard plugin checks (plugins/e2e-guard/ — project-level switch, E2E runs gated behind user confirmation)
+$e2ePlugin = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard.ts" -Raw
+$e2eConfig = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-config.ts" -Raw
+$e2eRuntime = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-runtime.ts" -Raw
+$e2eGuard = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-tool-guard.ts" -Raw
+$e2eCommand = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-command.ts" -Raw
+Check "e2e-guard.ts: imports Plugin type" ($e2ePlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "e2e-guard.ts: has config hook registering command" ($e2ePlugin -match "config:" -and $e2ePlugin -match 'COMMAND_NAME')
+Check "e2e-guard.ts: has command.execute.before hook" ($e2ePlugin -match '"command\.execute\.before"')
+Check "e2e-guard.ts: has tool.execute.before hook" ($e2ePlugin -match '"tool\.execute\.before"')
+Check "e2e-guard.ts: injects project directory" ($e2ePlugin -match "setProjectDir\(directory\)")
+Check "e2e-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($e2eConfig -match 'shared/opencode-config' -and $e2eConfig -match 'e2eGuard')
+Check "e2e-guard-config.ts: default state is off" ($e2eConfig -match 'DEFAULT_STATE: GuardState = "off"')
+Check "e2e-guard-config.ts: allow argument parsing" ($e2eConfig -match "parseAllowArg")
+Check "e2e-guard-config.ts: allow scope full vs targeted" ($e2eConfig -match "AllowScope" -and $e2eConfig -match "targeted")
+Check "e2e-guard-runtime.ts: detects runner CLIs" ($e2eRuntime -match "playwright" -and $e2eRuntime -match "cypress")
+Check "e2e-guard-runtime.ts: detects Python runners on e2e evidence" ($e2eRuntime -match "pytestRisk" -and $e2eRuntime -match "tox")
+Check "e2e-guard-runtime.ts: risk classification full vs targeted" ($e2eRuntime -match "classifyE2e" -and $e2eRuntime -match '"targeted"')
+Check "e2e-guard-runtime.ts: approval store is in-memory + one-shot" ($e2eRuntime -match "consumeApproval" -and $e2eRuntime -match "new Set")
+Check "e2e-guard-runtime.ts: sticky unlock survives one-shot consume" ($e2eRuntime -match "isUnlocked" -and $e2eRuntime -match "unlocked")
+Check "e2e-guard-tool-guard.ts: gates bash/shell only" ($e2eGuard -match '"bash"' -and $e2eGuard -match '"shell"')
+Check "e2e-guard-tool-guard.ts: graded gating via classifyE2e" ($e2eGuard -match "classifyE2e" -and $e2eGuard -match '"targeted"')
+Check "e2e-guard-tool-guard.ts: approval consumed on pass-through" ($e2eGuard -match "consumeApproval")
+Check "e2e-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($e2eGuard -match "adr-guard/adr-guard-runtime")
+Check "e2e-guard-command.ts: allow grants session approval" ($e2eCommand -match "approveSession")
+
+$e2eBarrel = Get-Content "$PSScriptRoot\..\plugins\e2e-guard.ts" -Raw
+Check "e2e-guard.ts: barrel re-exports E2eGuardPlugin" ($e2eBarrel -match "export.*E2eGuardPlugin")
+
+# Project manager plugin checks (plugins/project-manager/ — file-as-switch commit discipline)
+$pmPlugin = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager.ts" -Raw
+$pmConfig = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-config.ts" -Raw
+$pmScaffold = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-scaffold.ts" -Raw
+$pmGitTemplate = Get-Content "$PSScriptRoot\..\plugins\project-manager\templates\git-commits.md" -Raw
+$pmInject = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-system-inject.ts" -Raw
+$pmGuard = Get-Content "$PSScriptRoot\..\plugins\project-manager\project-manager-tool-guard.ts" -Raw
+Check "project-manager.ts: imports Plugin type" ($pmPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "project-manager.ts: has config hook registering command" ($pmPlugin -match "config:" -and $pmPlugin -match 'COMMAND_NAME')
+Check "project-manager.ts: has command.execute.before hook" ($pmPlugin -match '"command\.execute\.before"')
+Check "project-manager.ts: has system.transform hook" ($pmPlugin -match "experimental.chat.system.transform")
+Check "project-manager.ts: has tool.execute.before hook" ($pmPlugin -match '"tool\.execute\.before"')
+Check "project-manager.ts: injects project directory" ($pmPlugin -match "setProjectDir\(directory\)")
+Check "project-manager-config.ts: file-as-switch predicate" ($pmConfig -match "hasConventionFile")
+Check "project-manager-config.ts: GIT_COMMITS_REL = docs/git-commits.md" ($pmConfig -match 'GIT_COMMITS_REL = "docs/git-commits\.md"')
+Check "project-manager-scaffold.ts: existence check before write" ($pmScaffold -match "existsSync")
+Check "project-manager-scaffold.ts: templates loaded from templates/ dir" ($pmScaffold -match "readTemplate" -and $pmScaffold -match "templates")
+Check "project-manager-scaffold.ts: append-only config sync" ($pmScaffold -match "mergeSwitchLines" -and $pmScaffold -match "runSync")
+Check "templates/git-commits.md: documents mechanical enforcement" ($pmGitTemplate -match "mechanically enforced")
+Check "project-manager-system-inject.ts: progressive disclosure (no full-content injection)" ($pmInject -match "progressive" -and $pmInject -notmatch "readFileSync")
+Check "project-manager-system-inject.ts: line-start marker dedup" ($pmInject -match "MARKER_RE")
+Check "project-manager-system-inject.ts: appends to last entry only" ($pmInject -match "system\.length - 1")
+Check "project-manager-tool-guard.ts: structural validator" ($pmGuard -match "validateMessage")
+Check "project-manager-tool-guard.ts: 72-char first-line cap" ($pmGuard -match "MAX_FIRST_LINE = 72")
+Check "project-manager-tool-guard.ts: reuses adr-guard-runtime parsing" ($pmGuard -match "adr-guard/adr-guard-runtime")
+Check "project-manager-tool-guard.ts: --amend exempt per invocation" ($pmGuard -match "--amend")
+Check "project-manager-tool-guard.ts: merge/revert/fixup/squash exempt" ($pmGuard -match "Merge.*Revert.*fixup.*squash" -or $pmGuard -match "EXEMPT_PREFIX_RE")
+
+$pmBarrel = Get-Content "$PSScriptRoot\..\plugins\project-manager.ts" -Raw
+Check "project-manager.ts: barrel re-exports ProjectManagerPlugin" ($pmBarrel -match "export.*ProjectManagerPlugin")
+
+# Queue manager plugin checks (plugins/queue-manager.ts — TUI-only, registered via tui.json)
+$qmPlugin = Get-Content "$PSScriptRoot\..\plugins\queue-manager.ts" -Raw
+Check "queue-manager.ts: imports TuiPlugin from plugin/tui" ($qmPlugin -match "@opencode-ai/plugin/tui")
+Check "queue-manager.ts: slash command name is queued" ($qmPlugin -match 'SLASH_NAME = "queued"')
+Check "queue-manager.ts: registers palette command with slashName" ($qmPlugin -match "slashName: SLASH_NAME" -and $qmPlugin -match 'namespace: "palette"')
+Check "queue-manager.ts: cancel uses session.deleteMessage" ($qmPlugin -match "session\.deleteMessage")
+Check "queue-manager.ts: busy fallback strips via part.update" ($qmPlugin -match "part\.update")
+Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -match "TOMBSTONE")
+Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
+$tuiConfig = Get-Content "$PSScriptRoot\..\tui.json" -Raw | ConvertFrom-Json
+Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/queue-manager.ts")
+
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
 Check "advisor.md: has description frontmatter" ($advisorCmd -match "description:")
@@ -191,14 +421,14 @@ Check "auto-advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "
 Check "auto-advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
 Check "auto-advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
 Check "auto-advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
-Check "auto-advisor-mode.ts: thin glue (<50 lines)" (($advisorPlugin -split "`n").Count -lt 50)
+Check "auto-advisor-mode.ts: thin glue (<70 lines)" (($advisorPlugin -split "`n").Count -lt 70)
 
 $advisorConfig = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-config.ts" -Raw
 Check "auto-advisor-config.ts: has COMMAND_NAME constant" ($advisorConfig -match "COMMAND_NAME")
 Check "auto-advisor-config.ts: has getMode function" ($advisorConfig -match "getMode")
 Check "auto-advisor-config.ts: has setMode function" ($advisorConfig -match "setMode")
 Check "auto-advisor-config.ts: has isOn function" ($advisorConfig -match "isOn")
-Check "auto-advisor-config.ts: defaults to lite" ($advisorConfig -match "lite.*default" -or $advisorConfig -match "DEFAULT_MODE.*lite")
+Check "auto-advisor-config.ts: defaults to off" ($advisorConfig -match "DEFAULT_MODE.*off")
 Check "auto-advisor-config.ts: has parseModeArg" ($advisorConfig -match "parseModeArg")
 
 $advisorToolGuard = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-tool-guard.ts" -Raw

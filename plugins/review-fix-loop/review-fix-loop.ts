@@ -1,7 +1,7 @@
 /**
  * Review-Fix Loop Plugin — registers the `/review-fix-loop` slash command
  * programmatically via the `config` hook (same pattern as auto-advisor-mode.ts
- * and profile-switcher.ts — no `commands/review-fix-loop.md` file needed),
+ * — no `commands/review-fix-loop.md` file needed),
  * then injects the protocol into the system prompt.
  *
  * Two hooks:
@@ -73,10 +73,14 @@ export const ReviewFixLoopPlugin: Plugin = async () => ({
     const fragment = `\n\n---\n${MARKER}\n\n${getProtocol()}\n`
 
     // First injection (or after compaction rebuilt the system prompt).
-    for (let i = 0; i < output.system.length; i++) {
+    // Append to the LAST string entry only — with multiple entries the old
+    // loop duplicated the protocol within a single pass (same fix as
+    // project-profiler / project-manager).
+    for (let i = output.system.length - 1; i >= 0; i--) {
       const s = output.system[i]
       if (typeof s !== "string") continue
       output.system[i] = s + fragment
+      break
     }
   },
 })

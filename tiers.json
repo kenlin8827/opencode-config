@@ -1,0 +1,23 @@
+{
+  "$comment": "Agent-to-tier mapping consumed by the /profile wizard, the installer preserve/restore logic, and auto-advisor. Kept OUT of opencode.jsonc because opencode forwards every unknown agent field to the provider as a model option, and strict upstream gateways reject it (Extra inputs are not permitted).",
+  "build": "default",
+  "plan": "default",
+  "code": "code",
+  "advisor": "advisor",
+  "explorer": "explorer",
+  "researcher": "default",
+  "architect": "default",
+  "dba": "code",
+  "security": "default",
+  "java-dev": "code",
+  "python-dev": "code",
+  "go-dev": "code",
+  "rust-dev": "code",
+  "node-dev": "code",
+  "frontend-dev": "code",
+  "qa": "code",
+  "code-review": "advisor",
+  "devops": "code",
+  "tech-writer": "default",
+  "vision": "vision"
+}

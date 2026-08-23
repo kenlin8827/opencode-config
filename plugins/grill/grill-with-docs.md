@@ -1,44 +1,92 @@
 # Grill-With-Docs Protocol
 
-You are now running **grill-with-docs** — same relentless one-question-at-a-time interview as `/grill-me`, but also builds the project's domain model as decisions crystallize, writing them down immediately.
+`/grill-with-docs <description>` — same advisor-driven grilling as `/grill-me`, but also builds the project's domain model as decisions crystallize, writing them down immediately.
 
-## What is grilling with docs?
+## Two disciplines combined
 
-Two disciplines combined:
-1. **Grilling** — relentless interview that walks the decision tree one question at a time (see below).
+1. **Grilling** — advisor-driven four-phase interview (state machine below).
 2. **Domain modeling** — actively maintain a glossary (`CONTEXT.md`) and record architectural decisions (`docs/adr/`) as they are made, not after.
 
-## Part 1: Grilling rules
+## State machine
 
-### One question at a time
-Ask questions **one at a time**. Wait for the user's answer on each before continuing. Multiple questions at once is bewildering.
+```
+              ┌─────────────────────────────────────────────────┐
+              │                                                 │
+              ▼                                                 │
+  P1: @advisor       P2: question tool    P3: @advisor          │ loop
+  Raw description     Batch all Qs        Detect contradictions  │ max 5
+  passthrough         via question tool   ┌───────┴───────┐      │
+  Advisor explores    Pure collection     │               │      │
+  codebase itself     full mode:          CONTRADICTIONS   CLEAN  │
+  and decides what    FACTUAL ≥ 8         → back to P2    → P4   │
+  to ask              auto-adopt,         Ask contradiction      │
+                      don't ask user       points, back to P3    │
+                                          └───────────────┘      │
+              │                                                 │
+              └─────────────────────────────────────────────────┘
 
-### Facts vs. decisions
-- **Facts** (can be found by exploring): filesystem, codebase, tools, git, docs → look it up yourself.
-- **Decisions** (require judgment): architecture, trade-offs, scope, priorities → put each to the user and wait.
+  P4: question tool (Confirm/Revise/Stop) → confirmed → final docs sweep → route via build.md → dispatch
+      User revises → back to P2
+      User stops → exit
+```
 
-### Always recommend
-Every question MUST include your recommended answer with reasoning.
+## Phase tracking
 
-### Walk the decision tree
-Start with the most fundamental decision. Resolve it, then move to the next. Don't skip ahead.
+At the start of every reply, output a one-line phase marker so the session is recoverable after compaction:
 
-### Don't act (on implementation) until confirmed
-Do NOT write code or implement features until shared understanding is reached. You MAY create `CONTEXT.md` and ADRs during the session — that's the whole point.
+```
+[grill-with-docs] Phase: P2 | Round: 1 | Questions: 5 (3 answered, 2 pending) | Docs: CONTEXT.md(2 terms), ADR(0)
+```
 
-### Probe edge cases
-- "What happens when X fails?"
-- "Who is responsible for Y if Z occurs?"
-- "Does this scale to 10× the current load?"
+If the conversation was compacted and you're unsure which phase you're in, look at the last `[grill-with-docs]` marker to recover state. If no marker found, restart from P1.
 
-### Challenge vague language
-- "You're saying 'account' — do you mean Customer or User?"
-- "By 'fast' — latency, throughput, or time-to-first-byte?"
+## Constraints
 
-### Cross-reference with code
-Check whether the code agrees with stated behavior. Surface contradictions immediately.
+- **P1 mandatory.** Always dispatch @advisor by invoking the subagent tool — do NOT just print `@advisor` as text. Frugality rules exempt — user invoked `/grill-with-docs` explicitly.
+- **P1: raw passthrough.** Main session forwards the raw description to @advisor with zero pre-processing — no codebase exploration, no domain hints, no question generation. Advisor explores the codebase itself and decides what to ask. Main session is just a dispatcher. **You MUST actually invoke the @advisor subagent tool, not output the dispatch template as plain text.**
+- **P2: batch answer via `question` tool.** Use the `question` tool to present all questions to the user at once — this triggers the interactive UI (not just plain text). Put the recommended option FIRST, marked `(recommended)`. User answers all in one reply. Pure collection, no improvised follow-ups. If scope fundamentally changed, stop and suggest re-running `/grill-with-docs`.
+- **P2: auto-advisor compat.** full mode: FACTUAL + confidence ≥ 8 → auto-adopt, don't ask user. lite/off: all questions reach user.
+- **P3 mandatory.** Always dispatch @advisor for refinement by invoking the subagent tool. Only skip if advisor fails (→ P4 with raw Q&A, note "contradictions may be undetected").
+- **P3: contradiction loop max 5.** After 5 rounds with unresolved contradictions, use `question` tool to present state to user: resolve manually / proceed anyway / stop.
+- **P3: inline docs.** When a term is resolved during contradiction rounds, immediately update `CONTEXT.md`. When an architectural decision meeting all ADR criteria is made, offer to create an ADR. Do NOT batch — write as decisions crystallize.
+- **P4: confirmation via `question` tool.** Use the `question` tool with `Confirm` / `Revise` / `Stop` options. Never start implementation without explicit go-ahead.
+- **P4: final docs sweep.** Before dispatching, ensure all resolved terms are in `CONTEXT.md` and all qualifying decisions have ADRs. This is the last chance to catch gaps.
+- **P4: routing.** Follow build.md routing rules and trigger words table — do not hardcode agent mappings here. For multi-domain tasks, present execution plan before dispatch.
 
-## Part 2: Domain modeling rules
+## P1 dispatch template
+
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
+```
+@advisor
+Grill this (with docs): <raw description from /grill-with-docs args>
+Always consider: aesthetics, usability, edge cases, error handling — even if the user's description is simple.
+Watch for domain terms and architectural decisions that should be recorded in CONTEXT.md / docs/adr/.
+```
+
+## P3 dispatch template
+
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
+```
+@advisor
+Grilling refinement (with docs) — consolidate answers, detect contradictions, produce decision brief.
+Flag terms for CONTEXT.md and decisions warranting an ADR (hard to reverse + surprising + real trade-off).
+
+Original Q&A:
+Q1: <question> → <answer or "auto-adopted: <answer> (confidence N/10)" or "skipped">
+Q2: ...
+
+Contradiction rounds (if any):
+Round 1: C1: <contradiction> → user resolved: <answer>
+Round 2: ...
+
+Output format — start with ONE of these markers on the first line:
+  CLEAN — no contradictions found. Then output Decision Brief (resolved decisions + auto-resolved + facts + open questions + implementation plan + domain model artifacts: terms for CONTEXT.md, decisions for ADR).
+  CONTRADICTIONS — contradictions found. Then list new questions (C1, C2...) with suggested resolution. → return to P2.
+```
+
+## Domain modeling rules
 
 ### File structure
 
@@ -131,15 +179,15 @@ What qualifies:
 - **Constraints not visible in code.** "No AWS due to compliance. Response < 200ms due to partner API."
 - **Non-obvious rejections.** "Picked REST over GraphQL for subtle reasons."
 
-## Workflow during the session
+## Anti-pattern (NEVER do this)
 
-For each decision point:
+Never stop at printing `@advisor` or the dispatch template without actually calling the subagent tool — that stalls the protocol. You MAY show a brief dispatch summary in your reply, but the subagent tool call is mandatory.
 
-1. **Ask** the question (with your recommendation).
-2. **Wait** for the user's answer.
-3. **If a term was resolved** → immediately update `CONTEXT.md`.
-4. **If an architectural decision was made that meets all three ADR criteria** → offer to create an ADR. If the user agrees, create it immediately.
-5. **Move** to the next question.
+## Stop conditions
+
+- User says "stop" / "enough" / "we're done" → exit at any phase.
+- P1 advisor fails → let user drive manually.
+- User asks to skip to implementation → P4 (skip P3 only if advisor unavailable).
 
 ## Session output
 

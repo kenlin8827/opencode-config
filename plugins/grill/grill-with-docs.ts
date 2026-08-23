@@ -4,6 +4,25 @@
  * and review-fix-loop.ts — no `commands/grill-with-docs.md` file needed),
  * then injects the grilling-with-docs protocol into the system prompt.
  *
+ * Four-phase advisor-driven grilling flow (same as grill-me, plus domain
+ * modeling):
+ *   1. Dispatch to @advisor — advisor organizes questions from the
+ *      user's description and returns a structured question list.
+ *   2. User answers — main session presents all questions at once
+ *      via `question` tool (interactive UI), user answers in one batch
+ *      reply. Compatible with /auto-advisor modes (full mode auto-adopts
+ *      FACTUAL questions with confidence ≥ 8, only uncertain ones reach
+ *      the user).
+ *   3. Advisor refinement (mandatory) — send Q&A back to @advisor for
+ *      contradiction detection and consolidation. Contradictions loop
+ *      back to Phase 2 (max 5 rounds). Only skipped if advisor fails.
+ *      During this phase, resolved terms are written to CONTEXT.md and
+ *      qualifying decisions get ADRs — inline, not batched.
+ *   4. Dispatch development — final docs sweep (ensure all terms and
+ *      decisions are recorded), present the brief via `question` tool
+ *      (Confirm/Revise/Stop), then dispatch implementation to the right
+ *      specialist agent.
+ *
  * Two hooks:
  *   1. config — registers the slash command (template, description, agent)
  *   2. experimental.chat.system.transform — injects protocol into system
@@ -54,7 +73,7 @@ export const GrillWithDocsPlugin: Plugin = async () => ({
     cfg.command[COMMAND_NAME] = {
       template: "/grill-with-docs $ARGUMENTS",
       description:
-        "Grill me with docs — relentless interview + domain modeling (CONTEXT.md glossary & ADRs created inline). Usage: /grill-with-docs <topic>",
+        "Grill me with docs — advisor-driven grilling + domain modeling: @advisor organizes questions, user answers in batch, advisor refines (mandatory, contradiction loop), CONTEXT.md/ADRs created inline, then dispatch development. Usage: /grill-with-docs <topic>",
       agent: "build",
     }
   },
@@ -73,10 +92,14 @@ export const GrillWithDocsPlugin: Plugin = async () => ({
     const fragment = `\n\n---\n${MARKER}\n\n${getProtocol()}\n`
 
     // First injection (or after compaction rebuilt the system prompt).
-    for (let i = 0; i < output.system.length; i++) {
+    // Append to the LAST string entry only — with multiple entries the old
+    // loop duplicated the protocol within a single pass (same fix as
+    // project-profiler / project-manager).
+    for (let i = output.system.length - 1; i >= 0; i--) {
       const s = output.system[i]
       if (typeof s !== "string") continue
       output.system[i] = s + fragment
+      break
     }
   },
 })

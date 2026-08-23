@@ -1,0 +1,10 @@
+{
+  "description": "codex-router (self-hosted codex gateway) — Sol family carries the heavy tiers (ultra advises, max codes, base is the daily default), Luna-low explores cheaply, vision stays on Sol (image-capable). Requires CODEX_ROUTER_BASE_URL + CODEX_ROUTER_API_KEY environment variables.",
+  "tiers": {
+    "default": "codex-router/gpt-5.6-terra",
+    "code": "codex-router/gpt-5.6-terra",
+    "advisor": "codex-router/gpt-5.6-sol",
+    "explorer": "codex-router/gpt-5.6-luna",
+    "vision": "codex-router/gpt-5.6-luna"
+  }
+}

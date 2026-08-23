@@ -7,10 +7,9 @@
 #
 # Each archive contains:
 #   install/VERSION
+#   install/options.jsonc
 #   install/install.sh
 #   install/install.ps1
-#   install/config.sh
-#   install/config.ps1
 #   install/versions/<ver>.manifest.txt   (auto-generated if missing)
 #   bin/opencode-config                   (bash dispatcher)
 #   bin/opencode-config.ps1               (PowerShell dispatcher)
@@ -51,7 +50,7 @@ read_manifest() {
 
 # --- generate manifest if missing (inline, no dependency on install.sh) --
 
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "profiles/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "profiles/" "providers/")
 
 generate_manifest() {
     local out="$1"
@@ -79,7 +78,7 @@ while [[ $# -gt 0 ]]; do
         --zip) BUILD_TAR=0; shift ;;
         --out) OUT_DIR="$2"; shift 2 ;;
         -h|--help)
-            sed -n '2,30p' "$0"
+            sed -n '2,28p' "$0"
             exit 0
             ;;
         *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -108,9 +107,10 @@ mkdir -p "$PKG_DIR"
 mkdir -p "$PKG_DIR/install/versions"
 cp "$REPO_ROOT/install/install.sh"     "$PKG_DIR/install/"
 cp "$REPO_ROOT/install/install.ps1"    "$PKG_DIR/install/"
-cp "$REPO_ROOT/install/config.sh"      "$PKG_DIR/install/"
-cp "$REPO_ROOT/install/config.ps1"     "$PKG_DIR/install/"
 cp "$VERSION_FILE"                     "$PKG_DIR/install/"
+if [[ -f "$REPO_ROOT/install/options.jsonc" ]]; then
+    cp "$REPO_ROOT/install/options.jsonc" "$PKG_DIR/install/"
+fi
 cp "$MANIFEST"                         "$PKG_DIR/install/versions/"
 
 # 2. Copy bin dispatchers

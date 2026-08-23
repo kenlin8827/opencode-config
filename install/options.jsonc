@@ -1,0 +1,65 @@
+// Install options — single source of truth for which MCP servers, external
+// (npm) plugins, and the rtk proxy this config activates. Replaces the old
+// -EnableMcp/--enable-mcp command-line flags.
+//
+// Lives in install/ with the other installer machinery (VERSION, manifests):
+// every install reads it in place and forces the target state onto it — it
+// overwrites unconditionally on EVERY install and never ships to the target.
+// Edit THIS file and re-run the installer (`install -Force` when the version
+// is unchanged):
+//   mcp.<name>     → opencode.jsonc's mcp.<name>.enabled; enabling an entry
+//                    that declares an `install` field also provisions its CLI
+//                    on the next install
+//   plugin.<name>  → membership in opencode.jsonc's `plugin` array
+//   default_agent  → opencode.jsonc's root `default_agent` — which primary
+//                    agent (build / code / plan) opencode enters first;
+//                    must name an agent that exists in the shipped `agent`
+//                    block (unknown names are rejected, template value kept)
+//   rtk            → rtk binary provisioning + the vendored openrtk plugin
+//                    (false skips the download AND removes plugins/openrtk*
+//                    from the target)
+//
+// Your choices persist in this file (git). No copy is installed under
+// ~/.config/opencode — the switches apply straight onto opencode.jsonc
+// (mcp.*.enabled + the plugin array), so nothing in the target looks like
+// an editable options file. Entries this file doesn't list keep the shipped
+// opencode.jsonc value. Bundled plugins/*.ts files are NOT options — they
+// ship wholesale and are always active.
+{
+  // true = provision the rtk binary + keep the vendored openrtk plugin;
+  // false = skip the download and remove plugins/openrtk.ts + plugins/openrtk/
+  // from the target (an already-installed rtk binary on PATH stays put)
+  "rtk": true,
+  // Which primary agent opencode enters by default:
+  //   code  — direct developer; does the coding work itself (daily driver)
+  //   build — orchestrator; routes coding tasks to specialists
+  //   plan  — read-only coordinator for analysis / design work
+  // Unknown names are rejected with a warning (template value kept).
+  "default_agent": "code",
+  // true = enabled (CLI auto-provisioned via `install` if missing); false = skipped
+  "mcp": {
+    // LSP semantic code retrieval/editing; needs uv
+    "serena": true,
+    // Code-graph exploration; needs one-time manual `codegraph init` per repo
+    "codegraph": true,
+    // PolyForm Noncommercial license — enable only if licensed + indexed
+    // (see the gitnexus comment in opencode.jsonc)
+    "gitnexus": false,
+    // Universal DB gateway (MIT, ~1.4k tokens); CLI auto-provisioned.
+    // Still needs per-project dbhub.toml + DSN (see opencode.jsonc) —
+    // without one, dbhub just fails to connect at session start
+    "dbhub": true
+  },
+  // true = in opencode.jsonc's `plugin` array; false = dropped
+  "plugin": {
+    // Lazy coding protocol: build what was asked, name the lazier alternative
+    "@dietrichgebert/ponytail": true,
+    // Injects qoder provider/models; needs Node ^22.18 || >=24.11 + `qoder login`
+    "opencode-qoder-bridge": true,
+    // Auto-generates session titles
+    "@frankhommers/opencode-smart-title": true,
+    // Persistent project memory (vector store, per-machine under ~/.opencode-mem/);
+    // heavy — auto-capture costs an LLM call per idle session (see its docs)
+    "opencode-mem@2.24.3": false
+  }
+}

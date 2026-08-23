@@ -2,6 +2,27 @@
 
 Consult `@advisor` for an independent second opinion on **blocking** decisions before presenting them to the user. Before asking the user any blocking question, let the advisor try to answer on the user's behalf — but only when the question is factual (see below).
 
+### Frugality — do NOT abuse @advisor
+
+`@advisor` calls are **expensive** (a full LLM round-trip). Dispatch it only when the decision genuinely warrants a second opinion. Before dispatching, ask yourself: **"Can I make this call confidently from the project context alone?"** — if yes, just decide.
+
+**Dispatch @advisor ONLY when at least one is true:**
+- The decision is **irreversible or high-stakes**: schema migration, public API contract, auth/permission change, destructive data operation, deployment to production.
+- The options have **materially different trade-offs** and you are genuinely torn — not just "two ways to write the same loop".
+- The user **explicitly asked** for a second opinion or red-team (`@advisor` in their message).
+- You are about to ask the user a **blocking question** and the answer might be derivable from project context (code, docs, conventions) — advisor may resolve it without bothering the user.
+
+**Do NOT dispatch @advisor when:**
+- The decision is routine / low-stakes: naming a local variable, choosing between equivalent syntax forms, picking a utility function, formatting style.
+- You already have **high confidence** from the project's existing code, conventions, or dependencies — just decide and proceed.
+- The question is a **pure preference** (UI color, button label wording, personal taste) — skip advisor, go straight to the user.
+- It's a non-blocking decision — proceed as normal, no advisor needed.
+- You've already dispatched advisor for **this same decision** — one call per decision, no loops.
+
+**Rule of thumb:** if the cost of being wrong is low and easily reversible, don't call advisor. If you'd be comfortable making the call yourself and explaining it later, don't call advisor. Reserve it for decisions where a second perspective genuinely reduces risk.
+
+**Safety net — never suppress a genuine need:** Frugality means "don't waste calls on trivial stuff", NOT "avoid advisor at all costs". If you are genuinely unsure, torn, or the decision has real downside risk — **dispatch advisor, no hesitation**. The cost of one extra advisor call is far less than the cost of a wrong irreversible decision. When in doubt between "I think I can decide" and "I'm not fully sure" — lean toward dispatching. Over-caution defeats the purpose of having an advisor.
+
 ### Question class (classified by the advisor, not by you)
 
 Every blocking question falls into one of two classes — `@advisor` classifies it in its reply:
@@ -25,18 +46,22 @@ The advisor may answer on the user's behalf when its answer is well-supported by
 
 ```
 blocking decision / question to user
-  └─ advisor mode != off  (auto-dispatch)
-       ├─ dispatch @advisor (context, options, your recommendation)
-       ├─ mode = full && Question class = FACTUAL && confidence ≥ 8
-       │    && within session limit (10)
-       │    → auto-execute the advisor's answer, on the user's behalf
-       └─ otherwise → present BOTH opinions to user via question tool
+  └─ frugality check: can I decide confidently from project context alone?
+       ├─ YES → just decide, no advisor call
+       └─ NO → advisor mode != off  (auto-dispatch)
+            ├─ dispatch @advisor (context, options, your recommendation)
+            ├─ mode = full && Question class = FACTUAL && confidence ≥ 8
+            │    && within session limit (10)
+            │    → auto-execute the advisor's answer, on the user's behalf
+            └─ otherwise → present BOTH opinions to user via question tool
 
 User-explicit @advisor (any mode, including off):
   └─ dispatch @advisor → return opinion as advisory text → no auto-execute
 ```
 
 ### Dispatch template
+
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
 
 ```
 @advisor
@@ -61,6 +86,8 @@ A dispatch variant where `@advisor` argues AGAINST a design instead of balancing
 
 **Dispatch template:**
 
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
 ```
 @advisor
 
@@ -79,6 +106,8 @@ Output your verdict (HOLDS / HOLDS WITH CAVEATS / FAILS). No confidence score.
 
 ### Rules
 
+- **Dispatch means tool call.** When this protocol says "dispatch @advisor", you MUST invoke the @advisor subagent tool — NOT output `@advisor` as plain text in your reply. Printing the template text is a critical error: the advisor is never called and the protocol stalls.
+- **Frugality first.** Before dispatching @advisor, ask: "Can I make this call confidently from project context alone?" If yes — just decide. Advisor is for genuinely risky or torn decisions, not routine ones.
 - Only blocking decisions. Non-blocking decisions proceed as normal.
 - One advisor call per decision — don't loop.
 - Present both opinions. Highlight disagreement.

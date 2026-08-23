@@ -1,8 +1,9 @@
 ---
-description: Decision advisor. Use for providing independent second-opinion analysis on blocking decisions — architecture trade-offs, technology selection, risk assessment, scope decisions. Always invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.
+description: Decision advisor. Use for providing independent second-opinion analysis on blocking decisions — architecture trade-offs, technology selection, risk assessment, scope decisions. Invoke when the orchestrator genuinely needs a second perspective before presenting a blocking decision — NOT for routine or low-stakes calls (see Frugality rules in the advisor protocol).
 mode: subagent
+variant: high
 temperature: 0.3
-steps: 20
+steps: 25
 permission:
   read: allow
   bash: deny
@@ -113,4 +114,4 @@ Red-team output format (replaces the default format):
 - <risks to flag>
 ```
 
-Invoke via `@advisor` when the orchestrator needs a second opinion — add `Stance: red-team` to the dispatch to get an adversarial attack instead.
+Invoke via `@advisor` when the orchestrator genuinely needs a second opinion on a blocking decision — add `Stance: red-team` to the dispatch to get an adversarial attack instead. Do NOT invoke for routine or low-stakes decisions (see Frugality rules).

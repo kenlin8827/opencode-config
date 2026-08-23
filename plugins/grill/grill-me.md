@@ -1,95 +1,88 @@
 # Grill-Me Protocol
 
-You are now running **grill-me** — a relentless, one-question-at-a-time interview that stress-tests a plan, design, or decision until shared understanding is reached.
+`/grill-me <description>` — advisor-driven grilling before development.
 
-## What is grilling?
-
-Grilling is NOT brainstorming. It is NOT a code review. It is a structured, relentless interview that walks down each branch of the decision tree, resolving dependencies between decisions one-by-one.
-
-## Core behavior
-
-### One question at a time
-Ask questions **one at a time**. Wait for the user's answer on each before continuing. Multiple questions at once is bewildering.
-
-### Facts vs. decisions
-- **Facts** (can be found by exploring): filesystem, codebase, tools, git, docs → look it up yourself. Do NOT ask the user.
-- **Decisions** (require judgment): architecture, trade-offs, scope, priorities → put each to the user and wait.
-
-### Always recommend
-Every question MUST include your recommended answer with reasoning. Don't just ask — advise.
-
-### Walk the decision tree
-Start with the most fundamental decision (the one everything else depends on). Resolve it, then move to the next. Don't skip ahead — later decisions depend on earlier ones.
-
-### Don't act until confirmed
-Do NOT write code, create files, or take action until the user confirms shared understanding is reached. The output of a grilling session is **alignment**, not implementation.
-
-## Question structure
-
-Each question should follow this format:
+## State machine
 
 ```
-### Q<N>: <question>
+              ┌─────────────────────────────────────────────────┐
+              │                                                 │
+              ▼                                                 │
+  P1: @advisor       P2: question tool    P3: @advisor          │ loop
+  Raw description     Batch all Qs        Detect contradictions  │ max 5
+  passthrough         via question tool   ┌───────┴───────┐      │
+  Advisor explores    Pure collection     │               │      │
+  codebase itself     full mode:          CONTRADICTIONS   CLEAN  │
+  and decides what    FACTUAL ≥ 8         → back to P2    → P4   │
+  to ask              auto-adopt,         Ask contradiction      │
+                      don't ask user       points, back to P3    │
+                                          └───────────────┘      │
+              │                                                 │
+              └─────────────────────────────────────────────────┘
 
-**My recommendation**: <your recommended answer>
-
-**Reasoning**: <why you recommend this>
-
-**Why it matters**: <what downstream decisions depend on this>
-
-Your answer?
+  P4: question tool (Confirm/Revise/Stop) → confirmed → route via build.md → dispatch specialist agent
+      User revises → back to P2
+      User stops → exit
 ```
 
-## Grilling strategy
+## Phase tracking
 
-### Explore before asking
-Before asking about the codebase, architecture, or existing patterns — explore it yourself:
-1. Use file search and code reading to understand the current state.
-2. Check existing docs, READMEs, and configuration.
-3. Look for prior decisions in `docs/adr/` or `CONTEXT.md` if they exist.
+At the start of every reply, output a one-line phase marker so the session is recoverable after compaction:
 
-Only after you've gathered all available facts should you start asking decision questions.
+```
+[grill-me] Phase: P2 | Round: 1 | Questions: 5 (3 answered, 2 pending)
+```
 
-### Probe edge cases
-When the user states a design, stress-test it:
-- "What happens when X fails?"
-- "Who is responsible for Y if Z occurs?"
-- "Does this scale to 10× the current load?"
+If the conversation was compacted and you're unsure which phase you're in, look at the last `[grill-me]` marker to recover state. If no marker found, restart from P1.
 
-### Challenge vague language
-When the user uses fuzzy or overloaded terms:
-- "You're saying 'account' — do you mean Customer or User? Those are different things."
-- "By 'fast' — are we talking latency, throughput, or time-to-first-byte?"
+## Constraints
 
-### Cross-reference with code
-When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+- **P1 mandatory.** Always dispatch @advisor by invoking the subagent tool — do NOT just print `@advisor` as text. Frugality rules exempt — user invoked `/grill-me` explicitly.
+- **P1: raw passthrough.** Main session forwards the raw description to @advisor with zero pre-processing — no codebase exploration, no domain hints, no question generation. Advisor explores the codebase itself and decides what to ask. Main session is just a dispatcher. **You MUST actually invoke the @advisor subagent tool, not output the dispatch template as plain text.**
+- **P2: batch answer via `question` tool.** Use the `question` tool to present all questions to the user at once — this triggers the interactive UI (not just plain text). Put the recommended option FIRST, marked `(recommended)`. User answers all in one reply. Pure collection, no improvised follow-ups. If scope fundamentally changed, stop and suggest re-running `/grill-me`.
+- **P2: auto-advisor compat.** full mode: FACTUAL + confidence ≥ 8 → auto-adopt, don't ask user. lite/off: all questions reach user.
+- **P3 mandatory.** Always dispatch @advisor for refinement by invoking the subagent tool. Only skip if advisor fails (→ P4 with raw Q&A, note "contradictions may be undetected").
+- **P3: contradiction loop max 5.** After 5 rounds with unresolved contradictions, use `question` tool to present state to user: resolve manually / proceed anyway / stop.
+- **P4: confirmation via `question` tool.** Use the `question` tool with `Confirm` / `Revise` / `Stop` options. Never start implementation without explicit go-ahead.
+- **P4: routing.** Follow build.md routing rules and trigger words table — do not hardcode agent mappings here. For multi-domain tasks, present execution plan before dispatch.
+
+## P1 dispatch template
+
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
+```
+@advisor
+Grill this: <raw description from /grill-me args>
+Always consider: aesthetics, usability, edge cases, error handling — even if the user's description is simple.
+```
+
+## P3 dispatch template
+
+Invoke the @advisor subagent with the following prompt (you MUST call the subagent tool, NOT print this as text):
+
+```
+@advisor
+Grilling refinement — consolidate answers, detect contradictions, produce decision brief.
+
+Original Q&A:
+Q1: <question> → <answer or "auto-adopted: <answer> (confidence N/10)" or "skipped">
+Q2: ...
+
+Contradiction rounds (if any):
+Round 1: C1: <contradiction> → user resolved: <answer>
+Round 2: ...
+
+Output format — start with ONE of these markers on the first line:
+  CLEAN — no contradictions found. Then output Decision Brief (resolved decisions + auto-resolved + facts + open questions + implementation plan).
+  CONTRADICTIONS — contradictions found. Then list new questions (C1, C2...) with suggested resolution. → return to P2.
+```
+
+## Anti-pattern (NEVER do this)
+
+Never stop at printing `@advisor` or the dispatch template without actually calling the subagent tool — that stalls the protocol. You MAY show a brief dispatch summary in your reply, but the subagent tool call is mandatory.
 
 ## Stop conditions
 
-- **Stop** when the user says "stop", "enough", "we're done", or similar.
-- **Stop** when the decision tree is fully resolved — all branches explored.
-- **Stop** if the user asks to switch to implementation → suggest Build mode.
-
-## Session output
-
-When the session ends, produce this summary:
-
-```
-## Grilling Summary
-
-### Decisions made
-1. <decision> — <answer + brief reasoning>
-2. <decision> — <answer + brief reasoning>
-...
-
-### Facts discovered
-- <fact> — <source: file:line, doc, etc.>
-
-### Open questions
-- <unresolved items, if any>
-
-### Recommended next steps
-- <what to do with this sharpened understanding>
-```
-
-Do NOT start implementing unless the user explicitly asks.
+- User says "stop" / "enough" / "we're done" → exit at any phase.
+- P1 advisor fails → let user drive manually.
+- User asks to skip to implementation → P4 (skip P3 only if advisor unavailable).

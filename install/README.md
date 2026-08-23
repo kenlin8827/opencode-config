@@ -22,6 +22,10 @@ pwsh install/install.ps1 generate
 pwsh install/install.ps1 init
 pwsh install/install.ps1 init -NoBackup   # clear without backup
 pwsh install/install.ps1 init -Yes       # skip confirmation prompt
+
+# Remove the installed files precisely (manifest-driven; user files survive):
+pwsh install/install.ps1 uninstall
+pwsh install/install.ps1 uninstall -Yes  # skip confirmation prompt
 ```
 
 Default target is `~/.config/opencode`. To test without touching your real
@@ -51,6 +55,8 @@ Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
 ./install/install.sh init               # backup + clear target
 ./install/install.sh init --no-backup    # clear without backup
 ./install/install.sh init -y            # skip confirmation prompt
+./install/install.sh uninstall          # remove installed files (precise)
+./install/install.sh uninstall -y       # skip confirmation prompt
 
 # Global command:
 ./install/install.sh register
@@ -102,67 +108,28 @@ opencode-config status
 opencode-config update
 ```
 
-## Configuring credentials (PowerShell)
+## Configuring credentials
 
-```pwsh
-# Interactive (pick providers, then pick a model per tier):
-pwsh install/config.ps1
+The old `config.ps1` / `config.sh` helpers are retired. Credentials and
+model picks are now configured inside opencode itself:
 
-# Scripted (target the default `llm-router` provider; use -p <name> for others):
-pwsh install/config.ps1 set baseURL https://router.example.com/v1
-pwsh install/config.ps1 set apiKey  sk-xxxx
-pwsh install/config.ps1 set model  advisor my-advisor-v2
-pwsh install/config.ps1 profile                        # numbered menu, pick one to apply
-pwsh install/config.ps1 profile list                   # list presets in profiles/
-pwsh install/config.ps1 profile apply opencode-go-performance
-pwsh install/config.ps1 get
-pwsh install/config.ps1 reset
-```
+- `/connect <provider>` — authenticate an official provider
+- `/profile <name>` — apply a bundled profile (per-tier model picks)
+- `llm-router` credentials — set the `LLM_ROUTER_BASE_URL` /
+  `LLM_ROUTER_API_KEY` environment variables, or edit the target
+  `opencode.jsonc` directly
 
-## Configuring credentials (Bash)
-
-```bash
-./install/config.sh                              # interactive
-./install/config.sh get
-./install/config.sh set baseURL https://router.example.com/v1
-./install/config.sh set apiKey sk-xxxx
-./install/config.sh set model advisor my-advisor-v2
-./install/config.sh profile                            # numbered menu, pick one to apply
-./install/config.sh profile list                       # list presets in profiles/
-./install/config.sh profile apply opencode-go-performance
-./install/config.sh reset
-```
-
-The interactive flow in both versions works the same way:
-
-1. Multi-select providers (e.g. `1 3`). The list is the union of
-   `opencode models` (CLI-authenticated) and `llm-router` (custom provider
-   defined in `opencode.jsonc`, not in models.dev). `0` or Enter keeps all.
-2. For each tier defined in the repo template, pick a model from the
-   selected providers' models only. Empty input keeps the current value,
-   even when it belongs to a provider that wasn't selected (a note is
-   shown in that case).
-
-`baseURL` / `apiKey` for `llm-router` are prompted right after provider
-selection when `llm-router` is among the selected providers, before the
-tier model picks. Every agent of a tier gets rewritten to the
-chosen `provider/model_id` in lockstep.
-
-Non-interactive `set` commands target a single provider (default
-`llm-router`, override with `-p <name>`) and edit one field at a time.
-`reset` restores that provider's `baseURL` / `apiKey` / model ids from the
-repo template.
+The replacement workflow is tracked by a follow-up ADR.
 
 ## Profiles
 
-A profile is a named preset bundling a provider with a per-tier model pick,
-applied in one shot instead of one `set model` per tier. Bare `profile`
-shows a numbered menu — pick a number to apply it (Enter/`0` cancels):
+A profile is a named preset bundling per-tier model picks, applied in one
+shot instead of editing each tier by hand. Profiles are applied from within
+an opencode session via the `/profile` slash command (see
+`plugins/profile-wizard.ts`, a TUI plugin registered in `tui.json`):
 
-```pwsh
-pwsh install/config.ps1 profile                 # same on bash: ./install/config.sh
-pwsh install/config.ps1 profile list            # plain listing, no prompt
-pwsh install/config.ps1 profile apply <name>    # scripted, no prompt
+```
+/profile                  # dialog picker; first entry shows current mapping
 ```
 
 Profiles live in `profiles/<name>.json`:
@@ -178,18 +145,17 @@ Profiles live in `profiles/<name>.json`:
 }
 ```
 
-Semantics:
+Semantics (as implemented by the `/profile` plugin):
 
 - Tier values are full `<provider>/<model_id>` refs, applied verbatim.
-- A profile is **single-provider**: every ref must share the same provider
-  part — mixed providers (or refs missing `/`) are rejected. Split mixed
-  setups into separate profiles.
+- Mixed providers are allowed — a profile can route different tiers to
+  different providers (refs missing `/` are rejected).
 - Tiers not listed by a profile are left untouched; all bundled profiles
   cover all five tiers, `vision` included.
 - Unknown tier names in a profile are rejected; every agent of a tier is
   rewritten in lockstep, and the root `model` tracks the `default` tier.
 - Apply validates everything up front per tier and backs up the target
-  (`opencode.jsonc.bak`) before writing, same as `set`.
+  (`opencode.jsonc.bak`) before writing; restart opencode to take effect.
 
 Bundled profiles.
 Cost tiers mirror the IDE model-tier vocabulary (Auto / Ultimate / Performance / Economy / Lightweight).
@@ -219,7 +185,13 @@ explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest 
 
 | Profile | Tier | default / code / advisor / explorer / vision |
 | --- | --- | --- |
-| `llm-router` | Auto — server-side routing baseline (equivalent to `reset`) | its five router slots |
+| `llm-router` | Auto — server-side routing baseline | its five router slots |
+| `codex-router` | codex gateway — Sol heavy / Luna cheap | gpt-5.6-sol / gpt-5.6-sol-max / gpt-5.6-sol-ultra / gpt-5.6-luna-low / gpt-5.6-sol |
+| `qoder-router` | qoder gateway — Ultimate flags / Lite explores | performance / ultimate / ultimate / lite / auto |
+| `claude-code-router` | Claude Code gateway — Fable codes / Sonnet default | claude-sonnet-5 / claude-fable-5 / claude-opus-5 / claude-haiku-4-5 / claude-sonnet-5 |
+| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) | performance / ultimate / ultimate / lite / auto |
+| `qoder-deepseek` | All-DeepSeek family on Qoder (same bridge) | dfmodel / dmodel / dmodel / dfmodel / auto |
+| `qoder-qwen` | All-Qwen family on Qoder (same bridge) | qmodel_latest / qmodel_preview / qmodel_preview / qmodel / auto |
 | `opencode-go-ultimate` | Ultimate — quality first, cost no object | kimi-k3 / minimax-m3 / gpt-5.6-luna / kimi-k2.6 / qwen3.8-max |
 | `opencode-go-performance` | Performance — daily driver | kimi-k2.6 / kimi-k2.7-code / gpt-5.6-luna / deepseek-v4-flash / qwen3.8-max |
 | `opencode-go-economy` | Economy — cost-performance | kimi-k2.6 / kimi-k2.7-code / glm-5.2 / deepseek-v4-flash / qwen3.8-max |
@@ -287,7 +259,7 @@ Everything else stays in the repo and never reaches the target:
 | `.git/`         | VCS metadata — not part of the config     |
 | `node_modules/` | Dependency cache — not part of the config |
 | `.metrics/`     | Runtime metrics — not part of the config  |
-| `install/`      | This installer and its manifests          |
+| `install/`      | This installer and its manifests (*)          |
 | `tests/`        | Test scripts — not part of the config     |
 | `package.json`, `bun.lock`, `package-lock.json` | npm metadata — not needed by opencode |
 | `tsconfig.json` | TS build config — not needed at runtime   |
@@ -297,16 +269,45 @@ Everything else stays in the repo and never reaches the target:
 In particular, **`.git/` is never copied to the target** — the target should
 be a clean config directory, not a working copy.
 
+(*) `install/options.jsonc` never ships to the target: the installer reads
+it in place and applies its switches to `opencode.jsonc` — see Options below.
+
 ## How cleanup works
 
 `.CONFIG_VERSION` holds the active version string (single line, no newline).
 On the next install, the script reads it, looks up
 `install/versions/<that>.manifest.txt`, deletes each entry from the target,
-then copies the current manifest and rewrites `.CONFIG_VERSION`. To uninstall
-a version manually, delete `<target>/.CONFIG_VERSION`.
+then copies the current manifest and rewrites `.CONFIG_VERSION`.
 
-`.CONFIG_VERSION` itself is never deleted by the script (even if an old
+`.CONFIG_VERSION` itself is never deleted during install (even if an old
 manifest listed it) — it is always rewritten at the end of each install.
+
+## Uninstall mode
+
+`uninstall` is the precise reverse of `install`: it reads the target's
+`.CONFIG_VERSION`, deletes exactly the files listed by that version's
+manifest (files you added yourself survive), then removes the
+installer-owned extras (`.CONFIG_VERSION`, any stale `.CONFIG_VERSION.bak`,
+and a legacy `options.jsonc` copy left behind by older installers).
+
+```pwsh
+pwsh install/install.ps1 uninstall        # confirmation prompt
+pwsh install/install.ps1 uninstall -Yes   # skip confirmation
+```
+
+```bash
+./install/install.sh uninstall          # confirmation prompt
+./install/install.sh uninstall -y       # skip confirmation
+```
+
+Behaviour notes:
+
+- No marker → nothing to do. A missing manifest for the installed version
+  aborts with an error — use `init` (backup + clear) instead.
+- External tools are untouched: the rtk binary and provisioned MCP CLIs
+  stay installed; remove them manually if wanted.
+- The global shim stays too — run `unregister` to remove it.
+- Use `init` instead when you want a total wipe (it backs up first).
 
 ## Init mode (fresh start)
 
@@ -326,8 +327,8 @@ pwsh install/install.ps1 init -Yes         # skip confirmation
 ./install/install.sh init -y            # skip confirmation
 ```
 
-After `init`, run `install` to reinstall config files,
-then `config.ps1` / `config.sh` to set credentials and model picks.
+After `init`, run `install` to reinstall config files, then configure
+credentials and model picks inside opencode (`/connect` + `/profile`).
 
 ## Preserved fields
 
@@ -342,15 +343,59 @@ then write it back afterwards:
 | `model` (root)             | User's model pick for `tier.default`  |
 | `agent.<name>.model`       | User's per-tier model picks           |
 
-Model picks are preserved **per tier** (the same semantics `config.ps1` /
-`config.sh` use — every agent of a tier shares one `provider/model_id` ref):
+Model picks are preserved **per tier** (the same semantics the `/profile`
+plugin uses — every agent of a tier shares one `provider/model_id` ref):
 a reinstall rewrites all agents of a tier to the user's ref, including agents
 that the newer template added. Tiers with no prior pick keep the template
-default. To discard the preserved picks, run `config.ps1 reset`.
+default. To discard the preserved picks, remove the target `opencode.jsonc`
+before reinstalling.
 
 Everything else in `opencode.jsonc` is overwritten from the repo. To add more
 preserved credential fields, extend `$preserveJsonKeys` (PowerShell) or
 `PRESERVE_KEYS` (Bash).
+
+## Options (default agent + MCP + external plugin + rtk switches)
+
+`install/options.jsonc` is the single switch panel AND the single source of
+truth for the default agent, every MCP server, external (npm) plugin, and
+the rtk proxy — it replaces the old `-EnableMcp` / `--enable-mcp`
+command-line flags. It lives
+in install/ (NOT in the version manifest) and never ships to the target —
+every install reads it in place and forces the target state onto it,
+unconditionally on every install. Nothing in the target directory looks like
+an editable options file (a copy left behind by older installers is deleted
+on install).
+
+```jsonc
+{
+  "rtk": true,
+  "default_agent": "build",
+  "mcp":    { "serena": true, "codegraph": true, "gitnexus": false },
+  "plugin": { "@dietrichgebert/ponytail": true, "opencode-qoder-bridge": true }
+}
+```
+
+- `default_agent` drives `opencode.jsonc`'s root `default_agent` — which
+  primary agent opencode enters first (`build` orchestrator, `code` direct
+  developer, `plan` read-only coordinator). The pick is validated against the
+  shipped `agent` block: unknown names are rejected with a warning and the
+  template value is kept. Omit the field to keep the shipped default.
+- `rtk` drives rtk provisioning: `true` downloads the binary when missing
+  and keeps the vendored `plugins/openrtk*`; `false` skips the download AND
+  removes `plugins/openrtk.ts` + `plugins/openrtk/` from the target (an
+  already-installed `rtk` binary on PATH stays put).
+- `mcp.<name>` drives `opencode.jsonc`'s `mcp.<name>.enabled`; enabling an
+  entry that declares an `install` field also provisions its CLI on the
+  next install (disabled entries are never provisioned). Entries the options
+  file doesn't list keep the shipped `opencode.jsonc` value.
+- `plugin.<name>` drives membership in `opencode.jsonc`'s `plugin` array;
+  plugins the target carries but the options file doesn't list survive as-is.
+- Edit this file and re-run `install` (`-Force`/`-f` when the version is
+  unchanged). Your choices persist in this file (git); no installed copy
+  exists.
+- Bundled `plugins/*.ts` files are not toggled here — they ship wholesale and
+  are always active. The one exception is the vendored openrtk plugin, which
+  follows the `rtk` switch.
 
 **Note on the shipped template.** The repo's `opencode.jsonc` ships with
 `{env:LLM_ROUTER_BASE_URL}` / `{env:LLM_ROUTER_API_KEY}` as
@@ -359,23 +404,22 @@ This is the **recommended** setup: keep the token in the config, set the
 real values in your shell environment, and never commit a real key. The
 preservation logic simply round-trips the token through every reinstall.
 
-If you prefer hardcoded values over env vars, use
-`config.ps1 set apiKey sk-...` once to replace the token with a literal.
-The script will preserve that literal across future reinstalls, so a
+If you prefer hardcoded values over env vars, edit the target
+`opencode.jsonc` directly to replace the token with a literal.
+The installer will preserve that literal across future reinstalls, so a
 literal key is never silently overwritten.
 
 ## Scripts
 
 | Script             | Language   | Purpose                                      |
 | ------------------ | ---------- | -------------------------------------------- |
-| `install.ps1`      | PowerShell | Install / generate / status / init / register |
+| `install.ps1`      | PowerShell | Install / generate / status / init / uninstall / register |
 | `install.sh`       | Bash 4+    | Same, with `jq` for JSON                     |
-| `config.ps1`       | PowerShell | Set / get / reset credentials + model IDs    |
-| `config.sh`        | Bash 4+    | Same, with `jq`                              |
 
 The two implementations share the same contract — same manifest format, same
 preserved fields, same default target — but are tested independently. If you
-find a behavioural drift, file it.
+find a behavioural drift, file it. The retired `config.ps1` / `config.sh`
+helpers are replaced by in-opencode configuration (`/connect` + `/profile`).
 
 ## Model name verification principle
 

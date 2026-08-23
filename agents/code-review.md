@@ -1,8 +1,8 @@
 ---
 description: Code reviewer. Use for reviewing code changes — git diffs, PRs, staged/unstaged changes, specific files, or branches. Always invoke when the user asks to "review", "code review", "review this PR", or wants feedback on code quality, correctness, security, or best practices.
 mode: subagent
+variant: high
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

@@ -13,21 +13,23 @@
       install         Apply the current version's manifest to the default target
       update          Same as install, but forces reapply (-Force)
       init            Backup + clear the target for a fresh start
-      status         Show installed vs repo version
+      uninstall       Remove the installed version's manifest files from the target
+      status          Show installed vs repo version
       generate        Regenerate install/versions/<ver>.manifest.txt
       register        Install the global shim into ~/.local/bin
       unregister      Remove the global shim from ~/.local/bin
-      config          Run the config helper (credentials + per-tier model picks)
-      profile         Shortcut for `config profile` (interactive picker)
       version         Print the repo's install/VERSION
       help            Print this help
 
     Anything else falls through to install.ps1.
 
+    Credentials + model picks are configured inside opencode itself
+    (`/connect` + `/profile` slash command); the old config.ps1 helper is
+    retired.
+
 .EXAMPLE
     pwsh ./bin/opencode-config.ps1 install
     pwsh ./bin/opencode-config.ps1 status
-    pwsh ./bin/opencode-config.ps1 config set baseURL https://api...
 #>
 
 [CmdletBinding()]
@@ -41,7 +43,6 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir '..')).Path
 $Install = Join-Path $RepoRoot 'install/install.ps1'
-$Config  = Join-Path $RepoRoot 'install/config.ps1'
 
 # Print the comment block between `<#` and `#>`, dropping
 # `.SYNOPSIS`/`.DESCRIPTION`/etc. headers to keep the help terse.
@@ -101,12 +102,15 @@ switch ($Subcommand) {
     'install'    { & $Install install  @Rest }
     'update'     { & $Install install -Force @Rest }
     'init'       { & $Install init     @Rest }
+    'uninstall'  { & $Install uninstall @Rest }
     'status'     { Invoke-Sub $Install 'status'     $Rest }
     'generate'   { Invoke-Sub $Install 'generate'   $Rest }
     'register'   { Invoke-Sub $Install 'register'   $Rest }
     'unregister' { Invoke-Sub $Install 'unregister' $Rest }
-    'config'     { Invoke-Sub $Config  $null         $Rest }
-    'profile'    { Invoke-Sub $Config  'profile'    $Rest }
+    { @('config', 'profile') -contains $_ } {
+        Write-Error "opencode-config: '$Subcommand' is retired — configure credentials and model picks inside opencode ('/connect' + '/profile')"
+        exit 1
+    }
     'version'    {
         $v = (Get-Content (Join-Path $RepoRoot 'install/VERSION') -TotalCount 1 -ErrorAction SilentlyContinue)
         if ($v) { $v.Trim() } else { 'unknown' }

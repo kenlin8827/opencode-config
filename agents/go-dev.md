@@ -1,8 +1,8 @@
 ---
 description: Go engineer. Use for Go, Gin, Echo, Fiber, gRPC, protobuf, CLI tools, microservices, and Go ecosystem tasks. Always invoke when the user mentions Go, Golang, Gin, gRPC, protobuf, Cobra, or goroutines.
 mode: subagent
+variant: medium
 temperature: 0.3
-steps: 50
 permission:
   read: allow
   bash: allow

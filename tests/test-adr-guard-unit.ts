@@ -1,0 +1,352 @@
+/**
+ * ADR Iron Law Plugin — Unit Tests (no API dependency)
+ *
+ * Coverage:
+ *   - tokenizer: quote-aware splitting of shell commands
+ *   - git commit detection & amend flag (incl. chained commits)
+ *   - commit message extraction (-m, --message=, -am, glued forms)
+ *   - conventional-commit type gate (feat/refactor only)
+ *   - stripJsonc: comment/trailing-comma stripping without corrupting strings
+ *   - state normalize & arg parsing (on/off aliases)
+ *   - system hook: inject when on, idempotent, strip when off
+ *   - tool guard: blocks feat commit without ADR change, allows fix/amend/off
+ *     (incl. per-invocation gating of chained commits)
+ *
+ * Run: bun run tests/test-adr-guard-unit.ts   (or: npx tsx tests/test-adr-guard-unit.ts)
+ */
+
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
+
+import {
+  normalizeState,
+  parseStateArg,
+  getState,
+  setState,
+  setProjectDir,
+  getProjectDir,
+  stripJsonc,
+  COMMAND_NAME,
+} from "../plugins/adr-guard/adr-guard-config"
+import {
+  tokenize,
+  isGitCommit,
+  hasAmendFlag,
+  extractCommitMessage,
+  requiresAdr,
+} from "../plugins/adr-guard/adr-guard-runtime"
+import { makeSystemHook } from "../plugins/adr-guard/adr-guard-system-inject"
+import { makeToolGuardHook } from "../plugins/adr-guard/adr-guard-tool-guard"
+import { AdrGuardPlugin } from "../plugins/adr-guard/adr-guard"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const REPO_ROOT = join(__dirname, "..")
+
+// ─── Test framework ───────────────────────────────────────────────────────
+
+let passed = 0
+let failed = 0
+
+function assert(cond: boolean, msg: string): void {
+  if (cond) {
+    console.log(`  ✅ ${msg}`)
+    passed++
+  } else {
+    console.error(`  ❌ ${msg}`)
+    failed++
+  }
+}
+
+function section(title: string): void {
+  console.log(`\n${"═".repeat(60)}`)
+  console.log(`  ${title}`)
+  console.log(`${"═".repeat(60)}`)
+}
+
+// Fake client — only the log surface is exercised in unit tests.
+const fakeClient: any = { app: { log: async () => {} } }
+
+// ═════════════════════════════════════════════════════════════════════════
+//  1. Tokenizer
+// ═════════════════════════════════════════════════════════════════════════
+
+function test01_Tokenizer() {
+  section("01: Quote-aware tokenizer")
+  assert(
+    JSON.stringify(tokenize(`git commit -m "feat: add api"`)) ===
+      JSON.stringify(["git", "commit", "-m", "feat: add api"]),
+    "double-quoted message kept as one token",
+  )
+  assert(
+    JSON.stringify(tokenize(`git commit -m 'refactor: split; parse'`)) ===
+      JSON.stringify(["git", "commit", "-m", "refactor: split; parse"]),
+    "single-quoted message with semicolon survives",
+  )
+  assert(
+    JSON.stringify(tokenize(`git add -A && git commit -m "feat: x"`)) ===
+      JSON.stringify(["git", "add", "-A", "&&", "git", "commit", "-m", "feat: x"]),
+    "chained commands split on &&",
+  )
+  assert(
+    JSON.stringify(tokenize(`git commit -m "say \\"hi\\""`)) ===
+      JSON.stringify(["git", "commit", "-m", 'say "hi"']),
+    "escaped quotes inside double quotes preserved",
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  2. git commit detection & amend
+// ═════════════════════════════════════════════════════════════════════════
+
+function test02_GitCommitDetection() {
+  section("02: git commit detection & amend flag")
+  assert(isGitCommit(`git commit -m "feat: x"`), "plain git commit detected")
+  assert(isGitCommit(`git add . && git commit -m "feat: x"`), "chained git commit detected")
+  assert(!isGitCommit(`git commit-tree abc`), "git commit-tree NOT a commit")
+  assert(!isGitCommit(`git status`), "unrelated git command ignored")
+  assert(hasAmendFlag(`git commit --amend -m "feat: x"`), "--amend detected")
+  assert(!hasAmendFlag(`git commit -m "feat: x"`), "no amend on plain commit")
+  assert(
+    hasAmendFlag(`git commit --amend && git commit -m "feat: x"`),
+    "amend detected in chained command",
+  )
+  assert(
+    isGitCommit(`git commit -m "fix: a" && git commit -m "feat: b"`),
+    "second chained commit detected",
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  3. Commit message extraction
+// ═════════════════════════════════════════════════════════════════════════
+
+function test03_MessageExtraction() {
+  section("03: Commit message extraction")
+  assert(extractCommitMessage(`git commit -m "feat: add api"`) === "feat: add api", "-m double-quoted")
+  assert(extractCommitMessage(`git commit -m 'feat: add api'`) === "feat: add api", "-m single-quoted")
+  assert(extractCommitMessage(`git commit -m feat-word`) === "feat-word", "-m unquoted single word")
+  assert(extractCommitMessage(`git commit -m="feat: x"`) === "feat: x", "-m= form")
+  assert(extractCommitMessage(`git commit --message "feat: x"`) === "feat: x", "--message form")
+  assert(extractCommitMessage(`git commit --message="feat: x"`) === "feat: x", "--message= form")
+  assert(extractCommitMessage(`git commit -am "feat: x"`) === "feat: x", "combined -am form")
+  assert(
+    extractCommitMessage(`git add -A && git commit -m "feat: x; done" && git push`) === "feat: x; done",
+    "message in chained command",
+  )
+  assert(extractCommitMessage(`git commit`) === null, "no inline message → null (fail open)")
+  assert(
+    extractCommitMessage(`git commit -m "fix: a" && git commit -m "feat: b"`) === "fix: a",
+    "multi-commit: first invocation's message returned",
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  4. Conventional-commit type gate
+// ═════════════════════════════════════════════════════════════════════════
+
+function test04_TypeGate() {
+  section("04: feat/refactor type gate")
+  assert(requiresAdr("feat: add login"), "feat: triggers")
+  assert(requiresAdr("feat(api): add login"), "feat(scope): triggers")
+  assert(requiresAdr("refactor!: drop legacy path"), "refactor!: triggers")
+  assert(requiresAdr("REFACTOR(core): x"), "case-insensitive")
+  assert(requiresAdr("feat: x\n\nbody with refactor: notes"), "only first line counts")
+  assert(!requiresAdr("fix: bug"), "fix: does not trigger")
+  assert(!requiresAdr("docs: update readme"), "docs: does not trigger")
+  assert(!requiresAdr("chore: bump deps"), "chore: does not trigger")
+  assert(!requiresAdr("feature: not a conventional type"), "feature: is not feat:")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  4b. stripJsonc — comments & trailing commas, string-safe
+// ═════════════════════════════════════════════════════════════════════════
+
+function test04b_StripJsonc() {
+  section("04b: stripJsonc — comments & trailing commas (string-safe)")
+  assert(JSON.parse(stripJsonc('{"a": 1, /* c */ "b": 2,}')).b === 2, "trailing comma in object removed")
+  assert(JSON.parse(stripJsonc('{"a": [1, 2,],}')).a.length === 2, "trailing comma in array removed")
+  assert(JSON.parse(stripJsonc('{"a": "x,}"}')).a === "x,}", "comma inside string preserved (,})")
+  assert(JSON.parse(stripJsonc('{"url": "see a,] b"}')).url === "see a,] b", "comma inside string preserved (,])")
+  assert(
+    JSON.parse(stripJsonc('{"u": "http://x", // note\n"b": 1}')).u === "http://x",
+    "// inside string is not a comment",
+  )
+  assert(JSON.parse(stripJsonc('{"s": "say \\"hi\\"",}')).s === 'say "hi"', "escaped quote + trailing comma")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  5. State normalize & arg parsing
+// ═════════════════════════════════════════════════════════════════════════
+
+function test05_StateParsing() {
+  section("05: State normalize & arg parsing")
+  // Default-off must not depend on this repo's committed config — resolve
+  // against an empty temp directory instead.
+  const tmp = mkdtempSync(join(tmpdir(), "adr-guard-"))
+  try {
+    setProjectDir(tmp)
+    assert(getState() === "off", "default state is OFF (no config field)")
+  } finally {
+    setProjectDir(REPO_ROOT)
+    rmSync(tmp, { recursive: true, force: true })
+  }
+  assert(normalizeState("on") === "on", "on")
+  assert(normalizeState("OFF") === "off", "OFF (case-insensitive)")
+  assert(normalizeState("enabled") === "on", "enabled → on alias")
+  assert(normalizeState("disabled") === "off", "disabled → off alias")
+  assert(normalizeState("true") === "on", "true → on alias")
+  assert(normalizeState("maybe") === null, "unknown → null")
+  assert(parseStateArg("on") === "on", "/adr-guard on")
+  assert(parseStateArg("  off  ") === "off", "whitespace trimmed")
+  assert(parseStateArg("status") === null, "status → null (caller reports)")
+  assert(parseStateArg(undefined) === null, "no args → null (caller reports)")
+  assert(COMMAND_NAME === "adr-guard", "command name stable")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  6. System hook — inject when on, idempotent, strip when off
+// ═════════════════════════════════════════════════════════════════════════
+
+async function test06_SystemHook() {
+  section("06: System hook inject / idempotency / strip")
+  const hook = makeSystemHook(fakeClient)
+
+  setState("on")
+  const out1 = { system: ["base prompt"] }
+  await hook({}, out1 as any)
+  assert(out1.system[0].includes("[ADR-GUARD: ON]"), "marker injected when on")
+  assert(out1.system[0].includes("ADR Iron Law"), "protocol body injected")
+  assert(out1.system[0].includes("ADR directory"), "runtime ADR directory section present")
+
+  const afterFirst = out1.system[0]
+  await hook({}, out1 as any)
+  assert(out1.system[0] === afterFirst, "second call is a no-op (cache-friendly)")
+
+  setState("off")
+  await hook({}, out1 as any)
+  assert(!out1.system[0].includes("[ADR-GUARD"), "marker stripped when switched off")
+  assert(out1.system[0] === "base prompt", "original prompt restored exactly")
+
+  const out2 = { system: ["base prompt"] }
+  await hook({}, out2 as any)
+  assert(out2.system[0] === "base prompt", "off + no marker → complete no-op")
+
+  // Multi-entry system prompt: the fragment must land in the LAST entry
+  // only — the old loop duplicated it across every entry.
+  setState("on")
+  const out3 = { system: ["entry A", "entry B"] }
+  await hook({}, out3 as any)
+  assert(out3.system[0] === "entry A", "multi-entry: first entry untouched")
+  assert(out3.system[1].includes("[ADR-GUARD: ON]"), "marker present in last entry only")
+  assert(out3.system.filter((s) => s.includes("[ADR-GUARD: ON]")).length === 1, "marker appears exactly once across entries")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  7. Tool guard — block / allow matrix
+// ═════════════════════════════════════════════════════════════════════════
+// The repo root is a git repo with no working-tree changes under docs/adr/,
+// so hasAdrChanges() returns false there — the full block path is testable.
+
+async function test07_ToolGuard() {
+  section("07: Tool guard block/allow matrix")
+  const guard = makeToolGuardHook(fakeClient)
+
+  async function call(command: string): Promise<string | null> {
+    try {
+      await guard({ tool: "bash" } as any, { args: { command } } as any)
+      return null
+    } catch (err) {
+      return String((err as Error).message)
+    }
+  }
+
+  setState("on")
+  const blocked = await call(`git commit -m "feat: add new api"`)
+  assert(blocked !== null && blocked.includes("[ADR-GUARD]"), "feat commit blocked without ADR change")
+  assert(blocked !== null && blocked.includes("NNNN-slug"), "block message names the MADR template")
+
+  assert((await call(`git commit -m "fix: bug"`)) === null, "fix commit allowed")
+  assert((await call(`git commit -m "chore: deps"`)) === null, "chore commit allowed")
+  assert((await call(`git commit --amend -m "feat: x"`)) === null, "--amend allowed")
+  assert(
+    (await call(`git commit --amend && git commit -m "feat: x"`)) !== null,
+    "amend does NOT exempt a later fresh feat commit",
+  )
+  assert(
+    (await call(`git commit -m "fix: a" && git commit -m "feat: b"`)) !== null,
+    "chained feat commit blocked even when first is fix",
+  )
+  assert(
+    (await call(`git commit --amend && git commit -m "fix: x"`)) === null,
+    "amend + fix chain allowed",
+  )
+  assert((await call(`git commit`)) === null, "no inline message → fail open")
+  assert((await call(`git status`)) === null, "non-commit bash allowed")
+  assert(
+    (await guard({ tool: "edit" } as any, { args: {} } as any)) === undefined,
+    "non-bash tool untouched",
+  )
+
+  setState("off")
+  assert((await call(`git commit -m "feat: x"`)) === null, "off → feat commit allowed")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  8. Config hook — command registration
+// ═════════════════════════════════════════════════════════════════════════
+
+async function test08_ConfigHook() {
+  section("08: Config hook — command registration")
+  const plugin = (await AdrGuardPlugin({ client: fakeClient, directory: REPO_ROOT } as any)) as any
+  const cfg: any = {}
+  await plugin["config"](cfg)
+  assert(!!cfg.command, "cfg.command created")
+  assert(!!cfg.command[COMMAND_NAME], "command registered")
+  assert(cfg.command[COMMAND_NAME].description.includes("ADR"), "description mentions ADR")
+  assert(!!plugin["tool.execute.before"], "tool guard hook present")
+  assert(!!plugin["experimental.chat.system.transform"], "system hook present")
+  assert(!!plugin["command.execute.before"], "command hook present")
+}
+
+// ─── Main entry ───────────────────────────────────────────────────────────
+
+async function main() {
+  console.log("╔══════════════════════════════════════════════════════════╗")
+  console.log("║  ADR Iron Law — Unit Tests (no API)                     ║")
+  console.log("╚══════════════════════════════════════════════════════════╝")
+
+  // Pin the project dir to the repo root so config writes + git queries run
+  // against a real git repo. The switch now lives in the repo's opencode.jsonc,
+  // so snapshot it up front and restore it afterwards — the tests flip the
+  // guard on/off and must not pollute the committed config.
+  const origDir = getProjectDir()
+  setProjectDir(REPO_ROOT)
+  const cfgFile = join(REPO_ROOT, "opencode.jsonc")
+  const cfgPreexisting = existsSync(cfgFile)
+  const origCfg = cfgPreexisting ? readFileSync(cfgFile, "utf-8") : null
+
+  try {
+    test01_Tokenizer()
+    test02_GitCommitDetection()
+    test03_MessageExtraction()
+    test04_TypeGate()
+    test04b_StripJsonc()
+    test05_StateParsing()
+    await test06_SystemHook()
+    await test07_ToolGuard()
+    await test08_ConfigHook()
+  } finally {
+    if (cfgPreexisting && origCfg !== null) writeFileSync(cfgFile, origCfg, "utf-8")
+    else if (existsSync(cfgFile)) rmSync(cfgFile)
+    setProjectDir(origDir)
+  }
+
+  console.log(`\n${"═".repeat(60)}`)
+  console.log(`  Result: ${passed} passed / ${failed} failed`)
+  console.log(`${"═".repeat(60)}`)
+  if (failed > 0) process.exit(1)
+}
+
+main()

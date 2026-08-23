@@ -1,7 +1,8 @@
 /**
  * Hook: event — announce the active auto-advisor mode to the user.
  *
- * The mode is persisted in ~/.config/opencode/.auto-advisor-mode and silently
+ * The mode is persisted as `autoAdvisorMode` in the project's opencode.jsonc
+ * and silently
  * survives across sessions; without a visible signal the user can forget
  * full mode is on — and full mode auto-answers on their behalf.
  *
@@ -12,8 +13,12 @@
  *   - /auto-advisor <mode> → the command hook reuses announceMessage() for the
  *     switch confirmation.
  *
- * Toast is TUI-only by nature: in headless environments (opencode run) the
- * call throws / no-ops and we degrade to a log line. Never fatal.
+ * Two-layer strategy (same as deepseek-anchor):
+ *   1. session.prompt({ ignored: true, noReply: true }) — injects the message
+ *      into the chat transcript, visible in the main UI, but OpenCode natively
+ *      skips `ignored` parts so the LLM never sees them (no context pollution).
+ *   2. Fallback: tui.showToast — for environments where session.prompt fails
+ *      (headless run, older server). Degrades to a log line. Never fatal.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
@@ -25,7 +30,7 @@ type Client = PluginInput["client"]
 /** Minimal shape we rely on; the SDK's Event union is broader. */
 type SessionCreatedEvent = {
   type: string
-  properties?: { info?: { parentID?: string } }
+  properties?: { info?: { parentID?: string; id?: string } }
 }
 
 /** One user-visible line per mode. Full MUST name the auto-answer risk. */
@@ -53,7 +58,7 @@ function toastVariant(mode: AdvisorMode): "warning" | "info" {
  * /tui/show-toast) degrades to the log line — announcing must never break a
  * session start or a mode switch.
  */
-async function announce(client: Client, mode: AdvisorMode): Promise<void> {
+async function showToast(client: Client, mode: AdvisorMode): Promise<void> {
   const log = makeLogger(client, "auto-advisor-mode")
   try {
     await client.tui.showToast({
@@ -65,35 +70,16 @@ async function announce(client: Client, mode: AdvisorMode): Promise<void> {
   }
 }
 
-export function makeAnnounceHook(client: Client) {
-  const log = makeLogger(client, "auto-advisor-mode")
-
-  return safeHook(
-    async ({ event }: { event: SessionCreatedEvent }) => {
-      if (event.type !== "session.created") return
-      // Subagent sessions (task-dispatched) carry parentID — only announce on
-      // the top-level session the user actually opened.
-      if (event.properties?.info?.parentID) return
-      const mode = getMode()
-      if (mode === "off") return
-      await announce(client, mode)
-    },
-    log,
-  )
-}
-
-/** Immediate user-visible confirmation for `/auto-advisor <mode>` switches. */
-export async function announceSwitch(
-  client: Client,
-  mode: AdvisorMode,
-  sessionID?: string,
-): Promise<void> {
+/**
+ * Inject the message into the chat transcript via session.prompt with
+ * ignored: true + noReply: true — visible in the main UI, no LLM call,
+ * no context pollution (OpenCode natively skips ignored parts).
+ *
+ * Falls back to toast if session.prompt is unavailable or fails.
+ */
+async function announce(client: Client, mode: AdvisorMode, sessionID?: string): Promise<void> {
   const log = makeLogger(client, "auto-advisor-mode")
   const message = announceMessage(mode)
-  // If we have a sessionID, inject the confirmation into the chat transcript
-  // via session.prompt({ noReply: true, ignored: true }) — visible in the
-  // main UI, no LLM call, no context pollution (OpenCode natively skips
-  // ignored parts in message-v2.ts:206).
   if (sessionID) {
     try {
       await client.session.prompt({
@@ -107,9 +93,35 @@ export async function announceSwitch(
       await log("info", `announce: mode=${mode} (chat reply)`)
       return
     } catch (err) {
-      // session.prompt failed — fall through to toast
-      await log("warn", `announceSwitch: session.prompt failed (${String(err)}) — falling back to toast`)
+      await log("warn", `announce: session.prompt failed (${String(err)}) — falling back to toast`)
     }
   }
-  await announce(client, mode)
+  await showToast(client, mode)
+}
+
+export function makeAnnounceHook(client: Client) {
+  const log = makeLogger(client, "auto-advisor-mode")
+
+  return safeHook(
+    async ({ event }: { event: SessionCreatedEvent }) => {
+      if (event.type !== "session.created") return
+      // Subagent sessions (task-dispatched) carry parentID — only announce on
+      // the top-level session the user actually opened.
+      if (event.properties?.info?.parentID) return
+      const mode = getMode()
+      if (mode === "off") return
+      const sessionID = event.properties?.info?.id
+      await announce(client, mode, sessionID)
+    },
+    log,
+  )
+}
+
+/** Immediate user-visible confirmation for `/auto-advisor <mode>` switches. */
+export async function announceSwitch(
+  client: Client,
+  mode: AdvisorMode,
+  sessionID?: string,
+): Promise<void> {
+  await announce(client, mode, sessionID)
 }

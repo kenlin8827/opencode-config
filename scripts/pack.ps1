@@ -10,10 +10,9 @@
 
     Each archive contains:
       install/VERSION
+      install/options.jsonc
       install/install.sh
       install/install.ps1
-      install/config.sh
-      install/config.ps1
       install/versions/<ver>.manifest.txt   (auto-generated if missing)
       bin/opencode-config                   (bash dispatcher)
       bin/opencode-config.ps1               (PowerShell dispatcher)
@@ -72,7 +71,7 @@ function Read-Manifest([string]$path) {
 
 # --- generate manifest if missing ----------------------------------------
 
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'profiles/')
+$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'tui.json', 'profiles/', 'providers/')
 
 function Generate-Manifest([string]$ver) {
     $out = Join-Path $InstDir "$ver.manifest.txt"
@@ -115,9 +114,9 @@ $versionsDest = Join-Path $installDest 'versions'
 New-Item -ItemType Directory -Path $versionsDest -Force | Out-Null
 Copy-Item (Join-Path $RepoRoot 'install/install.sh') $installDest -Force
 Copy-Item (Join-Path $RepoRoot 'install/install.ps1') $installDest -Force
-Copy-Item (Join-Path $RepoRoot 'install/config.sh') $installDest -Force
-Copy-Item (Join-Path $RepoRoot 'install/config.ps1') $installDest -Force
 Copy-Item $VersionFile $installDest -Force
+$compSrc = Join-Path $RepoRoot 'install/options.jsonc'
+if (Test-Path $compSrc) { Copy-Item $compSrc $installDest -Force }
 Copy-Item $manifestPath $versionsDest -Force
 
 # 2. Copy bin dispatchers
