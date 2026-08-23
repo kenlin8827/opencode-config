@@ -1,0 +1,10 @@
+{
+  "description": "antigravity-router (self-hosted Antigravity gateway, all-Gemini) — Gemini 3.7 Flash (Medium) carries the high-traffic default tier, Gemini 3.7 Flash (High) codes, judges (advisor) and handles vision, Gemini 3.7 Flash (Low) explores cheaply. Requires ANTIGRAVITY_ROUTER_BASE_URL + ANTIGRAVITY_ROUTER_API_KEY environment variables.",
+  "tiers": {
+    "default": "antigravity-router/gemini-3.7-flash-medium",
+    "code": "antigravity-router/gemini-3.7-flash-high",
+    "advisor": "antigravity-router/gemini-3.7-flash-high",
+    "explorer": "antigravity-router/gemini-3.7-flash-low",
+    "vision": "antigravity-router/gemini-3.7-flash-high"
+  }
+}
