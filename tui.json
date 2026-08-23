@@ -1,5 +1,5 @@
 {
   "$schema": "https://opencode.ai/tui.json",
   "display_thinking": true,
-  "plugin": ["./plugins/provider-wizard.ts", "./plugins/profile-wizard.ts"]
+  "plugin": ["./plugins/provider-wizard.ts", "./plugins/profile-wizard.ts", "./plugins/queue-manager.ts"]
 }

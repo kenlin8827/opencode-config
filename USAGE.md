@@ -404,7 +404,7 @@ Shall I proceed?
 | `/project index` | Manually refresh EXISTING indexes: `codegraph sync` (incremental catch-up for changes made while the watcher wasn't running), `gitnexus analyze` rebuild when stale. Refresh only — a first index is `/project init`'s job; a missing CLI is reported as skipped, never invoked |
 | `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
-| `/queue ...` | Queue the next prompt/command/shell while an agent runs — provided by the `opencode-queue` npm plugin (see [Queueing the next prompt](#queueing-the-next-prompt-while-an-agent-runs)) |
+| `/queued` | Manage queued prompts — interactive TUI dialogs to list / edit / cancel messages submitted while the session is busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
 
 ### Example: review-fix-loop
 
@@ -480,7 +480,7 @@ Plugins provide runtime hooks that prompts alone cannot achieve:
 | `adr-guard.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/adr-guard` slash command (on \| off \| status) — project-level switch (default off). When on: every `feat`/`refactor` commit must include a new/updated ADR — the protocol is injected into the system prompt and `git commit` is hard-blocked when no file under `docs/adr/` is part of the change set. ADRs follow the industry-standard MADR template (frontmatter `status`/`date` + Context/Decision Outcome, sequential `NNNN-slug.md` numbering) |
 | `env-guard.ts` (+ helpers) | `tool.execute.before` | Secret-file gate — project-level switch (default off). When on: blocks agent reads/copies of secret-bearing `.env*` files (file tools, grep, bash read verbs, stdin redirection, copy-out) before execution; `.env.example` always allowed |
 | `project-manager.ts` (+ helpers) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | Registers `/project` slash command (`init` scaffolds baseline files, never overwriting, and runs first-time backend init; `index` manually refreshes existing indexes). On a new top-level session in an uninitialized project, suggests `/project init` once (user-visible only, no LLM context). File-as-switch: while `docs/git-commits.md` exists, a progressive-disclosure pointer (~50 tokens) is injected into the system prompt (agents read the file before committing) and `git commit` messages violating the structural rules (`type(scope): summary`, known type, ≤72-char first line) are hard-blocked; delete the file and both deactivate |
-| [`opencode-queue`](https://github.com/mirsella/opencode-queue) (npm) | `chat.message` + `session.idle` | Queue next prompt/command/shell while the agent is busy; replay one per idle transition; persists across abort/crash/restart |
+| `queue-manager.ts` | TUI plugin (`tui.json`) | Registers `/queued` slash command + "Manage queued messages" palette entry — interactive dialogs to list / edit / cancel user messages queued while the session is busy; clean delete when idle, tombstone-strip fallback when busy |
 
 Metrics are stored in `~/.config/opencode/.metrics/` as JSONL files.
 
@@ -550,41 +550,18 @@ While `docs/git-commits.md` exists:
 
 Note: the gate enforces the mechanically checkable structure only; the rest of `docs/git-commits.md` is guidance carried by the soft layer.
 
-### Queueing the next prompt while an agent runs (`opencode-queue`)
+### Managing queued prompts (`/queued`)
 
-Long-running agents (multi-step `@build` chains, full `/review-fix-loop` rounds) get interrupted the moment you type the next instruction in the prompt bar. The optional [`opencode-queue`](https://github.com/mirsella/opencode-queue) npm plugin registers a real `/queue` slash command so the next prompt, slash command, or shell block waits in line instead of cutting the running agent off.
+When you submit prompts while the session is busy, OpenCode persists them immediately as user messages (the TUI shows a QUEUED badge on them) and works through them after the current run finishes. The bundled `queue-manager.ts` TUI plugin gives that queue an interactive management UI — it ships enabled via `tui.json`, nothing to install.
 
-**Install** (npm plugin — OpenCode installs it on startup):
+**Usage**: `/queued` (or command palette → "Manage queued messages") opens a select dialog listing every queued message (preview + age). Picking one opens a per-message menu — **Edit text**, **Cancel message**, **View full text** — and the list also offers a **Cancel ALL** bulk action.
 
-```jsonc
-// opencode.jsonc
-{ "plugin": ["opencode-queue"] }
-```
+**Key behavior**:
 
-Restart OpenCode once after adding the entry. This repo does NOT bundle `opencode-queue` — it's opt-in.
-
-**Common usage** (works as either leading or trailing token):
-
-```
-/queue continue with the migration after this
-continue with the migration after this /queue
-
-/queue front /review
-/review /queue front
-
-/queue !ls           # !cmd = OpenCode shell block
-/queue flush         # send everything waiting, even before idle
-/queue list          # show current queue
-/queue clear 1       # drop item 1
-```
-
-**Key behavior** (full semantics in the [upstream README](https://github.com/mirsella/opencode-queue#readme)):
-
-- Queued entries are hidden from the running agent and from the transcript; the current run keeps its agent / model / variant unchanged.
-- Replays fire one per idle transition, in queue order, using each entry's own agent / model / variant at the time it was queued.
-- Queue state is persisted to OpenCode's user data directory, so entries survive abort / crash / restart; a running queue resumes after the next successful completion.
-- `/queue stop` pauses automatic replay (entries are kept); `/queue start` resumes it.
-- If plan mode asks to switch to the build agent while more queued work is waiting, the plugin answers `No` so the queue can continue.
+- The "queue" is computed from the session history: every user message that has no assistant reply yet, minus internal messages (compaction, subtask) and plugin feedback.
+- Edits are written back to storage immediately; the processing loop re-reads messages every step, so the edited text is what gets used when the message's turn arrives.
+- Cancel deletes the message outright when the session is idle. While busy, OpenCode refuses message deletion (409), so the plugin strips the message instead — its text becomes a tombstone note and attachments are removed — the model never receives the original instruction.
+- TUI-only plugin; headless sessions have no equivalent.
 
 ### Compile plugins (one-time, after toolchain setup)
 

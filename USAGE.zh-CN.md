@@ -379,7 +379,7 @@ bridge 附带的额外能力：
 | `/project index` | 手动刷新已有索引：`codegraph sync`（增量追平 watcher 未运行期间的变更）、索引过期时的 `gitnexus analyze` 重建。只刷新、不首次建库（首次归 `/project init`）；CLI 未安装则跳过报告、绝不调用 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
-| `/queue ...` | 在智能体运行时排队下一条提示/命令/Shell —— 由 `opencode-queue` 这个 npm 插件提供（详见 [排队下一条提示](#排队下一条提示（opencode-queue）)） |
+| `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
 
 ### 示例：review-fix-loop
 
@@ -455,7 +455,7 @@ bridge 附带的额外能力：
 | `adr-guard.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/adr-guard` 斜杠命令（on \| off \| status）——项目级开关（默认关闭）。开启后：每次 `feat`/`refactor` 提交必须新增或变更 ADR——协议注入 system prompt，且当变更集中没有 `docs/adr/` 下的文件时硬阻断 `git commit`。ADR 严格采用行业标准 MADR 模板（frontmatter `status`/`date` + Context/Decision Outcome，顺序编号 `NNNN-slug.md`） |
 | `env-guard.ts`（+ 辅助模块） | `tool.execute.before` | 密钥文件门控——项目级开关（默认关闭）。开启后：在执行前阻断智能体对含密钥 `.env*` 文件的读取/拷贝（文件工具、grep、bash 读类动词、stdin 重定向、拷贝外带）；`.env.example` 始终放行 |
 | `project-manager.ts`（+ 辅助模块） | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | 注册 `/project` 斜杠命令（`init` 脚手架生成基线文件并做后端首次初始化，绝不覆盖；`index` 手动刷新已有索引）。未初始化的项目新建顶层会话时提示一次 `/project init`（仅用户可见，不进 LLM 上下文）。文件即开关：`docs/git-commits.md` 存在期间，向 system prompt 注入渐进式披露指针（约 50 token，智能体提交前自行读取该文件），并硬阻断违反结构规则的 `git commit` 消息（`type(scope): summary` 格式、已知 type、首行 ≤72 字符）；删除文件即双层失效 |
-| [`opencode-queue`](https://github.com/mirsella/opencode-queue)（npm） | `chat.message` + `session.idle` | 在智能体忙时排队下一条提示/命令/Shell；每次 idle 触发一个条目；状态在 abort/崩溃/重启后保留 |
+| `queue-manager.ts` | TUI 插件（`tui.json`） | 注册 `/queued` 斜杠命令 + "Manage queued messages" 命令面板入口 —— 交互式对话框查看 / 编辑 / 取消会话忙碌时排队的用户消息；空闲时干净删除，忙碌时降级为墓碑清空 |
 
 指标存储在 `~/.config/opencode/.metrics/` 中，格式为 JSONL。
 
@@ -524,41 +524,18 @@ echo on > <project>/.opencode/.env-guard
 
 注意：门控只强制机械可校验的结构；`docs/git-commits.md` 的其余内容由软层引导。
 
-### 排队下一条提示（`opencode-queue`）
+### 管理排队提示（`/queued`）
 
-长时间运行的智能体（多步 `@build` 链路、完整的 `/review-fix-loop` 轮次）往往会在你在提示栏敲下下一条指令时被截断。可选的 [`opencode-queue`](https://github.com/mirsella/opencode-queue) 这个 npm 插件注册了一个真正的 `/queue` 斜杠命令，让下一条提示、斜杠命令或 Shell 块排队等待，而不是打断当前运行的智能体。
+会话忙碌时提交的提示，OpenCode 会立即持久化为用户消息（TUI 显示 QUEUED 徽章），并在当前运行结束后逐条处理。内置的 `queue-manager.ts` TUI 插件为这个队列提供交互式管理界面 —— 已通过 `tui.json` 默认启用，无需安装。
 
-**安装**（npm 插件，OpenCode 启动时自动安装）：
+**用法**：`/queued`（或命令面板 → "Manage queued messages"）打开选择对话框，列出全部排队消息（预览 + 排队时长）。选中某条后进入单条菜单 —— **编辑文本**、**取消消息**、**查看全文** —— 列表还提供 **Cancel ALL** 批量取消。
 
-```jsonc
-// opencode.jsonc
-{ "plugin": ["opencode-queue"] }
-```
+**关键行为**：
 
-添加后重启一次 OpenCode。本仓库**不**捆绑 `opencode-queue`，需自行启用。
-
-**常用用法**（前置或后置标记均可）：
-
-```
-/queue 任务完成后继续做迁移
-任务完成后继续做迁移 /queue
-
-/queue front /review
-/review /queue front
-
-/queue !ls           # !cmd = OpenCode Shell 块
-/queue flush         # 立即把排队里的全部发出，即使还没 idle
-/queue list          # 查看当前队列
-/queue clear 1       # 移除第 1 条
-```
-
-**关键行为**（完整语义见 [上游 README](https://github.com/mirsella/opencode-queue#readme)）：
-
-- 排队条目对当前智能体和对话记录都不可见；当前运行保持其原来的智能体 / 模型 / variant 不变。
-- 每次进入 idle 触发一条，按队列顺序回放，每条用其入队时选择的智能体 / 模型 / variant。
-- 队列状态持久化到 OpenCode 用户数据目录，abort / 崩溃 / 重启后条目仍在；处于 running 状态的队列在下一次正常完成后继续回放。
-- `/queue stop` 暂停自动回放（条目保留），`/queue start` 恢复。
-- 当 plan 模式询问是否切换到 build 智能体且队列中仍有条目时，插件会回答 `No`，让队列先跑完。
+- "队列"从会话历史计算得出：所有尚无助手回复的用户消息，排除内部消息（compaction、subtask）和插件反馈。
+- 编辑立即写回存储；处理循环每一步都重读消息，所以轮到该消息时用的就是编辑后的文本。
+- 取消在会话空闲时直接删除消息。忙碌时 OpenCode 拒绝删除消息（409），插件改为清空该消息 —— 文本替换为墓碑说明、附件删除 —— 模型永远收不到原指令。
+- 仅 TUI 插件；headless 会话没有等价入口。
 
 ### 编译插件（一次性，工具链安装后）
 

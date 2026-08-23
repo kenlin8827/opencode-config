@@ -178,6 +178,7 @@ $allFiles = @(
     "plugins/project-manager/templates/dbhub.toml",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
+    "plugins/queue-manager.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -338,6 +339,18 @@ Check "project-manager-tool-guard.ts: merge/revert/fixup/squash exempt" ($pmGuar
 
 $pmBarrel = Get-Content "$PSScriptRoot\..\plugins\project-manager.ts" -Raw
 Check "project-manager.ts: barrel re-exports ProjectManagerPlugin" ($pmBarrel -match "export.*ProjectManagerPlugin")
+
+# Queue manager plugin checks (plugins/queue-manager.ts — TUI-only, registered via tui.json)
+$qmPlugin = Get-Content "$PSScriptRoot\..\plugins\queue-manager.ts" -Raw
+Check "queue-manager.ts: imports TuiPlugin from plugin/tui" ($qmPlugin -match "@opencode-ai/plugin/tui")
+Check "queue-manager.ts: slash command name is queued" ($qmPlugin -match 'SLASH_NAME = "queued"')
+Check "queue-manager.ts: registers palette command with slashName" ($qmPlugin -match "slashName: SLASH_NAME" -and $qmPlugin -match 'namespace: "palette"')
+Check "queue-manager.ts: cancel uses session.deleteMessage" ($qmPlugin -match "session\.deleteMessage")
+Check "queue-manager.ts: busy fallback strips via part.update" ($qmPlugin -match "part\.update")
+Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -match "TOMBSTONE")
+Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
+$tuiConfig = Get-Content "$PSScriptRoot\..\tui.json" -Raw | ConvertFrom-Json
+Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/queue-manager.ts")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw

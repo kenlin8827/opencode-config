@@ -24,6 +24,7 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 | `test-default.ps1` | Default build agent (no custom prompt) — baseline |
 | `test-anchor-unit.ts` | DeepSeek Anchor plugin unit tests (no API, 46 assertions) — verifies anchor injection, idempotency, model detection (DeepSeek V4 Pro only), tool block/restore, config/event hooks |
 | `test-anchor-benchmark.ps1` | DeepSeek Anchor benchmark: on vs off comparison (requires API) — measures reasoning depth, trajectory style ("We" vs "Let me"), tool suppression across 4 test prompts |
+| `test-queue-manager-unit.ts` | Queue Manager TUI plugin unit tests (no API, 23 assertions) — verifies queue computation (unanswered user messages), compaction/subtask/ignored/tombstone exclusions, ordering, preview/age formatting |
 
 ## Run
 
@@ -39,6 +40,9 @@ powershell -ExecutionPolicy Bypass -File tests/test-build.ps1
 
 # DeepSeek Anchor unit tests (no API, fast)
 npx tsx tests/test-anchor-unit.ts
+
+# Queue Manager unit tests (no API, fast)
+npx tsx tests/test-queue-manager-unit.ts
 
 # DeepSeek Anchor benchmark (requires API, ~2 min per prompt × 2 states)
 pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1
