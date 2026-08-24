@@ -1,0 +1,34 @@
+/* Custom Hero & Typography styles */
+.VPHero .name {
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.VPHero .text {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  max-width: 600px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .name {
+    font-size: 52px;
+    line-height: 1.15;
+  }
+  .VPHero .text {
+    font-size: 44px;
+    line-height: 1.2;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .name {
+    font-size: 56px;
+    line-height: 1.15;
+  }
+  .VPHero .text {
+    font-size: 48px;
+    line-height: 1.2;
+  }
+}

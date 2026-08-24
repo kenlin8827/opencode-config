@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: "OpenCode 多智能体配置"
-  text: "开箱即用的专业 AI 研发团队"
-  tagline: "17 位领域专家、3 种主控模式、分层 MCP 代码智能与数据网关、一键预设与工程级护栏。"
+  name: "OpenCode"
+  text: "多智能体配置"
+  tagline: "开箱即用的专业 AI 研发团队 · 17 位领域专家 · 分层 MCP 代码智能与工程级护栏"
   image:
     src: /logo.svg
     alt: OpenCode 多智能体配置

@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: "OpenCode Multi-Agent"
-  text: "Production-ready AI Specialist Team"
-  tagline: "17 specialist agents, 3 orchestrator modes, tiered MCP code intelligence, one-shot model profiles & guardrails."
+  name: "OpenCode"
+  text: "Multi-Agent Config"
+  tagline: "Production-ready AI specialist team · 17 domain agents · Layered MCP code intelligence & guardrails"
   image:
     src: /logo.svg
     alt: OpenCode Multi-Agent
