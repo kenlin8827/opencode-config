@@ -188,6 +188,7 @@ $allFiles = @(
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     "plugins/queue-manager.ts",
+    "plugins/project-wizard.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -387,6 +388,14 @@ Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -matc
 Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
 $tuiConfig = Get-Content "$PSScriptRoot\..\tui.json" -Raw | ConvertFrom-Json
 Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/queue-manager.ts")
+
+# Project wizard plugin checks (plugins/project-wizard.ts — TUI-only, registered via tui.json)
+$pwPlugin = Get-Content "$PSScriptRoot\..\plugins\project-wizard.ts" -Raw
+Check "project-wizard.ts: imports TuiPlugin from plugin/tui" ($pwPlugin -match "@opencode-ai/plugin/tui")
+Check "project-wizard.ts: slash command name is project" ($pwPlugin -match 'SLASH_NAME = "project"')
+Check "project-wizard.ts: registers palette command with slashName" ($pwPlugin -match "slashName: SLASH_NAME" -and $pwPlugin -match 'namespace: "palette"')
+Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
+Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/project-wizard.ts")
 
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw

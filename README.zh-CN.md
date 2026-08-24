@@ -519,7 +519,7 @@ bridge 附带的额外能力：
 | `e2e-guard.ts` | `/e2e-guard` 命令 + 系统提示词协议注入 —— 按项目开关：引导 LLM 评估 `feat`/`fix` 任务的 E2E 影响、提示补充缺失用例，并通过 `ask` 交互式确认放行（见下文） |
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
-| `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
+| `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project` TUI 弹窗向导（支持可视化配置各开关并在已有工程中回显） |
 
 各插件使用的 OpenCode hook 与注册方式等内部细节，见 [DEVELOPING.md](DEVELOPING.md#plugin-system)。
 

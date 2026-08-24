@@ -30,6 +30,7 @@ import {
   parseSubcommand,
   SUBCOMMAND_INDEX,
   SUBCOMMAND_INIT,
+  SUBCOMMAND_SETUP,
   SUBCOMMAND_SYNC,
 } from "./project-manager-config"
 import {
@@ -41,36 +42,26 @@ import {
 } from "./project-manager-index"
 import { runInit, runSync, type ScaffoldResult, type SyncResult } from "./project-manager-scaffold"
 
-const HELP = `[project-manager] Project scaffolding + code-index bootstrap.
+const HELP = `[project-manager] Project scaffolding & configuration wizard.
 
 Usage:
+- /project        → open interactive switch setup wizard (TUI mode)
+- /project setup  → inspect current project switches & setup options
 - /project init   → create baseline files if missing (never overwrites):
                     .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
                     An EXISTING project config gets an append-only top-up:
                     switch lines the template gained since init are added,
                     existing content is never changed.
                     Then run every first-time backend init step — each only
-                    when its CLI is installed and enabled (missing CLIs are
-                    skipped silently, never invoked):
+                    when its CLI is installed and enabled:
                       codegraph init    one-time; watcher keeps it fresh
                       gitnexus analyze  initial index build (index missing)
                       dbhub.toml        scaffolded when the dbhub MCP is
                                         enabled and its CLI is installed
-                                        (never overwrites; set the DBHUB_DSN
-                                        env var afterwards)
-- /project index  → manual rebuild/refresh for EXISTING indexes (a first
-                    index is init's job):
-                      codegraph sync    incremental catch-up (watcher covers
-                                        live saves; full \`codegraph index\`
-                                        rebuild stays a manual escape hatch)
-                      gitnexus analyze  only when the index is stale
-- /project sync   → top up an EXISTING ${CONFIG_REL} with switch lines the
-                    template gained since init (append-only: existing
-                    content is never changed; no file → /project init)
+- /project index  → manual rebuild/refresh for EXISTING indexes
+- /project sync   → top up an EXISTING ${CONFIG_REL} with template switches
 
-Note: when docs/git-commits.md exists, a pointer to it is injected into
-the system prompt (progressive disclosure — agents read the file before
-committing) and structural rules are enforced at git commit time.`
+Note: in TUI mode, run /project or /project-setup to open the interactive dialog wizard.`
 
 /** One report line per target: ✅ created / ♻️ updated / ⏭️ skipped / ⚠️ invalid. */
 function initReport(results: ScaffoldResult[], backends: BackendResult[]): string {
@@ -84,6 +75,14 @@ function initReport(results: ScaffoldResult[], backends: BackendResult[]): strin
   const updated = results.filter((r) => r.status === "updated").length
   const invalid = results.filter((r) => r.status === "invalid").length
   return `[project-manager] init done in ${getProjectDir()} — ${created} created, ${updated} updated, ${invalid} invalid, ${results.length - created - updated - invalid} skipped\n${lines.join("\n")}\n${backends.map(backendLine).join("\n")}`
+}
+
+/** `/project setup` report (CLI / headless inspection). */
+function setupReport(): string {
+  return `[project-manager] Project setup status in ${getProjectDir()}:
+- Interactive TUI: run /project or /project-setup in OpenCode TUI to open the dialog wizard.
+- Headless / CLI: run /project init to scaffold baseline files and bootstrap indexes.
+- Config sync: run /project sync to append newly added template switches.`
 }
 
 /** ✅ ran / ⏭️ skipped / ❌ failed — one line per backend result. */
@@ -125,13 +124,15 @@ export function makeCommandHook(client: PluginInput["client"], handled: () => ne
     const sub = parseSubcommand(input.arguments)
 
     // No subcommand or unknown subcommand → help.
-    if (sub !== SUBCOMMAND_INIT && sub !== SUBCOMMAND_INDEX && sub !== SUBCOMMAND_SYNC) {
+    if (sub !== SUBCOMMAND_INIT && sub !== SUBCOMMAND_SETUP && sub !== SUBCOMMAND_INDEX && sub !== SUBCOMMAND_SYNC) {
       await reply(client, input.sessionID, sub ? `[project-manager] Unknown subcommand "${sub}".\n\n${HELP}` : HELP)
       return handled()
     }
 
     try {
-      if (sub === SUBCOMMAND_INIT) {
+      if (sub === SUBCOMMAND_SETUP) {
+        await reply(client, input.sessionID, setupReport())
+      } else if (sub === SUBCOMMAND_INIT) {
         // Scaffold first, then every first-time backend init step — each
         // runs only when its CLI is installed + enabled, and a failed or
         // absent CLI never blocks the file scaffolding.
