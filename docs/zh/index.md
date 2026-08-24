@@ -2,34 +2,34 @@
 layout: home
 
 hero:
-  name: "OpenCode 多智能体配置"
-  text: "开箱即用的专业 AI 研发团队"
-  tagline: "17 位领域专家 · 3 种主控模式 · 分层 MCP 代码智能与工程级护栏"
+  name: "OpenCode"
+  text: "生产级工程化配置"
+  tagline: "为真实软件研发而生 · 分层 MCP 代码智能 · 全链路工程护栏 · 17 位专家协同"
   image:
     src: /logo.svg
-    alt: OpenCode 多智能体配置
+    alt: OpenCode 生产级工程化配置
   actions:
     - theme: brand
       text: ⚡ 10 秒极速安装
       link: /zh/getting-started/
     - theme: alt
-      text: 核心能力与日常使用
+      text: 核心能力与工程实践
       link: /zh/core/daily-use
     - theme: alt
       text: GitHub 仓库
       link: https://github.com/kenlin8827/opencode-config
 
 features:
-  - title: 🤖 专家智能体团队
-    details: 17 位领域专家（@java-dev、@security、@dba、@frontend-dev 等），按领域深度调优提示词，智能自动路由。
-  - title: 🧠 分层 MCP 代码智能与数据库
-    details: Serena 实时 LSP 精准定位符号、CodeGraph 图谱秒查调用链与改动影响面、DBHub 通用数据库网关。
-  - title: 🎯 一键模型预设 (Profiles)
-    details: /profile 一键将 5 个模型层级映射到指定服务商，告别逐个智能体繁琐配置。
-  - title: 🛡️ 项目级工程护栏
-    details: ADR 架构决策铁律、敏感 .env 密钥防护门控、E2E 测试确认门控与提交规范约束。
-  - title: 🔄 生产级工作流命令
-    details: /review-fix-loop 自动化审查修复闭环、/goal 结构化目标执行协议、/handoff 会话交接。
-  - title: ⚡ 单行命令平滑安装升级
-    details: PowerShell + Bash 双平台安装器，基于版本清单管理，重装升级完好保留您的 API Key 与模型偏好。
+  - title: 🛡️ 生产级工程护栏
+    details: ADR 架构铁律、密钥防泄漏、E2E 测试门控与 Conventional Commits 提交纪律，让 AI 严格恪守研发规范。
+  - title: 🧠 分层 MCP 代码智能
+    details: Serena LSP 符号精准定位 + CodeGraph 架构调用链与改动影响面分析，杜绝盲目翻文件与 Token 浪费。
+  - title: 🤖 专家分工与自适应编排
+    details: 17 位垂直领域专家（Java、Go、前端、DBA、安全等）随调随用，@code / @build / @plan 模式自适应切换。
+  - title: 🔄 质量与自动化闭环
+    details: /review-fix-loop 审查修复闭环、Red-team 对抗式架构评估、rtk 60-90% Token 压缩代理。
+  - title: 🎯 一键分层模型治理
+    details: /profile 一键统一调配 5 大模型层级，支持 DeepSeek、Kimi、Claude、Gemini 及自建网关，告别逐个繁琐配置。
+  - title: ⚡ 10 秒开箱即用
+    details: 单行命令直接安装升级，基于版本清单精确管理，API Key 与模型偏好跨版本无损保留。
 ---
