@@ -50,7 +50,8 @@ read_manifest() {
 
 # --- generate manifest if missing (inline, no dependency on install.sh) --
 
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/" "scripts/")
+EXCLUDE_PATTERNS=('^scripts/pack\.' '^scripts/verify\.')
 
 generate_manifest() {
     local out="$1"
@@ -62,6 +63,11 @@ generate_manifest() {
         for p in "${INCLUDE_PREFIXES[@]}"; do
             [[ "$rel" == "${p%/}" || "$rel" == "$p"* ]] && include=1 && break
         done
+        if [[ $include -eq 1 ]]; then
+            for ex in "${EXCLUDE_PATTERNS[@]}"; do
+                [[ "$rel" =~ $ex ]] && include=0 && break
+            done
+        fi
         [[ $include -eq 1 ]] && printf '%s\n' "$rel" >> "$out"
     done < <(find "$REPO_ROOT" -type f -print0 | sort -z)
 }

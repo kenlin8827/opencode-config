@@ -34,7 +34,11 @@
   "mcp": {
     "serena": {
       "type": "local",
-      "command": ["serena", "start-mcp-server", "--context", "ide", "--project-from-cwd", "--open-web-dashboard", "False"],
+      "command": [
+        "node",
+        "-e",
+        "import(require('url').pathToFileURL(require('path').join(require('os').homedir(), '.config/opencode/scripts/serena-workspace-daemon.mjs')).href)"
+      ],
       "install": "uv tool install -p 3.13 serena-agent@latest --prerelease=allow",
       "enabled": true
     },

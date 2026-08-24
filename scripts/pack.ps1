@@ -71,7 +71,8 @@ function Read-Manifest([string]$path) {
 
 # --- generate manifest if missing ----------------------------------------
 
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'tui.json', 'tiers.json', 'profiles/', 'providers/')
+$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.jsonc', 'tui.json', 'tiers.json', 'profiles/', 'providers/', 'scripts/')
+$excludePatterns = @('^scripts/pack\.', '^scripts/verify\.')
 
 function Generate-Manifest([string]$ver) {
     $out = Join-Path $InstDir "$ver.manifest.txt"
@@ -81,6 +82,11 @@ function Generate-Manifest([string]$ver) {
         $include = $false
         foreach ($p in $includePrefixes) {
             if ($rel -eq $p.TrimEnd('/') -or $rel.StartsWith($p)) { $include = $true; break }
+        }
+        if ($include) {
+            foreach ($ex in $excludePatterns) {
+                if ($rel -match $ex) { $include = $false; break }
+            }
         }
         if ($include) { $lines += $rel }
     }

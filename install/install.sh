@@ -42,7 +42,8 @@ BIN_DIR="${OPENCODE_BIN_DIR:-$HOME/.local/bin}"
 # opencode.jsonc's `provider` node (see merge_providers). options.jsonc
 # stays in install/ and NEVER ships to the target — apply_options reads it
 # in place and applies its switches to opencode.jsonc.
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/" "scripts/")
+EXCLUDE_PATTERNS=('^scripts/pack\.' '^scripts/verify\.')
 PRESERVE_KEYS=("baseURL" "apiKey")
 
 # rtk (https://github.com/rtk-ai/rtk) — CLI proxy that compresses command
@@ -111,6 +112,11 @@ generate_manifest() {
         for p in "${INCLUDE_PREFIXES[@]}"; do
             [[ "$gen_rel" == "${p%/}" || "$gen_rel" == "$p"* ]] && gen_include=1 && break
         done
+        if [[ $gen_include -eq 1 ]]; then
+            for ex in "${EXCLUDE_PATTERNS[@]}"; do
+                [[ "$gen_rel" =~ $ex ]] && gen_include=0 && break
+            done
+        fi
         [[ $gen_include -eq 1 ]] && printf '%s\n' "$gen_rel" >> "$gen_out"
     done < <(find "$REPO_ROOT" -type f -print0 | sort -z)
     gen_n=$(wc -l < "$gen_out" | tr -d ' ')
