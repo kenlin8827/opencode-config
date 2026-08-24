@@ -519,7 +519,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `e2e-guard.ts` | `/e2e-guard` command + system prompt protocol injection — per-project switch: guides LLM to assess E2E impact on `feat`/`fix` tasks, suggest missing E2E specs, and interactively confirm with the user via `ask` before running (see below) |
 | `project-manager.ts` | `/project` command + commit discipline (see below) |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy (see below) |
-| `profile-wizard.ts`, `provider-wizard.ts` | `/profile` and `/provider` TUI dialog wizards |
+| `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project` TUI dialog wizards (interactive switch configuration & re-entrant echo) |
 
 For hook-level internals (which OpenCode hooks each plugin uses, registration patterns), see [DEVELOPING.md](DEVELOPING.md#plugin-system).
 

@@ -28,6 +28,7 @@ export const COMMAND_NAME = "project"
 
 /** Subcommands accepted by `/project <subcommand>`. */
 export const SUBCOMMAND_INIT = "init"
+export const SUBCOMMAND_SETUP = "setup"
 export const SUBCOMMAND_INDEX = "index"
 export const SUBCOMMAND_SYNC = "sync"
 

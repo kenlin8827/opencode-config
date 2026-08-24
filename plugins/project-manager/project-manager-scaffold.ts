@@ -114,6 +114,14 @@ export interface SwitchLine {
   line: string
 }
 
+export interface ProjectSwitches {
+  autoAdvisorMode?: "off" | "lite" | "full" | "commented"
+  adrGuard?: "on" | "off" | "commented"
+  adrGuardDir?: string
+  envGuard?: "on" | "off" | "commented"
+  e2eGuard?: "on" | "off" | "commented"
+}
+
 /** Commented switch lines (`// "key": ...`) offered by the config template. */
 export function extractSwitchLines(templateContent: string): SwitchLine[] {
   const out: SwitchLine[] = []
@@ -128,6 +136,149 @@ export function extractSwitchLines(templateContent: string): SwitchLine[] {
 export function contentHasKey(content: string, key: string): boolean {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   return new RegExp(`"${escaped}"\\s*:`).test(content)
+}
+
+/**
+ * Apply project switch settings to a JSONC config string (template or existing).
+ * - active value ("lite", "on", etc.) → active line `"key": "value",`
+ * - "commented" → commented line `// "key": "...",`
+ * - preserves indentation, comments, and remaining lines.
+ */
+export function applySwitchesToConfigContent(
+  content: string,
+  switches: ProjectSwitches,
+): string {
+  let result = content
+  const eol = content.includes("\r\n") ? "\r\n" : "\n"
+
+  const switchEntries: Array<{
+    key: string
+    value?: string
+    defaultLine: string
+  }> = [
+    {
+      key: "autoAdvisorMode",
+      value: switches.autoAdvisorMode,
+      defaultLine: '  // "autoAdvisorMode": "lite",  // off | lite | full — /auto-advisor <mode>',
+    },
+    {
+      key: "adrGuard",
+      value: switches.adrGuard,
+      defaultLine: '  // "adrGuard": "on",           // on | off          — /adr-guard <state>',
+    },
+    {
+      key: "adrGuardDir",
+      value: switches.adrGuardDir,
+      defaultLine: `  // "adrGuardDir": "${switches.adrGuardDir ?? "docs/adr"}",  // ADR directory`,
+    },
+    {
+      key: "envGuard",
+      value: switches.envGuard,
+      defaultLine: '  // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)',
+    },
+    {
+      key: "e2eGuard",
+      value: switches.e2eGuard,
+      defaultLine: '  // "e2eGuard": "on",           // on | off — E2E quality red line: prompts LLM to assess diff impact on feat/fix tasks and interactively confirm with user via ask',
+    },
+  ]
+
+  for (const entry of switchEntries) {
+    if (entry.value === undefined) continue
+    const escaped = entry.key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    // Match active or commented switch line: e.g. `  // "key": "val", ...` or `  "key": "val", ...`
+    const lineRegex = new RegExp(`^(\\s*)(//\\s*)?("${escaped}"\\s*:\\s*)"([^"]*)"(.*)$`, "m")
+    const match = lineRegex.exec(result)
+
+    if (match) {
+      const indent = match[1] || "  "
+      const prefix = match[3]
+      const suffix = match[5]
+      const isCommented = entry.value === "commented"
+      const val = entry.value === "commented"
+        ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
+        : entry.value
+
+      const newLine = isCommented
+        ? `${indent}// ${prefix}"${val}"${suffix}`
+        : `${indent}${prefix}"${val}"${suffix}`
+      result = result.replace(match[0], newLine)
+    } else {
+      // Key absent in existing content: append before closing brace
+      const close = result.lastIndexOf("}")
+      if (close >= 0) {
+        const isCommented = entry.value === "commented"
+        const val = isCommented
+          ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
+          : entry.value
+        const line = isCommented
+          ? `  // "${entry.key}": "${val}",`
+          : `  "${entry.key}": "${val}",`
+        result = result.slice(0, close) + line + eol + result.slice(close)
+      }
+    }
+  }
+
+  return result
+}
+
+/** Read base template and apply the given switches. */
+export function generateConfigContent(switches: ProjectSwitches): string {
+  const base = readTemplate(TEMPLATE_FILES[CONFIG_REL])
+  return applySwitchesToConfigContent(base, switches)
+}
+
+/**
+ * Run `/project init` with explicit switches configured.
+ * When config already exists, it updates the switches in-place.
+ * When missing, creates .opencode/opencode.jsonc with the configured switches.
+ * Also scaffolds docs/git-commits.md and AGENTS.md.
+ */
+export function runInitWithSwitches(switches: ProjectSwitches): ScaffoldResult[] {
+  const results: ScaffoldResult[] = []
+  for (const relPath of Object.keys(TEMPLATE_FILES) as ScaffoldTarget[]) {
+    const absPath = resolveTarget(relPath)
+    if (existsSync(absPath)) {
+      if (relPath === CONFIG_REL) {
+        const existing = readFileSync(absPath, "utf-8")
+        const updated = applySwitchesToConfigContent(existing, switches)
+        if (updated !== existing) {
+          writeFileSync(absPath, updated, "utf-8")
+          results.push({ relPath, status: "updated" })
+        } else {
+          results.push({ relPath, status: "skipped" })
+        }
+        continue
+      }
+      results.push({ relPath, status: "skipped" })
+      continue
+    }
+
+    // Fallback check for root opencode.jsonc if .opencode/opencode.jsonc is absent
+    if (relPath === CONFIG_REL) {
+      const rootConfigPath = resolveTarget("opencode.jsonc" as ScaffoldTarget)
+      if (existsSync(rootConfigPath)) {
+        const existing = readFileSync(rootConfigPath, "utf-8")
+        const updated = applySwitchesToConfigContent(existing, switches)
+        if (updated !== existing) {
+          writeFileSync(rootConfigPath, updated, "utf-8")
+          results.push({ relPath: "opencode.jsonc" as ScaffoldTarget, status: "updated" })
+        } else {
+          results.push({ relPath: "opencode.jsonc" as ScaffoldTarget, status: "skipped" })
+        }
+        continue
+      }
+    }
+
+    mkdirSync(dirname(absPath), { recursive: true })
+    if (relPath === CONFIG_REL) {
+      writeFileSync(absPath, generateConfigContent(switches), "utf-8")
+    } else {
+      writeFileSync(absPath, readTemplate(TEMPLATE_FILES[relPath]), "utf-8")
+    }
+    results.push({ relPath, status: "created" })
+  }
+  return results
 }
 
 /**
@@ -176,3 +327,4 @@ export function runSync(): SyncResult {
   writeFileSync(absPath, merged.content, "utf-8")
   return { status: "added", added: merged.added }
 }
+
