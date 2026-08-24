@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: "OpenCode Multi-Agent",
-  description: "Production-ready Multi-Agent configuration for OpenCode",
+  title: "OpenCode Engineering",
+  description: "Production Software Engineering Configuration for OpenCode",
   base: "/opencode-config/",
   cleanUrls: true,
   lastUpdated: true,
@@ -12,7 +12,10 @@ export default defineConfig({
     root: {
       label: 'English',
       lang: 'en',
+      title: "OpenCode Engineering",
+      description: "Production Software Engineering & Multi-Agent Configuration for OpenCode",
       themeConfig: {
+        siteTitle: 'OpenCode Engineering',
         nav: [
           { text: 'Getting Started', link: '/getting-started/' },
           { text: 'Core Capabilities', link: '/core/daily-use' },
@@ -61,7 +64,10 @@ export default defineConfig({
       label: '简体中文',
       lang: 'zh-CN',
       link: '/zh/',
+      title: "OpenCode 生产级工程化配置",
+      description: "为真实软件研发而生的 OpenCode 生产级工程化配置",
       themeConfig: {
+        siteTitle: 'OpenCode 工程化配置',
         nav: [
           { text: '快速起步', link: '/zh/getting-started/' },
           { text: '核心能力', link: '/zh/core/daily-use' },
@@ -112,7 +118,6 @@ export default defineConfig({
 
   themeConfig: {
     logo: '/logo.svg',
-    siteTitle: 'OpenCode Multi-Agent',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/kenlin8827/opencode-config' }
     ],
