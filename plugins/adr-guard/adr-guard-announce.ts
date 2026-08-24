@@ -78,10 +78,10 @@ async function showToast(client: Client, message: string, variant: "warning" | "
  *
  * Falls back to toast if session.prompt is unavailable or fails.
  */
-async function announce(
+export async function announce(
   client: Client,
   message: string,
-  variant: "warning" | "info",
+  variant: "warning" | "info" = "info",
   sessionID?: string,
 ): Promise<void> {
   const log = makeLogger(client, "adr-guard")

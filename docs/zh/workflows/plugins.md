@@ -27,20 +27,89 @@
 
 ---
 
-## ADR 铁律（`adr-guard`）
+## ADR 铁律与活化架构治理（`adr-guard` 与 `/adr`）
 
-按项目可选的架构决策记录（ADR）强制机制。开关为**项目级**，默认关闭：
+企业级架构决策记录（ADR）治理体系，由两大互补能力构成：
+
+1. **提交铁律门禁（`/adr-guard`）** — 软/硬双层护栏，杜绝在 `feat`/`refactor` 提交中出现未记录的架构漂移。
+2. **分层活化架构引擎（`/adr`）** — 极简脚手架、决策生命周期流转、多层级拓扑与 Mermaid DAG 可视化。
+
+### 开关与治理模式
+
+提交门禁开关为**项目级**（存储于 `opencode.jsonc`）：
 
 ```text
-/adr-guard on       # 对本项目启用（写入 <project>/.opencode/.adr-guard）
-/adr-guard off      # 关闭
+/adr-guard on       # 对本项目启用提交门禁拦截
+/adr-guard off      # 关闭提交门禁
 /adr-guard          # 状态报告（开关 + ADR 目录）
 ```
 
-启用后：
-- **软层** — 铁律协议注入系统提示词：智能体在提交前主动编写/更新 ADR。
-- **硬层** — 当提交信息类型为 `feat`/`refactor` 且工作区变更集中没有 ADR 目录下的文件时，阻断 `git commit`。
-- **ADR 格式** — 严格 MADR：frontmatter `status` + `date`, 正文 `## Context and Problem Statement` + `## Decision Outcome`。
+分层治理模式通过 `/adr mode` 进行配置：
+
+```text
+/adr mode                   # 查看当前治理模式 (auto | flat | hierarchical)
+/adr mode flat              # 极简纯扁平单层模式 (仅 docs/adr/)
+/adr mode hierarchical      # 严格分层模式 (强制 L1/L2/L3 多层划分)
+/adr mode auto              # 智能自适应模式 (默认: 单体项目保持扁平，出现子包时自动拓展)
+```
+
+### Slash 命令族（`/adr`）
+
+| 命令 | 说明 | 示例 |
+|---|---|---|
+| `/adr new [layer/scope] <title>` | 自动计算序号生成 MADR 模板并更新 `INDEX.md` | `/adr new "采用 PostgreSQL 作为主库"` |
+| `/adr supersede <old-id> <new-title>` | 原子化将旧 ADR 标记为 superseded，生成新决策并建立双向交叉溯源 | `/adr supersede 0001 "从 RabbitMQ 迁移至 NATS"` |
+| `/adr migrate [h\|f\|a] [--confirm]` | 预览或执行 ADR 架构目录结构双向自动化重构 | `/adr migrate h` |
+| `/adr tree` / `/adr map` | 生成 Markdown 决策层级树与 Mermaid DAG 依赖图 | `/adr tree` |
+| `/adr check` / `/adr lint` | 审计引用完整性、父子决策断链及复杂度升级建议 | `/adr check` |
+
+#### 1. 创建新决策（`/adr new`）
+* **基础用法（扁平模式 / 常规单体）**：
+  ```text
+  /adr new "Use PostgreSQL as Primary Database"
+  ```
+  自动在 `docs/adr/` 创建下一个自增编号文件（如 `0003-use-postgresql-as-primary-database.md`），填充标准 MADR 骨架，并自动更新 `INDEX.md` 索引表。
+* **分层用法（多包 / Monorepo）**：
+  ```text
+  /adr new system "Global Event Bus Standard"          # L1 宏观决策（根目录 docs/adr/）
+  /adr new domain/payment "Stripe Webhook Processing"  # L2 领域决策（packages/payment/docs/adr/）
+  /adr new component/auth "JWT Refresh Rotation"       # L3 模块决策
+  ```
+
+#### 2. 替代废弃旧决策（`/adr supersede`）
+架构决策不可随意篡改历史，方案演进必须通过 `supersede` 记录演进原因：
+```text
+/adr supersede 0001 "Migrate from RabbitMQ to NATS JetStream"
+```
+**系统原子化自动完成三件事**：
+1. 旧决策（`0001`）状态更新为 `status: superseded by 0004` 并注明废弃原因；
+2. 新决策（`0004`）自动创建，Frontmatter 自动关联 `parent: docs/adr/0001-use-rabbitmq.md`；
+3. 自动同步刷新目录下的 `INDEX.md`。
+
+#### 3. 自动化重构与迁移（`/adr migrate`）
+随着项目规模扩大，随时可以无痛双向重构 ADR 结构：
+* **预览迁移方案（Dry-Run）**：`/adr migrate h`（或 `/adr migrate hierarchical`），输出文件移动映射表，不修改任何文件；
+* **确认执行重构**：`/adr migrate h --confirm`，自动迁移文件、重写 frontmatter 与相互引用，并刷新全仓索引。
+
+### 双轨驱动：自然语言与 Slash 命令
+
+ADR 治理系统支持 **Slash 命令（确定性本地执行）** 与 **自然语言交互（AI 智能深度起草）** 双轨并行：
+
+| 场景 | 自然语言交互（AI 深度思考与起草） | Slash 命令（本地秒级脚手架） |
+| :--- | :--- | :--- |
+| **新建决策** | “帮我记录一个关于引入 Redis 做分布式锁的 ADR”<br>$\to$ **AI 会自动调研背景、列出候选方案对比（Redlock vs ETCD vs DB锁），填充完整论证后落盘并同步索引** | `/adr new "Redis 分布式锁规范"` |
+| **废弃/替代** | “0001 号决策废弃掉，我们现在改用 Kafka 代替 RabbitMQ”<br>$\to$ **AI 自动将 0001 标记为 `superseded by 0005`，生成新 ADR 并写入迁移原因和上下文溯源** | `/adr supersede 0001 "迁移至 Kafka"` |
+| **健康体检** | “帮我看看目前 ADR 依赖关系有没有断链，有没有缺失的字段”<br>$\to$ **AI 逐一检查全仓 frontmatter、父子指向，给出修复方案** | `/adr check` |
+| **架构重构** | “项目拆成 Monorepo 了，帮我把支付和用户相关的 ADR 移到各自子包”<br>$\to$ **AI 分析目录结构并安全执行重构，更新引用与索引** | `/adr migrate h --confirm` |
+
+### 三层架构决策模型（从粗到细）
+
+
+- **L1: 宏观系统级 (`layer: system`)** — 根目录 `docs/adr/`（全局技术栈、通信协议、系统安全体系）。
+- **L2: 领域子系统级 (`layer: domain`)** — `packages/<name>/docs/adr/` 或 `apps/<name>/docs/adr/`（业务服务边界、领域状态机、分库分表）。
+- **L3: 组件模块级 (`layer: component`)** — 模块内部 `docs/adr/`（局部复杂算法、前端状态管理）。
+
+
 
 ---
 

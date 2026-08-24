@@ -19,7 +19,10 @@ OpenCode Multi-Agent ships with a suite of high-leverage workflow slash commands
 | `/project sync` | Config top-up only: appends template comment switches that the existing `.opencode/opencode.jsonc` lacks |
 | `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
+| `/adr [new\|supersede\|tree\|check\|mode]` | Architecture Decision Record management: scaffold templates, supersede lifecycle, render DAGs, audit links, and configure hierarchy modes |
+| `/adr-guard [on\|off\|status]` | Toggle the project-level ADR commit iron law gate for `feat`/`refactor` commits |
 | `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy |
+
 
 ---
 

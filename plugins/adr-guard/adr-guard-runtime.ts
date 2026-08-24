@@ -203,24 +203,44 @@ export function requiresAdr(message: string): boolean {
 // ─── ADR working-tree change detection ───────────────────────────────
 
 /**
- * True when any file under adrDir is part of the working-tree change set
- * (staged, unstaged, or untracked) — i.e. the agent added or modified an
- * ADR alongside the code change.
+ * True when any file under any ADR directory is part of the working-tree
+ * change set (staged, unstaged, or untracked) — supporting global docs/adr/
+ * as well as hierarchical subsystem docs/adr/ paths.
  *
  * Fail-open: on any git error (not a repo, binary missing, timeout) we
- * return true so the guard never blocks on infrastructure problems — the
- * commit itself would fail in those cases anyway.
+ * return true so the guard never blocks on infrastructure problems.
  */
-export function hasAdrChanges(projectDir: string, adrDir: string): boolean {
+export function hasAdrChanges(projectDir: string, adrDir: string | string[] = "docs/adr"): boolean {
   try {
-    const r = spawnSync("git", ["status", "--porcelain", "--", adrDir], {
+    const r = spawnSync("git", ["status", "--porcelain"], {
       cwd: projectDir,
       encoding: "utf-8",
       timeout: 5000,
     })
     if (r.error || r.status !== 0) return true
-    return (r.stdout || "").trim().length > 0
+    const stdout = (r.stdout || "").trim()
+    if (!stdout) return false
+
+    const lines = stdout.split(/\r?\n/)
+    const dirs = (Array.isArray(adrDir) ? adrDir : [adrDir]).map((d) =>
+      d.replace(/\\/g, "/").replace(/\/+$/, ""),
+    )
+
+    return lines.some((line) => {
+      // Git status format: XY <path> or XY <old-path> -> <new-path>
+      const rawPath = line.slice(3).trim()
+      const filePath = (rawPath.includes(" -> ") ? rawPath.split(" -> ")[1] : rawPath)
+        .replace(/\\/g, "/")
+
+      return (
+        dirs.some((d) => filePath.startsWith(`${d}/`)) ||
+        filePath.includes("/docs/adr/") ||
+        filePath.startsWith("docs/adr/") ||
+        filePath.endsWith(".md") && filePath.includes("/adr/")
+      )
+    })
   } catch {
     return true
   }
 }
+

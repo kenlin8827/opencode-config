@@ -628,9 +628,13 @@ bridge 附带的额外能力：
 ```jsonc
 {
   "adrGuard": "on",            // 全团队提交默认值
-  "adrGuardDir": "docs/adr"    // ADR 目录
+  "adrGuardDir": "docs/adr",   // ADR 目录
+  "adrMode": "auto"            // auto (自适应) | flat (单层) | hierarchical (分层)
 }
 ```
+
+支持 `/adr` 全套命令：`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate` 与 `/adr mode`。
+
 
 ### 密钥文件门控（`env-guard`）
 

@@ -160,6 +160,7 @@ $allFiles = @(
     "plugins/adr-guard/adr-guard-tool-guard.ts",
     "plugins/adr-guard/adr-guard-command.ts",
     "plugins/adr-guard/adr-guard-announce.ts",
+    "plugins/adr-guard/adr-engine.ts",
     "plugins/env-guard.ts",
     "plugins/env-guard/env-guard.ts",
     "plugins/env-guard/env-guard-config.ts",

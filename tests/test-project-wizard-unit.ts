@@ -84,10 +84,10 @@ const TEMPLATE_SAMPLE = `{
 
 {
   const res = applySwitchesToConfigContent(TEMPLATE_SAMPLE, {
-    autoAdvisorMode: "commented",
-    adrGuard: "commented",
-    envGuard: "commented",
-    e2eGuard: "commented",
+    autoAdvisorMode: "default",
+    adrGuard: "default",
+    envGuard: "default",
+    e2eGuard: "default",
   })
 
   assert(res.includes('// "autoAdvisorMode": "lite"'), "leaves autoAdvisorMode commented")
@@ -102,13 +102,13 @@ section("01b: Switch mode fast toggling (no typing)")
 
 {
   assert(toggleGuardState("on") === "off", "on toggles to off")
-  assert(toggleGuardState("off") === "commented", "off toggles to commented")
-  assert(toggleGuardState("commented") === "on", "commented toggles to on")
+  assert(toggleGuardState("off") === "default", "off toggles to default")
+  assert(toggleGuardState("default") === "on", "default toggles to on")
 
   assert(cycleAdvisorMode("lite") === "full", "lite cycles to full")
   assert(cycleAdvisorMode("full") === "off", "full cycles to off")
-  assert(cycleAdvisorMode("off") === "commented", "off cycles to commented")
-  assert(cycleAdvisorMode("commented") === "lite", "commented cycles to lite")
+  assert(cycleAdvisorMode("off") === "default", "off cycles to default")
+  assert(cycleAdvisorMode("default") === "lite", "default cycles to lite")
 }
 
 // ─── 02: generateConfigContent ───────────────────────────────────────
@@ -169,9 +169,10 @@ const tmpDir = mkdtempSync(join(tmpdir(), "pw-unit-"))
   assert(detected.switches.autoAdvisorMode === "full", "echoes active autoAdvisorMode full")
   assert(detected.switches.envGuard === "on", "echoes active envGuard on")
   assert(detected.switches.adrGuardDir === "custom/adr", "echoes customized adrGuardDir")
-  assert(detected.switches.adrGuard === "commented", "echoes commented adrGuard")
-  assert(detected.switches.e2eGuard === "commented", "echoes commented e2eGuard")
+  assert(detected.switches.adrGuard === "default", "echoes default adrGuard")
+  assert(detected.switches.e2eGuard === "default", "echoes default e2eGuard")
 }
+
 
 // ─── 04: runInitWithSwitches (Re-entrant execution) ──────────────────
 

@@ -58,22 +58,22 @@ export interface DetectedProjectState {
   switches: ProjectSwitches
 }
 
-/** Toggle helper for on/off/commented boolean-like switches. */
+/** Toggle helper for on/off/default boolean-like switches. */
 export function toggleGuardState(
-  current?: "on" | "off" | "commented",
-): "on" | "off" | "commented" {
+  current?: "on" | "off" | "default",
+): "on" | "off" | "default" {
   if (current === "on") return "off"
-  if (current === "off") return "commented"
+  if (current === "off") return "default"
   return "on"
 }
 
-/** Cycle helper for autoAdvisorMode (lite -> full -> off -> commented -> lite). */
+/** Cycle helper for autoAdvisorMode (lite -> full -> off -> default -> lite). */
 export function cycleAdvisorMode(
-  current?: "off" | "lite" | "full" | "commented",
-): "off" | "lite" | "full" | "commented" {
+  current?: "off" | "lite" | "full" | "default",
+): "off" | "lite" | "full" | "default" {
   if (current === "lite") return "full"
   if (current === "full") return "off"
-  if (current === "off") return "commented"
+  if (current === "off") return "default"
   return "lite"
 }
 
@@ -93,6 +93,7 @@ export function detectCurrentSwitches(rootDir: string): DetectedProjectState {
       const envActive = content.match(/^[^/\n\r]*"envGuard"\s*:\s*"([^"]+)"/m)
       const e2eActive = content.match(/^[^/\n\r]*"e2eGuard"\s*:\s*"([^"]+)"/m)
       const adrDirMatch = content.match(/^\s*(?:\/\/)?\s*"adrGuardDir"\s*:\s*"([^"]+)"/m)
+      const adrModeMatch = content.match(/^[^/\n\r]*"adrMode"\s*:\s*"([^"]+)"/m)
 
       return {
         exists: true,
@@ -101,17 +102,20 @@ export function detectCurrentSwitches(rootDir: string): DetectedProjectState {
         switches: {
           autoAdvisorMode: advisorActive
             ? (advisorActive[1] as ProjectSwitches["autoAdvisorMode"])
-            : "commented",
+            : "default",
           adrGuard: adrActive
             ? (adrActive[1] as ProjectSwitches["adrGuard"])
-            : "commented",
+            : "default",
           adrGuardDir: adrDirMatch ? adrDirMatch[1] : "docs/adr",
+          adrMode: adrModeMatch
+            ? (adrModeMatch[1] as ProjectSwitches["adrMode"])
+            : "default",
           envGuard: envActive
             ? (envActive[1] as ProjectSwitches["envGuard"])
-            : "commented",
+            : "default",
           e2eGuard: e2eActive
             ? (e2eActive[1] as ProjectSwitches["e2eGuard"])
-            : "commented",
+            : "default",
         },
       }
     } catch {
@@ -126,24 +130,34 @@ export function detectCurrentSwitches(rootDir: string): DetectedProjectState {
       autoAdvisorMode: "lite",
       adrGuard: "on",
       adrGuardDir: "docs/adr",
+      adrMode: "auto",
       envGuard: "on",
       e2eGuard: "on",
     },
   }
 }
 
-function formatGuardBadge(val?: "on" | "off" | "commented"): string {
+function formatGuardBadge(val?: "on" | "off" | "default"): string {
   if (val === "on") return "🟢 ON (active)"
   if (val === "off") return "🔴 OFF (disabled)"
   return "⚪ default (off)"
 }
 
-function formatAdvisorBadge(val?: "off" | "lite" | "full" | "commented"): string {
+function formatAdrModeBadge(val?: "auto" | "flat" | "hierarchical" | "default"): string {
+  if (val === "auto") return "🟢 auto (smart adaptive)"
+  if (val === "flat") return "📄 flat (single dir)"
+  if (val === "hierarchical") return "📦 hierarchical (multi-tier)"
+  return "⚪ default (auto)"
+}
+
+function formatAdvisorBadge(val?: "off" | "lite" | "full" | "default"): string {
   if (val === "lite") return "🟢 LITE (advisory - recommended)"
   if (val === "full") return "🔵 FULL (decisive)"
   if (val === "off") return "🔴 OFF (disabled)"
   return "⚪ default (off)"
 }
+
+
 
 function backendLine(r: BackendResult): string {
   if (r.status === "ran") return `  ✅ ${r.backend}: ${r.detail}`
@@ -214,6 +228,11 @@ export function startProjectWizard(
           description: "Click to select or customize ADR directory path",
         },
         {
+          title: `🏛️ adrMode: [ ${formatAdrModeBadge(current.adrMode)} ]`,
+          value: "__switch_adr_mode__",
+          description: "Click to select ADR mode: auto / flat / hierarchical / default",
+        },
+        {
           title: `🔒 envGuard: [ ${formatGuardBadge(current.envGuard)} ]`,
           value: "__switch_env__",
           description: "Click to select secret env file guard: on / off / default",
@@ -269,7 +288,7 @@ export function startProjectWizard(
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select autoAdvisorMode",
-                placeholder: `Current: ${current.autoAdvisorMode === "commented" ? "default (off)" : (current.autoAdvisorMode ?? "default (off)")}`,
+                placeholder: `Current: ${current.autoAdvisorMode === "default" ? "default (off)" : (current.autoAdvisorMode ?? "default (off)")}`,
                 skipFilter: true,
                 current: current.autoAdvisorMode ?? "lite",
                 options: [
@@ -289,8 +308,8 @@ export function startProjectWizard(
                     description: "Disable advisor completely",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.autoAdvisorMode === "commented" || !current.autoAdvisorMode ? "  ← current" : ""}`,
-                    value: "commented",
+                    title: `⚪ default  (Built-in off)${current.autoAdvisorMode === "default" || !current.autoAdvisorMode ? "  ← current" : ""}`,
+                    value: "default",
                     description: "Leave switch commented in config (default off)",
                   },
                 ],
@@ -309,7 +328,7 @@ export function startProjectWizard(
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select adrGuard state",
-                placeholder: `Current: ${current.adrGuard === "commented" ? "default (off)" : (current.adrGuard ?? "default (off)")}`,
+                placeholder: `Current: ${current.adrGuard === "default" ? "default (off)" : (current.adrGuard ?? "default (off)")}`,
                 skipFilter: true,
                 current: current.adrGuard ?? "on",
                 options: [
@@ -324,8 +343,8 @@ export function startProjectWizard(
                     description: "Disable ADR guard check",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.adrGuard === "commented" || !current.adrGuard ? "  ← current" : ""}`,
-                    value: "commented",
+                    title: `⚪ default  (Built-in off)${current.adrGuard === "default" || !current.adrGuard ? "  ← current" : ""}`,
+                    value: "default",
                     description: "Leave switch commented in config (default off)",
                   },
                 ],
@@ -402,11 +421,51 @@ export function startProjectWizard(
             )
             break
           }
+          case "__switch_adr_mode__": {
+            api.ui.dialog.replace(() =>
+              api.ui.DialogSelect<string>({
+                title: "Select adrMode (ADR Governance Mode)",
+                placeholder: `Current: ${current.adrMode === "default" ? "default (auto)" : (current.adrMode ?? "default (auto)")}`,
+                skipFilter: true,
+                current: current.adrMode ?? "auto",
+                options: [
+                  {
+                    title: `🟢 auto  (Smart Adaptive - Recommended)${current.adrMode === "auto" ? "  ← current" : ""}`,
+                    value: "auto",
+                    description: "Flat by default for monoliths; auto-expands when sub-packages exist",
+                  },
+                  {
+                    title: `📦 hierarchical  (Multi-tier L1/L2/L3)${current.adrMode === "hierarchical" ? "  ← current" : ""}`,
+                    value: "hierarchical",
+                    description: "Enforce multi-tier hierarchy and cross-module DAG relationships",
+                  },
+                  {
+                    title: `📄 flat  (Strict Single-Directory)${current.adrMode === "flat" ? "  ← current" : ""}`,
+                    value: "flat",
+                    description: "All ADRs strictly stored in root docs/adr/ (no sub-packages)",
+                  },
+                  {
+                    title: `⚪ default  (Built-in auto)${current.adrMode === "default" || !current.adrMode ? "  ← current" : ""}`,
+                    value: "default",
+                    description: "Leave switch commented in config (default auto)",
+                  },
+                ],
+                onSelect: (sel) => {
+                  current.adrMode = sel.value as ProjectSwitches["adrMode"]
+                  startProjectWizard(api, {
+                    ...nextState,
+                    currentSelection: "__switch_adr_mode__",
+                  })
+                },
+              }),
+            )
+            break
+          }
           case "__switch_env__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select envGuard state",
-                placeholder: `Current: ${current.envGuard === "commented" ? "default (off)" : (current.envGuard ?? "default (off)")}`,
+                placeholder: `Current: ${current.envGuard === "default" ? "default (off)" : (current.envGuard ?? "default (off)")}`,
                 skipFilter: true,
                 current: current.envGuard ?? "on",
                 options: [
@@ -421,8 +480,8 @@ export function startProjectWizard(
                     description: "Allow agent unrestricted access to all env files",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.envGuard === "commented" || !current.envGuard ? "  ← current" : ""}`,
-                    value: "commented",
+                    title: `⚪ default  (Built-in off)${current.envGuard === "default" || !current.envGuard ? "  ← current" : ""}`,
+                    value: "default",
                     description: "Leave switch commented in config (default off)",
                   },
                 ],
@@ -441,7 +500,7 @@ export function startProjectWizard(
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select e2eGuard state",
-                placeholder: `Current: ${current.e2eGuard === "commented" ? "default (off)" : (current.e2eGuard ?? "default (off)")}`,
+                placeholder: `Current: ${current.e2eGuard === "default" ? "default (off)" : (current.e2eGuard ?? "default (off)")}`,
                 skipFilter: true,
                 current: current.e2eGuard ?? "on",
                 options: [
@@ -456,8 +515,8 @@ export function startProjectWizard(
                     description: "Skip E2E assessment check",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.e2eGuard === "commented" || !current.e2eGuard ? "  ← current" : ""}`,
-                    value: "commented",
+                    title: `⚪ default  (Built-in off)${current.e2eGuard === "default" || !current.e2eGuard ? "  ← current" : ""}`,
+                    value: "default",
                     description: "Leave switch commented in config (default off)",
                   },
                 ],
@@ -472,6 +531,7 @@ export function startProjectWizard(
             )
             break
           }
+
           case "__sync__": {
             try {
               const res = runSync()

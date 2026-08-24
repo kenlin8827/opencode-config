@@ -627,9 +627,13 @@ Project-config fields (all optional, in the project's `opencode.jsonc`):
 ```jsonc
 {
   "adrGuard": "on",            // committed default for the whole team
-  "adrGuardDir": "docs/adr"    // ADR directory
+  "adrGuardDir": "docs/adr",   // ADR directory
+  "adrMode": "auto"            // auto (adaptive) | flat (single dir) | hierarchical (multi-tier)
 }
 ```
+
+Full `/adr` command suite supported: `/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, `/adr migrate`, and `/adr mode`.
+
 
 ### Secret file guard (`env-guard`)
 
