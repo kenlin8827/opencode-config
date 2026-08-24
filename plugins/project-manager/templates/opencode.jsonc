@@ -11,5 +11,5 @@
   // "adrGuard": "on",           // on | off          — /adr-guard <state>
   // "adrGuardDir": "docs/adr",  // ADR directory
   // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)
-  // "e2eGuard": "on",           // on | off — E2E runs need user confirmation + /e2e-guard allow [targeted]
+  // "e2eGuard": "on",           // on | off — E2E quality red line: prompts LLM to assess diff impact on feat/fix tasks and interactively confirm with user via ask
 }

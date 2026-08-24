@@ -1,0 +1,22 @@
+# DBHub per-project configuration — picked up by the `dbhub` MCP server
+# when opencode launches from this directory.
+# Credentials stay out of the repo: ${DBHUB_DSN} is interpolated from the
+# environment at runtime. Set it in PowerShell, e.g.:
+#   [Environment]::SetEnvironmentVariable('DBHUB_DSN', 'postgres://user:pass@host:5432/db', 'User')
+
+[[sources]]
+id = "default"
+dsn = "${DBHUB_DSN}"
+
+[[tools]]
+name = "execute_sql"
+source = "default"
+readonly = true
+
+[[tools]]
+name = "search_objects"
+source = "default"
+
+[[tools]]
+name = "explain_sql"
+source = "default"

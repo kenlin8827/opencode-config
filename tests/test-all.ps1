@@ -1,4 +1,4 @@
-﻿# Run all tests sequentially
+# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -167,11 +167,12 @@ $allFiles = @(
     "plugins/env-guard/env-guard-tool-guard.ts",
     "plugins/e2e-guard.ts",
     "plugins/e2e-guard/e2e-guard.ts",
-    "plugins/e2e-guard/e2e-guard-config.ts",
-    "plugins/e2e-guard/e2e-guard-runtime.ts",
-    "plugins/e2e-guard/e2e-guard-tool-guard.ts",
+    "plugins/e2e-guard/e2e-guard-protocol.md",
+    "plugins/e2e-guard/e2e-guard-instructions.ts",
+    "plugins/e2e-guard/e2e-guard-system-inject.ts",
     "plugins/e2e-guard/e2e-guard-command.ts",
-    "plugins/e2e-guard/e2e-guard-announce.ts",
+    "plugins/e2e-guard/e2e-guard-config.ts",
+    "plugins/e2e-guard/README.md",
     "plugins/shared/opencode-config.ts",
     "plugins/project-manager.ts",
     "plugins/project-manager/project-manager.ts",
@@ -318,31 +319,28 @@ Check "env-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($egGuard -mat
 $egBarrel = Get-Content "$PSScriptRoot\..\plugins\env-guard.ts" -Raw
 Check "env-guard.ts: barrel re-exports EnvGuardPlugin" ($egBarrel -match "export.*EnvGuardPlugin")
 
-# E2E guard plugin checks (plugins/e2e-guard/ — project-level switch, E2E runs gated behind user confirmation)
+# E2E guard plugin checks (plugins/e2e-guard/ — project-level switch, prompt-injected protocol)
 $e2ePlugin = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard.ts" -Raw
 $e2eConfig = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-config.ts" -Raw
-$e2eRuntime = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-runtime.ts" -Raw
-$e2eGuard = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-tool-guard.ts" -Raw
-$e2eCommand = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-command.ts" -Raw
+$e2eProtocol = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-protocol.md" -Raw
+$e2eInstr = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-instructions.ts" -Raw
+$e2eInject = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-system-inject.ts" -Raw
 Check "e2e-guard.ts: imports Plugin type" ($e2ePlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "e2e-guard.ts: has config hook registering command" ($e2ePlugin -match "config:" -and $e2ePlugin -match 'COMMAND_NAME')
-Check "e2e-guard.ts: has command.execute.before hook" ($e2ePlugin -match '"command\.execute\.before"')
-Check "e2e-guard.ts: has tool.execute.before hook" ($e2ePlugin -match '"tool\.execute\.before"')
+Check "e2e-guard.ts: registers the command via config hook" ($e2ePlugin -match "config:" -and $e2ePlugin -match "COMMAND_NAME" -and $e2ePlugin -match '"command\.execute\.before"')
+Check "e2e-guard.ts: has system.transform hook" ($e2ePlugin -match "experimental\.chat\.system\.transform")
 Check "e2e-guard.ts: injects project directory" ($e2ePlugin -match "setProjectDir\(directory\)")
 Check "e2e-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($e2eConfig -match 'shared/opencode-config' -and $e2eConfig -match 'e2eGuard')
 Check "e2e-guard-config.ts: default state is off" ($e2eConfig -match 'DEFAULT_STATE: GuardState = "off"')
-Check "e2e-guard-config.ts: allow argument parsing" ($e2eConfig -match "parseAllowArg")
-Check "e2e-guard-config.ts: allow scope full vs targeted" ($e2eConfig -match "AllowScope" -and $e2eConfig -match "targeted")
-Check "e2e-guard-runtime.ts: detects runner CLIs" ($e2eRuntime -match "playwright" -and $e2eRuntime -match "cypress")
-Check "e2e-guard-runtime.ts: detects Python runners on e2e evidence" ($e2eRuntime -match "pytestRisk" -and $e2eRuntime -match "tox")
-Check "e2e-guard-runtime.ts: risk classification full vs targeted" ($e2eRuntime -match "classifyE2e" -and $e2eRuntime -match '"targeted"')
-Check "e2e-guard-runtime.ts: approval store is in-memory + one-shot" ($e2eRuntime -match "consumeApproval" -and $e2eRuntime -match "new Set")
-Check "e2e-guard-runtime.ts: sticky unlock survives one-shot consume" ($e2eRuntime -match "isUnlocked" -and $e2eRuntime -match "unlocked")
-Check "e2e-guard-tool-guard.ts: gates bash/shell only" ($e2eGuard -match '"bash"' -and $e2eGuard -match '"shell"')
-Check "e2e-guard-tool-guard.ts: graded gating via classifyE2e" ($e2eGuard -match "classifyE2e" -and $e2eGuard -match '"targeted"')
-Check "e2e-guard-tool-guard.ts: approval consumed on pass-through" ($e2eGuard -match "consumeApproval")
-Check "e2e-guard-tool-guard.ts: reuses adr-guard-runtime parsing" ($e2eGuard -match "adr-guard/adr-guard-runtime")
-Check "e2e-guard-command.ts: allow grants session approval" ($e2eCommand -match "approveSession")
+Check "e2e-guard-protocol.md: specifies feat and fix triggers" ($e2eProtocol -match "feat" -and $e2eProtocol -match "fix")
+Check "e2e-guard-protocol.md: includes test gap / case supplement check" ($e2eProtocol -match "Test Gap" -or $e2eProtocol -match "Supplement")
+Check "e2e-guard-protocol.md: requires interactive ask with user" ($e2eProtocol -match "ask" -or $e2eProtocol -match "Interactive")
+Check "e2e-guard-instructions.ts: exports marker and prompt builder" ($e2eInstr -match "MARKER_ON" -and $e2eInstr -match "getGuardPrompt")
+Check "e2e-guard-system-inject.ts: transforms system prompt on/off" ($e2eInject -match "stripMarker" -and $e2eInject -match "appendPrompt")
+
+$e2eCmd = Get-Content "$PSScriptRoot\..\plugins\e2e-guard\e2e-guard-command.ts" -Raw
+Check "e2e-guard-command.ts: status subcommand" ($e2eCmd -match "SUBCOMMAND_STATUS" -and $e2eCmd -match "statusText")
+Check "e2e-guard-command.ts: on/off writes the project switch" ($e2eCmd -match "SUBCOMMAND_ON" -and $e2eCmd -match "SUBCOMMAND_OFF" -and $e2eCmd -match "setState")
+Check "e2e-guard-command.ts: visible response via output.parts" ($e2eCmd -match "output\.parts =")
 
 $e2eBarrel = Get-Content "$PSScriptRoot\..\plugins\e2e-guard.ts" -Raw
 Check "e2e-guard.ts: barrel re-exports E2eGuardPlugin" ($e2eBarrel -match "export.*E2eGuardPlugin")

@@ -82,6 +82,7 @@ interface ProjectProfile {
   codegraphActive: boolean
   codegraphIndexed: boolean
   gitnexusIndexed: boolean
+  dbhubActive: boolean
 }
 
 function scanLanguages(root: string): { fileCount: number; counts: Map<string, number> } {
@@ -162,6 +163,7 @@ export function buildProfile(root: string = process.cwd()): ProjectProfile {
     codegraphActive: mcpEnabled("codegraph"),
     codegraphIndexed: existsSync(join(root, ".codegraph")) && mcpEnabled("codegraph"),
     gitnexusIndexed: existsSync(join(root, ".gitnexus")) && mcpEnabled("gitnexus"),
+    dbhubActive: mcpEnabled("dbhub"),
   }
 }
 
@@ -216,13 +218,17 @@ function recommendation(p: ProjectProfile): string[] {
 
 /** Universal context-efficiency rules — injected with the profile so they
  * travel with the backend routing (no static instructions file). */
-function rules(): string[] {
+function rules(p: ProjectProfile): string[] {
+  const dbhub = p.dbhubActive
+    ? ["- dbhub MCP available: MUST call `search_objects` to discover real table/column names BEFORE `execute_sql` — never guess; on a \"does not exist\" error re-discover instead of retrying another guessed name."]
+    : []
   return [
     "Rules:",
     "- Read files only for semantic understanding (intent, conventions, \"why is this built this way\") — or for files changed since the dispatch context was written.",
     "- MUST NOT read a whole file to locate a symbol — use a symbol index when one is available; grep/glob only when no backend covers the question.",
     "- Treat code-intelligence output as already read — no grep re-verification, no re-reading returned code.",
     "- If the dispatch includes a `Files changed` list (typical for `qa`, `code-review`, `security` follow-ups), read ONLY those files plus missing gaps — no full re-exploration.",
+    ...dbhub,
   ]
 }
 
@@ -236,7 +242,7 @@ export function renderProfileBlock(p: ProjectProfile): string {
     `Detected at session start — MUST query the code-intelligence index before crawling code files: every file read costs tokens, so answer structural questions from the backends below directly instead of grep/read loops (applies to primary agents coding alone exactly as to subagents):`,
     `- Project "${p.name}": ${langSummary(p)}`,
     ...recommendation(p),
-    ...rules(),
+    ...rules(p),
     "",
   ]
   return lines.join("\n")

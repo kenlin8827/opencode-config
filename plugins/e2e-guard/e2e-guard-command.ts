@@ -1,84 +1,51 @@
 /**
- * Hook: command.execute.before — handle `/e2e-guard <action>`.
- * The command is registered programmatically via the `config` hook in
- * e2e-guard.ts — no commands/e2e-guard.md file is needed.
- * One command, argument selects the action:
+ * Hook: command.execute.before — `/e2e-guard <subcommand>` user controls.
  *
- *   /e2e-guard on      → state=on  (e2eGuard field written to project opencode.jsonc)
- *   /e2e-guard off     → state=off (field written; pending approvals dropped)
- *   /e2e-guard reset   → e2eGuard field removed; reverts to the default off
- *   /e2e-guard allow   → session approval (in-memory): one-shot pass for
- *                        the next FULL run + sticky unlock for targeted
- *                        spec re-runs — grant it ONLY after the user
- *                        actually confirmed
- *   /e2e-guard allow targeted → unlock ONLY: targeted (affected-spec)
- *                        re-runs flow for the rest of the session, full
- *                        suites stay gated — the "affected only" choice
- *   /e2e-guard [status]→ read-only status report (no state change)
- *
- * Every invocation gets user-visible feedback via
- * session.prompt({ noReply, ignored }) in the main chat UI, degrading
- * to toast in headless environments.
+ * Provides control over the project-level switch:
+ *   /e2e-guard on|off  → flips the `e2eGuard` field in opencode.jsonc
+ *   /e2e-guard status  → reports the current project gate state
  */
 
-import type { PluginInput } from "@opencode-ai/plugin"
-import { makeLogger } from "../adr-guard/adr-guard-runtime"
-import { announceAllow, announceStatus, announceSwitch } from "./e2e-guard-announce"
-import {
-  clearState,
-  COMMAND_NAME,
-  parseAllowArg,
-  parseResetArg,
-  parseStateArg,
-  setState,
-} from "./e2e-guard-config"
-import { approveSession, clearApprovals, unlockSession } from "./e2e-guard-runtime"
+import { getState, setState, writableProjectConfigFile } from "./e2e-guard-config"
 
-type Log = ReturnType<typeof makeLogger>
+export const COMMAND_NAME = "e2e-guard"
 
-export function makeCommandHook(client: PluginInput["client"], handled: () => never) {
-  const log: Log = makeLogger(client, "e2e-guard")
+export const SUBCOMMAND_STATUS = "status"
+export const SUBCOMMAND_ON = "on"
+export const SUBCOMMAND_OFF = "off"
 
-  return async (input: { command?: string; arguments?: string; sessionID?: string }) => {
+const HELP = `[e2e-guard] E2E Red-Line Guard — project switch controls.
+Usage:
+/e2e-guard status   → check current guard status (on / off)
+/e2e-guard on | off → flip the project gate in opencode.jsonc (persisted)`
+
+/** One-line gate report for `/e2e-guard status`. */
+export function statusText(): string {
+  const gate = getState() === "on" ? "on" : "off"
+  return `[e2e-guard] gate: ${gate}. (Protocol injection is ${gate === "on" ? "ACTIVE" : "INACTIVE"})`
+}
+
+export function makeCommandHook() {
+  return async (
+    input: { command?: string; arguments?: string; sessionID?: string },
+    output: { parts?: unknown },
+  ) => {
     if (input.command !== COMMAND_NAME) return
-    const sessionID = String(input.sessionID ?? "")
 
-    const allowScope = parseAllowArg(input.arguments)
-    if (allowScope) {
-      if (allowScope === "targeted") {
-        unlockSession(sessionID)
-        await log("info", `targeted-only unlock granted for session ${sessionID || "(unknown)"}`)
-      } else {
-        approveSession(sessionID)
-        await log("info", `one-shot approval granted for session ${sessionID || "(unknown)"}`)
-      }
-      await announceAllow(client, input.sessionID, allowScope)
-    } else if (parseResetArg(input.arguments)) {
-      const cleared = clearState()
-      clearApprovals()
-      await log(
-        cleared ? "info" : "warn",
-        cleared
-          ? "e2eGuard field removed — reverted to default off"
-          : "reset failed — project config not writable",
-      )
-      await announceStatus(client, input.sessionID)
+    const tokens = (input.arguments ?? "").trim().split(/\s+/).filter(Boolean)
+    const sub = (tokens[0] ?? "").toLowerCase()
+
+    let text: string
+    if (sub === SUBCOMMAND_STATUS) {
+      text = statusText()
+    } else if (sub === SUBCOMMAND_ON || sub === SUBCOMMAND_OFF) {
+      text = setState(sub)
+        ? `[e2e-guard] Gate ${sub.toUpperCase()} — wrote "e2eGuard": "${sub}" to ${writableProjectConfigFile()}.`
+        : `[e2e-guard] Failed to write the project config — edit the "e2eGuard" field of opencode.jsonc by hand.`
     } else {
-      const state = parseStateArg(input.arguments)
-      if (state) {
-        const written = setState(state)
-        if (state === "off") clearApprovals()
-        await log(
-          written ? "info" : "warn",
-          written
-            ? `state=${state.toUpperCase()} — project opencode.jsonc written`
-            : `state=${state.toUpperCase()} — project config write failed (not writable)`,
-        )
-        await announceSwitch(client, state, input.sessionID)
-      } else {
-        await announceStatus(client, input.sessionID)
-      }
+      text = sub ? `[e2e-guard] Unknown subcommand "${sub}".\n\n${HELP}` : HELP
     }
-    return handled()
+
+    output.parts = [{ type: "text", text }]
   }
 }

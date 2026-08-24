@@ -516,7 +516,7 @@ bridge 附带的额外能力：
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |
 | `adr-guard.ts` | `/adr-guard` 命令 —— 按项目的 ADR 强制（见下文） |
 | `env-guard.ts` | 按项目的密钥文件门控（见下文） |
-| `e2e-guard.ts` | `/e2e-guard` 命令 —— 按项目门控：E2E 运行需用户确认；整套运行每次消耗一次性放行，定向 spec 重跑在首次确认后解锁（见下文） |
+| `e2e-guard.ts` | `/e2e-guard` 命令 + 系统提示词协议注入 —— 按项目开关：引导 LLM 评估 `feat`/`fix` 任务的 E2E 影响、提示补充缺失用例，并通过 `ask` 交互式确认放行（见下文） |
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
 | `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
@@ -567,44 +567,36 @@ echo on > <project>/.opencode/.env-guard
 
 已知边界：子壳包装（`bash -c '...'`）、命令替换、glob 引用（`*.env`）不在机械检测范围 —— 它是常见路径上的硬墙，不是形式化沙箱。
 
-### E2E 门控（`e2e-guard`）
+### E2E 护栏（`e2e-guard`）
 
-按项目可选的门控：任何 E2E 套件运行前必须获得用户明确确认。E2E 慢、易抖动、成本高，是最后手段的测试层级 —— 仅靠提示词软规则无法保证智能体遵守，此门控直接拦截执行本身。开关为**项目级**，默认关闭：
+按项目可选的 E2E 最佳实践与质量红线开关。**e2e-guard 不做机械式命令行硬阻断，而是在开启（`on`）时将 E2E 红线协议动态注入到 LLM 系统提示词中**，赋予 LLM 自主评估 `feat` 和 `fix` 任务影响的能力，并通过交互式提问工具（`ask`）将最终放行决定权交给用户。开关为**项目级**，默认关闭：
 
 ```text
-/e2e-guard on       # 对本项目启用（写入项目 opencode.jsonc 的 "e2eGuard": "on"）
-/e2e-guard off      # 关闭
-/e2e-guard          # 状态报告
+/e2e-guard on            # 对本项目启用（写入项目 opencode.jsonc 的 "e2eGuard": "on"）
+/e2e-guard off           # 关闭
+/e2e-guard status        # 查看门控状态（on / off）
 ```
 
-开启后，运行 E2E 套件的 bash/shell 调用会在执行前被阻断：
+开启后（`on`）：
 
-- 名称含 `e2e` 的包管理器脚本（`npm|pnpm|yarn|bun [run] e2e`、`test:e2e`、`e2e:smoke` 等）
-- 运行器 CLI：`playwright test`、`cypress run`、`nightwatch`、`codeceptjs run`（`playwright install` 等纯安装动词不管控）
-- Python 运行器 —— 仅当调用本身带 e2e 证据时门控：`pytest tests/e2e/...`、`pytest -m e2e`、`python -m pytest ...`、`uv|poetry|pdm|pipenv run pytest ...`、`tox -e e2e`（裸 `pytest` 不管控 —— 它通常是单测套件）
-- 链式命令逐段判断 —— 只要有一段是 E2E，整条命令被门控（取最高风险级别）
-
-门控按风险分级：
-
-| 风险级别 | 形态 | 门控 |
-|---|---|---|
-| **full（整套）** | 无明确目标的套件运行（`npm run e2e`、裸 `playwright test`） | 每次运行都需要新的一次性 `/e2e-guard allow` 放行 |
-| **targeted（定向）** | 带明确 spec/测试文件参数（`playwright test tests/login.spec.ts`、`cypress run --spec ...`） | 会话内有过任一已确认放行后自动通过 |
-
-确有必要跑 E2E 时的流程：
-
-1. 智能体通过交互式问答给出选项：(a) 推荐 —— 只跑受当前 diff 影响的 spec；(b) 仍要跑整套；(c) 跳过 E2E，用轻量层验证。
-2. 你的选择对应不同放行：
-   - 只跑受影响的 → `/e2e-guard allow targeted` —— 会话内解锁定向重跑，整套运行仍被门控
-   - 跑整套 → `/e2e-guard allow` —— 下一次整套运行的一次性放行（同时获得定向解锁）
-3. 智能体重试所选命令。整套放行被消耗（下次整套运行需重新确认）；定向重跑 —— 典型的修复后重试循环 —— 在会话剩余时间内保持解锁。放行随会话结束作废，绝不持久化。
+1. **触发范围**：
+   - 凡是 **`feat`（新功能）** 与 **`fix`（缺陷修复）** 类型的任务必须触发评估。
+   - 在任务完成收尾（Handoff）或执行 `git commit` / `git push` 前必须触发评估。
+2. **影响与范围评估**：
+   - **局部 E2E（Targeted）**：改动局限于特定模块，映射到对应的 spec 测试文件（如 `playwright test tests/login.spec.ts`）。
+   - **全量 E2E（Full Suite）**：改动涉及核心认证、全局状态、路由或底层架构等跨流程层。
+   - **跳过（Skip）**：纯文档、样式修饰或内部非功能性重构。
+3. **缺失用例检测与补齐提示（Test Gap & Case Supplement）**：
+   - 当 `feat` 或 `fix` 缺乏现有 E2E 用例覆盖时，LLM 会主动指出测试盲区，并提示用户是否编写/补充对应的 E2E 测试用例。
+4. **通过 `ask` 工具交互确认**：
+   - LLM 绝不静默运行 E2E 或擅自跳过，必须通过 `ask` 交互工具向用户呈现评估选项（局部测试 / 全量测试 / 补充用例 / 跳过），由用户决定是否放行。
+5. **主 Agent 定向注入**：
+   - 仅注入给具备交互与交付权限的主 Agent（`code`、`build`、`architect` 等主会话）；Subagent 自动免扰。
 
 ```jsonc
 // 项目 opencode.jsonc —— 提交到仓库的团队默认值（可选）
 { "e2eGuard": "on" }
 ```
-
-已知边界：壳包装（`bash -c '...'`）不在机械检测范围 —— 它是常见路径上的硬墙，不是形式化沙箱。
 
 ### 提交纪律（`project-manager`）
 
