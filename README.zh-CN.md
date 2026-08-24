@@ -2,7 +2,7 @@
 
 开箱即用的 [OpenCode](https://opencode.ai) 配置：一支专家智能体团队、三种编排模式、分层 MCP 代码智能与数据库网关、一键模型预设、工作流斜杠命令、可选的项目级护栏 —— 一条命令安装到 `~/.config/opencode`。
 
-> [English](README.md) | **中文**
+> [English](README.md) | **中文** | 📖 **[在线文档站 (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/zh/)**
 >
 > 本 README 是用户手册。如果你想修改本仓库本身（智能体、插件、测试、发布），请看 **[DEVELOPING.md](DEVELOPING.md)**。
 

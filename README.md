@@ -2,7 +2,7 @@
 
 A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of specialist agents behind three orchestrator modes, layered MCP code intelligence and database gateway, one-shot model profiles, workflow slash commands, and optional per-project guardrails — installed into `~/.config/opencode` with a single command.
 
-> **English** | [中文](README.zh-CN.md)
+> **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/)**
 >
 > This README is the user manual. If you want to modify this repo itself (agents, plugins, tests, releases), see **[DEVELOPING.md](DEVELOPING.md)**.
 
