@@ -443,26 +443,108 @@ ensure_mcp() {
            .value.install] | @tsv
     ' 2>/dev/null)" || { echo "WARN [mcp] cannot parse opencode.jsonc — skipping MCP provisioning" >&2; return 0; }
     [[ -n "$rows" ]] || return 0
-    local name cli inst rc=0
+    local name cli inst
+    local interpreters=" node bun deno python python3 cmd sh bash powershell pwsh "
+    local failed_mcps=()
+    local failed_reasons=()
+    local failed_cmds=()
+
     while IFS=$'\t' read -r name cli inst; do
-        [[ -n "$name" && -n "$cli" ]] || continue
+        [[ -n "$name" ]] || continue
+        if [[ "$interpreters" =~ " $cli " || -z "$cli" ]]; then
+            cli="$name"
+        fi
         if command -v "$cli" >/dev/null 2>&1; then
             echo "[mcp] $name already present"
             continue
         fi
         echo "[mcp] installing $name ($inst) ..."
-        # shellcheck disable=SC2086 — install commands carry no quoted args
-        if $inst; then
+        # Check if command requires uv and auto-heal uv if missing
+        if [[ "$inst" =~ ^uv[[:space:]] ]] && ! command -v uv >/dev/null 2>&1; then
+            export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+            if ! command -v uv >/dev/null 2>&1; then
+                echo "[mcp] 'uv' not found; auto-installing uv via Astral installer ..."
+                if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
+                    echo "WARN [mcp] failed to auto-install uv via Astral installer" >&2
+                fi
+                export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+            fi
+        fi
+
+        local install_success=0
+        local err_reason=""
+        if [[ "$inst" =~ ^uv[[:space:]] ]] && ! command -v uv >/dev/null 2>&1; then
+            # Fallback to local python3/pip if uv installation was unavailable
+            if command -v python3 >/dev/null 2>&1; then
+                local py_ver
+                py_ver="$(python3 --version 2>&1 || true)"
+                echo "[mcp] uv unavailable; falling back to detected Python: $(command -v python3) ($py_ver)"
+                if [[ "$name" == "serena" ]]; then
+                    if python3 -m pip install --user --pre serena-agent; then
+                        install_success=1
+                    else
+                        err_reason="pip install failed for serena-agent"
+                    fi
+                else
+                    if python3 -m pip install --user "$name"; then
+                        install_success=1
+                    else
+                        err_reason="pip install failed for $name"
+                    fi
+                fi
+            else
+                err_reason="neither 'uv' nor 'python3' was found in PATH"
+            fi
+        else
+            # shellcheck disable=SC2086 — install commands carry no quoted args
+            if eval "$inst"; then
+                install_success=1
+            else
+                local exit_code=$?
+                err_reason="command '$inst' failed with exit code $exit_code"
+            fi
+        fi
+
+        if [[ $install_success -eq 1 ]]; then
+            if ! command -v "$cli" >/dev/null 2>&1 && command -v uv >/dev/null 2>&1; then
+                uv tool update-shell >/dev/null 2>&1 || true
+                export PATH="$HOME/.local/bin:$PATH"
+            fi
             if command -v "$cli" >/dev/null 2>&1; then
                 echo "[mcp] $name installed"
             else
                 echo "WARN [mcp] $name installed but '$cli' not on PATH yet — check its docs (e.g. 'uv tool update-shell'), then restart the shell" >&2
+                failed_mcps+=("$name")
+                failed_cmds+=("$inst")
+                failed_reasons+=("'$cli' not found on PATH after installation")
             fi
         else
-            echo "WARN [mcp] $name install failed — continuing without it (set mcp.$name.enabled=false if unneeded)" >&2
+            echo "WARN [mcp] $name install failed: ${err_reason:-unknown error}" >&2
+            failed_mcps+=("$name")
+            failed_cmds+=("$inst")
+            failed_reasons+=("${err_reason:-installation failed}")
         fi
     done <<< "$rows"
-    unset name cli inst
+
+    if [[ ${#failed_mcps[@]} -gt 0 ]]; then
+        echo >&2
+        echo "=================================================================" >&2
+        echo " [!] MCP Installation Incomplete / Failed (${#failed_mcps[@]} issue(s) detected):" >&2
+        for i in "${!failed_mcps[@]}"; do
+            echo "   - ${failed_mcps[$i]}" >&2
+            echo "     Command : ${failed_cmds[$i]}" >&2
+            echo "     Reason  : ${failed_reasons[$i]}" >&2
+        done
+        echo >&2
+        echo " Next Steps:" >&2
+        echo "   1. Try running the failed command(s) manually in your terminal." >&2
+        echo "   2. If you don't need a specific MCP, disable it in install/options.jsonc" >&2
+        echo "      or opencode.jsonc (set mcp.<name>.enabled = false)." >&2
+        echo "=================================================================" >&2
+        echo >&2
+    fi
+
+    unset name cli inst failed_mcps failed_reasons failed_cmds
     return 0
 }
 

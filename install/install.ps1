@@ -293,10 +293,13 @@ function Ensure-Mcp([string]$dst) {
     try { $obj = ($lines -join "`n") | ConvertFrom-Json }
     catch { Write-Warning "[mcp] cannot parse opencode.jsonc — skipping MCP provisioning. Cause: $($_.Exception.Message)"; return }
     if (-not $obj.mcp) { return }
+    $failedMcps = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($name in $obj.mcp.PSObject.Properties.Name) {
         $m = $obj.mcp.$name
         if (-not ($m.enabled)) { continue }
-        $cli = if ($m.command -is [array] -and $m.command.Count -gt 0) { [string]$m.command[0] } elseif ($m.command) { [string]$m.command } else { $null }
+        $interpreters = @('node', 'bun', 'deno', 'python', 'python3', 'cmd', 'sh', 'bash', 'powershell', 'pwsh')
+        $rawCli = if ($m.command -is [array] -and $m.command.Count -gt 0) { [string]$m.command[0] } elseif ($m.command) { [string]$m.command } else { $null }
+        $cli = if ($interpreters -contains $rawCli -or -not $rawCli) { $name } else { $rawCli }
         if (-not $cli -or -not $m.install) { continue }
         if (Get-Command $cli -ErrorAction SilentlyContinue) {
             Write-Host "[mcp] $name already present"
@@ -304,18 +307,105 @@ function Ensure-Mcp([string]$dst) {
         }
         Write-Host "[mcp] installing $name ($($m.install)) ..."
         try {
-            # naive arg split — install commands in opencode.jsonc carry no quoted args
+            # Check if command requires uv and auto-heal uv if missing
             $parts = ([string]$m.install) -split '\s+'
-            & $parts[0] $parts[1..($parts.Count - 1)]
-            if ($LASTEXITCODE -ne 0) { throw "exited $LASTEXITCODE" }
+            if ($parts[0] -eq 'uv' -and -not (Get-Command 'uv' -ErrorAction SilentlyContinue)) {
+                # Refresh PATH in case uv is in ~/.local/bin or ~/.cargo/bin
+                $extraPaths = @(
+                    (Join-Path $HOME '.local/bin'),
+                    (Join-Path $HOME '.cargo/bin'),
+                    (Join-Path $env:USERPROFILE '.local/bin'),
+                    (Join-Path $env:USERPROFILE '.cargo/bin')
+                )
+                foreach ($ep in $extraPaths) {
+                    if ((Test-Path $ep) -and -not ($env:PATH -split ';' -contains $ep)) {
+                        $env:PATH = "$ep;$env:PATH"
+                    }
+                }
+                if (-not (Get-Command 'uv' -ErrorAction SilentlyContinue)) {
+                    Write-Host "[mcp] 'uv' not found; auto-installing uv via Astral installer ..."
+                    try {
+                        powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+                        foreach ($ep in $extraPaths) {
+                            if ((Test-Path $ep) -and -not ($env:PATH -split ';' -contains $ep)) {
+                                $env:PATH = "$ep;$env:PATH"
+                            }
+                        }
+                    } catch {
+                        Write-Warning "[mcp] failed to auto-install uv: $($_.Exception.Message)"
+                    }
+                }
+            }
+
+            if ($parts[0] -eq 'uv' -and -not (Get-Command 'uv' -ErrorAction SilentlyContinue)) {
+                # Fallback to local python/pip if uv installation was unavailable
+                $py = if (Get-Command 'python' -ErrorAction SilentlyContinue) { 'python' } elseif (Get-Command 'py' -ErrorAction SilentlyContinue) { 'py' } else { $null }
+                if ($py) {
+                    $pyVer = & $py --version 2>&1
+                    Write-Host "[mcp] uv unavailable; falling back to detected Python environment: $py ($pyVer)"
+                    if ($name -eq 'serena') {
+                        & $py -m pip install --user --pre serena-agent
+                    } else {
+                        & $py -m pip install --user $name
+                    }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "pip install exited with code $LASTEXITCODE"
+                    }
+                } else {
+                    throw "neither 'uv' nor 'python' was found in PATH to install $name"
+                }
+            } else {
+                # naive arg split — install commands in opencode.jsonc carry no quoted args
+                & $parts[0] $parts[1..($parts.Count - 1)]
+                if ($LASTEXITCODE -ne 0) {
+                    throw "command '$($m.install)' exited with code $LASTEXITCODE"
+                }
+            }
+
             if (Get-Command $cli -ErrorAction SilentlyContinue) {
                 Write-Host "[mcp] $name installed"
             } else {
-                Write-Warning "[mcp] $name installed but '$cli' not on PATH yet — check its docs (e.g. 'uv tool update-shell'), then restart the terminal"
+                if (Get-Command 'uv' -ErrorAction SilentlyContinue) {
+                    try { uv tool update-shell | Out-Null } catch {}
+                }
+                if (Get-Command $cli -ErrorAction SilentlyContinue) {
+                    Write-Host "[mcp] $name installed (PATH updated)"
+                } else {
+                    $warnMsg = "[mcp] $name installed but '$cli' not on PATH yet — check its docs (e.g. 'uv tool update-shell'), then restart the terminal"
+                    Write-Warning $warnMsg
+                    $failedMcps.Add([pscustomobject]@{
+                        Name = $name
+                        Command = [string]$m.install
+                        Error = "'$cli' is not on PATH after installation"
+                    })
+                }
             }
         } catch {
-            Write-Warning "[mcp] $name install failed — continuing without it (set mcp.$name.enabled=false if unneeded). Cause: $($_.Exception.Message)"
+            $errDetail = $_.Exception.Message
+            Write-Warning "[mcp] $name install failed: $errDetail"
+            $failedMcps.Add([pscustomobject]@{
+                Name = $name
+                Command = [string]$m.install
+                Error = $errDetail
+            })
         }
+    }
+    if ($failedMcps.Count -gt 0) {
+        Write-Host ''
+        Write-Host "=================================================================" -ForegroundColor Red
+        Write-Host " [!] MCP Installation Incomplete / Failed ($($failedMcps.Count) issue(s) detected):" -ForegroundColor Red
+        foreach ($fm in $failedMcps) {
+            Write-Host "   - $($fm.Name)" -ForegroundColor Yellow
+            Write-Host "     Command : $($fm.Command)" -ForegroundColor Gray
+            Write-Host "     Reason  : $($fm.Error)" -ForegroundColor DarkRed
+        }
+        Write-Host ""
+        Write-Host " Next Steps:" -ForegroundColor Yellow
+        Write-Host "   1. Try running the failed command(s) manually in your terminal." -ForegroundColor Gray
+        Write-Host "   2. If you don't need a specific MCP, disable it in install/options.jsonc" -ForegroundColor Gray
+        Write-Host "      or opencode.jsonc (set mcp.<name>.enabled = false)." -ForegroundColor Gray
+        Write-Host "=================================================================" -ForegroundColor Red
+        Write-Host ''
     }
 }
 

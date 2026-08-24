@@ -40,3 +40,7 @@ dist/
 .gitnexus/
 .codegraph/
 .opencode/
+
+# VitePress documentation build output & cache
+docs/.vitepress/dist/
+docs/.vitepress/cache/

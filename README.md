@@ -1,12 +1,85 @@
 # OpenCode Multi-Agent Config
 
-A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of specialist agents behind three orchestrator modes, one-shot model profiles, workflow slash commands, and optional per-project guardrails — installed into `~/.config/opencode` with a single command.
+A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of specialist agents behind three orchestrator modes, layered MCP code intelligence and database gateway, one-shot model profiles, workflow slash commands, and optional per-project guardrails — installed into `~/.config/opencode` with a single command.
 
-> **English** | [中文](README.zh-CN.md)
+> **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/)**
 >
 > This README is the user manual. If you want to modify this repo itself (agents, plugins, tests, releases), see **[DEVELOPING.md](DEVELOPING.md)**.
 
 ---
+
+## ⚡ 10-Second Quick Install
+
+Install directly to `~/.config/opencode` with a single command (no Git clone required):
+
+### macOS / Linux / WSL
+```bash
+curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz && tar xzf /tmp/oc-config.tar.gz -C /tmp && /tmp/opencode-config-*/install/install.sh
+```
+
+### Windows (PowerShell)
+```powershell
+$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc.zip"; Expand-Archive -Path "$env:TEMP\oc.zip" -DestinationPath "$env:TEMP\oc" -Force; & (Get-ChildItem "$env:TEMP\oc\opencode-config-*\install\install.ps1").FullName
+```
+
+> 💡 **Zero-Risk Upgrades**: Re-running the command above smoothly upgrades to the latest release while **preserving** all your API keys, custom models, and tier assignments.
+
+<details>
+<summary><b>📑 Table of Contents (Click to expand)</b></summary>
+
+- [Part I: Getting Started](#part-i-getting-started)
+  - [What you get](#what-you-get)
+  - [Prerequisites](#prerequisites)
+  - [Quick start (4 steps)](#quick-start)
+- [Part II: Core Capabilities & Daily Use](#part-ii-core-capabilities--daily-use)
+  - [Daily Use & Modes](#daily-use--modes)
+    - [Code mode (default driver)](#code-mode-default)
+    - [Build mode (cross-cutting orchestration)](#build-mode-orchestration)
+    - [Plan mode (read-only analysis)](#plan-mode-read-only)
+    - [Calling specialists directly](#calling-specialists-directly)
+    - [Multi-step workflow example](#multi-step-workflow-example)
+  - [MCP Servers: Code Intelligence & Database Gateway](#mcp-servers-code-intelligence--database)
+    - [Why integrate MCP? (Core Significance)](#why-integrate-mcp-core-significance--design-philosophy)
+    - [Built-in MCP Servers Overview](#built-in-mcp-servers-overview)
+    - [Automated Provisioning & Configuration](#automated-provisioning--configuration)
+  - [Configuration & Profiles](#configuration--profiles)
+    - [Provider setup inside opencode](#provider-setup-inside-opencode-recommended)
+    - [Profiles (Available presets & usage)](#profiles)
+    - [Model Routing & Tier Architecture](#model-routing--tier-architecture)
+    - [Custom providers (/provider wizard)](#custom-providers-provider-wizard)
+    - [LLM Router credentials](#llm-router-credentials)
+    - [Qoder provider integration](#qoder-provider-opencode-qoder-bridge)
+- [Part III: Advanced Workflows & Governance](#part-iii-advanced-workflows--governance)
+  - [Workflow Slash Commands](#workflow-slash-commands)
+    - [Command Overview Table](#workflow-slash-commands)
+    - [Example: review-fix-loop automated cycle](#example-review-fix-loop)
+  - [Auto-advisor mode](#auto-advisor-mode)
+    - [Mode Overview & Switching](#auto-advisor-mode)
+    - [Red-team stance (adversarial design review)](#red-team-stance-adversarial-design-review)
+  - [Plugins & Project Guardrails](#plugins--project-guardrails)
+    - [Plugins Overview Table](#plugins--project-guardrails)
+    - [ADR iron law (adr-guard)](#adr-iron-law-adr-guard)
+    - [Secret file guard (env-guard)](#secret-file-guard-env-guard)
+    - [E2E gate (e2e-guard)](#e2e-gate-e2e-guard)
+    - [Commit discipline (project-manager)](#commit-discipline-project-manager)
+    - [Managing queued prompts (/queued)](#managing-queued-prompts-queued)
+- [Part IV: Installation & Maintenance](#part-iv-installation--maintenance)
+  - [Installation & Advanced Options](#installation--advanced-options)
+    - [Commands Overview Table](#commands)
+    - [Install Options (options.jsonc)](#install-options-optionsjsonc)
+    - [Token savings (rtk compression)](#token-savings-rtk)
+    - [Preserved fields across reinstalls](#preserved-fields-across-reinstalls)
+    - [Global command & custom target](#global-command)
+  - [Upgrading](#upgrading)
+  - [Uninstalling & Fresh Start (init mode)](#uninstalling--fresh-start)
+  - [Troubleshooting FAQ](#troubleshooting)
+  - [Documentation map](#documentation-map)
+
+</details>
+
+---
+
+# Part I: Getting Started
 
 ## What you get
 
@@ -14,10 +87,11 @@ A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of spec
 |---|---|
 | **Specialist agent team** | 17 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, …) with domain-tuned prompts, routed automatically |
 | **Three working modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
-| **One-command installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
+| **Code intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
 | **Workflow slash commands** | `/review-fix-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
 | **Optional guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
+| **One-command installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Token savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install |
 | **Second-opinion advisor** | `@advisor` for blocking decisions, with an adversarial red-team stance for design review |
 
@@ -31,145 +105,227 @@ A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of spec
 | PowerShell 7+ (Windows) | Install script | `winget install Microsoft.PowerShell` |
 | Bash 4+ + `jq` (macOS / Linux / WSL) | Same script, bash side | `brew install jq` or `sudo apt install jq` |
 | Git | Version control & manifest fallback | — |
+| Node.js 22.5+ + npm (Optional) | Runtime for CodeGraph / GitNexus / DBHub MCPs | [nodejs.org](https://nodejs.org/) |
+| uv / Python 3.13+ (Optional) | Runtime for Serena LSP MCP | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
-> Bun is only needed if you develop this repo (see [DEVELOPING.md](DEVELOPING.md)) — opencode compiles the bundled TypeScript plugins at runtime.
-
-## Quick start
-
-### Option A: Install from a Release (no Git clone needed)
-
-Grab the latest archive from the [Releases page](https://github.com/kenlin8827/opencode-config/releases), then:
-
-```bash
-# macOS / Linux / WSL
-curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz
-tar xzf /tmp/oc-config.tar.gz -C /tmp
-cd /tmp/opencode-config-*/
-./install/install.sh
-```
-
-```powershell
-# Windows (PowerShell)
-$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"
-Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"
-Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force
-Set-Location "$env:TEMP\oc-config\opencode-config-*"
-pwsh install/install.ps1
-```
-
-### Option B: Clone and install (2 steps)
-
-```powershell
-# 1. Clone
-git clone <repo-url> opencode-config
-cd opencode-config
-
-# 2. Install config to ~/.config/opencode
-pwsh install/install.ps1
-```
-
-macOS / Linux / WSL:
-
-```bash
-./install/install.sh
-```
-
-Now launch `opencode` in your project directory — configure providers inside the session (`/connect`, `/provider`, `/profile`, see [Configuration](#configuration)); the `@code` direct developer is the default agent (change it via [Default agent](#default-agent-optionsjsonc)).
+> - Bun is only needed if you develop this repo (see [DEVELOPING.md](DEVELOPING.md)) — opencode compiles the bundled TypeScript plugins at runtime.
+> - Node.js and uv are only needed when their corresponding MCP servers are enabled. When enabled in `install/options.jsonc` and missing from PATH, the installer automatically invokes `npm` / `uv` using the pre-configured `install` command.
 
 ---
 
-## Installation
+## Quick start
 
-The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`, `tui.json`, `profiles/`, `providers/`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
+After running the [10-Second Quick Install](#-10-second-quick-install) above, get started in 3 simple steps:
 
-### Commands
+1. **Launch in your project**: Open a terminal in any project root and run `opencode`.
+2. **🎯 Initialize project environment (Highly Recommended)**:
+   ```
+   /project init        # Auto-builds CodeGraph index, scaffolds project config, dbhub template & commit rules
+   ```
+3. **Connect your provider & profile**:
+   ```
+   /connect deepseek    # Connect your provider (or kimi, anthropic, openai, etc.)
+   /profile             # Open picker dialog and apply preset profile for all 5 tiers
+   ```
+4. **Start coding**: `@code` mode is the default daily driver — just describe your task in natural language!
 
-| Mode | PowerShell | Bash | What it does |
-|---|---|---|---|
-| Install (default) | `pwsh install/install.ps1` | `./install/install.sh` | Apply current manifest to target |
-| Force reinstall | `pwsh install/install.ps1 install -Force` | `./install/install.sh install -f` | Re-apply same version |
-| Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
-| Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
-| Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
-| Disable rtk | set `"rtk": false` in `options.jsonc` | same | Skips the binary download and removes the vendored openrtk plugin |
-| Change default agent | set `"default_agent"` in `options.jsonc` | same | Which primary agent opencode enters first (`code` / `build` / `plan`) |
-| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
-| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
+> 💡 **Why run `/project init`?**
+> Without overwriting any existing code, it auto-scaffolds essential infrastructure for your project:
+> - Runs `codegraph init` to build the local AST knowledge graph (enables agents to trace call paths & blast radius instantly).
+> - Generates `dbhub.toml` database gateway scaffold and `docs/git-commits.md` commit discipline rules.
 
-### Default agent (options.jsonc)
+---
 
-Which primary agent opencode enters first is controlled by the `default_agent` field in [`install/options.jsonc`](install/options.jsonc) — the installer applies it to the root `default_agent` field of `opencode.jsonc` on **every** install:
+### Developer method: Clone and install
+
+If you plan to modify or contribute to this repo, install via Git:
+
+```bash
+# 1. Clone
+git clone https://github.com/kenlin8827/opencode-config.git
+cd opencode-config
+
+# 2. Run install (Windows: pwsh install/install.ps1)
+./install/install.sh
+```
+
+---
+
+# Part II: Core Capabilities & Daily Use
+
+## Daily Use & Modes
+
+### Code mode (default)
+
+`@code` is the default entry point — direct developer; writes, modifies, tests, and verifies code itself without unsolicited delegation:
+
+```
+> @code Fix off-by-one error in pagination logic
+> @code Add input validation to registration form
+```
+
+You can still manually delegate auxiliary subagents (`@advisor`, `@explorer`, `@code-review`, `@vision`) when needed. If a task is cross-cutting, `@code` will recommend switching to `@build`.
+
+### Build mode (orchestration)
+
+Switch to `@build` for cross-cutting tasks — it routes work to the right specialist:
+
+```
+> Add a Spring Boot user registration endpoint with JPA and BCrypt
+  → @build routes to @java-dev
+
+> Review my recent commits with focus on security
+  → @build routes to @code-review (adds @security if sensitive)
+
+> Design the architecture for a new payment service
+  → @build routes to @architect (presents multi-step plan first)
+```
+
+You don't need to specify which agent — just describe the task. For cross-cutting tasks, `@build` presents an execution plan before starting.
+
+### Plan mode (read-only)
+
+Switch to `@plan` for analysis-only tasks (no code modifications):
+
+```
+> @plan Audit the codebase for technical debt and security vulnerabilities
+  → @plan dispatches @architect, @security, @code-review, @qa in parallel
+  → Aggregates findings into a prioritized report
+```
+
+Switch between modes via Tab or `@code` / `@build` / `@plan`.
+
+### Calling specialists directly
+
+You can bypass the orchestrator and call any specialist directly:
+
+```
+> @dba Optimize the indexes on the orders table
+> @frontend-dev Create a reusable Button component with design tokens
+> @code-review Review PR #42
+```
+
+### Multi-step workflow example
+
+For complex features, `@build` creates and executes a plan:
+
+```
+## Execution Plan
+
+1. [@architect] — Design event sourcing architecture → ADR + design doc
+2. [@dba] — Design event store schema → DDL + migration scripts
+3. [@java-dev] — Implement producer and consumer → code + tests
+4. [@qa] — Write integration tests → test suite
+5. [@security] — Security review → report
+6. [@code-review] — Code review → findings
+7. [@tech-writer] — Documentation → README + API docs
+
+Proceed?
+```
+
+---
+
+## MCP Servers (Code Intelligence & Database)
+
+### Why integrate MCP? (Core Significance & Design Philosophy)
+
+Traditional AI coding assistants rely on blind text searching (`grep` / `glob`) and bulk file reads to understand codebases. For non-trivial repositories, this pattern suffers from severe bottlenecks:
+1. **Context Window Saturation & High Token Cost**: Tracing a multi-step call chain often requires reading dozens of files, quickly bloating context tokens, degrading reasoning quality, and driving up API costs.
+2. **Lack of Structural Global Awareness**: Text grep cannot understand AST syntax trees, polymorphism / dynamic dispatch, interface implementations, or multi-hop call paths. As a result, agents easily overlook the **blast radius** (downstream breakages) of a change.
+3. **Database Hallucination & Trial-and-Error**: When dealing with databases, LLMs frequently hallucinate table or column names, leading to SQL execution errors and wasted roundtrips.
+
+To eliminate these bottlenecks, this configuration integrates a **tiered Code Intelligence & Database Gateway matrix** via the **Model Context Protocol (MCP)**:
+
+```
+                               ┌────────────────────────────────────────────────────────┐
+                               │               OpenCode Agent Team                      │
+                               └───────┬─────────────────┬────────────────────┬─────────┘
+                                       │                 │                    │
+              ┌────────────────────────┴────────┐ ┌──────┴───────────────┐ ┌──┴─────────────────────────┐
+              │      Symbol-Level (Real-time)   │ │  Macro Graph & Architecture│ │   Universal Database Gateway  │
+              │         (Symbol Layer)          │ │       (Graph Layer)   │ │      (Database Layer)         │
+              ├─────────────────────────────────┤ ├───────────────────────┤ ├─────────────────────────────┤
+              │ Serena MCP (Live LSP)           │ │ CodeGraph / GitNexus  │ │ DBHub MCP (Bytebase)        │
+              │ • find_symbol                   │ │ • codegraph_explore   │ │ • search_objects (Metadata) │
+              │ • find_referencing_symbols      │ │ • Call paths / Impact │ │ • execute_sql (Read-only)   │
+              │ • get_symbols_overview          │ │ • Cross-file overview │ │                             │
+              └─────────────────────────────────┘ └───────────────────────┘ └─────────────────────────────┘
+```
+
+- **Precise Symbol Inquiries → Serena (LSP)**: Exact definitions, references, and symbol outlines. Zero indexing wait, minimal payload, returns only what's asked without bloating the context.
+- **Architectural Understanding & Impact → CodeGraph / GitNexus**: "How does component X work?", "What breaks if I change this function?" — single-call responses covering complete call flows and blast radius.
+- **Reliable Data Exploration → DBHub**: Enforces discovering real schema (`search_objects`) before running queries (`execute_sql`), preventing hallucinated table/column names.
+
+---
+
+### Built-in MCP Servers Overview
+
+| Server | Type | License | Core Tool | Best For | Lifecycle & Indexing |
+|---|---|---|---|---|---|
+| **Serena** | Live LSP Semantic Engine | MIT | `find_symbol`, `find_referencing_symbols`, `get_symbols_overview` | Precise symbol lookups: definitions, references, file outlines (zero hallucination) | Connects live to LSP upon session start; **no** pre-indexing step |
+| **CodeGraph** | Code Knowledge Graph (Default) | MIT | `codegraph_explore` | High-level architecture, "How X works", complete call paths, blast radius / impact analysis | Run `codegraph init` (or `/project init`) once per repo; background watcher **auto-syncs on every save** |
+| **GitNexus** | Deep Graph Analysis (Optional) | PolyForm Noncommercial | Cypher queries, clustering | Multi-repo groups, arbitrary Cypher graph queries, cluster/process visualization | Re-index with `gitnexus analyze` (or `/project index`) after big changes |
+| **DBHub** | Universal DB Gateway | MIT (Bytebase) | `search_objects`, `execute_sql` | Unified gateway for PostgreSQL / MySQL / SQLite / SQL Server / MariaDB | Per-project `dbhub.toml` config supporting `${ENV_VAR}` interpolation |
+
+---
+
+### Automated Provisioning & Configuration
+
+The MCP stack is seamlessly woven into the installer and agent runtime:
+
+#### 1. Centralized Switches & CLI Auto-Provisioning (`install/options.jsonc`)
+
+Manage active MCP servers in [`install/options.jsonc`](install/options.jsonc):
 
 ```jsonc
 // install/options.jsonc
 {
-  // code  — direct developer; does the coding work itself (daily driver)
-  // build — orchestrator; routes coding tasks to specialists
-  // plan  — read-only coordinator for analysis / design work
-  "default_agent": "code"
+  "mcp": {
+    "serena": true,     // LSP semantic queries (auto-installed via uv if missing)
+    "codegraph": true,  // Code knowledge graph (auto-installed via npm if missing)
+    "gitnexus": false,  // Deep Cypher graph (check PolyForm license for commercial use)
+    "dbhub": true       // Universal DB gateway (auto-installed via npm if missing)
+  }
 }
 ```
 
-To change it: edit the value, then re-run the installer (`install -Force` when the version is unchanged). Unknown agent names are rejected with a warning and the template value is kept. Inside a session you can always switch modes via Tab or `@build` / `@plan` / `@code` regardless of the default.
+- **Automatic CLI Provisioning**: When running `pwsh install/install.ps1` or `./install/install.sh`, if an enabled MCP CLI is missing from PATH, the installer automatically runs its `install` command (from `opencode.jsonc`) to provision it.
 
-### Custom target (safe testing)
+#### 2. Runtime Profiling & Routing (`project-profiler` plugin)
 
-```powershell
-$tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
-pwsh install/install.ps1 install -Target $tmp
-# inspect...
-Remove-Item -Recurse -Force $tmp
+You don't need to manually tell agents which tool to call. The bundled [`project-profiler.ts`](plugins/project-profiler/project-profiler.ts) plugin:
+- Automatically detects project languages, active MCP servers, and local index status (`.codegraph/`, `.gitnexus/`).
+- Injects guidance into the system prompt: **mandates querying graph/LSP backends first rather than crawling files blindly**.
+
+#### 3. Project Lifecycle Management (`/project` command)
+
+Initialize and maintain project indexes effortlessly with [`/project`](#commit-discipline-project-manager):
+
+```text
+/project init       # One-shot scaffolding: runs `codegraph init` and scaffolds `dbhub.toml`
+                    # if respective MCPs and CLIs are ready
+/project index      # Refreshes indexes: runs `codegraph sync` and `gitnexus analyze`
 ```
 
-```bash
-./install/install.sh install -t /tmp/opencode-test
+#### 4. Database Setup Example (`dbhub.toml`)
+
+Create a `dbhub.toml` in your project root (or let `/project init` scaffold it):
+
+```toml
+# dbhub.toml
+[[sources]]
+id = "default"
+dsn = "${DBHUB_DSN}"   # Store DSN in environment variable (e.g. postgres://user:pass@localhost:5432/mydb)
+
+[[tools]]
+name = "execute_sql"
+source = "default"
+readonly = true        # Safety: enforce read-only execution
 ```
-
-### Global command
-
-After the initial install, register the repo as a global `opencode-config` command:
-
-```powershell
-pwsh install/install.ps1 register              # shim at ~/.local/bin
-pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom directory
-```
-
-```bash
-./install/install.sh register
-./install/install.sh register --bin-dir ~/bin
-```
-
-`register` creates a trampoline that re-executes the in-repo dispatcher, so `git pull` updates the command immediately. It will refuse to overwrite a file it did not create. Add `~/.local/bin` to your user PATH, then run:
-
-```powershell
-opencode-config status
-opencode-config install -Force
-opencode-config unregister   # remove the shim
-```
-
-### What gets preserved across reinstalls
-
-When `opencode.jsonc` is overwritten by a new template, these fields are snapshotted from your existing config and restored afterwards:
-
-| Field | Why |
-|---|---|
-| `provider.<name>.options.baseURL` | Your API endpoint |
-| `provider.<name>.options.apiKey` | Your API key |
-| `provider.<name>.models` | Your model definitions (custom model ids, user-added models) — deep-merged back: your fields win per model, template-only models and fields still get in |
-| `model` (root) | Your default-tier model pick |
-| `agent.<name>.model` (per tier) | Your per-tier model assignments |
-
-All other fields come from the repo template. To discard preserved picks, remove `<target>/opencode.jsonc` before reinstalling.
-
-### Token savings (rtk)
-
-Install auto-provisions [rtk](https://github.com/rtk-ai/rtk) — a CLI proxy that compresses command output (git status, test runs, builds, ...) by 60-90% before it reaches the model. No manual steps: if `rtk` is not on PATH, the installer downloads the pinned release into `~/.local/bin` (SHA256-verified, added to the user PATH on Windows when needed). The opencode hook ships in-tree as the vendored [openrtk](https://github.com/martinstannard/openrtk) plugin (`plugins/openrtk.ts`) — it rewrites shell commands through rtk transparently, no `rtk init` step. A leftover official plugin from a previous `rtk init -g --opencode` is removed automatically. Telemetry is disabled after setup.
-
-To opt out entirely: set `"rtk": false` in `install/options.jsonc` and re-run install — the options file overwrites the target on every install, so the download is skipped and the vendored openrtk plugin is removed from the target. To remove the binary afterwards: delete `~/.local/bin/rtk(.exe)`.
 
 ---
 
-## Configuration
+## Configuration & Profiles
 
 All provider/model configuration happens inside opencode itself — the old
 `install/config.ps1` / `install/config.sh` helpers are retired:
@@ -212,6 +368,67 @@ This configuration method is suitable for:
 - Quick interactive configuration scenarios
 
 Profiles automatically configure tier-to-model mappings, eliminating the need to manually set models for each tier.
+
+### Profiles
+
+A profile is a named preset that maps all model tiers to a specific provider's models in one shot, rather than setting each tier individually.
+
+#### Available profiles
+
+| Profile | Description |
+|---|---|
+| `llm-router` | Server-side routing baseline |
+| `codex-router` | Self-hosted codex gateway (Sol/Luna series) |
+| `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
+| `claude-code-router` | Self-hosted Claude Code gateway (Anthropic protocol, Fable/Opus/Sonnet/Haiku series) |
+| `antigravity-router` | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking + GPT-OSS) |
+| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
+| `qoder-deepseek` | Full DeepSeek lineup alternative on Qoder (dmodel = DeepSeek-V4-Pro, dfmodel = DeepSeek-V4-Flash) |
+| `qoder-qwen` | Full Qwen lineup alternative on Qoder (qmodel_preview = Qwen3.8-Max-Preview, qmodel_latest = Qwen3.7-Max, qmodel = Qwen3.7-Plus) |
+| `opencode-go-ultimate` | Quality first, cost no object |
+| `opencode-go-performance` | Daily driver |
+| `opencode-go-economy` | Balanced price/performance |
+| `opencode-go-lite` | Minimum viable cost |
+| `opencode-go-qwen` | Full Qwen lineup alternative |
+| `opencode-go-kimi` | Full Kimi lineup alternative |
+| `kimi-code` | Kimi For Coding (official plan) |
+| `opencode-go-deepseek` | Full DeepSeek lineup alternative |
+| `opencode-go-glm` | Full GLM lineup alternative |
+
+#### Using profiles
+
+Apply a profile with the `/profile` slash command inside an opencode session (see [Workflow Slash Commands](#workflow-slash-commands)) — no arguments, opens the native picker dialog:
+
+```
+/profile
+  → dialog: "( Show current tier mapping )" + one entry per profile
+  → pick a profile: opens the tier review dialog — tweak models per tier:
+    pick provider then pick model (lists come from opencode's service
+    catalog: built-in providers like anthropic/openai + configured custom
+    providers; typing '<provider>/<model_id>' manually is also supported as
+    a fallback), then "( Apply profile )":
+    prefers server-side global config API for hot application (invalidates
+    cached config, recreates instances, no restart needed); if unavailable
+    (older opencode versions), falls back to direct opencode.jsonc +
+    .active-profile writes which require a restart
+  → Esc cancels
+```
+
+All agents in covered tiers are rewritten to the profile's `provider/model_id` reference; the root `model` follows the `default` tier. Tiers not listed in the profile remain unchanged. Everything is validated before write; hot-apply path is patched server-side preserving JSONC comments, while fallback path creates a backup `opencode.jsonc.bak` before rewriting and requires a restart. Note: hot-apply recreates the server instance, which can interrupt an ongoing reply stream (session history is preserved).
+
+### Model Routing & Tier Architecture
+
+The system uses 5 model tiers, each mapped to a set of agents:
+
+| Tier | Purpose | Agents |
+|---|---|---|
+| `default` | General, strong reasoning | build, plan, code, researcher, architect, security, tech-writer |
+| `code` | Code generation, implementation | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `advisor` | Analysis, review, feedback | code-review, advisor |
+| `explorer` | Fast, cheap, high-throughput | explorer |
+| `vision` | Image understanding | vision |
+
+Each tier resolves to the provider/model mapped by the active profile. **Variant** (low/medium/high) controls thinking/reasoning effort per agent; silently ignored if the backing model does not support variants.
 
 ### Custom providers (`/provider` wizard)
 
@@ -267,211 +484,76 @@ export LLM_ROUTER_BASE_URL="https://router.example.com/v1"
 export LLM_ROUTER_API_KEY="sk-xxxx"
 ```
 
-The token round-trips through every reinstall. If you prefer a hardcoded literal, edit `~/.config/opencode/opencode.jsonc` directly — the literal is then preserved across reinstalls.
+These survive every reinstall. If you prefer hardcoded literals, edit `~/.config/opencode/opencode.jsonc` directly — literals are preserved too.
 
 ### Qoder provider (`opencode-qoder-bridge`)
 
-The [opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) plugin is listed in the shipped `opencode.jsonc` `plugin` array and injects the `qoder` provider plus its full model catalog at startup — no provider block or API key needed. It talks to Qoder through the official `@qoder-ai/qoder-agent-sdk`, using your Qoder CLI credentials.
+The [opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) plugin is included in the shipped `opencode.jsonc`'s `plugin` array and injects the `qoder` provider and its full model catalog at startup — no provider block or API keys needed. It communicates with Qoder through the official `@qoder-ai/qoder-agent-sdk` using your Qoder CLI credentials.
 
 Prerequisites:
 
 - Node.js `^22.18 || >=24.11`
-- Qoder CLI installed and logged in: `qoder login` (credentials live under `~/.qoder/.auth/user`)
+- Qoder CLI installed and logged in: `qoder login` (credentials stored in `~/.qoder/.auth/user`)
 
-Then restart opencode and apply the bundled `qoder` profile via `/profile`. Models follow your Qoder account/plan — the bridge discovers the catalog live via the SDK (auto, ultimate, performance, efficient, lite, cmodel, qmodel*, kmodel*, gm51model, dmodel, dfmodel, mmodel, …).
+Then restart opencode and apply the shipped `qoder` profile via `/profile`. Available models follow your Qoder account/plan — the bridge discovers the catalog in real-time through the SDK (`auto`, `ultimate`, `performance`, `efficient`, `lite`, `cmodel`, `qmodel*`, `kmodel*`, `gm51model`, `dmodel`, `dfmodel`, `mmodel`, etc.).
 
-Extras that come with the bridge:
+Extra capabilities shipped with the bridge:
 
-- `/qoder-usage` inside opencode, or `qoder-usage` in a terminal — per-model cost/token ledger plus live account quota
-- A TUI entry the bridge adds to the global `tui.json` on first load (shows live Qoder credits; self-heals if a reinstall overwrites `tui.json`)
+- `/qoder-usage` inside opencode or `qoder-usage` in your terminal — per-model consumption/token accounting + live balance
+- The bridge adds a TUI widget on first load showing live Qoder quota (restored automatically if a reinstall overwrites `tui.json`)
 
-Troubleshooting: auth prompt at startup → run `qoder login` and restart; `qodercli not found` → put the Qoder CLI on PATH. If you don't use Qoder, remove `"opencode-qoder-bridge"` from the `plugin` array in `~/.config/opencode/opencode.jsonc`.
+Troubleshooting: auth prompt on start → run `qoder login` and restart; `qodercli not found` → add Qoder CLI to PATH. If you do not use Qoder, drop `"opencode-qoder-bridge"` from the `plugin` array in `~/.config/opencode/opencode.jsonc`.
 
 ---
 
-## Profiles
+# Part III: Advanced Workflows & Governance
 
-A profile is a named preset that bundles a provider with a per-tier model pick, applied in one shot instead of one `set model` per tier.
+## Workflow Slash Commands
 
-### Available profiles
-
-| Profile | Description |
+| Command | What it does |
 |---|---|
-| `llm-router` | Server-side routing baseline |
-| `codex-router` | Self-hosted codex gateway (Sol/Luna) |
-| `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
-| `claude-code-router` | Self-hosted Claude Code gateway, Anthropic protocol (Fable/Opus/Sonnet/Haiku) |
-| `antigravity-router` | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking + GPT-OSS) |
-| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
-| `qoder-deepseek` | All-DeepSeek family on Qoder (dmodel = DeepSeek-V4-Pro, dfmodel = DeepSeek-V4-Flash) |
-| `qoder-qwen` | All-Qwen family on Qoder (qmodel_preview = Qwen3.8-Max-Preview, qmodel_latest = Qwen3.7-Max, qmodel = Qwen3.7-Plus) |
-| `opencode-go-ultimate` | Quality first, cost no object |
-| `opencode-go-performance` | Daily driver |
-| `opencode-go-economy` | Cost-performance balance |
-| `opencode-go-lite` | Cheapest usable |
-| `opencode-go-qwen` | All-Qwen family fallback |
-| `opencode-go-kimi` | All-Kimi family fallback |
-| `kimi-code` | Kimi For Coding (official plan) |
-| `opencode-go-deepseek` | All-DeepSeek family fallback |
-| `opencode-go-glm` | All-GLM family fallback |
-
-### Using profiles
-
-Profiles are applied from within an opencode session via the `/profile` slash command (see [Slash commands](#slash-commands)) — it takes no arguments and opens a native dialog picker:
-
-```
-/profile
-  → dialog: "( Show current tier mapping )" + one entry per profile
-  → pick a profile: tier review dialog — pick any tier, then pick a
-    provider and a model from the opencode catalog (built-in providers
-    like anthropic/openai plus configured ones; typing a custom
-    '<provider>/<model_id>' ref is available as fallback), then
-    "( Apply profile )" applies the mapping live through the
-    server's global config API (config cache invalidated, instances
-    rebuilt — no restart needed); if that endpoint is unavailable
-    (older opencode builds) it falls back to rewriting
-    opencode.jsonc + .active-profile, which needs a restart
-  → Esc cancels
-```
-
-Every agent of a covered tier is rewritten to the profile's `provider/model_id` ref in lockstep, and the root `model` tracks the `default` tier. Tiers not listed by a profile are left untouched. Applying validates everything up front; the live path lets the server patch `opencode.jsonc` (comments preserved), while the fallback backs up `opencode.jsonc.bak` before a raw rewrite and requires a restart. Note: a live apply disposes server instances, so a message stream in flight at the moment of switching may be interrupted (session history is persisted).
-
----
-
-## Model routing
-
-The system uses 5 model tiers. Each tier maps to a group of agents:
-
-| Tier | Use case | Agents |
-|---|---|---|
-| `default` | General purpose, strong reasoning | build, plan, code, researcher, architect, security, tech-writer |
-| `code` | Code generation, implementation | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | Analysis, review, feedback | code-review, advisor |
-| `explorer` | Fast, cheap, high-volume | explorer |
-| `vision` | Image understanding | vision |
-
-Each tier resolves to whatever provider/model your active profile mapped it to. **Variant** (low/medium/high) controls thinking/reasoning effort per agent; if the backend model doesn't support variants, it's silently ignored.
-
----
-
-## Daily usage
-
-### Code mode (default)
-
-`@code` is the default entry point — a direct developer that writes, modifies, tests, and verifies code itself, without proactive delegation:
-
-```
-> @code Fix the off-by-one error in the pagination logic
-> @code Add input validation to the signup form
-```
-
-Manual delegation stays available for assists (`@advisor`, `@explorer`, `@code-review`, `@vision`). If the task turns out to be multi-domain, `@code` suggests switching to `@build`.
-
-### Build mode (orchestrated)
-
-Switch to `@build` for multi-domain tasks — it routes your task to the right specialist automatically:
-
-```
-> Add a Spring Boot endpoint for user registration with JPA and BCrypt
-  → @build dispatches to @java-dev
-
-> Review my latest commit for security issues
-  → @build dispatches to @code-review (+ @security if sensitive)
-
-> Design the architecture for a new payment service
-  → @build dispatches to @architect (multi-step plan presented first)
-```
-
-You don't need to specify agents manually — just describe the task. For multi-domain tasks, `@build` presents an execution plan before proceeding.
-
-### Plan mode (read-only)
-
-Switch to `@plan` for analysis-only tasks (no code changes):
-
-```
-> @plan Audit the codebase for tech debt and security vulnerabilities
-  → @plan dispatches @architect, @security, @code-review, @qa in parallel
-  → Synthesized report with prioritized recommendations
-```
-
-Switch between modes via Tab or `@code` / `@build` / `@plan`.
-
-### Direct agent invocation
-
-You can bypass the orchestrator and call a specialist directly:
-
-```
-> @dba Optimize the indexes on the orders table
-> @frontend-dev Create a reusable Button component with design tokens
-> @code-review Review PR #42
-```
-
-### Multi-step workflow example
-
-For complex features, `@build` creates and executes a plan:
-
-```
-## Execution Plan
-
-1. [@architect] — Design the event sourcing architecture → ADR + design doc
-2. [@dba] — Design the event store schema → DDL + migration scripts
-3. [@java-dev] — Implement producer and consumer → code + tests
-4. [@qa] — Write integration tests → test suite
-5. [@security] — Security review → report
-6. [@code-review] — Code review → review report
-7. [@tech-writer] — Write docs → README + API docs
-
-Shall I proceed?
-```
-
----
-
-## Slash commands
-
-| Command | Description |
-|---|---|
-| `/auto-advisor off\|lite\|full` | Switch advisor mode (see below) |
-| `/provider` | Open the provider wizard (TUI-only): configure credentials (baseURL → apiKey prompts) for active or bundled providers, or manage a provider's model list (add via key/upstream id/display name prompts, remove with confirmation). See [Custom providers](#custom-providers-provider-wizard) |
-| `/profile` | Open the dialog picker: shows all available model provider profiles (active one marked); picking one opens a tier review where each tier's model can be overridden via provider → model selection (providers and models come from the opencode server catalog: built-in + configured) before applying (rewrites the tier→model mappings in `opencode.jsonc`). The first entry shows the active profile and current tier→model mappings |
-| `/review-fix-loop [scope] [--max-rounds=N]` | Automated review → verify → fix → re-review loop until no P0/P1 remain. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or empty (uncommitted). `--max-rounds=N` overrides default 5 |
-| `/goal [text]` | Structured objective execution with audit-friendly checkpoints and mechanical stop conditions. With text: execute the goal. Without text: goal-builder mode (interactive interview to construct a 5-section goal) |
-| `/handoff [focus]` | Compact the current conversation into a handoff document (saved to the OS temp directory) so a fresh session can pick up the work. Optional arg focuses the doc on what the next session should work on |
-| `/project init` | Scaffold baseline project files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` only when missing (never overwrites); an EXISTING project config gets an append-only top-up with switch lines the template gained since init (existing content untouched); then runs each backend's first-time init (only when its CLI is installed and enabled): `codegraph init`, `gitnexus analyze` when the index is missing. While `docs/git-commits.md` exists, commit discipline is active (see [Commit discipline](#commit-discipline-project-manager)) |
-| `/project index` | Manually refresh EXISTING indexes: `codegraph sync` (incremental catch-up for changes made while the watcher wasn't running), `gitnexus analyze` rebuild when stale. Refresh only — a first index is `/project init`'s job; a missing CLI is reported as skipped, never invoked |
-| `/project sync` | The config top-up alone: append template switch lines missing from an existing `.opencode/opencode.jsonc` (append-only — nothing existing is changed; missing file → run `/project init`) |
-| `/grill-me <topic>` | Relentless one-question-at-a-time interview to sharpen a plan or design |
-| `/grill-with-docs <topic>` | Same as `/grill-me` + creates `CONTEXT.md` glossary and ADRs inline |
-| `/queued` | Manage queued prompts — interactive TUI dialogs to list / edit / cancel messages submitted while the session is busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
+| `/auto-advisor off\|lite\|full` | Toggle auto-advisor mode (see below) |
+| `/provider` | Open the provider wizard (TUI only): set credentials (`baseURL` → `apiKey` prompts) for active or shipped router definitions, or manage a provider's model list (three-step add by key/upstream id/display name, removal with confirmation). See [Custom providers](#custom-providers-provider-wizard) |
+| `/profile` | Open the profile picker dialog: list all available model provider profiles (active marked); selecting one opens the tier review dialog to tweak models per tier via provider → model selection before applying (provider/model list from opencode's service catalog: built-in + configured custom), rewriting the tier-to-model mapping in `opencode.jsonc`. First entry shows current active profile and tier mapping |
+| `/review-fix-loop [scope] [--max-rounds=N]` | Automated review-verify-fix-re-review loop until zero P0/P1 issues. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or omit (uncommitted changes). `--max-rounds=N` overrides the default 5 |
+| `/goal [text]` | Structured goal execution protocol with audit-friendly checklists and mechanically checkable stop conditions. With text: executes the goal; without text: goal-builder mode (interactive interview to construct a 5-section goal) |
+| `/handoff [focus]` | Compacts current session into a handoff document (saved to OS temp directory) for a fresh session to take over. Optional focus argument directs the document toward what the next session should tackle |
+| `/project init` | Scaffold project baseline files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` ONLY when missing (never overwrites); existing project configs get append-only top-ups for template switches added after init; then runs first-time backend init (only when CLI installed + enabled): `codegraph init`, `gitnexus analyze` when index is missing. Commit discipline is active while `docs/git-commits.md` exists (see "Commit discipline" below) |
+| `/project index` | Manually refresh existing indexes: `codegraph sync` (catches up on changes while watcher wasn't running), `gitnexus analyze` re-indexing when stale. Refresh-only, never creates first-time index (that belongs to `/project init`); skipped with a report if CLI is not installed |
+| `/project sync` | Config top-up only: appends template comment switches that the existing `.opencode/opencode.jsonc` lacks (append-only, never touches existing content; prompts `/project init` if missing) |
+| `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
+| `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
+| `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
 
 ### Example: review-fix-loop
 
 ```
 > /review-fix-loop last commit
   → @code-review finds P0/P1 issues
-  → Verify each finding (read code, trace data flow, check guards)
-  → If false positive → @advisor confirms before dismiss
-  → If confirmed real → @<domain-dev> fixes each verified issue
+  → Verifies each finding (reads code, traces data flow, checks upstream guards)
+  → If false positive → skipped only after @advisor confirms
+  → If confirmed BUG → @<domain-dev> fixes each verified issue
   → @code-review re-reviews
-  → Repeat until clean or max rounds (default 5)
-  → Summary with verdict + statistics
+  → Repeats until clean or max rounds reached (default: 5)
+  → Summary output: verdict + stats
 
 > /review-fix-loop HEAD~3 --max-rounds=8
-  → Same loop, allows up to 8 rounds for larger diffs
+  → Same flow, up to 8 rounds (good for larger diffs)
 ```
 
 ---
 
 ## Auto-advisor mode
 
-`@advisor` provides an independent second opinion on **blocking** decisions only — and only when genuinely necessary (see Frugality rules in the advisor protocol). Non-blocking decisions always proceed with stated assumptions.
+`@advisor` provides an independent second opinion on **blocking** decisions only — and only when genuinely warranted (frugality rule in advisor protocol). Non-blocking decisions proceed by stating assumptions.
 
 | Mode | Behavior |
 |---|---|
-| **off** (default) | No `@advisor` dispatch; orchestrator decides alone. Manual `@advisor` still works. |
-| **lite** | Dispatch `@advisor`; present BOTH opinions to the user. User decides. |
-| **full** | Dispatch `@advisor`; confidence >= 8 on FACTUAL questions → auto-execute (max 10/session, then lite); otherwise lite flow. |
+| **off** (default) | `@advisor` is never dispatched; orchestrator decides alone. Manual `@advisor` calls still work. |
+| **lite** | `@advisor` is dispatched; presents both perspectives to the user to decide. |
+| **full** | `@advisor` is dispatched; FACTUAL questions with confidence >= 8 → auto-executes (max 10/session, then degrades to lite); otherwise presents to user (lite flow). |
 
-### Toggle
+### Switching
 
 ```
 /auto-advisor off
@@ -479,14 +561,14 @@ Shall I proceed?
 /auto-advisor full
 ```
 
-The `auto-advisor-mode` plugin writes the config before the LLM sees the command, so the switch is code-level reliable.
+The `auto-advisor-mode` plugin writes the config before the LLM sees the command, so transitions are code-level reliable.
 
 ### State persistence
 
-- **Storage**: the `autoAdvisorMode` field in `opencode.jsonc` — no hidden state file, no env var. Values: `off` / `lite` / `full` (legacy field `advisorMode` and values `advisory` / `decisive` auto-normalized).
-- **Resolution**: project config (`opencode.jsonc` or `.opencode/opencode.jsonc`) → `off` (default). Purely project-level — no global fallback.
-- **Writes are project-level only**: `/auto-advisor <mode>` upserts the field in the project's `opencode.jsonc` (comments and other fields preserved); the global config is never modified
-- The value persists across sessions and processes, scoped per project
+- **Storage**: `autoAdvisorMode` field in `opencode.jsonc` — no hidden state files, no environment variables. Values: `off` / `lite` / `full` (legacy field `advisorMode` and legacy values `advisory` / `decisive` normalized automatically).
+- **Resolution**: Project config (`opencode.jsonc` or `.opencode/opencode.jsonc`) → `off` (default). Purely project-scoped — no global fallback.
+- **Project-only writes**: `/auto-advisor <mode>` updates the field in the project's `opencode.jsonc` (preserving comments and other fields); never modifies global config.
+- Persists across sessions and processes, scoped to the individual project.
 
 ### Red-team stance (adversarial design review)
 
@@ -499,12 +581,13 @@ An optional dispatch where `@advisor` argues AGAINST a proposal instead of balan
 
 ---
 
-## Plugins
+## Plugins & Project Guardrails
 
 Plugins provide runtime enforcement and workflows that prompts alone cannot achieve. Everything below ships enabled — nothing to install.
 
 | Plugin | What it does for you |
 |---|---|
+| `project-profiler.ts` | Detects project languages & active MCP servers at session start; steers agents to LSP/graph queries before grep |
 | `design-token-guard.ts` | Blocks writes with hardcoded colors/spacing/radius — keeps frontend code on design tokens |
 | `ai-slop-scanner.ts` | Warns about AI anti-patterns in frontend files (gradient soup, div soup) |
 | `metrics.ts` | Auto-records tool call metrics (duration, success, agent) as JSONL in `~/.config/opencode/.metrics/` |
@@ -637,13 +720,116 @@ When you submit prompts while the session is busy, OpenCode persists them immedi
 
 ---
 
+# Part IV: Installation & Maintenance
+
+## Installation & Advanced Options
+
+The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins/`, `instructions/`, `opencode.jsonc`, `tui.json`, `profiles/`, `providers/`) to `~/.config/opencode/`. Everything else (`.git/`, `install/`, `tests/`, `node_modules/`, etc.) stays in the repo.
+
+### Commands
+
+| Mode | PowerShell | Bash | What it does |
+|---|---|---|---|
+| Install (default) | `pwsh install/install.ps1` | `./install/install.sh` | Apply current manifest to target |
+| Force reinstall | `pwsh install/install.ps1 install -Force` | `./install/install.sh install -f` | Re-apply same version |
+| Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
+| Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
+| Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
+| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
+| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
+
+### Install Options (`options.jsonc`)
+
+[`install/options.jsonc`](install/options.jsonc) is the single source of truth for runtime options. Edit this file and re-run install (`install -Force` when the version is unchanged):
+
+```jsonc
+// install/options.jsonc
+{
+  // rtk output compression (60-90% token savings)
+  "rtk": true,
+  // Primary agent on start: code (default) / build / plan
+  "default_agent": "code",
+  // MCP server switches (missing CLIs auto-provisioned on install)
+  "mcp": {
+    "serena": true,
+    "codegraph": true,
+    "gitnexus": false,
+    "dbhub": true
+  },
+  // External npm plugin switches
+  "plugin": {
+    "@dietrichgebert/ponytail": true,
+    "opencode-qoder-bridge": true,
+    "@frankhommers/opencode-smart-title": true,
+    "opencode-mem@2.24.3": false
+  }
+}
+```
+
+### Token savings (rtk)
+
+Install auto-provisions [rtk](https://github.com/rtk-ai/rtk) — a CLI proxy that compresses command output (git status, test runs, builds, ...) by 60-90% before it reaches the model. No manual steps: if `rtk` is not on PATH, the installer downloads the pinned release into `~/.local/bin` (SHA256-verified, added to the user PATH on Windows when needed). The opencode hook ships in-tree as the vendored [openrtk](https://github.com/martinstannard/openrtk) plugin (`plugins/openrtk.ts`) — it rewrites shell commands through rtk transparently, no `rtk init` step. A leftover official plugin from a previous `rtk init -g --opencode` is removed automatically. Telemetry is disabled after setup.
+
+To opt out entirely: set `"rtk": false` in `install/options.jsonc` and re-run install — the options file overwrites the target on every install, so the download is skipped and the vendored openrtk plugin is removed from the target. To remove the binary afterwards: delete `~/.local/bin/rtk(.exe)`.
+
+### Preserved fields across reinstalls
+
+When `opencode.jsonc` is overwritten by a new template, these fields are snapshotted from your existing config and restored afterwards:
+
+| Field | Why |
+|---|---|
+| `provider.<name>.options.baseURL` | Your API endpoint |
+| `provider.<name>.options.apiKey` | Your API key |
+| `provider.<name>.models` | Your model definitions (custom model ids, user-added models) — deep-merged back: your fields win per model, template-only models and fields still get in |
+| `model` (root) | Your default-tier model pick |
+| `agent.<name>.model` (per tier) | Your per-tier model assignments |
+
+All other fields come from the repo template. To discard preserved picks, remove `<target>/opencode.jsonc` before reinstalling.
+
+### Global command
+
+After the initial install, register the repo as a global `opencode-config` command:
+
+```powershell
+pwsh install/install.ps1 register              # shim at ~/.local/bin
+pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom directory
+```
+
+```bash
+./install/install.sh register
+./install/install.sh register --bin-dir ~/bin
+```
+
+`register` creates a trampoline that re-executes the in-repo dispatcher, so `git pull` updates the command immediately. It will refuse to overwrite a file it did not create. Add `~/.local/bin` to your user PATH, then run:
+
+```powershell
+opencode-config status
+opencode-config install -Force
+opencode-config unregister   # remove the shim
+```
+
+### Custom target (safe testing)
+
+```powershell
+$tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
+pwsh install/install.ps1 install -Target $tmp
+# inspect...
+Remove-Item -Recurse -Force $tmp
+```
+
+```bash
+./install/install.sh install -t /tmp/opencode-test
+```
+
+---
+
 ## Upgrading
 
 ```powershell
 # 1. Pull latest
 git pull origin main
 
-# 2. Check what will change
+# 2. Check changes
 pwsh install/install.ps1 status
 
 # 3. Install (credentials + model picks are preserved)
@@ -656,15 +842,15 @@ git pull origin main
 ./install/install.sh
 ```
 
-The installer reads `.CONFIG_VERSION` in the target, looks up that version's manifest, removes its files, then copies the current manifest. Your credentials and model picks are preserved.
+The installer reads `.CONFIG_VERSION` from the target directory, looks up that version's manifest, deletes its files, then copies the current manifest. Your credentials and model picks are preserved.
 
-Release-based installs: download the new archive and run the installer again — same preservation rules apply.
+Release archive users: download the new archive and run the installer again — same preservation rules apply.
 
 ---
 
-## Uninstalling
+## Uninstalling & Fresh Start
 
-### Clean uninstall
+### Full uninstall
 
 ```bash
 rm -rf ~/.config/opencode
@@ -674,16 +860,16 @@ rm -rf ~/.config/opencode
 Remove-Item -Recurse -Force "$HOME/.config/opencode"
 ```
 
-This removes all agents, commands, plugins, instructions, and config. Metrics in `~/.config/opencode/.metrics/` are also removed. If you registered the global command, run `opencode-config unregister` (or delete the shim in `~/.local/bin`) first.
+This removes all agents, commands, plugins, instructions, and configuration. Metrics under `~/.config/opencode/.metrics/` are also deleted. If you registered the global command, run `opencode-config unregister` first (or delete the shim from `~/.local/bin`).
 
 ### Init mode (backup + clear)
 
-Use `init` to back up the entire target directory to a timestamped sibling (`~/.config/opencode.backup.YYYYMMDD-HHMMSS`), then clear everything inside it — a clean slate for a fresh install.
+Use `init` to back up the entire target directory to a timestamped sibling (`~/.config/opencode.backup.YYYYMMDD-HHMMSS`) and clear everything inside — preparing for a clean install.
 
 ```powershell
 pwsh install/install.ps1 init             # backup + clear
 pwsh install/install.ps1 init -NoBackup   # clear without backup
-pwsh install/install.ps1 init -Yes         # skip confirmation prompt
+pwsh install/install.ps1 init -Yes        # skip confirmation prompt
 ```
 
 ```bash
@@ -692,7 +878,7 @@ pwsh install/install.ps1 init -Yes         # skip confirmation prompt
 ./install/install.sh init -y            # skip confirmation prompt
 ```
 
-After `init`, run `install` to reinstall config files, then configure credentials and model picks inside opencode (`/connect` + `/profile`).
+After `init`, run `install` to reinstall configuration files, then configure providers and models inside opencode (`/connect` + `/profile`).
 
 ---
 
@@ -700,25 +886,25 @@ After `init`, run `install` to reinstall config files, then configure credential
 
 ### "provider.llm-router not configured"
 
-Set credentials via the `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` environment variables (see [LLM Router credentials](#llm-router-credentials)), or edit `~/.config/opencode/opencode.jsonc` directly, then restart opencode.
+Set credentials via environment variables `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` (see [LLM Router credentials](#llm-router-credentials)), or edit `~/.config/opencode/opencode.jsonc` directly, then restart opencode.
 
-### Auto-advisor mode not switching
+### Auto-advisor mode does not switch
 
-Check the `autoAdvisorMode` field in the project's `opencode.jsonc` (run from the project root):
+Check the `autoAdvisorMode` field in your project `opencode.jsonc` (run from your project root):
 
 ```powershell
 Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 ```
 
-If the field is missing the mode is `off` (default). Run `/auto-advisor lite` to write the field into the project config and enable advisor consultation.
+If the field does not exist, mode is `off` (default). Run `/auto-advisor lite` to write the field to project config and enable advisor consultations.
 
 ### `/profile` does not preserve JSONC comments
 
-The `/profile` plugin strips comments when it rewrites `opencode.jsonc`. If comments matter to you, maintain them in the repo template (`opencode.jsonc`) — they'll be restored on every reinstall (the installer copies the raw file), then stripped again the next time `/profile` touches it.
+The `/profile` plugin strips comments when rewriting `opencode.jsonc`. If comments are important to you, maintain them in the repo template (`opencode.jsonc`) — reinstalling copies the original file (comments restored), though subsequent `/profile` edits will strip them again.
 
-### Something else?
+### Other issues?
 
-Installer internals (manifests, preserved fields, custom targets) are documented in [`install/README.md`](install/README.md). Repo development issues (plugin type errors, tests) are covered in [`DEVELOPING.md`](DEVELOPING.md).
+See [`install/README.md`](install/README.md) for installer internals (manifests, preserved fields, custom targets). See [`DEVELOPING.md`](DEVELOPING.md) for repo development issues (plugin type errors, tests).
 
 ---
 
@@ -726,7 +912,7 @@ Installer internals (manifests, preserved fields, custom targets) are documented
 
 | Document | Audience |
 |---|---|
-| `README.md` (this file) / [`README.zh-CN.md`](README.zh-CN.md) | Users — install, configure, daily workflow |
-| [`DEVELOPING.md`](DEVELOPING.md) | Contributors — architecture, prompt conventions, tests, releases |
+| [`README.md`](README.md) (this file) / [`README.zh-CN.md`](README.zh-CN.md) | Users — installation, configuration, daily workflows |
+| [`DEVELOPING.md`](DEVELOPING.md) | Contributors — architecture, prompt standards, testing, releases |
 | [`install/README.md`](install/README.md) | Installer internals — manifests, preserved fields, init, custom targets |
 | [`tests/README.md`](tests/README.md) | Test suite reference |
