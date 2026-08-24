@@ -41,7 +41,7 @@ A bug fix with zero tests is not a real bug fix. Default to at least the 2–5-f
 
 ## Skip rules (when NOT to run a higher tier)
 
-- **E2E**: slow + flaky + expensive. Last resort. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation path. Even then, confirm the run with the user before executing. Projects can enforce this at the tool level via the `e2eGuard` switch (the e2e-guard plugin blocks ungated E2E runs until the user grants a one-shot pass).
+- **E2E**: slow + flaky + expensive. Last resort. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation path. Even then, evaluate impact and confirm with the user before executing. Projects can enable this protocol via the `e2eGuard` switch (`/e2e-guard on` in `opencode.jsonc`). **Red line**: when `e2eGuard` is on, the agent MUST assess the E2E impact on all `feat` and `fix` tasks, flag any missing E2E test specs (test gaps), and interactively ask the user (targeted affected specs / full suite / supplement test cases / skip) via interactive question tools before running or completing tasks.
 - **Full suite**: only when requested, on release branches, or when the change is genuinely cross-cutting and module-scoped tests give no confidence.
 
 ## Transparency rule
