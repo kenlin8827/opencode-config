@@ -276,6 +276,52 @@ function Ensure-Rtk([string]$dst) {
     }
 }
 
+# Auto-detects and adapts the Windows shell environment for OpenCode:
+# Probes for Git Bash (bash.exe) and configures User $SHELL if not already set,
+# allowing OpenCode's built-in `bash` tool to execute seamlessly on Windows.
+function Ensure-ShellEnvironment {
+    $existingShell = [System.Environment]::GetEnvironmentVariable('SHELL', 'User')
+    if (-not $existingShell) {
+        $existingShell = [System.Environment]::GetEnvironmentVariable('SHELL', 'Machine')
+    }
+    if ($existingShell -and (Test-Path $existingShell)) {
+        Write-Host ("[shell] SHELL already configured: {0}" -f $existingShell)
+        return
+    }
+
+    $candidates = @(
+        'C:\Program Files\Git\bin\bash.exe',
+        'C:\Program Files\Git\usr\bin\bash.exe',
+        'C:\Program Files (x86)\Git\bin\bash.exe',
+        'C:\Git\bin\bash.exe'
+    )
+    $foundBash = $null
+    foreach ($cand in $candidates) {
+        if (Test-Path $cand) {
+            $foundBash = $cand
+            break
+        }
+    }
+    if (-not $foundBash) {
+        $cmdBash = Get-Command 'bash' -ErrorAction SilentlyContinue
+        if ($cmdBash -and $cmdBash.Source -and (Test-Path $cmdBash.Source) -and $cmdBash.Source -notmatch 'System32\\bash\.exe') {
+            $foundBash = $cmdBash.Source
+        }
+    }
+
+    if ($foundBash) {
+        try {
+            [System.Environment]::SetEnvironmentVariable('SHELL', $foundBash, [System.EnvironmentVariableTarget]::User)
+            $env:SHELL = $foundBash
+            Write-Host ("[shell] auto-configured User SHELL -> {0} (Git Bash detected)" -f $foundBash)
+        } catch {
+            Write-Warning ("[shell] failed to set User SHELL environment variable: $($_.Exception.Message)")
+        }
+    } else {
+        Write-Host "[shell] Git Bash not found; OpenCode agents will operate in adaptive PowerShell mode."
+    }
+}
+
 # Config-driven MCP CLI provisioning: walks opencode.jsonc's `mcp` block and
 # runs each entry's `install` field when the entry is enabled and its CLI
 # (command[0]) is missing from PATH. Adding a new MCP to the config is all it
@@ -982,6 +1028,9 @@ switch ($Mode) {
 
             # Provision MCP CLIs for the `mcp` block (warns, never fails)
             Ensure-Mcp $Target
+
+            # Auto-adapt and configure Windows shell environment (Git Bash / SHELL)
+            Ensure-ShellEnvironment
 
             # 3) marker goes last — only success reaches here
             Write-Marker $ver

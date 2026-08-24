@@ -64,4 +64,16 @@ If the field does not exist, mode is `off` (default). Run `/auto-advisor lite` t
 
 ### `/profile` does not preserve JSONC comments
 
-The `/profile` plugin strips comments when rewriting `opencode.jsonc`. If comments are important to you, maintain them in the repo template (`opencode.jsonc`) — reinstalling copies the original file (comments restored), though subsequent `/profile` edits will strip them again.
+The `/profile` plugin strips comments when rewriting `opencode.jsonc`. If comments are important to you, maintain them in your repository template (`opencode.jsonc`) — each reinstall copies the original (comments restored), but the next `/profile` mutation will strip them again.
+
+### Bash command execution on Windows (Adaptive Support)
+
+OpenCode's built-in tool is natively named `bash`, so LLMs frequently output POSIX/Unix shell commands. This configuration features a **dual-layer self-adaptive mechanism**:
+
+1. **Installer auto-detection & shell adaptation**:
+   When running `pwsh install/install.ps1`, the installer automatically probes for Git Bash and configures the User `SHELL` environment variable. To set it manually:
+   ```powershell
+   [System.Environment]::SetEnvironmentVariable('SHELL', 'C:\Program Files\Git\bin\bash.exe', [System.EnvironmentVariableTarget]::User)
+   ```
+2. **Global Agent Instruction Adaptation**:
+   In `instructions/coding-principles.md`, Principle 9 mandates adaptive command execution. Even in pure PowerShell/CMD environments without Git Bash, agents adapt to native PowerShell syntax (e.g. `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`) or cross-platform commands (`git`, `npm`, `node`), and auto-recover if a syntax mismatch occurs.
