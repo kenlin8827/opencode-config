@@ -1,0 +1,72 @@
+/* Hero Section: Left Text & Right Image Optimization */
+
+/* 1. Prevent awkward line breaks / word wrapping on titles */
+.VPHero .name,
+.VPHero .text {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.VPHero .name {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.VPHero .text {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* 2. Balance Left Text vs Right Image container space */
+@media (min-width: 960px) {
+  /* Give the text container more horizontal room */
+  .VPHero .container {
+    max-width: 1200px !important;
+  }
+  .VPHero .main {
+    flex: 1 1 65% !important;
+    max-width: 760px !important;
+    padding-right: 24px;
+  }
+  /* Reduce image size so it doesn't crowd out the text */
+  .VPHero .image {
+    flex: 0 0 35% !important;
+  }
+  .VPHero .image-container {
+    max-width: 240px !important;
+    max-height: 240px !important;
+    margin: 0 auto !important;
+  }
+  .VPHero .image-src {
+    max-width: 220px !important;
+    max-height: 220px !important;
+  }
+  .VPHero .name {
+    font-size: 46px !important;
+    line-height: 1.2 !important;
+  }
+  .VPHero .text {
+    font-size: 38px !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  .VPHero .name {
+    font-size: 50px !important;
+    line-height: 1.2 !important;
+  }
+  .VPHero .text {
+    font-size: 42px !important;
+    line-height: 1.25 !important;
+  }
+  .VPHero .image-container {
+    max-width: 280px !important;
+    max-height: 280px !important;
+  }
+  .VPHero .image-src {
+    max-width: 260px !important;
+    max-height: 260px !important;
+  }
+}

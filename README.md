@@ -1,6 +1,6 @@
-# OpenCode Multi-Agent Config
+# OpenCode Production Engineering Config
 
-A ready-to-install [OpenCode](https://opencode.ai) configuration: a team of specialist agents behind three orchestrator modes, layered MCP code intelligence and database gateway, one-shot model profiles, workflow slash commands, and optional per-project guardrails — installed into `~/.config/opencode` with a single command.
+A production-ready [OpenCode](https://opencode.ai) configuration for real-world software engineering: layered MCP code intelligence and database gateway, hard engineering guardrails (ADR / secret-file / E2E / commit discipline), 17 specialist agents, and one-shot model tier governance — installed into `~/.config/opencode` with a single command.
 
 > **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/)**
 >

@@ -1,6 +1,6 @@
-# OpenCode 多智能体配置
+# OpenCode 生产级工程化配置
 
-开箱即用的 [OpenCode](https://opencode.ai) 配置：一支专家智能体团队、三种编排模式、分层 MCP 代码智能与数据库网关、一键模型预设、工作流斜杠命令、可选的项目级护栏 —— 一条命令安装到 `~/.config/opencode`。
+开箱即用的 [OpenCode](https://opencode.ai) 生产级工程化配置：分层 MCP 代码智能与数据库网关、全链路工程护栏（ADR 铁律 / 密钥防护 / E2E 门控 / 提交纪律）、17 位专家智能体协作与一键模型分层治理 —— 一条命令安装到 `~/.config/opencode`。
 
 > [English](README.md) | **中文** | 📖 **[在线文档站 (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/zh/)**
 >
