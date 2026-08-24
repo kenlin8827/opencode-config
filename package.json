@@ -1,5 +1,10 @@
 {
   "version": "0.2.4",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
   "dependencies": {
     "@dietrichgebert/ponytail": "^4.9.0",
     "@opencode-ai/plugin": "1.18.15",
@@ -10,6 +15,7 @@
     "@opentui/core": "^0.5.4",
     "@opentui/solid": "^0.5.4",
     "@types/bun": "latest",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitepress": "^1.6.4"
   }
 }
