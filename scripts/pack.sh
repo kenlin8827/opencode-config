@@ -119,7 +119,7 @@ cp "$VERSION_FILE"                     "$PKG_DIR/install/"
 if [[ -f "$REPO_ROOT/install/options.jsonc" ]]; then
     cp "$REPO_ROOT/install/options.jsonc" "$PKG_DIR/install/"
 fi
-cp "$MANIFEST"                         "$PKG_DIR/install/versions/"
+cp "$INST_DIR"/*.manifest.txt          "$PKG_DIR/install/versions/"
 
 # 2. Copy bin dispatchers
 mkdir -p "$PKG_DIR/bin"

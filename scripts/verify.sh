@@ -42,9 +42,11 @@ extras() {
         "install/options.jsonc" \
         "install/install.sh" \
         "install/install.ps1" \
-        "install/versions/$VER.manifest.txt" \
         "bin/opencode-config" \
         "bin/opencode-config.ps1"
+    for m in "$INST_DIR"/*.manifest.txt; do
+        [[ -f "$m" ]] && printf 'install/versions/%s\n' "$(basename "$m")"
+    done
 }
 
 EXPECTED="$( { manifest_entries; extras; } | sort -u )"

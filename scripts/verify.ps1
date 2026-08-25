@@ -49,15 +49,15 @@ $manifest = Get-Content $manifestPath |
     Where-Object { $_ -ne '' }
 
 # Companion files bundled by pack.ps1 outside the manifest
+$manifestFiles = @(Get-ChildItem -Path $InstDir -Filter '*.manifest.txt' | ForEach-Object { "install/versions/$($_.Name)" })
 $extras = @(
     'install/VERSION',
     'install/options.jsonc',
     'install/install.sh',
     'install/install.ps1',
-    "install/versions/$ver.manifest.txt",
     'bin/opencode-config',
     'bin/opencode-config.ps1'
-)
+) + $manifestFiles
 $expected = ($manifest + $extras) | Sort-Object -Unique
 
 $Work = Join-Path $DistDir '.verify-tmp'

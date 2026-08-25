@@ -123,7 +123,7 @@ Copy-Item (Join-Path $RepoRoot 'install/install.ps1') $installDest -Force
 Copy-Item $VersionFile $installDest -Force
 $compSrc = Join-Path $RepoRoot 'install/options.jsonc'
 if (Test-Path $compSrc) { Copy-Item $compSrc $installDest -Force }
-Copy-Item $manifestPath $versionsDest -Force
+Copy-Item (Join-Path $InstDir '*.manifest.txt') $versionsDest -Force
 
 # 2. Copy bin dispatchers
 $binDest = Join-Path $pkgDir 'bin'
