@@ -410,8 +410,7 @@ Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -c
 # Project wizard plugin checks (plugins/project-wizard.ts — TUI-only, registered via tui.json)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\project-wizard.ts" -Raw
 Check "project-wizard.ts: imports TuiPlugin from plugin/tui" ($pwPlugin -match "@opencode-ai/plugin/tui")
-Check "project-wizard.ts: slash command name is project" ($pwPlugin -match 'SLASH_NAME = "project"')
-Check "project-wizard.ts: registers palette command with slashName" ($pwPlugin -match "slashName: SLASH_NAME" -and $pwPlugin -match 'namespace: "palette"')
+Check "project-wizard.ts: registers palette command with slashName project-wizard" ($pwPlugin -match 'slashName: "project-wizard"' -and $pwPlugin -match 'namespace: "palette"')
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
 Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/project-wizard.ts")
 

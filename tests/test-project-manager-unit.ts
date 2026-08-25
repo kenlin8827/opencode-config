@@ -52,6 +52,7 @@ import {
 } from "../plugins/project-manager/project-manager-index"
 import { makeSystemHook, MARKER } from "../plugins/project-manager/project-manager-system-inject"
 import { makeAnnounceHook, suggestInitMessage } from "../plugins/project-manager/project-manager-announce"
+import { makeCommandHook } from "../plugins/project-manager/project-manager-command"
 import { makeToolGuardHook, validateMessage } from "../plugins/project-manager/project-manager-tool-guard"
 
 // ─── Test framework ───────────────────────────────────────────────────────
@@ -224,13 +225,41 @@ function test05_Scaffold() {
 //  6. Command parsing
 // ═════════════════════════════════════════════════════════════════════════
 
-function test06_Command() {
-  section("06: command parsing")
+async function test06_Command() {
+  section("06: command parsing and /project init handling")
   assert(COMMAND_NAME === "project", "command name is /project")
   assert(parseSubcommand("init") === "init", "'init' parsed")
   assert(parseSubcommand("  INIT  extra") === "init", "case-insensitive, first token only")
   assert(parseSubcommand(undefined) === null, "missing args → null (help)")
   assert(parseSubcommand("   ") === null, "blank args → null (help)")
+
+  // Command hook handles /project init
+  const dirCmd = mkdtempSync(join(tmpdir(), "pm-cmd-"))
+  setProjectDir(dirCmd)
+  let promptText = ""
+  const mockClient: any = {
+    session: {
+      prompt: async ({ body }: any) => {
+        promptText = body.parts?.[0]?.text ?? ""
+      },
+    },
+  }
+  let handledCalled = false
+  const hook = makeCommandHook(mockClient, () => {
+    handledCalled = true
+    throw new Error("handled")
+  })
+
+  try {
+    await hook({ command: "project", arguments: "init", sessionID: "s-test" })
+  } catch (e: any) {
+    if (e.message !== "handled") throw e
+  }
+  assert(handledCalled === true, "hook handles /project init")
+  assert(promptText.includes("[project-manager] init done"), "/project init executes init report")
+
+  rmSync(dirCmd, { recursive: true, force: true })
+  setProjectDir(projectDir)
 }
 
 // ─── Run ──────────────────────────────────────────────────────────────────
@@ -486,7 +515,7 @@ await test02_FileAsSwitch()
 await test03_ToolGuard()
 await test04_SwitchOff()
 test05_Scaffold()
-test06_Command()
+await test06_Command()
 await test07_Injection()
 test08_IndexPlanning()
 await test09_Announce()

@@ -605,7 +605,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `e2e-guard.ts` | `/e2e-guard` command + system prompt protocol injection — per-project switch: guides LLM to assess E2E impact on `feat`/`fix` tasks, suggest missing E2E specs, and interactively confirm with the user via `ask` before running (see below) |
 | `project-manager.ts` | `/project` command + commit discipline (see below) |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy (see below) |
-| `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project` TUI dialog wizards (interactive switch configuration & re-entrant echo) |
+| `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project-wizard` TUI dialog wizards (interactive two-tier switch wizard & re-entrant echo) |
 | `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 | `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
 
@@ -691,21 +691,27 @@ When enabled (`on`):
 { "e2eGuard": "on" }
 ```
 
-### Commit discipline (`project-manager`)
+### Commit discipline & project scaffolding (`project-manager` / `project-wizard`)
 
 Per-project commit-convention enforcement with a **file-as-switch**: no state file, no on/off command — the discipline is active exactly while `docs/git-commits.md` exists.
 
 ```text
-/project init       # scaffold baseline files (only when missing, never overwrites;
+/project-wizard     # [TUI mode] open interactive two-tier dialog wizard (scaffolding/switches/sync/index)
+/project            # [CLI mode] display command usage help & available subcommands
+/project init       # [Headless / Direct] scaffold baseline files & bootstrap indexes (never overwrites;
                     #   an existing project config gets new template switches appended):
                     #   .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
-                    # then first-time backend init (only when CLI installed + enabled):
-                    #   codegraph init, gitnexus analyze when the index is missing
-/project index      # manually refresh existing indexes: codegraph sync,
-                    #   gitnexus analyze when stale
-/project sync       # the config top-up alone (append-only)
-/project            # help
+                    #   then runs first-time backend index builds (codegraph init, gitnexus analyze)
+/project setup      # inspect project switches & setup status in CLI mode
+/project index      # manually refresh existing indexes: codegraph sync, gitnexus analyze when stale
+/project sync       # top up project config alone (append-only)
 ```
+
+**`/project-wizard` Interactive Wizard Highlights**:
+- **Two-Tier Navigation**: Level 1 main actions (Init / Configure Switches / Template Sync / Refresh Index / Exit) and Level 2 quality guard customization.
+- **Safe In-Memory Draft**: Modifying switches stays in memory without touching disk until explicit `💾 Save & Apply Changes` is confirmed.
+- **Closed-Loop Alerts**: Operations display native `DialogAlert` modal cards and smoothly return to the wizard without abrupt exits.
+- **Truncation-Free Layout**: Compact badges (`🟢 ON` / `🔴 OFF` / `⚪ default`) and concise descriptions fit neatly even in narrow terminal viewports.
 
 While `docs/git-commits.md` exists:
 

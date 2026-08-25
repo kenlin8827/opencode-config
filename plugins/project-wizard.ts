@@ -41,14 +41,17 @@ import {
  */
 
 const PLUGIN_ID = "opencode-config.project-wizard"
-const SLASH_NAME = "project"
 
 function toast(
   api: TuiPluginApi,
   message: string,
   variant: "info" | "success" | "warning" | "error" = "info",
 ): void {
-  void api.ui.showToast({ message, variant })
+  try {
+    api.ui.toast({ title: "Project wizard", message, variant })
+  } catch {
+    // safe fallback if ui.toast is unsupported
+  }
 }
 
 export interface DetectedProjectState {
@@ -138,46 +141,51 @@ export function detectCurrentSwitches(rootDir: string): DetectedProjectState {
 }
 
 function formatGuardBadge(val?: "on" | "off" | "default"): string {
-  if (val === "on") return "🟢 ON (active)"
-  if (val === "off") return "🔴 OFF (disabled)"
-  return "⚪ default (off)"
+  if (val === "on") return "🟢 ON"
+  if (val === "off") return "🔴 OFF"
+  return "⚪ default"
 }
 
 function formatAdrModeBadge(val?: "auto" | "flat" | "hierarchical" | "default"): string {
-  if (val === "auto") return "🟢 auto (smart adaptive)"
-  if (val === "flat") return "📄 flat (single dir)"
-  if (val === "hierarchical") return "📦 hierarchical (multi-tier)"
-  return "⚪ default (auto)"
+  if (val === "auto") return "🟢 auto"
+  if (val === "flat") return "📄 flat"
+  if (val === "hierarchical") return "📦 hierarchy"
+  return "⚪ default"
 }
 
 function formatAdvisorBadge(val?: "off" | "lite" | "full" | "default"): string {
-  if (val === "lite") return "🟢 LITE (advisory - recommended)"
-  if (val === "full") return "🔵 FULL (decisive)"
-  if (val === "off") return "🔴 OFF (disabled)"
-  return "⚪ default (off)"
+  if (val === "lite") return "🟢 lite"
+  if (val === "full") return "🔵 full"
+  if (val === "off") return "🔴 off"
+  return "⚪ default"
 }
-
-
 
 function backendLine(r: BackendResult): string {
   if (r.status === "ran") return `  ✅ ${r.backend}: ${r.detail}`
   if (r.status === "failed") return `  ❌ ${r.backend}: ${r.detail}`
-  return `  ⏭️ ${r.backend}: skipped — ${r.detail}`
+  return `  ⏭️ ${r.backend}: skipped (${r.detail})`
 }
 
 function initReport(results: ScaffoldResult[], backends: BackendResult[]): string {
   const lines = results.map((r) => {
     if (r.status === "created") return `  ✅ created ${r.relPath}`
-    if (r.status === "updated") return `  ♻️ updated ${r.relPath} (switches updated, existing content preserved)`
-    if (r.status === "invalid") return `  ⚠️ ${r.relPath} is malformed`
-    return `  ⏭️ skipped ${r.relPath} (already exists)`
+    if (r.status === "updated") return `  ♻️ updated ${r.relPath}`
+    if (r.status === "invalid") return `  ⚠️ malformed ${r.relPath}`
+    return `  ⏭️ kept ${r.relPath}`
   })
-  return `[project-manager] Completed in ${getProjectDir()}\n\nFiles:\n${lines.join("\n")}\n\nBackends:\n${backends.map(backendLine).join("\n")}`
+  return `Target: ${getProjectDir()}\n\nFiles:\n${lines.join("\n")}\n\nBackends:\n${backends.map(backendLine).join("\n")}`
+}
+
+export interface WizardState {
+  switches: ProjectSwitches
+  exists: boolean
+  configRelPath?: string
+  currentSelection?: string
 }
 
 export function startProjectWizard(
   api: TuiPluginApi,
-  stateOverride?: { switches: ProjectSwitches; exists: boolean; configRelPath?: string; currentSelection?: string },
+  stateOverride?: WizardState,
 ): void {
   const rootDir = process.cwd()
   setProjectDir(rootDir)
@@ -186,77 +194,102 @@ export function startProjectWizard(
   const isExisting = stateOverride ? stateOverride.exists : detected.exists
   const configRel = stateOverride ? stateOverride.configRelPath : detected.configRelPath
   const current: ProjectSwitches = stateOverride ? stateOverride.switches : detected.switches
-  const activeSelection = stateOverride?.currentSelection ?? "__apply_init__"
+
+  showMainMenu(api, {
+    switches: current,
+    exists: isExisting,
+    configRelPath: configRel,
+    currentSelection: stateOverride?.currentSelection ?? "__action_init__",
+  })
+}
+
+/** Renders authentic DialogAlert popup modal and safely returns to wizard upon confirmation */
+function showAlertModal(
+  api: TuiPluginApi,
+  params: {
+    title: string
+    message: string
+    onDismiss: () => void
+  },
+): void {
+  api.ui.dialog.replace(() =>
+    api.ui.DialogAlert({
+      title: params.title,
+      message: params.message,
+      onConfirm: () => {
+        setTimeout(() => {
+          params.onDismiss()
+        }, 20)
+      },
+      onCancel: () => {
+        setTimeout(() => {
+          params.onDismiss()
+        }, 20)
+      },
+    }),
+  )
+}
+
+/** Level 1 Menu: Select primary action */
+function showMainMenu(api: TuiPluginApi, state: WizardState): void {
+  const rootDir = process.cwd()
+  const { switches: current, exists: isExisting, configRelPath: configRel } = state
+  const activeSelection = state.currentSelection ?? "__action_init__"
 
   const dialogTitle = isExisting
-    ? `Project Setup — Existing Config Loaded (${configRel ?? ".opencode/opencode.jsonc"})`
-    : "Project Setup — Initialize New Project"
+    ? `Project Setup — ${configRel ?? ".opencode/opencode.jsonc"}`
+    : "Project Setup — New Project"
 
   const mainActionTitle = isExisting
-    ? "🚀 [ Apply & Update Project Configuration ]"
-    : "🚀 [ Apply & Initialize Project ]"
+    ? "🚀 Apply & Update Configuration"
+    : "🚀 Apply & Initialize Scaffolding"
 
   const mainActionDesc = isExisting
-    ? "Save current switch settings into existing config without touching other fields"
-    : "Create baseline files (.opencode/opencode.jsonc, AGENTS.md, etc.) and run backend init"
+    ? "Save switches & update baseline files"
+    : "Create config, AGENTS.md & git-commits.md"
+
+  const switchesSummary = `adv:${current.autoAdvisorMode ?? "def"} · adr:${current.adrGuard ?? "def"} · env:${current.envGuard ?? "def"} · e2e:${current.e2eGuard ?? "def"}`
 
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
       title: dialogTitle,
-      placeholder: "Select an option to review or configure (Esc cancels)",
+      placeholder: "Select action (Esc to exit)",
       skipFilter: true,
       current: activeSelection,
       options: [
         {
           title: mainActionTitle,
-          value: "__apply_init__",
+          value: "__action_init__",
           description: mainActionDesc,
         },
         {
-          title: `🤖 autoAdvisorMode: [ ${formatAdvisorBadge(current.autoAdvisorMode)} ]`,
-          value: "__switch_advisor__",
-          description: "Click to select advisor mode: lite / full / off / default",
+          title: "⚙️ Configure Project Switches",
+          value: "__action_switches__",
+          description: switchesSummary,
         },
         {
-          title: `🛡️ adrGuard: [ ${formatGuardBadge(current.adrGuard)} ]`,
-          value: "__switch_adr__",
-          description: "Click to select ADR guard state: on / off / default",
+          title: "🔄 Sync Template Switches",
+          value: "__action_sync__",
+          description: "Append missing switch lines to config",
         },
         {
-          title: `📁 adrGuardDir: [ ${current.adrGuardDir ?? "docs/adr"} ]`,
-          value: "__switch_adr_dir__",
-          description: "Click to select or customize ADR directory path",
+          title: "⚡ Refresh Code Index",
+          value: "__action_index__",
+          description: "Catch up codegraph & gitnexus indexes",
         },
         {
-          title: `🏛️ adrMode: [ ${formatAdrModeBadge(current.adrMode)} ]`,
-          value: "__switch_adr_mode__",
-          description: "Click to select ADR mode: auto / flat / hierarchical / default",
-        },
-        {
-          title: `🔒 envGuard: [ ${formatGuardBadge(current.envGuard)} ]`,
-          value: "__switch_env__",
-          description: "Click to select secret env file guard: on / off / default",
-        },
-        {
-          title: `🧪 e2eGuard: [ ${formatGuardBadge(current.e2eGuard)} ]`,
-          value: "__switch_e2e__",
-          description: "Click to select E2E assessment guard: on / off / default",
-        },
-        {
-          title: "🔄 [ Sync Existing Config Switches ]",
-          value: "__sync__",
-          description: "Append any new template switch lines into existing config without overwriting",
-        },
-        {
-          title: "⚡ [ Run Code Index Refresh ]",
-          value: "__index__",
-          description: "Trigger incremental index catch-up (codegraph sync, gitnexus analyze)",
+          title: "❌ Exit Wizard",
+          value: "__action_exit__",
+          description: "Close setup dialog (or Esc)",
         },
       ],
       onSelect: async (option) => {
-        const nextState = { switches: current, exists: isExisting, configRelPath: configRel }
         switch (option.value) {
-          case "__apply_init__": {
+          case "__action_exit__": {
+            api.ui.dialog.clear()
+            break
+          }
+          case "__action_init__": {
             try {
               const results = runInitWithSwitches(current)
               const probe = probeBackends(rootDir)
@@ -271,51 +304,252 @@ export function startProjectWizard(
                 isExisting ? "Project configuration updated!" : "Project initialized successfully!",
                 "success",
               )
-              api.ui.dialog.replace(() =>
-                api.ui.DialogAlert({
-                  title: isExisting ? "Project Update Result" : "Project Initialization Result",
-                  message: report,
-                  onConfirm: () => api.ui.dialog.clear(),
-                }),
-              )
+              showAlertModal(api, {
+                title: isExisting ? "Project Update Result" : "Project Initialization Result",
+                message: report,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    exists: true,
+                    currentSelection: "__action_init__",
+                  }),
+              })
             } catch (err) {
-              toast(api, `Init/Update failed: ${(err as Error).message}`, "error")
-              api.ui.dialog.clear()
+              showAlertModal(api, {
+                title: "Init / Update Failed",
+                message: `Operation failed: ${(err as Error).message}`,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    currentSelection: "__action_init__",
+                  }),
+              })
             }
             break
           }
+
+          case "__action_switches__": {
+            showSwitchesMenu(api, {
+              ...state,
+              currentSelection: "__switch_advisor__",
+            })
+            break
+          }
+
+          case "__action_sync__": {
+            try {
+              const res = runSync()
+              let syncMsg = ""
+              if (res.status === "missing") {
+                syncMsg = "⚠️ Config file (.opencode/opencode.jsonc) does not exist.\nPlease run Init first."
+              } else if (res.status === "up-to-date") {
+                syncMsg = "ℹ️ Configuration is already up to date.\nAll latest template switch keys are already present."
+              } else if (res.status === "added") {
+                syncMsg = `✅ Successfully appended ${res.added.length} new switch line(s) to config:\n\n${res.added.map((k) => `  + ${k}`).join("\n")}\n\nExisting configuration content was preserved.`
+              } else {
+                syncMsg = "❌ Configuration file is malformed (missing proper closing brace).\nPlease fix the file manually."
+              }
+              showAlertModal(api, {
+                title: "Template Switches Sync Result",
+                message: syncMsg,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    currentSelection: "__action_sync__",
+                  }),
+              })
+            } catch (err) {
+              showAlertModal(api, {
+                title: "Sync Error",
+                message: `Sync operation failed: ${(err as Error).message}`,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    currentSelection: "__action_sync__",
+                  }),
+              })
+            }
+            break
+          }
+
+          case "__action_index__": {
+            try {
+              const probe = probeBackends(rootDir)
+              const results = await runBackends(planIndexBackends(probe), rootDir)
+              const msg =
+                results.map(backendLine).join("\n") || "ℹ️ No backends needed index refresh."
+              showAlertModal(api, {
+                title: "Code Index Refresh Results",
+                message: msg,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    currentSelection: "__action_index__",
+                  }),
+              })
+            } catch (err) {
+              showAlertModal(api, {
+                title: "Index Error",
+                message: `Index refresh failed: ${(err as Error).message}`,
+                onDismiss: () =>
+                  showMainMenu(api, {
+                    ...state,
+                    currentSelection: "__action_index__",
+                  }),
+              })
+            }
+            break
+          }
+        }
+      },
+    }),
+  )
+}
+
+/** Level 2 Menu: Configure Switches and Quality Guards */
+function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
+  const rootDir = process.cwd()
+  const { switches: current, exists: isExisting, configRelPath: configRel } = state
+  const activeSelection = state.currentSelection ?? "__switch_advisor__"
+
+  api.ui.dialog.replace(() =>
+    api.ui.DialogSelect<string>({
+      title: `Configure Switches — ${configRel ?? ".opencode/opencode.jsonc"}`,
+      placeholder: "Select switch to edit (Esc cancels)",
+      skipFilter: true,
+      current: activeSelection,
+      options: [
+        {
+          title: `🤖 autoAdvisorMode:  ${formatAdvisorBadge(current.autoAdvisorMode)}`,
+          value: "__switch_advisor__",
+          description: "Advisor reviews (lite / full / off)",
+        },
+        {
+          title: `🛡️ adrGuard:         ${formatGuardBadge(current.adrGuard)}`,
+          value: "__switch_adr__",
+          description: "Enforce ADR on feat/refactor",
+        },
+        {
+          title: `📁 adrGuardDir:      ${current.adrGuardDir ?? "docs/adr"}`,
+          value: "__switch_adr_dir__",
+          description: "ADR markdown folder path",
+        },
+        {
+          title: `🏛️ adrMode:          ${formatAdrModeBadge(current.adrMode)}`,
+          value: "__switch_adr_mode__",
+          description: "ADR structure (auto/flat/hierarchy)",
+        },
+        {
+          title: `🔒 envGuard:         ${formatGuardBadge(current.envGuard)}`,
+          value: "__switch_env__",
+          description: "Protect secret .env file reads",
+        },
+        {
+          title: `🧪 e2eGuard:         ${formatGuardBadge(current.e2eGuard)}`,
+          value: "__switch_e2e__",
+          description: "Assess E2E before test execution",
+        },
+        {
+          title: "💾 Save & Apply Changes",
+          value: "__save_switches__",
+          description: "Write switches to config file",
+        },
+        {
+          title: "🔙 Back to Main Menu",
+          value: "__back_main__",
+          description: "Return to Level 1 action menu",
+        },
+      ],
+      onSelect: async (option) => {
+        const nextState = { switches: current, exists: isExisting, configRelPath: configRel }
+        switch (option.value) {
+          case "__save_switches__": {
+            try {
+              const results = runInitWithSwitches(current)
+              const probe = probeBackends(rootDir)
+              const backends = await runBackends(planInitBackends(probe), rootDir).catch(
+                (e): BackendResult[] => [
+                  { backend: "codegraph", status: "failed", detail: String(e) },
+                ],
+              )
+              const report = initReport(results, backends)
+              toast(
+                api,
+                isExisting ? "Project configuration saved!" : "Project initialized successfully!",
+                "success",
+              )
+              showAlertModal(api, {
+                title: isExisting ? "Project Save Result" : "Project Initialization Result",
+                message: report,
+                onDismiss: () =>
+                  showSwitchesMenu(api, {
+                    ...nextState,
+                    exists: true,
+                    currentSelection: "__save_switches__",
+                  }),
+              })
+            } catch (err) {
+              showAlertModal(api, {
+                title: "Save Failed",
+                message: `Save failed: ${(err as Error).message}`,
+                onDismiss: () =>
+                  showSwitchesMenu(api, {
+                    ...nextState,
+                    currentSelection: "__save_switches__",
+                  }),
+              })
+            }
+            break
+          }
+
+          case "__back_main__": {
+            showMainMenu(api, {
+              ...nextState,
+              currentSelection: "__action_switches__",
+            })
+            break
+          }
+
           case "__switch_advisor__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select autoAdvisorMode",
-                placeholder: `Current: ${current.autoAdvisorMode === "default" ? "default (off)" : (current.autoAdvisorMode ?? "default (off)")}`,
+                placeholder: `Current: ${current.autoAdvisorMode ?? "default"}`,
                 skipFilter: true,
                 current: current.autoAdvisorMode ?? "lite",
                 options: [
                   {
-                    title: `🟢 lite  (Recommended)${current.autoAdvisorMode === "lite" ? "  ← current" : ""}`,
+                    title: `🟢 lite${current.autoAdvisorMode === "lite" ? "  (current)" : ""}`,
                     value: "lite",
-                    description: "Advisor provides insights to user; never decides on user's behalf",
+                    description: "Advisory mode (recommended)",
                   },
                   {
-                    title: `🔵 full  (Decisive)${current.autoAdvisorMode === "full" ? "  ← current" : ""}`,
+                    title: `🔵 full${current.autoAdvisorMode === "full" ? "  (current)" : ""}`,
                     value: "full",
-                    description: "Advisor answers factual questions on user's behalf when confidence ≥ 8",
+                    description: "Decisive review mode",
                   },
                   {
-                    title: `🔴 off  (Explicitly disabled)${current.autoAdvisorMode === "off" ? "  ← current" : ""}`,
+                    title: `🔴 off${current.autoAdvisorMode === "off" ? "  (current)" : ""}`,
                     value: "off",
                     description: "Disable advisor completely",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.autoAdvisorMode === "default" || !current.autoAdvisorMode ? "  ← current" : ""}`,
+                    title: `⚪ default${current.autoAdvisorMode === "default" || !current.autoAdvisorMode ? "  (current)" : ""}`,
                     value: "default",
-                    description: "Leave switch commented in config (default off)",
+                    description: "Leave commented in config (default off)",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (sel) => {
-                  current.autoAdvisorMode = sel.value as ProjectSwitches["autoAdvisorMode"]
-                  startProjectWizard(api, {
+                  if (sel.value !== "__cancel__") {
+                    current.autoAdvisorMode = sel.value as ProjectSwitches["autoAdvisorMode"]
+                    toast(api, `autoAdvisorMode -> ${formatAdvisorBadge(current.autoAdvisorMode)}`, "success")
+                  }
+                  showSwitchesMenu(api, {
                     ...nextState,
                     currentSelection: "__switch_advisor__",
                   })
@@ -327,30 +561,38 @@ export function startProjectWizard(
           case "__switch_adr__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
-                title: "Select adrGuard state",
-                placeholder: `Current: ${current.adrGuard === "default" ? "default (off)" : (current.adrGuard ?? "default (off)")}`,
+                title: "Select adrGuard",
+                placeholder: `Current: ${current.adrGuard ?? "default"}`,
                 skipFilter: true,
                 current: current.adrGuard ?? "on",
                 options: [
                   {
-                    title: `🟢 on  (Active)${current.adrGuard === "on" ? "  ← current" : ""}`,
+                    title: `🟢 on${current.adrGuard === "on" ? "  (current)" : ""}`,
                     value: "on",
-                    description: "Enforce ADR change check on feat / refactor commits",
+                    description: "Enforce ADR change check on feat/refactor",
                   },
                   {
-                    title: `🔴 off  (Explicitly disabled)${current.adrGuard === "off" ? "  ← current" : ""}`,
+                    title: `🔴 off${current.adrGuard === "off" ? "  (current)" : ""}`,
                     value: "off",
                     description: "Disable ADR guard check",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.adrGuard === "default" || !current.adrGuard ? "  ← current" : ""}`,
+                    title: `⚪ default${current.adrGuard === "default" || !current.adrGuard ? "  (current)" : ""}`,
                     value: "default",
-                    description: "Leave switch commented in config (default off)",
+                    description: "Leave commented in config (default off)",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (sel) => {
-                  current.adrGuard = sel.value as ProjectSwitches["adrGuard"]
-                  startProjectWizard(api, {
+                  if (sel.value !== "__cancel__") {
+                    current.adrGuard = sel.value as ProjectSwitches["adrGuard"]
+                    toast(api, `adrGuard -> ${formatGuardBadge(current.adrGuard)}`, "success")
+                  }
+                  showSwitchesMenu(api, {
                     ...nextState,
                     currentSelection: "__switch_adr__",
                   })
@@ -363,33 +605,43 @@ export function startProjectWizard(
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
                 title: "Select ADR Directory (adrGuardDir)",
-                placeholder: `Current: ${current.adrGuardDir ?? "docs/adr"} (Use arrow keys to select)`,
+                placeholder: `Current: ${current.adrGuardDir ?? "docs/adr"}`,
                 skipFilter: true,
                 current: current.adrGuardDir ?? "docs/adr",
                 options: [
                   {
-                    title: `📁 docs/adr  (Default)${(current.adrGuardDir ?? "docs/adr") === "docs/adr" ? "  ← current" : ""}`,
+                    title: `📁 docs/adr${(current.adrGuardDir ?? "docs/adr") === "docs/adr" ? "  (current)" : ""}`,
                     value: "docs/adr",
-                    description: "Standard docs/adr/ directory",
+                    description: "Standard docs/adr/ folder",
                   },
                   {
-                    title: `📁 docs/decisions${current.adrGuardDir === "docs/decisions" ? "  ← current" : ""}`,
+                    title: `📁 docs/decisions${current.adrGuardDir === "docs/decisions" ? "  (current)" : ""}`,
                     value: "docs/decisions",
-                    description: "docs/decisions/ directory",
+                    description: "docs/decisions/ folder",
                   },
                   {
-                    title: `📁 architecture/decisions${current.adrGuardDir === "architecture/decisions" ? "  ← current" : ""}`,
+                    title: `📁 architecture/decisions${current.adrGuardDir === "architecture/decisions" ? "  (current)" : ""}`,
                     value: "architecture/decisions",
-                    description: "architecture/decisions/ directory",
+                    description: "architecture/decisions/ folder",
                   },
                   {
-                    title: "✍️ [ Enter Custom Path... ]",
+                    title: "✍️ Custom Path...",
                     value: "__custom__",
-                    description: "Type a custom directory path if needed",
+                    description: "Type custom directory path",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (dirOpt) => {
-                  if (dirOpt.value === "__custom__") {
+                  if (dirOpt.value === "__cancel__") {
+                    showSwitchesMenu(api, {
+                      ...nextState,
+                      currentSelection: "__switch_adr_dir__",
+                    })
+                  } else if (dirOpt.value === "__custom__") {
                     api.ui.dialog.replace(() =>
                       api.ui.DialogPrompt({
                         title: "Custom ADR Directory",
@@ -397,21 +649,18 @@ export function startProjectWizard(
                         value: current.adrGuardDir ?? "docs/adr",
                         onConfirm: (val) => {
                           current.adrGuardDir = val.trim() || "docs/adr"
-                          startProjectWizard(api, {
+                          toast(api, `adrGuardDir -> ${current.adrGuardDir}`, "success")
+                          showSwitchesMenu(api, {
                             ...nextState,
                             currentSelection: "__switch_adr_dir__",
                           })
                         },
-                        onCancel: () =>
-                          startProjectWizard(api, {
-                            ...nextState,
-                            currentSelection: "__switch_adr_dir__",
-                          }),
                       }),
                     )
                   } else {
                     current.adrGuardDir = dirOpt.value
-                    startProjectWizard(api, {
+                    toast(api, `adrGuardDir -> ${current.adrGuardDir}`, "success")
+                    showSwitchesMenu(api, {
                       ...nextState,
                       currentSelection: "__switch_adr_dir__",
                     })
@@ -424,35 +673,43 @@ export function startProjectWizard(
           case "__switch_adr_mode__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
-                title: "Select adrMode (ADR Governance Mode)",
-                placeholder: `Current: ${current.adrMode === "default" ? "default (auto)" : (current.adrMode ?? "default (auto)")}`,
+                title: "Select ADR Mode (adrMode)",
+                placeholder: `Current: ${current.adrMode ?? "default"}`,
                 skipFilter: true,
                 current: current.adrMode ?? "auto",
                 options: [
                   {
-                    title: `🟢 auto  (Smart Adaptive - Recommended)${current.adrMode === "auto" ? "  ← current" : ""}`,
+                    title: `🟢 auto${current.adrMode === "auto" ? "  (current)" : ""}`,
                     value: "auto",
-                    description: "Flat by default for monoliths; auto-expands when sub-packages exist",
+                    description: "Smart adaptive (flat <=15, hierarchy >15)",
                   },
                   {
-                    title: `📦 hierarchical  (Multi-tier L1/L2/L3)${current.adrMode === "hierarchical" ? "  ← current" : ""}`,
-                    value: "hierarchical",
-                    description: "Enforce multi-tier hierarchy and cross-module DAG relationships",
-                  },
-                  {
-                    title: `📄 flat  (Strict Single-Directory)${current.adrMode === "flat" ? "  ← current" : ""}`,
+                    title: `📄 flat${current.adrMode === "flat" ? "  (current)" : ""}`,
                     value: "flat",
-                    description: "All ADRs strictly stored in root docs/adr/ (no sub-packages)",
+                    description: "Single directory (0001-xxx.md)",
                   },
                   {
-                    title: `⚪ default  (Built-in auto)${current.adrMode === "default" || !current.adrMode ? "  ← current" : ""}`,
+                    title: `📦 hierarchy${current.adrMode === "hierarchical" ? "  (current)" : ""}`,
+                    value: "hierarchical",
+                    description: "Domain subdirectories (auth/0001-xxx.md)",
+                  },
+                  {
+                    title: `⚪ default${current.adrMode === "default" || !current.adrMode ? "  (current)" : ""}`,
                     value: "default",
-                    description: "Leave switch commented in config (default auto)",
+                    description: "Leave commented in config (default auto)",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (sel) => {
-                  current.adrMode = sel.value as ProjectSwitches["adrMode"]
-                  startProjectWizard(api, {
+                  if (sel.value !== "__cancel__") {
+                    current.adrMode = sel.value as ProjectSwitches["adrMode"]
+                    toast(api, `adrMode -> ${formatAdrModeBadge(current.adrMode)}`, "success")
+                  }
+                  showSwitchesMenu(api, {
                     ...nextState,
                     currentSelection: "__switch_adr_mode__",
                   })
@@ -464,30 +721,38 @@ export function startProjectWizard(
           case "__switch_env__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
-                title: "Select envGuard state",
-                placeholder: `Current: ${current.envGuard === "default" ? "default (off)" : (current.envGuard ?? "default (off)")}`,
+                title: "Select envGuard",
+                placeholder: `Current: ${current.envGuard ?? "default"}`,
                 skipFilter: true,
                 current: current.envGuard ?? "on",
                 options: [
                   {
-                    title: `🟢 on  (Active - Recommended)${current.envGuard === "on" ? "  ← current" : ""}`,
+                    title: `🟢 on${current.envGuard === "on" ? "  (current)" : ""}`,
                     value: "on",
-                    description: "Blocks agent access to secret .env* files (.env.example exempt)",
+                    description: "Block agent reading secret .env files",
                   },
                   {
-                    title: `🔴 off  (Explicitly disabled)${current.envGuard === "off" ? "  ← current" : ""}`,
+                    title: `🔴 off${current.envGuard === "off" ? "  (current)" : ""}`,
                     value: "off",
-                    description: "Allow agent unrestricted access to all env files",
+                    description: "Allow unrestricted access to env files",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.envGuard === "default" || !current.envGuard ? "  ← current" : ""}`,
+                    title: `⚪ default${current.envGuard === "default" || !current.envGuard ? "  (current)" : ""}`,
                     value: "default",
-                    description: "Leave switch commented in config (default off)",
+                    description: "Leave commented in config (default off)",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (sel) => {
-                  current.envGuard = sel.value as ProjectSwitches["envGuard"]
-                  startProjectWizard(api, {
+                  if (sel.value !== "__cancel__") {
+                    current.envGuard = sel.value as ProjectSwitches["envGuard"]
+                    toast(api, `envGuard -> ${formatGuardBadge(current.envGuard)}`, "success")
+                  }
+                  showSwitchesMenu(api, {
                     ...nextState,
                     currentSelection: "__switch_env__",
                   })
@@ -499,73 +764,44 @@ export function startProjectWizard(
           case "__switch_e2e__": {
             api.ui.dialog.replace(() =>
               api.ui.DialogSelect<string>({
-                title: "Select e2eGuard state",
-                placeholder: `Current: ${current.e2eGuard === "default" ? "default (off)" : (current.e2eGuard ?? "default (off)")}`,
+                title: "Select e2eGuard",
+                placeholder: `Current: ${current.e2eGuard ?? "default"}`,
                 skipFilter: true,
                 current: current.e2eGuard ?? "on",
                 options: [
                   {
-                    title: `🟢 on  (Active - Recommended)${current.e2eGuard === "on" ? "  ← current" : ""}`,
+                    title: `🟢 on${current.e2eGuard === "on" ? "  (current)" : ""}`,
                     value: "on",
-                    description: "Evaluate E2E impact on feat/fix & ask user before execution",
+                    description: "Assess E2E impact & prompt user",
                   },
                   {
-                    title: `🔴 off  (Explicitly disabled)${current.e2eGuard === "off" ? "  ← current" : ""}`,
+                    title: `🔴 off${current.e2eGuard === "off" ? "  (current)" : ""}`,
                     value: "off",
                     description: "Skip E2E assessment check",
                   },
                   {
-                    title: `⚪ default  (Built-in off)${current.e2eGuard === "default" || !current.e2eGuard ? "  ← current" : ""}`,
+                    title: `⚪ default${current.e2eGuard === "default" || !current.e2eGuard ? "  (current)" : ""}`,
                     value: "default",
-                    description: "Leave switch commented in config (default off)",
+                    description: "Leave commented in config (default off)",
+                  },
+                  {
+                    title: "🔙 Cancel",
+                    value: "__cancel__",
+                    description: "Keep current and return",
                   },
                 ],
                 onSelect: (sel) => {
-                  current.e2eGuard = sel.value as ProjectSwitches["e2eGuard"]
-                  startProjectWizard(api, {
+                  if (sel.value !== "__cancel__") {
+                    current.e2eGuard = sel.value as ProjectSwitches["e2eGuard"]
+                    toast(api, `e2eGuard -> ${formatGuardBadge(current.e2eGuard)}`, "success")
+                  }
+                  showSwitchesMenu(api, {
                     ...nextState,
                     currentSelection: "__switch_e2e__",
                   })
                 },
               }),
             )
-            break
-          }
-
-          case "__sync__": {
-            try {
-              const res = runSync()
-              if (res.status === "missing") {
-                toast(api, "Config file does not exist. Run Init first.", "warning")
-              } else if (res.status === "up-to-date") {
-                toast(api, "Config is already up to date.", "info")
-              } else if (res.status === "added") {
-                toast(api, `Appended switches: ${res.added.join(", ")}`, "success")
-              } else {
-                toast(api, "Config file is invalid/malformed.", "error")
-              }
-            } catch (err) {
-              toast(api, `Sync error: ${(err as Error).message}`, "error")
-            }
-            api.ui.dialog.clear()
-            break
-          }
-          case "__index__": {
-            try {
-              const probe = probeBackends(rootDir)
-              const results = await runBackends(planIndexBackends(probe), rootDir)
-              const msg = results.map(backendLine).join("\n") || "No backends needed index catch-up."
-              api.ui.dialog.replace(() =>
-                api.ui.DialogAlert({
-                  title: "Code Index Results",
-                  message: msg,
-                  onConfirm: () => api.ui.dialog.clear(),
-                }),
-              )
-            } catch (err) {
-              toast(api, `Index failed: ${(err as Error).message}`, "error")
-              api.ui.dialog.clear()
-            }
             break
           }
         }
@@ -581,33 +817,11 @@ const tui: TuiPlugin = async (api) => {
     commands: [
       {
         name: "project.wizard",
-        title: "Project setup wizard",
-        desc: "Configure project switches and initialize scaffolding + code indexes",
+        title: "Project: Setup Wizard",
+        desc: "Open interactive two-tier project setup wizard",
         category: "Project",
         namespace: "palette",
-        slashName: SLASH_NAME,
-        run() {
-          startProjectWizard(api)
-        },
-      },
-      {
-        name: "project.setup",
-        title: "Project setup wizard",
-        desc: "Configure project switches in interactive dialog",
-        category: "Project",
-        namespace: "palette",
-        slashName: "project-setup",
-        run() {
-          startProjectWizard(api)
-        },
-      },
-      {
-        name: "project.init.wizard",
-        title: "Project init wizard",
-        desc: "Interactive project initialization dialog",
-        category: "Project",
-        namespace: "palette",
-        slashName: "project-init",
+        slashName: "project-wizard",
         run() {
           startProjectWizard(api)
         },

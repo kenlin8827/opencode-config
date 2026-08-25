@@ -25,6 +25,8 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 | `test-anchor-unit.ts` | DeepSeek Anchor plugin unit tests (no API, 46 assertions) — verifies anchor injection, idempotency, model detection (DeepSeek V4 Pro only), tool block/restore, config/event hooks |
 | `test-anchor-benchmark.ps1` | DeepSeek Anchor benchmark: on vs off comparison (requires API) — measures reasoning depth, trajectory style ("We" vs "Let me"), tool suppression across 4 test prompts |
 | `test-queue-manager-unit.ts` | Queue Manager TUI plugin unit tests (no API, 23 assertions) — verifies queue computation (unanswered user messages), compaction/subtask/ignored/tombstone exclusions, ordering, preview/age formatting |
+| `test-project-manager-unit.ts` | Project Manager plugin unit tests (no API, 126 assertions) — Conventional Commits gate, file-as-switch, /project init scaffolding & backend index planning, sync append |
+| `test-project-wizard-unit.ts` | Project Wizard TUI plugin unit tests (no API, 48 assertions) — two-tier navigation, switch detection, template generation, re-entrant echoes |
 
 ## Run
 

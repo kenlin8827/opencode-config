@@ -42,12 +42,13 @@ import {
 } from "./project-manager-index"
 import { runInit, runSync, type ScaffoldResult, type SyncResult } from "./project-manager-scaffold"
 
-const HELP = `[project-manager] Project scaffolding & configuration wizard.
+const HELP = `[project-manager] Project scaffolding & configuration manager.
 
 Usage:
-- /project        → open interactive switch setup wizard (TUI mode)
-- /project setup  → inspect current project switches & setup options
-- /project init   → create baseline files if missing (never overwrites):
+- /project-wizard → open interactive two-tier setup wizard (TUI mode)
+- /project        → show available subcommands & options (CLI mode)
+- /project init   → scaffold baseline files & bootstrap indexes (headless / non-TUI):
+                    create baseline files if missing (never overwrites):
                     .opencode/opencode.jsonc, docs/git-commits.md, AGENTS.md
                     An EXISTING project config gets an append-only top-up:
                     switch lines the template gained since init are added,
@@ -58,10 +59,9 @@ Usage:
                       gitnexus analyze  initial index build (index missing)
                       dbhub.toml        scaffolded when the dbhub MCP is
                                         enabled and its CLI is installed
+- /project setup  → inspect current project switches & setup options (CLI mode)
 - /project index  → manual rebuild/refresh for EXISTING indexes
-- /project sync   → top up an EXISTING ${CONFIG_REL} with template switches
-
-Note: in TUI mode, run /project or /project-setup to open the interactive dialog wizard.`
+- /project sync   → top up an EXISTING ${CONFIG_REL} with template switches`
 
 /** One report line per target: ✅ created / ♻️ updated / ⏭️ skipped / ⚠️ invalid. */
 function initReport(results: ScaffoldResult[], backends: BackendResult[]): string {
@@ -80,7 +80,7 @@ function initReport(results: ScaffoldResult[], backends: BackendResult[]): strin
 /** `/project setup` report (CLI / headless inspection). */
 function setupReport(): string {
   return `[project-manager] Project setup status in ${getProjectDir()}:
-- Interactive TUI: run /project or /project-setup in OpenCode TUI to open the dialog wizard.
+- Interactive TUI: run /project-wizard (or Ctrl+P → "Project: Setup Wizard") to open the interactive dialog.
 - Headless / CLI: run /project init to scaffold baseline files and bootstrap indexes.
 - Config sync: run /project sync to append newly added template switches.`
 }
@@ -117,6 +117,18 @@ async function reply(client: PluginInput["client"], sessionID: string | undefine
   })
 }
 
+async function executeInit(client: PluginInput["client"], sessionID?: string): Promise<void> {
+  // Scaffold first, then every first-time backend init step — each
+  // runs only when its CLI is installed + enabled, and a failed or
+  // absent CLI never blocks the file scaffolding.
+  const results = runInit()
+  const probe = probeBackends(getProjectDir())
+  const backends = await runBackends(planInitBackends(probe), getProjectDir()).catch(
+    (e): BackendResult[] => [{ backend: "codegraph", status: "failed", detail: String(e) }],
+  )
+  await reply(client, sessionID, initReport(results, backends))
+}
+
 export function makeCommandHook(client: PluginInput["client"], handled: () => never) {
   return async (input: { command?: string; arguments?: string; sessionID?: string }) => {
     if (input.command !== COMMAND_NAME) return
@@ -133,15 +145,7 @@ export function makeCommandHook(client: PluginInput["client"], handled: () => ne
       if (sub === SUBCOMMAND_SETUP) {
         await reply(client, input.sessionID, setupReport())
       } else if (sub === SUBCOMMAND_INIT) {
-        // Scaffold first, then every first-time backend init step — each
-        // runs only when its CLI is installed + enabled, and a failed or
-        // absent CLI never blocks the file scaffolding.
-        const results = runInit()
-        const probe = probeBackends(getProjectDir())
-        const backends = await runBackends(planInitBackends(probe), getProjectDir()).catch(
-          (e): BackendResult[] => [{ backend: "codegraph", status: "failed", detail: String(e) }],
-        )
-        await reply(client, input.sessionID, initReport(results, backends))
+        await executeInit(client, input.sessionID)
       } else if (sub === SUBCOMMAND_SYNC) {
         await reply(client, input.sessionID, syncReport(runSync()))
       } else {

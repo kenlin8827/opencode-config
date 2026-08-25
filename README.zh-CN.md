@@ -606,7 +606,7 @@ bridge 附带的额外能力：
 | `e2e-guard.ts` | `/e2e-guard` 命令 + 系统提示词协议注入 —— 按项目开关：引导 LLM 评估 `feat`/`fix` 任务的 E2E 影响、提示补充缺失用例，并通过 `ask` 交互式确认放行（见下文） |
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
-| `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project` TUI 弹窗向导（支持可视化配置各开关并在已有工程中回显） |
+| `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project-wizard` TUI 弹窗向导（支持两级可视化向导并自动回显已有配置） |
 | `md-to-pdf.ts` | `/md-to-pdf` 与 `md_to_pdf` —— Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 | `md-to-docx.ts` | `/md-to-docx` 与 `md_to_docx` —— Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
 
@@ -691,21 +691,27 @@ echo on > <project>/.opencode/.env-guard
 { "e2eGuard": "on" }
 ```
 
-### 提交纪律（`project-manager`）
+### 提交纪律与项目脚手架（`project-manager` / `project-wizard`）
 
 按项目的提交规范强制机制，采用**文件即开关**：无状态文件、无 on/off 命令 —— `docs/git-commits.md` 存在即生效。
 
 ```text
-/project init       # 脚手架生成基线文件（仅当缺失时创建，绝不覆盖；
-                    #   已存在的项目配置自动追加模板新增的开关行）：
+/project-wizard     # [TUI 模式] 弹出两级交互向导 Dialog（一站式初始化/配置开关/同步/重建索引）
+/project            # [CLI 模式] 显示可用子命令帮助手册
+/project init       # [静默/直接] 脚手架生成基线文件与首次索引初始化（绝不覆盖已有内容；
+                    #   已存在的项目配置自动追加模板新增开关）：
                     #   .opencode/opencode.jsonc、docs/git-commits.md、AGENTS.md
-                    # 随后做后端首次初始化（CLI 已安装且启用才执行）：
-                    #   codegraph init、索引缺失时的 gitnexus analyze
-/project index      # 手动刷新已有索引：codegraph sync、
-                    #   stale 时的 gitnexus analyze
-/project sync       # 只做配置补齐（只追加）
-/project            # 帮助
+                    #   随后自动执行已启用的后端首次索引构建（codegraph init、gitnexus analyze）
+/project setup      # 命令行模式下查看当前项目开关与状态指引
+/project index      # 手动刷新已有索引：codegraph sync、stale 时的 gitnexus analyze
+/project sync       # 仅做配置补齐（增量追加新模板开关）
 ```
+
+**`/project-wizard` 交互向导核心特性**：
+- **两级可视化向导**：一级为主功能入口（初始化/配置开关/模板同步/刷新索引/退出），二级为开关与质量门控定制列表。
+- **安全内存草稿**：修改开关仅在弹窗内存生效，未显式保存前按 `Esc` 或返回绝不触碰磁盘；点击 `💾 Save & Apply` 时才安全持久化。
+- **闭环交互与原生弹框**：所有初始化、保存、同步与索引操作均弹出原生 `DialogAlert` 确认结果，确认后平滑返回菜单，绝不意外退出。
+- **自适应防截断**：精简对齐徽标（`🟢 ON` / `🔴 OFF` / `⚪ default`）与操作描述，在小窗口或分屏终端下依然整齐清晰。
 
 `docs/git-commits.md` 存在期间：
 
