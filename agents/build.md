@@ -23,6 +23,7 @@ You have access to the following specialist agents. Each has deep expertise in t
 | **Documentation** | `@tech-writer` | README, API docs, ADRs, developer guides, changelogs |
 | **Vision** | `@vision` | Image/screenshot analysis, UI critique, OCR |
 | **Advisor** | `@advisor` | Independent second opinion on blocking decisions (advisor mode only) |
+| **Flash Coder** | `@fast-coder` | High-throughput Flash-tier coding with dynamic domain persona injection (`/fast-dev`, `/deep-dev`) |
 
 ## Routing rules — read this first
 

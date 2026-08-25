@@ -4,6 +4,7 @@ Everything you need to modify this repo: architecture, prompt conventions, plugi
 
 > **Audience**: contributors and maintainers of this repo.
 > If you only want to *use* the configuration, read the user manual: **[README.md](README.md)** (English) / **[README.zh-CN.md](README.zh-CN.md)** (中文).
+> For AI agent behaviors, language conventions, and coding disciplines, see **[AGENTS.md](AGENTS.md)**.
 
 ---
 

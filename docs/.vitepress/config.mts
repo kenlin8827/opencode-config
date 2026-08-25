@@ -42,6 +42,7 @@ export default defineConfig({
             text: 'Part III: Workflows & Governance',
             items: [
               { text: 'Workflow Slash Commands', link: '/workflows/commands' },
+              { text: 'Dual-Track Dev Loops (/fast-dev & /deep-dev)', link: '/workflows/dev-loops' },
               { text: 'Specification-Driven Development (SDD)', link: '/workflows/sdd' },
               { text: 'Auto-Advisor Mode', link: '/workflows/auto-advisor' },
               { text: 'Plugins & Project Guardrails', link: '/workflows/plugins' },
@@ -96,6 +97,7 @@ export default defineConfig({
               text: '第三部分：进阶工作流与护栏',
               items: [
                 { text: '工作流斜杠命令', link: '/zh/workflows/commands' },
+                { text: '双轨闭环开发 (/fast-dev & /deep-dev)', link: '/zh/workflows/dev-loops' },
                 { text: '规范驱动开发 (SDD)', link: '/zh/workflows/sdd' },
                 { text: 'Auto-advisor 模式', link: '/zh/workflows/auto-advisor' },
                 { text: '插件系统与项目护栏', link: '/zh/workflows/plugins' },

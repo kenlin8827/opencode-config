@@ -14,7 +14,9 @@ OpenCode Multi-Agent ships with a suite of high-leverage workflow slash commands
 | **`/impl [task]`** | SDD Lifecycle | Execute test-driven code implementation & verification adhering to specifications |
 | **`/sdd [status\|handoff\|help]`** | SDD Lifecycle | Specification-Driven Development lifecycle navigator & session handoff (`/sdd handoff`) |
 | **`/grill-me <topic>`** | Brainstorming | Socratic interview that rigorously pressure-tests a plan or design |
-| **`/grill-with-docs <topic>`** | Brainstorming | Same as `/grill-me`, plus automatically creates `CONTEXT.md` glossary and ADRs |
+| **`/quick-dev <task>`** | Dev Loop | **Quick-Dev Zero-Review Fast Track**: Ultra-fast Flash model coding + dynamic domain persona injection (instant delivery, alias `/flash-dev`, see [Three-Tier Dev Loops](dev-loops.md)) |
+| **`/fast-dev <task> [--max-rounds=N]`** | Dev Loop | **Fast-Dev Agile Single-Review Loop**: High-velocity Flash model coding (dynamic domain persona) + flagship review (see [Three-Tier Dev Loops](dev-loops.md)) |
+| **`/deep-dev <task> [--max-rounds=N]`** | Dev Loop | **Deep-Dev Mission-Critical Dual-Review Loop**: Flash coding + dual flagship review + Advisor consensus arbitration with full-stack multi-stage staging (see [Three-Tier Dev Loops](dev-loops.md)) |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | Quality Loop | Automated review-verify-fix-re-review loop until zero P0/P1 issues. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or uncommitted changes |
 | **`/goal [text]`** | Goal Execution | Structured goal execution protocol with audit-friendly checklists and mechanically checkable stop conditions |
 | **`/handoff [focus]`** | Session State | Compacts current session state into a temporary handoff bundle and outputs a paste-ready opener for a fresh session |

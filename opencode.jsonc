@@ -296,6 +296,14 @@
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/vision.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
+    },
+    "fast-coder": {
+      "description": "Flash Coder — agile, high-throughput full-stack coding subagent powered by Flash/Lite model tiers. Dispatched for rapid coding and iterative review loops.",
+      "mode": "subagent",
+      "model": "llm-router/explorer",
+      "temperature": 0.2,
+      "variant": "low",
+      "prompt": "{file:~/.config/opencode/agents/fast-coder.md}"
     }
   }
 }
