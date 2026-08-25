@@ -10,7 +10,7 @@ import {
   autoInstallChromium,
 } from "./engine"
 
-export const COMMAND_NAMES = ["pdf", "md-to-pdf"] as const
+export const COMMAND_NAMES = ["md-to-pdf"] as const
 
 export function makeCommandHook(client: PluginInput["client"], projectDir: string) {
   return async (input: { command?: string; arguments?: string; sessionID?: string }) => {
@@ -23,14 +23,14 @@ export function makeCommandHook(client: PluginInput["client"], projectDir: strin
       const help = `[md-to-pdf] Markdown to PDF Exporter
 
 Usage:
-  /pdf <file.md> [output.pdf]    - Convert a markdown document to styled A4 PDF
-  /pdf --doctor                  - Check Pandoc, Node, and Playwright status
-  /pdf --install-deps            - Auto-install missing dependencies (or get manual install commands)
+  /md-to-pdf <file.md> [output.pdf] [--style=<custom.css>]  - Convert markdown to styled A4 PDF
+  /md-to-pdf --doctor                                        - Check Pandoc, Node, and Playwright status
+  /md-to-pdf --install-deps                                  - Auto-install missing dependencies
 
 Examples:
-  /pdf README.md
-  /pdf doc/api-v1.md dist/api-v1.pdf
-  /pdf instructions/coding-principles.md`
+  /md-to-pdf README.md
+  /md-to-pdf doc/api-v1.md dist/api-v1.pdf
+  /md-to-pdf doc/whitepaper.md --style=custom-theme.css`
 
       if (input.sessionID) {
         await client.session.prompt({
@@ -54,7 +54,7 @@ Examples:
 - Node.js runtime: ${nodeOk ? "✅ Available" : "❌ Missing"}
 - Playwright Chromium: ${chromiumOk ? "✅ Ready" : "⚠️ Browser binary missing"}
 
-${!pandocOk || !chromiumOk ? "👉 Run `/pdf --install-deps` to auto-install missing tools or view install guide.\n" : ""}`
+${!pandocOk || !chromiumOk ? "👉 Run `/md-to-pdf --install-deps` to auto-install missing tools or view install guide.\n" : ""}`
 
       if (input.sessionID) {
         await client.session.prompt({
@@ -123,8 +123,19 @@ ${!pandocOk || !chromiumOk ? "👉 Run `/pdf --install-deps` to auto-install mis
     }
 
     const parts = argsStr.split(/\s+/).filter(Boolean)
-    const inputFile = parts[0]
-    const outputFile = parts[1]
+    let inputFile = ""
+    let outputFile: string | undefined = undefined
+    let stylePath: string | undefined = undefined
+
+    for (const part of parts) {
+      if (part.startsWith("--style=")) {
+        stylePath = part.slice("--style=".length).trim().replace(/^['"]|['"]$/g, "")
+      } else if (!inputFile) {
+        inputFile = part
+      } else if (!outputFile) {
+        outputFile = part
+      }
+    }
 
     // 1. Notify user in dialogue: conversion is starting
     if (input.sessionID) {
@@ -144,6 +155,7 @@ ${!pandocOk || !chromiumOk ? "👉 Run `/pdf --install-deps` to auto-install mis
         {
           inputPath: inputFile,
           outputPath: outputFile,
+          customCss: stylePath,
         },
         projectDir,
       )

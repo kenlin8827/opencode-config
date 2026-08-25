@@ -13,7 +13,7 @@ export const MdToPdfPlugin: Plugin = async ({ client, directory }) => {
       cfg.command ??= {}
       for (const name of COMMAND_NAMES) {
         cfg.command[name] = {
-          template: "",
+          template: `/${name} $ARGUMENTS`,
           description: "Convert Markdown file to styled A4 PDF (uses Pandoc + Playwright)",
         }
       }
@@ -93,3 +93,5 @@ export const MdToPdfPlugin: Plugin = async ({ client, directory }) => {
     },
   }
 }
+
+export default MdToPdfPlugin

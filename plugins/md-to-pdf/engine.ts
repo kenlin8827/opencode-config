@@ -2,6 +2,8 @@ import { existsSync, readFileSync, writeFileSync, unlinkSync, statSync, mkdirSyn
 import { resolve, isAbsolute, join, dirname, basename, relative } from "node:path"
 import { execFileSync, spawnSync } from "node:child_process"
 import { buildInjectedStyle } from "./style"
+import { preprocessMermaidInMarkdown, cleanupMermaidTempImages } from "../shared/mermaid-renderer"
+import { tmpdir } from "node:os"
 
 export interface ConversionOptions {
   inputPath: string
@@ -101,9 +103,9 @@ export function formatFriendlyErrorMessage(
     cause = "Playwright Chromium browser binary is not installed"
     guide = `💡 How to install Playwright browser:
   • Run: npx playwright install chromium
-  • Or run in OpenCode: /pdf --install-deps`
+  • Or run in OpenCode: /md-to-pdf --install-deps`
   } else {
-    guide = `💡 Tip: Check input markdown syntax or run \`/pdf --doctor\` to verify environment health.`
+    guide = `💡 Tip: Check input markdown syntax or run \`/md-to-pdf --doctor\` to verify environment health.`
   }
 
   const logNotice = logPath
@@ -233,6 +235,30 @@ export function ensurePandoc(projectDir: string = process.cwd()): void {
   throw new Error("Pandoc executable not found in PATH")
 }
 
+/**
+ * Clean up Pandoc's hardcoded column widths and protect short table cells (< 12 chars) from wrapping.
+ */
+export function optimizeHtmlTables(html: string): string {
+  // 1. Remove hardcoded col widths in colgroup
+  let optimized = html.replace(/<col\s+style="[^"]*width:[^"]*"[^>]*\/?>/gi, "<col />")
+
+  // 2. Tag short cells (<= 12 characters without manual breaks) as nowrap
+  optimized = optimized.replace(/<td([^>]*)>([\s\S]*?)<\/td>/gi, (match, attrs, content) => {
+    const plainText = content.replace(/<[^>]+>/g, "").trim()
+    const hasBlock = /<(br|p|div|ul|ol|table)\b/i.test(content)
+    if (!hasBlock && plainText.length > 0 && plainText.length <= 12) {
+      if (/class="/i.test(attrs)) {
+        attrs = attrs.replace(/class="([^"]*)"/i, 'class="$1 cell-nowrap"')
+      } else {
+        attrs = `${attrs} class="cell-nowrap"`
+      }
+    }
+    return `<td${attrs}>${content}</td>`
+  })
+
+  return optimized
+}
+
 export function renderMarkdownToHtml(
   mdAbsPath: string,
   htmlAbsPath: string,
@@ -265,6 +291,7 @@ export function renderMarkdownToHtml(
 
   const styleTag = buildInjectedStyle(customCss)
   let html = readFileSync(htmlAbsPath, "utf8")
+  html = optimizeHtmlTables(html)
   if (html.includes("</head>")) {
     html = html.replace("</head>", `${styleTag}</head>`)
   } else {
@@ -361,10 +388,47 @@ export async function convertSingleFile(
 
   const baseDir = dirname(resolvedInput)
   const baseName = basename(resolvedInput, ".md")
+  const tempDir = join(tmpdir(), `md2pdf-${Date.now()}`)
+  mkdirSync(tempDir, { recursive: true })
+  const intermediateMd = join(tempDir, `${baseName}-preprocessed.md`)
   const tempHtmlPath = join(baseDir, `.${baseName}.tmp-${Date.now()}.html`)
 
+  let tempImages: string[] = []
+
   try {
-    renderMarkdownToHtml(resolvedInput, tempHtmlPath, opts.customCss, projectDir)
+    // Stylesheet resolution priority: opts.customCss (path or string) > project root pdf-theme.css / pdf-style.css > builtin style.css
+    let resolvedCssPath: string | undefined = undefined
+    let resolvedCssContent: string | undefined = undefined
+
+    if (opts.customCss) {
+      const maybeFile = isAbsolute(opts.customCss) ? opts.customCss : resolve(projectDir, opts.customCss)
+      if (existsSync(maybeFile)) {
+        resolvedCssPath = maybeFile
+        resolvedCssContent = readFileSync(maybeFile, "utf8")
+      } else {
+        resolvedCssContent = opts.customCss
+      }
+    }
+
+    if (!resolvedCssContent) {
+      const opencodeCss = resolve(projectDir, ".opencode", "md-to-pdf.css")
+      if (existsSync(opencodeCss)) {
+        resolvedCssPath = opencodeCss
+        resolvedCssContent = readFileSync(opencodeCss, "utf8")
+      } else {
+        resolvedCssPath = resolve(__dirname, "style.css")
+        if (existsSync(resolvedCssPath)) {
+          resolvedCssContent = readFileSync(resolvedCssPath, "utf8")
+        }
+      }
+    }
+
+    const rawMd = readFileSync(resolvedInput, "utf8")
+    const preprocessed = await preprocessMermaidInMarkdown(rawMd, resolvedCssPath || resolvedCssContent)
+    tempImages = preprocessed.tempImages
+    writeFileSync(intermediateMd, preprocessed.content, "utf8")
+
+    renderMarkdownToHtml(intermediateMd, tempHtmlPath, resolvedCssContent, projectDir)
 
     renderHtmlToPdfViaNode(tempHtmlPath, resolvedOutput, {
       format: opts.format,
@@ -379,6 +443,10 @@ export async function convertSingleFile(
       htmlPath: opts.keepHtml ? tempHtmlPath : undefined,
     }
   } finally {
+    cleanupMermaidTempImages(tempImages)
+    if (existsSync(intermediateMd)) {
+      try { unlinkSync(intermediateMd) } catch {}
+    }
     if (!opts.keepHtml && existsSync(tempHtmlPath)) {
       try {
         unlinkSync(tempHtmlPath)

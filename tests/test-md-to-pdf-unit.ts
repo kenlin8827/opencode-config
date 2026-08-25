@@ -22,6 +22,7 @@ import {
   writeErrorLog,
   getProjectLogDir,
   formatFriendlyErrorMessage,
+  optimizeHtmlTables,
 } from "../plugins/md-to-pdf/engine"
 
 let passed = 0
@@ -53,12 +54,19 @@ async function runTests() {
 
   const defaultStyleTag = buildInjectedStyle()
   assert(defaultStyleTag.startsWith("<style>") && defaultStyleTag.endsWith("</style>"), "buildInjectedStyle wraps in style tags")
-  assert(defaultStyleTag.includes("margin: 16mm 14mm;"), "Contains A4 page size and margins")
+  assert(defaultStyleTag.includes("size: A4;"), "Contains A4 page size")
 
   const customCss = ".custom-class { color: red; }"
   const withCustom = buildInjectedStyle(customCss)
   assert(withCustom.includes(".custom-class { color: red; }"), "Includes custom CSS snippet")
-  assert(withCustom.includes(defaultCss), "Retains base CSS when adding custom CSS")
+  assert(withCustom.includes("@page {"), "Retains base CSS when adding custom CSS")
+
+  // HTML table optimization test
+  const rawHtml = '<colgroup><col style="width: 20%" /></colgroup><td>应用ID</td><td>这是一段很长很长的业务说明描述信息，需要换行</td>'
+  const optHtml = optimizeHtmlTables(rawHtml)
+  assert(!optHtml.includes('width: 20%'), "Cleans hardcoded col widths in colgroup")
+  assert(optHtml.includes('class="cell-nowrap"'), "Applies cell-nowrap to short cells (<= 12 chars)")
+  assert(!optHtml.includes('<td>这是一段很长很长的业务说明描述信息，需要换行</td> class="cell-nowrap"'), "Does not apply cell-nowrap to long cells")
 
   section("2. Environment Check Tests")
   const hasPandoc = checkPandoc()

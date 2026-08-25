@@ -8,3 +8,4 @@
  * See: plugins/md-to-pdf/index.ts
  */
 export { MdToPdfPlugin } from "./md-to-pdf/index"
+export { MdToPdfPlugin as default } from "./md-to-pdf/index"
