@@ -512,27 +512,30 @@ bridge 附带的额外能力：
 
 ## 工作流斜杠命令
 
-| 命令 | 说明 |
-|---|---|
-| `/auto-advisor off\|lite\|full` | 切换 advisor 模式（详见下文） |
-| `/provider` | 打开服务商向导（仅限 TUI）：为已激活或仓库自带的服务商配置凭证（baseURL → apiKey 输入），或管理服务商的模型清单（按 key/上游 id/显示名三步新增，删除需确认）。详见[自定义服务商](#自定义服务商provider-向导) |
-| `/profile` | 打开弹窗选择器：列出所有可用的模型服务商预设（活跃项带标记）；选中预设后进入层级审阅，可逐个 tier 通过 provider → model 选择修改模型再应用（provider/模型列表来自 opencode 服务目录：内置 + 已配置），重写 `opencode.jsonc` 中的层级→模型映射。首个条目用于查看当前活跃预设和层级→模型映射 |
-| `/review-fix-loop [scope] [--max-rounds=N]` | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更）。`--max-rounds=N` 覆盖默认 5 轮 |
-| `/goal [text]` | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件。带文本：执行目标；不带文本：goal-builder 模式（交互式访谈构建 5 段式目标） |
-| `/handoff [focus]` | 将当前会话压缩为一份交接文档（保存到操作系统临时目录），让新会话能接手工作。可选参数用于把文档聚焦到下一会话要处理的方向 |
-| `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）；已存在的项目配置会做只追加补齐：模板在 init 之后新增的开关注释行自动补入（既有内容不动）；随后执行各后端的首次初始化（仅当对应 CLI 已安装且启用）：`codegraph init`、索引缺失时的 `gitnexus analyze`。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
-| `/project index` | 手动刷新已有索引：`codegraph sync`（增量追平 watcher 未运行期间的变更）、索引过期时的 `gitnexus analyze` 重建。只刷新、不首次建库（首次归 `/project init`）；CLI 未安装则跳过报告、绝不调用 |
-| `/project sync` | 只做配置补齐：把模板中新增、而现有 `.opencode/opencode.jsonc` 还没有的开关注释行追加进去（只追加、不改既有内容；文件不存在时提示跑 `/project init`） |
-| `/prd <topic>` | 在 `docs/prd/` 中脚手架生成并起草需求规格说明书（详见 [规范驱动开发 (SDD)](#规范驱动开发-sdd)） |
-| `/adr [new\|supersede\|tree\|check\|mode]` | 架构决策记录（ADR）治理：脚手架生成、替代生命周期流转、DAG 拓扑图、断链体检与分层模式切换（详见 [ADR 铁律](#adr-铁律adr-guard)） |
-| `/plan <topic>` | 在 `docs/plan/` 中脚手架生成并起草分阶段实施任务分解计划 |
-| `/impl [task]` | 依照 PRD/ADR/Plan 规范执行测试驱动编码实现与验证交付 |
-| `/sdd [status\|help]` | 规范驱动开发全链路导航与制品状态检查（`/prd` → `/adr` → `/plan` → `/impl`） |
-| `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
-| `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
-| `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
-| `/md-to-pdf <file.md> [output.pdf]` | Markdown 一键转高清 A4 PDF，支持自然语言 `@filepath 转PDF`、`--doctor` 自检与 `--install-deps` 自动修复（详见 [文档导出与排版渲染](#文档导出与排版渲染md-to-pdf)） |
-| `/md-to-docx <file.md> [output.docx]` | Markdown 导出为出版级 Word (.docx)，支持中文字体排版、自动TOC、智能表格与代码美化（详见 [Word 文档排版与导出](#word-文档排版与导出md-to-docx)） |
+| 命令 | 分类 | 说明 |
+|---|---|---|
+| **`/prd <topic>`** | SDD 规范驱动 | 在 `docs/prd/` 中脚手架生成并起草需求规格说明书 (PRD)（详见 [规范驱动开发 (SDD)](#规范驱动开发-sdd)） |
+| **`/adr [new\|supersede\|tree\|check\|migrate\|mode]`** | 架构治理 | 架构决策记录（ADR）治理：自动起草、生命周期替代、DAG 拓扑树、完整性体检、双向分层重构与模式切换（详见 [ADR 铁律](#adr-铁律adr-guard)） |
+| **`/plan <topic>`** | SDD 规范驱动 | 在 `docs/plan/` 中脚手架生成并起草分阶段实施计划 (PLAN)，自动关联 PRD 与 ADR |
+| **`/impl [task]`** | SDD 规范驱动 | 依照 PRD/ADR/Plan 规范执行测试驱动编码实现与质量验证 |
+| **`/sdd [status\|handoff\|help]`** | SDD 规范驱动 | 规范驱动开发全链路导航、制品状态检查与跨会话暂存交接（`/sdd handoff`） |
+| **`/grill-me <topic>`** | 架构与构思 | 逐题逼问式苏格拉底访谈，全方位磨砺需求与技术设计 |
+| **`/grill-with-docs <topic>`** | 架构与构思 | 同 `/grill-me`，同时自动沉淀 `CONTEXT.md` 领域术语表与对应 ADR |
+| **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
+| **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
+| **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至系统临时目录），生成新会话一键恢复开场白 |
+| **`/adr-guard [on\|off\|status]`** | 质量硬门禁 | 项目级 ADR 提交铁律门禁：拦截缺少架构决策记录的 `feat:` 与 `refactor:` 提交 |
+| **`/e2e-guard [on\|off\|status]`** | 质量硬门禁 | 项目级 E2E 测试硬门禁：在功能变更和 Bug 修复时强制进行端到端测试覆盖检查 |
+| **`/env-guard [on\|off\|status]`** | 安全护栏 | 项目级敏感信息防泄漏护栏：拦截读取或向 Bash 暴露 `.env` 等凭据的行为 |
+| **`/deepseek-anchor [on\|off\|status]`** | 模型增强 | DeepSeek V4/Pro 深度思考锚定插件：防止思考过程退化，并在推理阶段实施工具阻断 |
+| **`/auto-advisor [off\|lite\|full]`** | 智能决策 | 切换 Advisor 智能决策模式（`off` 关闭 / `lite` 决策建议 / `full` 事实类自动代答） |
+| **`/md-to-pdf <file.md> [output.pdf]`** | 出版级导出 | Markdown 一键转高清 A4 PDF，支持 300 DPI Mermaid 图表、CSS 样式定制与 `--doctor` 自检修复 |
+| **`/md-to-docx <file.md> [output.docx]`** | 出版级导出 | Markdown 导出为行政级 Word (.docx)，支持纯 TS 引擎、中西双字排版、Mermaid 渲染与样式定制 |
+| **`/project [init\|index\|sync]`** | 项目管理 | 脚手架生成项目基线文件（`.opencode/opencode.jsonc` 等），并自动触发 CodeGraph 与 GitNexus 索引 |
+| **`/project-wizard`** | 交互向导 (TUI) | 打开交互式项目配置向导：通过终端可视化菜单一键开启或关闭各项 MCP 服务与功能插件 |
+| **`/profile`** | 交互向导 (TUI) | 打开模型预设弹窗选择器：一键切换或精细配置 Auto / Ultimate / Performance / Economy / Lightweight 各层级模型 |
+| **`/provider`** | 交互向导 (TUI) | 打开服务商向导：为已激活或仓库自带的服务商配置凭证（baseURL / apiKey），管理模型清单 |
+| **`/queued`** | 交互向导 (TUI) | 打开排队消息管理对话框：实时查看、编辑或取消在会话忙碌期间提交的排队提示词 |
 
 ---
 
