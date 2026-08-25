@@ -1,4 +1,5 @@
 {
+  "adrMode": "flat",
   "$schema": "https://opencode.ai/config.json",
   "snapshot": true,
   "model": "llm-router/default",

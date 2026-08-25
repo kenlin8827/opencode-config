@@ -59,18 +59,24 @@
 
 | 命令 | 说明 | 示例 |
 |---|---|---|
-| `/adr new [layer/scope] <title>` | 自动计算序号生成 MADR 模板并更新 `INDEX.md` | `/adr new "采用 PostgreSQL 作为主库"` |
-| `/adr supersede <old-id> <new-title>` | 原子化将旧 ADR 标记为 superseded，生成新决策并建立双向交叉溯源 | `/adr supersede 0001 "从 RabbitMQ 迁移至 NATS"` |
+| `/adr [new] [layer/scope] <title> [--empty]` | 自动计算序号生成 MADR 骨架并**自动唤醒 AI 结合代码库起草正文**（可省略 `new`，加 `--empty` 仅生成空骨架） | `/adr "采用 PostgreSQL 作为主库"` 或 `/adr new "采用 PostgreSQL 作为主库"` |
+| `/adr supersede <old-id> <new-title> [--empty]` | 原子化将旧 ADR 标记为 superseded，生成新决策并**自动唤醒 AI 编写演进论证** | `/adr supersede 0001 "从 RabbitMQ 迁移至 NATS"` |
 | `/adr migrate [h\|f\|a] [--confirm]` | 预览或执行 ADR 架构目录结构双向自动化重构 | `/adr migrate h` |
 | `/adr tree` / `/adr map` | 生成 Markdown 决策层级树与 Mermaid DAG 依赖图 | `/adr tree` |
 | `/adr check` / `/adr lint` | 审计引用完整性、父子决策断链及复杂度升级建议 | `/adr check` |
 
-#### 1. 创建新决策（`/adr new`）
-* **基础用法（扁平模式 / 常规单体）**：
+#### 1. 创建新决策（`/adr` 或 `/adr new`）
+* **基础用法（自动 AI 起草，支持直接传需求标题）**：
   ```text
+  /adr "Use PostgreSQL as Primary Database"
+  # 或：
   /adr new "Use PostgreSQL as Primary Database"
   ```
-  自动在 `docs/adr/` 创建下一个自增编号文件（如 `0003-use-postgresql-as-primary-database.md`），填充标准 MADR 骨架，并自动更新 `INDEX.md` 索引表。
+  自动在 `docs/adr/` 创建下一个自增编号文件（如 `0003-use-postgresql-as-primary-database.md`），填充标准 MADR 骨架，并自动更新 `INDEX.md` 索引表，**随后自动触发 AI 调研代码库并编写完整决策正文**。
+* **纯骨架模式（仅生成占位模板，不调用 AI）**：
+  ```text
+  /adr "Use PostgreSQL as Primary Database" --empty
+  ```
 * **分层用法（多包 / Monorepo）**：
   ```text
   /adr new system "Global Event Bus Standard"          # L1 宏观决策（根目录 docs/adr/）
@@ -83,10 +89,11 @@
 ```text
 /adr supersede 0001 "Migrate from RabbitMQ to NATS JetStream"
 ```
-**系统原子化自动完成三件事**：
+**系统原子化自动完成**：
 1. 旧决策（`0001`）状态更新为 `status: superseded by 0004` 并注明废弃原因；
 2. 新决策（`0004`）自动创建，Frontmatter 自动关联 `parent: docs/adr/0001-use-rabbitmq.md`；
-3. 自动同步刷新目录下的 `INDEX.md`。
+3. 自动同步刷新目录下的 `INDEX.md`；
+4. 自动唤醒 AI 结合历史决策与代码上下文，编写新 ADR 的方案对比与替代理由（若加 `--empty` 则仅生成骨架）。
 
 #### 3. 自动化重构与迁移（`/adr migrate`）
 随着项目规模扩大，随时可以无痛双向重构 ADR 结构：
@@ -95,14 +102,15 @@
 
 ### 双轨驱动：自然语言与 Slash 命令
 
-ADR 治理系统支持 **Slash 命令（确定性本地执行）** 与 **自然语言交互（AI 智能深度起草）** 双轨并行：
+ADR 治理系统支持 **Slash 命令（确定性脚手架 + AI 接力）** 与 **纯自然语言交互** 双轨并行：
 
-| 场景 | 自然语言交互（AI 深度思考与起草） | Slash 命令（本地秒级脚手架） |
+| 场景 | 自然语言交互 | Slash 命令（确定性路径 + 索引保障） |
 | :--- | :--- | :--- |
-| **新建决策** | “帮我记录一个关于引入 Redis 做分布式锁的 ADR”<br>$\to$ **AI 会自动调研背景、列出候选方案对比（Redlock vs ETCD vs DB锁），填充完整论证后落盘并同步索引** | `/adr new "Redis 分布式锁规范"` |
-| **废弃/替代** | “0001 号决策废弃掉，我们现在改用 Kafka 代替 RabbitMQ”<br>$\to$ **AI 自动将 0001 标记为 `superseded by 0005`，生成新 ADR 并写入迁移原因和上下文溯源** | `/adr supersede 0001 "迁移至 Kafka"` |
-| **健康体检** | “帮我看看目前 ADR 依赖关系有没有断链，有没有缺失的字段”<br>$\to$ **AI 逐一检查全仓 frontmatter、父子指向，给出修复方案** | `/adr check` |
-| **架构重构** | “项目拆成 Monorepo 了，帮我把支付和用户相关的 ADR 移到各自子包”<br>$\to$ **AI 分析目录结构并安全执行重构，更新引用与索引** | `/adr migrate h --confirm` |
+| **新建决策** | “帮我记录一个关于引入 Redis 做分布式锁的 ADR”<br>$\to$ **AI 调研背景、列出候选方案对比、填充论证并落盘** | `/adr 引入 Redis 做分布式锁`<br>$\to$ **秒级分配自增序号与索引，随后 AI 自动填充内容** |
+| **仅生成模板** | “帮我生成一个 ADR 模板，我自己手写” | `/adr 引入 Redis 做分布式锁 --empty` |
+| **废弃/替代** | “0001 号决策废弃掉，我们现在改用 Kafka 代替 RabbitMQ” | `/adr supersede 1 "迁移至 Kafka"` |
+| **健康体检** | “帮我看看目前 ADR 依赖关系有没有断链，有没有缺失的字段” | `/adr check` |
+| **架构重构** | “项目拆成 Monorepo 了，帮我把支付和用户相关的 ADR 移到各自子包” | `/adr migrate h --confirm` |
 
 ### 三层架构决策模型（从粗到细）
 

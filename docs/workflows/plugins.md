@@ -59,18 +59,24 @@ The hierarchy governance mode is configured via `/adr mode`:
 
 | Command | Description | Example |
 |---|---|---|
-| `/adr new [layer/scope] <title>` | Scaffold a sequential MADR template & update `INDEX.md` | `/adr new "Use PostgreSQL as Primary DB"` |
-| `/adr supersede <old-id> <new-title>` | Atomically mark old ADR as superseded & scaffold replacement with mutual cross-references | `/adr supersede 0001 "Migrate to NATS JetStream"` |
+| `/adr [new] [layer/scope] <title> [--empty]` | Scaffold a sequential MADR template & **auto-initiate AI drafting** (`new` keyword optional, pass `--empty` for template only) | `/adr "Use PostgreSQL as Primary DB"` or `/adr new "Use PostgreSQL as Primary DB"` |
+| `/adr supersede <old-id> <new-title> [--empty]` | Atomically mark old ADR as superseded & **auto-initiate AI drafting** with evolution rationale | `/adr supersede 0001 "Migrate to NATS JetStream"` |
 | `/adr migrate [h\|f\|a] [--confirm]` | Preview or execute bidirectional ADR directory restructuring | `/adr migrate h` |
 | `/adr tree` / `/adr map` | Render full architecture decision tree & Mermaid DAG diagram | `/adr tree` |
 | `/adr check` / `/adr lint` | Audit link integrity, parent references, and complexity advice | `/adr check` |
 
-#### 1. Creating a Decision (`/adr new`)
-* **Standard / Flat Monolith**:
+#### 1. Creating a Decision (`/adr` or `/adr new`)
+* **Standard / Flat Monolith (AI-Assisted Drafting)**:
   ```text
+  /adr "Use PostgreSQL as Primary Database"
+  # or:
   /adr new "Use PostgreSQL as Primary Database"
   ```
-  Generates `docs/adr/0003-use-postgresql-as-primary-database.md` with standard MADR template sections and updates `docs/adr/INDEX.md`.
+  Generates `docs/adr/0003-use-postgresql-as-primary-database.md` with standard MADR template sections, updates `docs/adr/INDEX.md`, and **automatically prompts the AI Agent to investigate the codebase and write out the full MADR document**.
+* **Template Only (No AI Drafting)**:
+  ```text
+  /adr "Use PostgreSQL as Primary Database" --empty
+  ```
 * **Hierarchical / Monorepo**:
   ```text
   /adr new system "Global Event Bus Standard"          # L1 System (in docs/adr/)
@@ -86,7 +92,8 @@ Architecture decisions are immutable; evolving solutions should be recorded via 
 **Atomic System Actions**:
 1. Marks `0001` frontmatter status as `status: superseded by 0004` with deprecation notes;
 2. Scaffolds `0004` with `parent: docs/adr/0001-use-rabbitmq.md`;
-3. Automatically synchronizes respective `INDEX.md` files.
+3. Automatically synchronizes respective `INDEX.md` files;
+4. Prompts AI Agent to review the previous decision and draft the new decision with full trade-off rationale (unless `--empty` is specified).
 
 #### 3. Restructuring & Migration (`/adr migrate`)
 * **Dry-Run Preview**: `/adr migrate h` (or `/adr migrate hierarchical`) outputs the planned file moves without modifying files.
@@ -94,23 +101,21 @@ Architecture decisions are immutable; evolving solutions should be recorded via 
 
 ### Dual-Track Interaction: Natural Language & Slash Commands
 
-The ADR governance system supports **Slash Commands (deterministic local execution)** and **Natural Language (AI-assisted architectural drafting)** side-by-side:
+The ADR governance system supports **Slash Commands (deterministic numbering + automated AI drafting)** and **Natural Language** side-by-side:
 
-| Scenario | Natural Language (Deep AI Drafting) | Slash Commands (Instant Local Scaffolding) |
+| Scenario | Natural Language | Slash Commands (Deterministic Path & Indexing) |
 | :--- | :--- | :--- |
-| **New Decision** | "Help me draft an ADR on using Redis for distributed locking"<br>$\to$ **AI researches requirements, compares alternatives (Redlock vs ETCD vs DB lock), drafts full MADR trade-offs, writes file & syncs `INDEX.md`** | `/adr new "Redis Distributed Lock Standard"` |
-| **Supersede** | "Deprecate ADR 0001, we are switching from RabbitMQ to Kafka"<br>$\to$ **AI marks 0001 as `superseded by 0005`, scaffolds the new ADR with migration context and cross-references** | `/adr supersede 0001 "Migrate to Kafka"` |
-| **Integrity Audit** | "Audit all ADRs to verify if there are broken links or missing fields"<br>$\to$ **AI validates frontmatter, parent links, and provides remediation** | `/adr check` |
-| **Architecture Migration** | "We restructured into a monorepo, migrate payment and auth ADRs to their sub-packages"<br>$\to$ **AI plans and safely executes directory restructuring** | `/adr migrate h --confirm` |
+| **New Decision** | "Help me draft an ADR on using Redis for distributed locking"<br>$\to$ **AI researches requirements, compares alternatives, drafts MADR** | `/adr "Redis Distributed Lock Standard"`<br>$\to$ **Instant index & file scaffolding, then AI automatically drafts body** |
+| **Scaffold Only** | "Generate an empty ADR template, I will fill it myself" | `/adr "Redis Distributed Lock Standard" --empty` |
+| **Supersede** | "Deprecate ADR 0001, we are switching from RabbitMQ to Kafka" | `/adr supersede 1 "Migrate to Kafka"` |
+| **Integrity Audit** | "Audit all ADRs to verify if there are broken links or missing fields" | `/adr check` |
+| **Architecture Migration** | "We restructured into a monorepo, migrate payment and auth ADRs to their sub-packages" | `/adr migrate h --confirm` |
 
 ### Hierarchical Layers (Coarse to Fine)
-
 
 - **L1: System & Macro (`layer: system`)** — Global `docs/adr/` (tech stack, core communication, global data architecture).
 - **L2: Domain & Subsystem (`layer: domain`)** — `packages/<name>/docs/adr/` or `apps/<name>/docs/adr/` (service boundaries, state machines, domain storage).
 - **L3: Component & Module (`layer: component`)** — Module `docs/adr/` (local algorithms, state management).
-
-
 
 ---
 

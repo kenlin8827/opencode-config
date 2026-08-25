@@ -638,7 +638,7 @@ bridge 附带的额外能力：
 }
 ```
 
-支持 `/adr` 全套命令：`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate` 与 `/adr mode`。
+支持 `/adr` 全套命令（`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate`、`/adr mode`）及**自然语言直接交互**（自动调研背景、编写选型对比、落盘 MADR 并同步索引）。
 
 
 ### 密钥文件门控（`env-guard`）

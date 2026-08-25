@@ -310,6 +310,136 @@ async function test08_ConfigHook() {
   assert(!!plugin["command.execute.before"], "command hook present")
 }
 
+async function test09_AdrCommandAutoDraft() {
+  section("09: /adr new auto-draft vs --empty flag")
+  let promptedCalls: any[] = []
+  const mockClient: any = {
+    app: { log: async () => {} },
+    tui: { showToast: async () => {} },
+    session: {
+      prompt: async (args: any) => {
+        promptedCalls.push(args)
+      },
+    },
+  }
+
+  const tmpTestDir = mkdtempSync(join(tmpdir(), "adr-test-draft-"))
+  try {
+    const plugin = (await AdrGuardPlugin({ client: mockClient, directory: tmpTestDir } as any)) as any
+    const cmdHook = plugin["command.execute.before"]
+
+    // Test 1: /adr new with default auto-drafting
+    let thrownError: any = null
+    try {
+      await cmdHook({ command: "adr", arguments: 'new "Test Auto Draft"', sessionID: "test-sess-1" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(thrownError === null, "default /adr new does NOT throw 204, allowing OpenCode to dispatch to LLM")
+    const adr1 = join(tmpTestDir, "docs/adr/0001-test-auto-draft.md")
+    assert(existsSync(adr1), "default /adr new scaffolds 0001 file")
+
+    // Test 2: /adr new with --empty flag
+    thrownError = null
+    try {
+      await cmdHook({ command: "adr", arguments: 'new "Test Empty Template" --empty', sessionID: "test-sess-2" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(!!thrownError, "command hook returns 204 handled for --empty")
+    const adr2 = join(tmpTestDir, "docs/adr/0002-test-empty-template.md")
+    assert(existsSync(adr2), "/adr new --empty scaffolds 0002 file")
+
+    // Test 3: direct /adr <title> without 'new' keyword
+    thrownError = null
+    try {
+      await cmdHook({ command: "adr", arguments: '"Test Direct Requirement Without New Keyword"', sessionID: "test-sess-3" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(thrownError === null, "direct /adr <title> does not throw 204, dispatching to LLM")
+    const adr3 = join(tmpTestDir, "docs/adr/0003-test-direct-requirement-without-new-keyword.md")
+    assert(existsSync(adr3), "direct /adr scaffolds 0003 file")
+
+    // Test 4: unquoted title: /adr 采用 Redis 作为分布式锁
+    thrownError = null
+    try {
+      await cmdHook({ command: "adr", arguments: "采用 Redis 作为分布式锁", sessionID: "test-sess-4" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(thrownError === null, "unquoted /adr command does not throw 204, dispatching to LLM")
+    const adr4 = join(tmpTestDir, "docs/adr/0004-redis.md")
+    assert(existsSync(adr4), "unquoted /adr scaffolds 0004-redis.md file")
+  } finally {
+    rmSync(tmpTestDir, { recursive: true, force: true })
+  }
+}
+
+async function test10_AdrSupersede() {
+  section("10: /adr supersede linking, index & auto-draft")
+  const mockClient: any = {
+    app: { log: async () => {} },
+    tui: { showToast: async () => {} },
+    session: {
+      prompt: async () => {},
+    },
+  }
+
+  const tmpTestDir = mkdtempSync(join(tmpdir(), "adr-test-super-"))
+  try {
+    const plugin = (await AdrGuardPlugin({ client: mockClient, directory: tmpTestDir } as any)) as any
+    const cmdHook = plugin["command.execute.before"]
+
+    // Step 1: Create initial ADR 0001
+    try {
+      await cmdHook({ command: "adr", arguments: 'new "Initial Storage Decision" --empty', sessionID: "s-1" })
+    } catch {}
+
+    const adr1Path = join(tmpTestDir, "docs/adr/0001-initial-storage-decision.md")
+    assert(existsSync(adr1Path), "ADR 0001 created")
+
+    // Step 2: Supersede with unpadded numeric '1' and auto-draft
+    let thrownError: any = null
+    try {
+      await cmdHook({ command: "adr", arguments: 'supersede 1 "New Cloud Storage Standard"', sessionID: "s-2" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(thrownError === null, "/adr supersede does not throw 204, dispatching to LLM")
+
+    const adr2Path = join(tmpTestDir, "docs/adr/0002-new-cloud-storage-standard.md")
+    assert(existsSync(adr2Path), "ADR 0002 created via unpadded numeric '1'")
+
+    const adr1Content = readFileSync(adr1Path, "utf-8")
+    assert(adr1Content.includes("status: superseded by 0002"), "ADR 0001 marked as superseded by 0002")
+    assert(adr1Content.includes("superseded_by: docs/adr/0002-new-cloud-storage-standard.md"), "ADR 0001 contains superseded_by link")
+
+    const adr2Content = readFileSync(adr2Path, "utf-8")
+    assert(adr2Content.includes("parent: docs/adr/0001-initial-storage-decision.md"), "ADR 0002 references parent ADR 0001")
+
+    const indexPath = join(tmpTestDir, "docs/adr/INDEX.md")
+    assert(existsSync(indexPath), "INDEX.md exists")
+    const indexContent = readFileSync(indexPath, "utf-8")
+    assert(indexContent.includes("Superseded"), "INDEX.md contains Superseded status for 0001")
+    assert(indexContent.includes("Accepted"), "INDEX.md contains Accepted status for 0002")
+
+    // Step 3: Supersede with --empty flag
+    thrownError = null
+    try {
+      await cmdHook({ command: "adr", arguments: 'supersede 0002 "Third Storage Standard" --empty', sessionID: "s-3" })
+    } catch (e) {
+      thrownError = e
+    }
+    assert(!!thrownError, "/adr supersede --empty throws 204 handled")
+
+    const adr3Path = join(tmpTestDir, "docs/adr/0003-third-storage-standard.md")
+    assert(existsSync(adr3Path), "ADR 0003 created")
+  } finally {
+    rmSync(tmpTestDir, { recursive: true, force: true })
+  }
+}
+
 // ─── Main entry ───────────────────────────────────────────────────────────
 
 async function main() {
@@ -337,6 +467,8 @@ async function main() {
     await test06_SystemHook()
     await test07_ToolGuard()
     await test08_ConfigHook()
+    await test09_AdrCommandAutoDraft()
+    await test10_AdrSupersede()
   } finally {
     if (cfgPreexisting && origCfg !== null) writeFileSync(cfgFile, origCfg, "utf-8")
     else if (existsSync(cfgFile)) rmSync(cfgFile)

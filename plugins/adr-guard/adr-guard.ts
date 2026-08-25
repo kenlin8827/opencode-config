@@ -61,7 +61,7 @@ export const AdrGuardPlugin: Plugin = async ({ client, directory }) => {
           "Toggle the ADR iron law for this project — every feat/refactor commit requires a new/updated ADR (on | off | status)",
       }
       cfg.command[ADR_COMMAND] = {
-        template: "$1",
+        template: "/adr $ARGUMENTS",
         description:
           "Manage Architecture Decision Records (new | supersede | tree | check | help)",
       }

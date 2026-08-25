@@ -638,7 +638,7 @@ Project-config fields (all optional, in the project's `opencode.jsonc`):
 }
 ```
 
-Full `/adr` command suite supported: `/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, `/adr migrate`, and `/adr mode`.
+Full `/adr` command suite supported (`/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, `/adr migrate`, `/adr mode`) as well as **direct natural language interaction** (automatic background research, trade-off analysis, MADR drafting & index sync).
 
 
 ### Secret file guard (`env-guard`)
