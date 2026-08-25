@@ -45,7 +45,7 @@
 - [x] **`/adr migrate [flat|hierarchical] [--confirm]`（自动重构与文件迁移引擎）**：
   - **预览模式（Dry-Run）**：一览重构方案、文件移动源/目标路径、层级映射与新序号；
   - **执行模式（Confirm）**：原子化移动文件、重写 frontmatter、更新相互引用链接并重新生成所有目录的 `INDEX.md`；
-  - 支持 **双向自由重构**（`flat` $\to$ `hierarchical` 分层扩散 或 `hierarchical` $\to$ `flat` 单层收拢）。
+  - 支持 **双向自由重构**（`flat` → `hierarchical` 分层扩散 或 `hierarchical` → `flat` 单层收拢）。
 - [x] **`/adr mode [auto|flat|hierarchical]`**：
   - 查看或一键切换项目级分层治理模式（切换时若有可迁移文件，会自动提示一键重构命令）。
 

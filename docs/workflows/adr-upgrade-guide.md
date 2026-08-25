@@ -45,7 +45,7 @@ This upgrade elevates the single-layer `adr-guard` commit interception mechanism
 - [x] **`/adr migrate [flat|hierarchical] [--confirm]` (Automated Refactoring & Migration Engine)**:
   - **Dry-Run Preview**: Inspects proposed restructuring plans, file paths, layer mappings, and new sequential numbers before applying;
   - **Execution**: Atomically relocates files, rewrites frontmatter, updates mutual references, and regenerates all `INDEX.md` files;
-  - Supports **Bidirectional Refactoring** (`flat` $\to$ `hierarchical` or `hierarchical` $\to$ `flat`).
+  - Supports **Bidirectional Refactoring** (`flat` → `hierarchical` or `hierarchical` → `flat`).
 - [x] **`/adr mode [auto|flat|hierarchical]`**:
   - Query or switch project governance mode (automatically offers refactoring commands when relocations are available).
 

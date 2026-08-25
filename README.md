@@ -539,17 +539,17 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 
 Specification-Driven Development (SDD) establishes a structured, specification-first engineering workflow:
 
-$$\text{PRD (Requirements)} \longrightarrow \text{ADR (Architecture)} \longrightarrow \text{PLAN (Implementation Plan)} \longrightarrow \text{IMPL (Code & Verification)}$$
+> **`PRD (Requirements)` → `ADR (Architecture)` → `PLAN (Implementation Plan)` → `IMPL (Code & Verification)`**
 
 ### Key Capabilities
 
 1. **Flexible Entry Points**:
-   - Requirements & User Stories $\to$ `/prd <feature>` creates `docs/prd/PRD-<feature>.md`
-   - Architecture & Tech Decisions $\to$ `/adr <decision>` creates `docs/adr/` records
-   - Task Decomposition $\to$ `/plan <feature>` creates `docs/plan/PLAN-<feature>.md`
-   - Direct Execution $\to$ `/impl <task>` test-driven implementation
+   - Requirements & User Stories → `/prd <feature>` creates `docs/prd/PRD-<feature>.md`
+   - Architecture & Tech Decisions → `/adr <decision>` creates `docs/adr/` records
+   - Task Decomposition → `/plan <feature>` creates `docs/plan/PLAN-<feature>.md`
+   - Direct Execution → `/impl <task>` test-driven implementation
 2. **Interactive Stage Transitions (Ask Tool)**:
-   - At the completion of each phase, the agent interactively prompts for the next step, providing **Recommended Next Stage** (e.g. `/prd` $\to$ `/adr`), **Direct Jump** (e.g. `/prd` $\to$ `/impl`), **Backtracking**, or **Finish**.
+   - At the completion of each phase, the agent interactively prompts for the next step, providing **Recommended Next Stage** (e.g. `/prd` → `/adr`), **Direct Jump** (e.g. `/prd` → `/impl`), **Backtracking**, or **Finish**.
 3. **Relationship with Standalone ADR Governance (`adr-guard`)**:
    - **`adr-guard` (Specialized Architecture Engine)**: Independently manages `/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, flat/hierarchical modes, and the Git commit gate.
    - **`sdd` (Lifecycle Orchestrator)**: Bridges PRD requirements into ADR decision drivers, and automatically links recent ADRs into implementation plans.

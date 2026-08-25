@@ -3,7 +3,7 @@
 You are operating under the **SDD (Specification-Driven Development)** engineering framework.
 SDD guarantees software quality and maintainability through a rigorous specification lifecycle:
 
-$$\text{PRD (Requirements)} \longrightarrow \text{ADR (Architecture)} \longrightarrow \text{PLAN (Implementation Plan)} \longrightarrow \text{IMPL (Code Execution)}$$
+> **`PRD (Requirements)` → `ADR (Architecture)` → `PLAN (Implementation Plan)` → `IMPL (Code Execution)`**
 
 ---
 
@@ -11,10 +11,10 @@ $$\text{PRD (Requirements)} \longrightarrow \text{ADR (Architecture)} \longright
 
 1. **On-Demand Trigger (Opt-in Only)**: SDD is active **ONLY** when the user explicitly triggers an SDD command (`/prd`, `/adr`, `/plan`, `/impl`, `/sdd`) or asks for specification-driven development. Normal chat, exploratory questions, and routine bug fixes proceed directly without forcing any SDD ceremony.
 2. **Any Entry Point**: When SDD is invoked, the user is free to start from ANY phase:
-   - Got a user problem or product idea? $\to$ Start with `/prd <topic>`.
-   - Got an architectural choice or tech stack decision? $\to$ Start with `/adr <decision>`.
-   - Got a clear architecture and need task decomposition? $\to$ Start with `/plan <topic>`.
-   - Got a straightforward fix or pre-approved plan? $\to$ Start directly with `/impl <task>`.
+   - Got a user problem or product idea? → Start with `/prd <topic>`.
+   - Got an architectural choice or tech stack decision? → Start with `/adr <decision>`.
+   - Got a clear architecture and need task decomposition? → Start with `/plan <topic>`.
+   - Got a straightforward fix or pre-approved plan? → Start directly with `/impl <task>`.
 3. **Interactive Stage Transitions (Triggered Phases Only)**: Upon completing an explicitly triggered phase, you **MUST** present the artifact summary and ask the user (using `ask_question` in Antigravity or selectable options in chat) how they want to proceed (Recommended next stage, Jump to another stage, or Finish). Do NOT prompt transition on non-SDD conversations.
 
 ---

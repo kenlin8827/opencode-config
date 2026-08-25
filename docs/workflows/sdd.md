@@ -30,7 +30,7 @@ Specification-Driven Development (SDD) provides a structured, specification-firs
 
 ## 🏛️ Why ADR is the Critical Keystone of SDD
 
-Across the entire SDD lifecycle (`PRD` $\to$ `ADR` $\to$ `PLAN` $\to$ `IMPL`), **ADR (Architecture Decision Record) serves as the indispensable structural keystone**, anchored by four critical engineering imperatives:
+Across the entire SDD lifecycle (`PRD` → `ADR` → `PLAN` → `IMPL`), **ADR (Architecture Decision Record) serves as the indispensable structural keystone**, anchored by four critical engineering imperatives:
 
 ```
                ┌──────────────────────────────┐
@@ -82,14 +82,14 @@ SDD acts as the **Lifecycle Orchestrator** while `adr-guard` serves as the **Spe
 
 ### 1. Flexible Entry Point
 Developers can initiate work at **ANY** stage based on task readiness:
-- Starting a brand new feature from scratch $\to$ `/prd <feature>`
-- Evaluating architectural alternatives $\to$ `/adr <decision>`
-- Architecture is settled and you need task decomposition $\to$ `/plan <feature>`
-- Direct bugfix or well-defined task $\to$ `/impl <task>`
+- Starting a brand new feature from scratch → `/prd <feature>`
+- Evaluating architectural alternatives → `/adr <decision>`
+- Architecture is settled and you need task decomposition → `/plan <feature>`
+- Direct bugfix or well-defined task → `/impl <task>`
 
 ### 2. Interactive Stage Transitions
 At the completion of each phase, the system presents the produced artifact and interactively asks the developer how to proceed:
-- **Recommended Next Stage**: e.g., `/prd` $\to$ `/adr`, `/adr` $\to$ `/plan`, `/plan` $\to$ `/impl`.
+- **Recommended Next Stage**: e.g., `/prd` → `/adr`, `/adr` → `/plan`, `/plan` → `/impl`.
 - **Skip/Jump to Any Stage**: e.g., jump directly from `/prd` to `/impl` when architecture and planning are trivial.
 - **Backtrack**: e.g., return from `/plan` to `/adr` to adjust design decisions.
 - **Finish**: Complete and remain in the current phase.

@@ -105,7 +105,7 @@ The ADR governance system supports **Slash Commands (deterministic numbering + a
 
 | Scenario | Natural Language | Slash Commands (Deterministic Path & Indexing) |
 | :--- | :--- | :--- |
-| **New Decision** | "Help me draft an ADR on using Redis for distributed locking"<br>$\to$ **AI researches requirements, compares alternatives, drafts MADR** | `/adr "Redis Distributed Lock Standard"`<br>$\to$ **Instant index & file scaffolding, then AI automatically drafts body** |
+| **New Decision** | "Help me draft an ADR on using Redis for distributed locking"<br>→ **AI researches requirements, compares alternatives, drafts MADR** | `/adr "Redis Distributed Lock Standard"`<br>→ **Instant index & file scaffolding, then AI automatically drafts body** |
 | **Scaffold Only** | "Generate an empty ADR template, I will fill it myself" | `/adr "Redis Distributed Lock Standard" --empty` |
 | **Supersede** | "Deprecate ADR 0001, we are switching from RabbitMQ to Kafka" | `/adr supersede 1 "Migrate to Kafka"` |
 | **Integrity Audit** | "Audit all ADRs to verify if there are broken links or missing fields" | `/adr check` |

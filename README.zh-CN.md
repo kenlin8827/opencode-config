@@ -540,17 +540,17 @@ bridge 附带的额外能力：
 
 规范驱动开发（Specification-Driven Development）建立了一套规格先行的工程化研发流程：
 
-$$\text{PRD (需求规格)} \longrightarrow \text{ADR (架构决策)} \longrightarrow \text{PLAN (实施计划)} \longrightarrow \text{IMPL (编码执行与验证)}$$
+> **`PRD (需求规格)` → `ADR (架构决策)` → `PLAN (实施计划)` → `IMPL (编码执行与验证)`**
 
 ### 核心特性
 
 1. **任意阶段起手**：
-   - 需求构思 $\to$ `/prd <feature>` 生成 `docs/prd/PRD-<feature>.md`
-   - 技术选型 $\to$ `/adr <decision>` 生成 `docs/adr/` 架构决策记录
-   - 任务分解 $\to$ `/plan <feature>` 生成 `docs/plan/PLAN-<feature>.md`
-   - 快速实现 $\to$ 直接 `/impl <task>` 测试驱动编码
+   - 需求构思 → `/prd <feature>` 生成 `docs/prd/PRD-<feature>.md`
+   - 技术选型 → `/adr <decision>` 生成 `docs/adr/` 架构决策记录
+   - 任务分解 → `/plan <feature>` 生成 `docs/plan/PLAN-<feature>.md`
+   - 快速实现 → 直接 `/impl <task>` 测试驱动编码
 2. **交互式阶段流转提示（Ask Tool）**：
-   - 每个阶段完成时，系统主动弹出交互选项，提供**推荐下一阶段**（如 `/prd` $\to$ `/adr`）、**自由跳级**（如 `/prd` 直接跳至 `/impl`）、**阶段回退**与**留在当前阶段**。
+   - 每个阶段完成时，系统主动弹出交互选项，提供**推荐下一阶段**（如 `/prd` → `/adr`）、**自由跳级**（如 `/prd` 直接跳至 `/impl`）、**阶段回退**与**留在当前阶段**。
 3. **与独立 ADR 治理体系（adr-guard）的协同分工**：
    - **`adr-guard`（独立专业引擎）**：独立拥有 `/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、单层扁平/三层分层模式以及 Git 提交铁律门禁。
    - **`sdd`（生命周期编排者）**：负责将 PRD 需求注入 ADR 决策依据，并在 `/plan` 中自动引用最近关联的 ADR 与 PRD。
