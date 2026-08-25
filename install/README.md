@@ -369,9 +369,14 @@ on install).
 ```jsonc
 {
   "rtk": true,
-  "default_agent": "build",
-  "mcp":    { "serena": true, "codegraph": true, "gitnexus": false },
-  "plugin": { "@dietrichgebert/ponytail": true, "opencode-qoder-bridge": true }
+  "default_agent": "code",
+  "mcp":    { "serena": true, "codegraph": true, "gitnexus": false, "dbhub": true },
+  "plugin": {
+    "@dietrichgebert/ponytail": true,
+    "opencode-qoder-bridge": false,
+    "@frankhommers/opencode-smart-title": true,
+    "opencode-mem@2.24.3": false
+  }
 }
 ```
 

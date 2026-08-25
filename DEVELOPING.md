@@ -269,7 +269,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
-- **npm plugins**: listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`, `opencode-qoder-bridge`, `@frankhommers/opencode-smart-title`, `opencode-mem@2.24.3` — the latter gated by `install/options.jsonc`, default off).
+- **npm plugins**: default active plugins are listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`, `@frankhommers/opencode-smart-title`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
 - **Shared plumbing**: `plugins/shared/opencode-config.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
 ### Hook inventory

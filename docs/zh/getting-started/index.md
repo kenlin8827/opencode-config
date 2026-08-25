@@ -77,6 +77,60 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
+### 进阶：自定义可选配置后再安装
+
+若你想在安装前先按需开启或关闭特定功能（例如开启 `opencode-codex-bridge`、`opencode-claude-bridge` 桥接插件，或调整 Serena / CodeGraph / DBHub 等 MCP 开关、切换默认主控智能体）：
+
+1. **克隆仓库**：
+   ```bash
+   git clone https://github.com/kenlin8827/opencode-config.git
+   cd opencode-config
+   ```
+2. **编辑 [`install/options.jsonc`](file:///d:/OpenHub/opencode-config/install/options.jsonc)**：
+   按需调整各项开关（`true` / `false`），例如：
+   ```jsonc
+   // install/options.jsonc
+   {
+     // 是否启用 rtk 输出压缩（60-90% token 节省）
+     "rtk": true,
+     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
+     "default_agent": "code",
+     // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
+     "mcp": {
+       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+）
+       "serena": true,
+       // CodeGraph AST 代码知识图谱（需 npm）
+       "codegraph": true,
+       // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）
+       "gitnexus": false,
+       // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
+       "dbhub": true
+     },
+     // 外部 npm 插件开关（true: 启用; false: 关闭）
+     "plugin": {
+       // 偷懒编码协议：实现目标并指出更轻量的替代方案
+       "@dietrichgebert/ponytail": true,
+       // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
+       "opencode-qoder-bridge": false,
+       // 会话标题智能自动生成
+       "@frankhommers/opencode-smart-title": true,
+       // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. **执行安装**：
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+   > 💡 安装脚本会读取 `install/options.jsonc` 并自动应用至目标配置；若开启了尚未安装 CLI 的 MCP 服务，安装器会自动拉取。后续如需变更选项，只需修改该文件后带 `-Force`（或 `-f`）重新执行安装即可。
+
+---
+
 ### 开发者方式：克隆仓库安装
 
 如果你想参与本配置的开发或通过 Git 管理修改，可使用克隆方式：
@@ -91,3 +145,4 @@ cd opencode-config
 ```
 
 > **术语约定**：下文中的"专家团"指各专家智能体（`@java-dev`、`@security` 等）组成的团队；`@build` / `@plan` 是调度它们的编排器（团长）。技术标识符（agent 名、`@` 引用）保持英文，是 opencode 平台约定。
+

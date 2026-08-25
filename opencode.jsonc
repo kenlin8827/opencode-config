@@ -10,11 +10,13 @@
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md"
   ],
-  // opencode-qoder-bridge injects the `qoder` provider + models at startup
-  // via the official Qoder Agent SDK — no provider block needed. Requires
-  // Node ^22.18 || >=24.11 and a prior `qoder login`.
-  // opencode-mem@2.24.3: gated by options.jsonc (default off — Apply-Options drops it)
-  "plugin": ["@dietrichgebert/ponytail", "opencode-qoder-bridge", "@frankhommers/opencode-smart-title", "opencode-mem@2.24.3"],
+  // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
+  // opencode-codex-bridge, opencode-claude-bridge, opencode-mem, etc.) are
+  // managed and enabled via install/options.jsonc, which injects them on install.
+  "plugin": [
+    "@dietrichgebert/ponytail",
+    "@frankhommers/opencode-smart-title"
+  ],
   // Serena: LSP-based semantic code retrieval (symbol-level queries instead of
   // full file reads) — shared by all agents, avoids duplicate file reads.
   // CLI provisioning: the install script runs the `install` field automatically

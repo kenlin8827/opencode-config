@@ -55,7 +55,7 @@
     // Lazy coding protocol: build what was asked, name the lazier alternative
     "@dietrichgebert/ponytail": true,
     // Injects qoder provider/models; needs Node ^22.18 || >=24.11 + `qoder login`
-    "opencode-qoder-bridge": true,
+    "opencode-qoder-bridge": false,
     // Auto-generates session titles
     "@frankhommers/opencode-smart-title": true,
     // Persistent project memory (vector store, per-machine under ~/.opencode-mem/);

@@ -77,6 +77,60 @@ After running the [10-Second Quick Install](#-10-second-quick-install) above, ge
 
 ---
 
+### Advanced: Customize Options Before Installing
+
+If you want to toggle optional features (such as enabling `opencode-codex-bridge` / `opencode-claude-bridge`, switching MCP servers like Serena / CodeGraph / DBHub, or changing the default agent) before running the installer:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/kenlin8827/opencode-config.git
+   cd opencode-config
+   ```
+2. **Edit [`install/options.jsonc`](file:///d:/OpenHub/opencode-config/install/options.jsonc)**:
+   Adjust switches as needed (`true` / `false`):
+   ```jsonc
+   // install/options.jsonc
+   {
+     // rtk output compression (60-90% token savings)
+     "rtk": true,
+     // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
+     "default_agent": "code",
+     // MCP server switches (missing CLIs auto-provisioned on install)
+     "mcp": {
+       // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+)
+       "serena": true,
+       // CodeGraph AST code knowledge graph (needs npm)
+       "codegraph": true,
+       // GitNexus code graph (PolyForm Noncommercial license; requires indexing)
+       "gitnexus": false,
+       // DBHub universal database gateway (PostgreSQL / MySQL / SQLite; needs npm)
+       "dbhub": true
+     },
+     // External npm plugin switches (true: enabled; false: disabled)
+     "plugin": {
+       // Lazy coding protocol: build what was asked, name the lazier alternative
+       "@dietrichgebert/ponytail": true,
+       // Injects Qoder provider/models via official SDK (needs qoder login)
+       "opencode-qoder-bridge": false,
+       // Auto-generates session titles
+       "@frankhommers/opencode-smart-title": true,
+       // Persistent project memory (vector store; extra LLM capture call per idle session)
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. **Run the installer**:
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+   > 💡 The installer applies `install/options.jsonc` straight onto the target config and automatically provisions any enabled MCP CLIs that are missing. To change options later, simply update `install/options.jsonc` and re-run with `-Force` (PowerShell) or `-f` (Bash).
+
+---
+
 ### Developer method: Clone and install
 
 If you plan to modify or contribute to this repo, install via Git:
@@ -89,3 +143,4 @@ cd opencode-config
 # 2. Run install (Windows: pwsh install/install.ps1)
 ./install/install.sh
 ```
+

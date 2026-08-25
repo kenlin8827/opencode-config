@@ -626,6 +626,116 @@ ensure_mcp() {
     return 0
 }
 
+# Pre-installs active npm plugins into OpenCode's native cache directory (~/.cache/opencode)
+# using detected bun/npm/pnpm to eliminate startup latency. Never fails the installer.
+ensure_plugins() {
+    local cfg="$TARGET/opencode.jsonc"
+    [[ -f "$cfg" ]] || return 0
+    local raw_plugins
+    raw_plugins="$(grep -v '^[[:space:]]*//' "$cfg" | jq -r '
+        (.plugin // [])[] | select(type == "string" and . != "")
+    ' 2>/dev/null)" || return 0
+    [[ -n "$raw_plugins" ]] || return 0
+
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/opencode"
+    local node_modules="$cache_dir/node_modules"
+    local missing=()
+    local npm_count=0
+
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        # Ignore local file paths (.ts, .js, leading ./, /, file:)
+        if [[ "$p" =~ ^(\.|\/|\\|file:|https?:) ]] || [[ "$p" =~ \.(ts|js|mjs)$ ]]; then
+            continue
+        fi
+        npm_count=$((npm_count + 1))
+        # Extract package folder name (strip @version)
+        local pkg_name
+        if [[ "$p" == @* ]]; then
+            # @scope/name@version -> @scope/name
+            pkg_name="@${p#@}"
+            pkg_name="${pkg_name%%@*}"
+        else
+            # name@version -> name
+            pkg_name="${p%%@*}"
+        fi
+
+        if [[ ! -d "$node_modules/$pkg_name" ]]; then
+            missing+=("$p")
+        fi
+    done <<< "$raw_plugins"
+
+    if [[ "$npm_count" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "${#missing[@]}" -eq 0 ]]; then
+        echo "[plugin] all $npm_count active plugin(s) present in ~/.cache/opencode"
+        return 0
+    fi
+
+    # Multi-tier package manager detection:
+    # 1. Inspect existing lockfile in OpenCode cache directory
+    local pm=""
+    if [[ -f "$cache_dir/bun.lock" || -f "$cache_dir/bun.lockb" ]] && command -v bun >/dev/null 2>&1; then
+        pm="bun"
+    elif [[ -f "$cache_dir/package-lock.json" ]] && command -v npm >/dev/null 2>&1; then
+        pm="npm"
+    elif [[ -f "$cache_dir/pnpm-lock.yaml" ]] && command -v pnpm >/dev/null 2>&1; then
+        pm="pnpm"
+    fi
+
+    # 2. Inspect the installation origin of the `opencode` binary (bun vs npm/node vs pnpm)
+    if [[ -z "$pm" ]]; then
+        local op_path
+        op_path="$(command -v opencode 2>/dev/null || true)"
+        if [[ -n "$op_path" ]]; then
+            if [[ "$op_path" == *"/bun/"* || "$op_path" == *"/.bun/"* ]] && command -v bun >/dev/null 2>&1; then
+                pm="bun"
+            elif [[ "$op_path" == *"/npm/"* || "$op_path" == *"/node/"* || "$op_path" == *"/nvm/"* || "$op_path" == *"/fnm/"* || "$op_path" == *"/volta/"* ]] && command -v npm >/dev/null 2>&1; then
+                pm="npm"
+            elif [[ "$op_path" == *"/pnpm/"* ]] && command -v pnpm >/dev/null 2>&1; then
+                pm="pnpm"
+            fi
+        fi
+    fi
+
+    # 3. Fallback to available tool in PATH (bun > npm > pnpm)
+    if [[ -z "$pm" ]]; then
+        if command -v bun >/dev/null 2>&1; then
+            pm="bun"
+        elif command -v npm >/dev/null 2>&1; then
+            pm="npm"
+        elif command -v pnpm >/dev/null 2>&1; then
+            pm="pnpm"
+        fi
+    fi
+
+    if [[ -z "$pm" ]]; then
+        echo "[plugin] bun/npm not found — ${#missing[@]} plugin(s) will be downloaded on first opencode launch"
+        return 0
+    fi
+
+    mkdir -p "$cache_dir"
+    if [[ ! -f "$cache_dir/package.json" ]]; then
+        echo '{"dependencies":{}}' > "$cache_dir/package.json"
+    fi
+
+    echo "[plugin] pre-installing ${#missing[@]} plugin(s) via $pm into ~/.cache/opencode ..."
+    (
+        cd "$cache_dir" || exit 0
+        if [[ "$pm" == "bun" ]]; then
+            bun add "${missing[@]}" >/dev/null 2>&1 || true
+        elif [[ "$pm" == "npm" ]]; then
+            npm install --no-audit --no-fund "${missing[@]}" >/dev/null 2>&1 || true
+        elif [[ "$pm" == "pnpm" ]]; then
+            pnpm add "${missing[@]}" >/dev/null 2>&1 || true
+        fi
+    )
+    echo "[plugin] pre-installed ${#missing[@]} plugin(s)"
+}
+
+
 # Applies the repo's install/options.jsonc — the single source of truth for
 # which MCPs and external plugins are active, plus the default agent — onto
 # the target opencode.jsonc:
@@ -785,6 +895,8 @@ do_install() {
     ensure_rtk "$TARGET"
     # Provision MCP CLIs for the `mcp` block (warns, never fails)
     ensure_mcp
+    # Pre-install active npm plugins into OpenCode cache (~/.cache/opencode)
+    ensure_plugins
     write_new_marker
 
     rm -f "$preserve_bag"

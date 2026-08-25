@@ -455,6 +455,121 @@ function Ensure-Mcp([string]$dst) {
     }
 }
 
+# Pre-installs active npm plugins into OpenCode's native cache directory (~/.cache/opencode)
+# using detected bun/npm/pnpm to eliminate startup latency. Never fails the installer.
+function Ensure-Plugins([string]$dst) {
+    $cfg = Join-Path $dst 'opencode.jsonc'
+    if (-not (Test-Path $cfg)) { return }
+    $obj = Read-JsoncFile $cfg
+    if (-not $obj -or -not $obj.plugin) { return }
+
+    $rawPlugins = @($obj.plugin | Where-Object { $_ -is [string] -and $_.Trim() -ne '' })
+    if ($rawPlugins.Count -eq 0) { return }
+
+    # Filter npm packages (ignore local file paths)
+    $npmPlugins = @()
+    foreach ($p in $rawPlugins) {
+        $trimmed = $p.Trim()
+        if ($trimmed -match '^(\.|\/|\\|file:|https?:)' -or $trimmed -match '\.(ts|js|mjs)$') { continue }
+        $npmPlugins += $trimmed
+    }
+    if ($npmPlugins.Count -eq 0) { return }
+
+    $cacheDir = Join-Path $HOME '.cache/opencode'
+    $nodeModules = Join-Path $cacheDir 'node_modules'
+
+    $missing = @()
+    foreach ($p in $npmPlugins) {
+        # Parse package directory name from specifier (strip version suffix)
+        $pkgName = if ($p.StartsWith('@')) {
+            $parts = $p.Substring(1) -split '@'
+            '@' + $parts[0]
+        } else {
+            ($p -split '@')[0]
+        }
+        $pkgPath = Join-Path $nodeModules ($pkgName -replace '/', '\')
+        if (-not (Test-Path $pkgPath)) {
+            $missing += $p
+        }
+    }
+
+    if ($missing.Count -eq 0) {
+        Write-Host ("[plugin] all {0} active plugin(s) present in ~/.cache/opencode" -f $npmPlugins.Count)
+        return
+    }
+
+    # Multi-tier package manager detection:
+    # 1. Inspect existing lockfile in OpenCode cache directory
+    $pm = $null
+    if ((Test-Path (Join-Path $cacheDir 'bun.lock')) -or (Test-Path (Join-Path $cacheDir 'bun.lockb'))) {
+        if (Get-Command 'bun' -ErrorAction SilentlyContinue) { $pm = 'bun' }
+    } elseif (Test-Path (Join-Path $cacheDir 'package-lock.json')) {
+        if (Get-Command 'npm' -ErrorAction SilentlyContinue) { $pm = 'npm' }
+    } elseif (Test-Path (Join-Path $cacheDir 'pnpm-lock.yaml')) {
+        if (Get-Command 'pnpm' -ErrorAction SilentlyContinue) { $pm = 'pnpm' }
+    }
+
+    # 2. Inspect the installation origin of the `opencode` binary (bun vs npm/node vs pnpm)
+    if (-not $pm) {
+        $opCmd = Get-Command 'opencode' -ErrorAction SilentlyContinue
+        if ($opCmd) {
+            $opPath = $opCmd.Source.ToLowerInvariant()
+            if ($opPath -match '(\\|\/)bun(\\|\/)') {
+                if (Get-Command 'bun' -ErrorAction SilentlyContinue) { $pm = 'bun' }
+            } elseif ($opPath -match '(\\|\/)(npm|node|nvm|fnm|volta)(\\|\/)') {
+                if (Get-Command 'npm' -ErrorAction SilentlyContinue) { $pm = 'npm' }
+            } elseif ($opPath -match '(\\|\/)pnpm(\\|\/)') {
+                if (Get-Command 'pnpm' -ErrorAction SilentlyContinue) { $pm = 'pnpm' }
+            }
+        }
+    }
+
+    # 3. Fallback to available tool in PATH (bun > npm > pnpm)
+    if (-not $pm) {
+        if (Get-Command 'bun' -ErrorAction SilentlyContinue) { $pm = 'bun' }
+        elseif (Get-Command 'npm' -ErrorAction SilentlyContinue) { $pm = 'npm' }
+        elseif (Get-Command 'pnpm' -ErrorAction SilentlyContinue) { $pm = 'pnpm' }
+    }
+
+    if (-not $pm) {
+        Write-Host ("[plugin] bun/npm not found — {0} plugin(s) will be downloaded on first opencode launch" -f $missing.Count)
+        return
+    }
+
+    if (-not (Test-Path $cacheDir)) {
+        New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+    }
+    $pkgJson = Join-Path $cacheDir 'package.json'
+    if (-not (Test-Path $pkgJson)) {
+        Set-Content -Path $pkgJson -Value '{"dependencies":{}}' -Encoding UTF8
+    }
+
+    Write-Host ("[plugin] pre-installing {0} plugin(s) via {1} into ~/.cache/opencode ..." -f $missing.Count, $pm)
+    try {
+        $origLoc = (Get-Location).Path
+        Set-Location -LiteralPath $cacheDir
+        try {
+            if ($pm -eq 'bun') {
+                & bun add $missing 2>&1 | Out-Null
+            } elseif ($pm -eq 'npm') {
+                & npm install --no-audit --no-fund $missing 2>&1 | Out-Null
+            } elseif ($pm -eq 'pnpm') {
+                & pnpm add $missing 2>&1 | Out-Null
+            }
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host ("[plugin] successfully pre-installed {0} plugin(s)" -f $missing.Count)
+            } else {
+                Write-Warning "[plugin] pre-install returned code $LASTEXITCODE — opencode will retry on launch"
+            }
+        } finally {
+            Set-Location -LiteralPath $origLoc
+        }
+    } catch {
+        Write-Warning "[plugin] pre-install error: $($_.Exception.Message)"
+    }
+}
+
+
 function Generate-Manifest([string]$ver) {
     $outDir = Join-Path $RepoRoot 'install/versions'
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
@@ -1150,6 +1265,9 @@ switch ($Mode) {
 
             # Provision MCP CLIs for the `mcp` block (warns, never fails)
             Ensure-Mcp $Target
+
+            # Pre-install active npm plugins into OpenCode cache (~/.cache/opencode)
+            Ensure-Plugins $Target
 
             # Auto-adapt and configure Windows shell environment (Git Bash / SHELL)
             Ensure-ShellEnvironment

@@ -219,5 +219,17 @@ Export project Markdown documents (technical designs, requirements, ADRs, meetin
   - **Adaptive Tables**: Full-width layout, content-based column width calculation, compact header row height (0.74cm), and cleared paragraph margins.
   - **Code Blocks**: Card styling with Cascadia Code (9.5pt), light gray background (#F8FAFC), and subtle borders.
 
+---
 
+## External NPM Plugins & Bridges
 
+In addition to bundled TypeScript plugins, this distribution integrates validated external NPM plugins. These plugins are managed declaratively in `install/options.jsonc` and automatically pre-warmed into `~/.cache/opencode` by `Ensure-Plugins` upon install.
+
+| Plugin | Default Status | Description & Prerequisites |
+|---|---|---|
+| `@dietrichgebert/ponytail` | Enabled (`true`) | **Lazy Coding Protocol**: Completes the request while actively naming the simpler, more elegant architectural alternative. |
+| `@frankhommers/opencode-smart-title` | Enabled (`true`) | **Smart Session Titling**: Automatically generates concise, relevant session titles based on initial prompts. |
+| `opencode-qoder-bridge` | Optional (`false`) | **Official Qoder Bridge**: Auto-injects `qoder` provider and all models via `@qoder-ai/qoder-agent-sdk` (requires `qoder login`). |
+| `opencode-mem@2.24.3` | Optional (`false`) | **Persistent Vector Memory**: Preserves project knowledge in a local vector store (issues extra lightweight LLM capture calls during idle periods). |
+
+To enable any optional plugin, simply set its switch to `true` in `install/options.jsonc` and re-run the installer.

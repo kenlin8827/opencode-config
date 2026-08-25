@@ -20,31 +20,75 @@ Learn about installer commands, configuration options, token savings, and preser
 
 ## Install Options (`options.jsonc`)
 
-`install/options.jsonc` is the single source of truth for runtime options. Edit this file and re-run install (`install -Force` when version is unchanged):
+`install/options.jsonc` is the single source of truth for runtime options (MCP switches, external plugins, default agent, and the rtk compression proxy).
 
-```jsonc
-// install/options.jsonc
-{
-  // rtk output compression (60-90% token savings)
-  "rtk": true,
-  // Primary agent on start: code (default) / build / plan
-  "default_agent": "code",
-  // MCP server switches (missing CLIs auto-provisioned on install)
-  "mcp": {
-    "serena": true,
-    "codegraph": true,
-    "gitnexus": false,
-    "dbhub": true
-  },
-  // External npm plugin switches
-  "plugin": {
-    "@dietrichgebert/ponytail": true,
-    "opencode-qoder-bridge": true,
-    "@frankhommers/opencode-smart-title": true,
-    "opencode-mem@2.24.3": false
-  }
-}
-```
+### Customizing Options Before Installing
+
+1. **Enter the repository directory** (if cloned via Git or extracted from release archive):
+   ```bash
+   cd opencode-config
+   ```
+2. **Edit `install/options.jsonc`** to set desired switches (`true` / `false`):
+   ```jsonc
+   // install/options.jsonc
+   {
+     // rtk output compression (60-90% token savings)
+     "rtk": true,
+     // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
+     "default_agent": "code",
+     // MCP server switches (missing CLIs auto-provisioned on install)
+     "mcp": {
+       // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+)
+       "serena": true,
+       // CodeGraph AST code knowledge graph (needs npm)
+       "codegraph": true,
+       // GitNexus code graph (PolyForm Noncommercial license; requires indexing)
+       "gitnexus": false,
+       // DBHub universal database gateway (PostgreSQL / MySQL / SQLite; needs npm)
+       "dbhub": true
+     },
+     // External npm plugin switches (true: enabled; false: disabled)
+     "plugin": {
+       // Lazy coding protocol: build what was asked, name the lazier alternative
+       "@dietrichgebert/ponytail": true,
+       // Injects Qoder provider/models via official SDK (needs qoder login)
+       "opencode-qoder-bridge": false,
+       // Auto-generates session titles
+       "@frankhommers/opencode-smart-title": true,
+       // Persistent project memory (vector store; extra LLM capture call per idle session)
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. **Run the installer**:
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+
+### Modifying Options After Installation
+
+Every install re-evaluates `install/options.jsonc` in place and enforces your choices onto `~/.config/opencode/opencode.jsonc`. To toggle any feature later:
+1. Update `install/options.jsonc` in your local repository clone.
+2. Re-run install with force flag (`install -Force` on PowerShell or `-f` on Bash) when the version is unchanged:
+   ```powershell
+   pwsh install/install.ps1 install -Force
+   ```
+   ```bash
+   ./install/install.sh install -f
+   ```
+
+---
+
+## Plugin Pre-warming Cache (Ensure-Plugins)
+
+To avoid startup stalls during the first OpenCode launch caused by online package downloads, the installer auto-detects local package managers (`bun` > `npm` > `pnpm`) and pre-warms enabled external plugins into OpenCode's native cache directory (`~/.cache/opencode`).
+
+- **Zero Config Directory Pollution**: Plugin caches reside strictly in OpenCode's data directory, keeping `~/.config/opencode` clean for manifest-based updates and uninstalls.
+- **Graceful Fallback**: If no package manager is installed or the network is offline, the installer gracefully skips pre-warming without failing the installation. OpenCode will download them upon launch as usual.
 
 ---
 
