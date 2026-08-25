@@ -86,7 +86,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
    git clone https://github.com/kenlin8827/opencode-config.git
    cd opencode-config
    ```
-2. **编辑 [`install/options.jsonc`](file:///d:/OpenHub/opencode-config/install/options.jsonc)**：
+2. **编辑 `install/options.jsonc`**：
    按需调整各项开关（`true` / `false`），例如：
    ```jsonc
    // install/options.jsonc

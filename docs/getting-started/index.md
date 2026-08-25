@@ -86,7 +86,7 @@ If you want to toggle optional features (such as enabling `opencode-codex-bridge
    git clone https://github.com/kenlin8827/opencode-config.git
    cd opencode-config
    ```
-2. **Edit [`install/options.jsonc`](file:///d:/OpenHub/opencode-config/install/options.jsonc)**:
+2. **Edit `install/options.jsonc`**:
    Adjust switches as needed (`true` / `false`):
    ```jsonc
    // install/options.jsonc
