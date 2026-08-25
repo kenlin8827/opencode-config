@@ -27,14 +27,14 @@
 ## ✨ 新增功能与命令清单
 
 ### 1. 全套 `/adr` 命令族
-- [x] **`/adr new [layer/scope] <title>`**：
+- [x] **`/adr new [layer/scope] <title> [--empty]`**：
   - 自动识别当前目录最大序号并加一（`NNNN-slug.md`）；
-  - 根据 `system` / `domain` / `component` 层级特化生成 MADR 模板；
-  - 自动生成/同步该目录下的 `INDEX.md` 索引表。
-- [x] **`/adr supersede <old-id> <new-title>`**：
+  - 根据 `system` / `domain` / `component` 层级特化生成 MADR 模板并更新 `INDEX.md`；
+  - **自动唤醒 AI 结合代码库深度起草完整决策内容**（可追加 `--empty` 仅生成空骨架）。
+- [x] **`/adr supersede <old-id> <new-title> [--empty]`**：
   - 原子化将旧 ADR 状态变更为 `superseded by NNNN`；
-  - 自动创建新 ADR 并建立双向 `parent` / `superseded_by` 溯源链接；
-  - 自动同步更新两者的目录索引。
+  - 自动创建新 ADR 并建立双向 `parent` / `superseded_by` 溯源链接，刷新两端 `INDEX.md`；
+  - **自动唤醒 AI 撰写技术演进对比与替代论证**（支持纯数字 ID 如 `supersede 1 "新标题"`，可加 `--empty` 仅生成骨架）。
 - [x] **`/adr tree`（或 `/adr map`）**：
   - 扫描全仓 ADR，生成 Markdown 决策层级树；
   - 输出可交互的 Mermaid DAG 拓扑图（呈现 `constrains` 与 `superseded by` 关系网）。

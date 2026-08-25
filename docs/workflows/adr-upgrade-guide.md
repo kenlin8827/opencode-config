@@ -27,14 +27,14 @@ This upgrade elevates the single-layer `adr-guard` commit interception mechanism
 ## ✨ Features & Slash Commands Checklist
 
 ### 1. Unified `/adr` Command Suite
-- [x] **`/adr new [layer/scope] <title>`**:
+- [x] **`/adr new [layer/scope] <title> [--empty]`**:
   - Automatically finds the highest sequential number in target directory and increments (`NNNN-slug.md`);
-  - Generates specialized MADR template adapted for `system` / `domain` / `component` layers;
-  - Auto-synchronizes directory `INDEX.md`.
-- [x] **`/adr supersede <old-id> <new-title>`**:
+  - Generates specialized MADR template adapted for `system` / `domain` / `component` layers & updates `INDEX.md`;
+  - **Auto-initiates AI drafting** to flesh out the complete decision content (use `--empty` for scaffold only).
+- [x] **`/adr supersede <old-id> <new-title> [--empty]`**:
   - Atomically marks previous decision as `superseded by NNNN`;
-  - Scaffolds new decision with bidirectional `parent` / `superseded_by` cross-references;
-  - Updates respective `INDEX.md` files.
+  - Scaffolds new decision with bidirectional `parent` / `superseded_by` cross-references, syncing both `INDEX.md` files;
+  - **Auto-initiates AI drafting** for evolution rationale (supports unpadded IDs like `supersede 1 "Title"`, use `--empty` for scaffold only).
 - [x] **`/adr tree` (or `/adr map`)**:
   - Scans workspace ADRs and generates a hierarchical Markdown tree;
   - Generates an interactive Mermaid DAG diagram showing `constrains` and `superseded by` edges.

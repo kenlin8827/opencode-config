@@ -375,13 +375,19 @@ export function supersedeAdr(
   newTitle: string,
   newOptions: Partial<CreateAdrOptions> = {},
 ): { newAdr: { relPath: string; fullPath: string; id: string }; oldAdr: AdrMeta } {
+  const cleanRef = oldRef.trim().replace(/^["']|["']$/g, "")
+  const num = /^\d+$/.test(cleanRef) ? parseInt(cleanRef, 10) : NaN
+  const paddedId = !isNaN(num) ? String(num).padStart(4, "0") : null
+
   const adrs = getAllAdrs(projectDir)
   const oldAdr = adrs.find(
     (a) =>
-      a.id === oldRef ||
-      a.relPath === oldRef ||
-      a.filename === oldRef ||
-      a.filename.startsWith(`${oldRef}-`),
+      a.id === cleanRef ||
+      (paddedId !== null && a.id === paddedId) ||
+      a.relPath === cleanRef ||
+      a.filename === cleanRef ||
+      a.filename.startsWith(`${cleanRef}-`) ||
+      (paddedId !== null && a.filename.startsWith(`${paddedId}-`)),
   )
 
   if (!oldAdr) {

@@ -10,7 +10,7 @@
  * - Different workspaces: isolated Serena instances bound to each project directory.
  * - Zero manual intervention: automatically launches the project daemon if not running.
  * - 100% Silent execution: no console window popup on Windows.
- * - Logging: all daemon stdout/stderr redirected to <workspace>/.opencode/serena.log.
+ * - Logging: all daemon stdout/stderr redirected to <workspace>/.opencode/logs/serena.log.
  * - Auto-shutdown watchdog: terminates idle Serena instance after 15 minutes of inactivity
  *   when all sessions are closed, freeing memory cleanly.
  */
@@ -100,11 +100,21 @@ function launchDaemon() {
     "--open-web-dashboard", "False",
   ]
 
-  // Prepare workspace log directory: <workspace>/.opencode/serena.log
-  const logDir = path.join(CWD, ".opencode")
+  // Prepare workspace log directory: <workspace>/.opencode/logs/serena.log
+  const opencodeDir = path.join(CWD, ".opencode")
+  const logDir = path.join(opencodeDir, "logs")
   try {
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true })
+    }
+    const gitignoreFile = path.join(opencodeDir, ".gitignore")
+    if (!fs.existsSync(gitignoreFile)) {
+      fs.writeFileSync(gitignoreFile, "logs/\n*.log\n", "utf-8")
+    } else {
+      const gitignoreContent = fs.readFileSync(gitignoreFile, "utf-8")
+      if (!gitignoreContent.includes("logs")) {
+        fs.appendFileSync(gitignoreFile, "\nlogs/\n*.log\n", "utf-8")
+      }
     }
   } catch {}
   const logFile = path.join(logDir, "serena.log")

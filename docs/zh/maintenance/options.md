@@ -20,31 +20,75 @@
 
 ## 安装选项（`options.jsonc`）
 
-`install/options.jsonc` 是控制安装配置的单一事实来源。修改后重新运行安装器（版本未变时用 `install -Force`）即可生效：
+`install/options.jsonc` 是控制安装配置的单一事实来源（开关 MCP、外部插件、主控智能体与 rtk 压缩代理）。
 
-```jsonc
-// install/options.jsonc
-{
-  // 是否启用 rtk 输出压缩
-  "rtk": true,
-  // 默认主控智能体（code / build / plan）
-  "default_agent": "code",
-  // MCP 服务开关（启用且缺失时自动拉取 CLI）
-  "mcp": {
-    "serena": true,
-    "codegraph": true,
-    "gitnexus": false,
-    "dbhub": true
-  },
-  // 外部 npm 插件开关
-  "plugin": {
-    "@dietrichgebert/ponytail": true,
-    "opencode-qoder-bridge": true,
-    "@frankhommers/opencode-smart-title": true,
-    "opencode-mem@2.24.3": false
-  }
-}
-```
+### 安装前自定义流程
+
+1. **进入仓库目录**（若使用 Git 克隆或解压了 release 包）：
+   ```bash
+   cd opencode-config
+   ```
+2. **编辑 `install/options.jsonc`** 设定所需的可选功能开关：
+   ```jsonc
+   // install/options.jsonc
+   {
+     // 是否启用 rtk 输出压缩（60-90% token 节省）
+     "rtk": true,
+     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
+     "default_agent": "code",
+     // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
+     "mcp": {
+       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+）
+       "serena": true,
+       // CodeGraph AST 代码知识图谱（需 npm）
+       "codegraph": true,
+       // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）
+       "gitnexus": false,
+       // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
+       "dbhub": true
+     },
+     // 外部 npm 插件开关（true: 启用; false: 关闭）
+     "plugin": {
+       // 偷懒编码协议：实现目标并指出更轻量的替代方案
+       "@dietrichgebert/ponytail": true,
+       // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
+       "opencode-qoder-bridge": false,
+       // 会话标题智能自动生成
+       "@frankhommers/opencode-smart-title": true,
+       // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. **执行安装命令**：
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+
+### 安装后修改与生效
+
+安装器在每次运行时都会严格按照仓库中 `install/options.jsonc` 的开关状态重新计算并应用到目标 `opencode.jsonc`。若后续需要开启或关闭某项功能：
+1. 修改 `install/options.jsonc` 中的对应字段（`true` / `false`）。
+2. 在版本号未变的情况下，带 `-Force`（PowerShell）或 `-f`（Bash）重新运行安装即可生效：
+   ```powershell
+   pwsh install/install.ps1 install -Force
+   ```
+   ```bash
+   ./install/install.sh install -f
+   ```
+
+---
+
+## 插件自动预热（Ensure-Plugins）
+
+为了避免首次启动 OpenCode 时因在线下载 npm 插件而出现卡顿，安装器会在安装的最后阶段自动探测本地包管理器（`bun` > `npm` > `pnpm`），并将已启用的外部插件自动预装至 OpenCode 原生缓存目录（`~/.cache/opencode`）。
+
+- **零配置目录污染**：插件缓存严格存放在 OpenCode 官方数据目录中，不影响 `~/.config/opencode` 配置清单的原子化升级与卸载。
+- **容错降级**：若本地未安装包管理器或网络不可达，安装器会优雅跳过，保留由 OpenCode 启动时自动拉取的保底能力。
 
 ---
 

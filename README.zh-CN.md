@@ -638,7 +638,7 @@ bridge 附带的额外能力：
 }
 ```
 
-支持 `/adr` 全套命令：`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate` 与 `/adr mode`。
+支持 `/adr` 全套命令（`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate`、`/adr mode`）及**自然语言直接交互**（自动调研背景、编写选型对比、落盘 MADR 并同步索引）。
 
 
 ### 密钥文件门控（`env-guard`）
@@ -774,31 +774,61 @@ echo on > <project>/.opencode/.env-guard
 
 ### 安装选项（`options.jsonc`）
 
-[`install/options.jsonc`](install/options.jsonc) 是控制安装配置的单一事实来源。修改后重新运行安装器（版本未变时用 `install -Force`）即可生效：
+[`install/options.jsonc`](install/options.jsonc) 是控制安装配置的单一事实来源。
 
-```jsonc
-// install/options.jsonc
-{
-  // 是否启用 rtk 输出压缩
-  "rtk": true,
-  // 默认主控智能体（code / build / plan）
-  "default_agent": "code",
-  // MCP 服务开关（启用且缺失时自动拉取 CLI）
-  "mcp": {
-    "serena": true,
-    "codegraph": true,
-    "gitnexus": false,
-    "dbhub": true
-  },
-  // 外部 npm 插件开关
-  "plugin": {
-    "@dietrichgebert/ponytail": true,
-    "opencode-qoder-bridge": true,
-    "@frankhommers/opencode-smart-title": true,
-    "opencode-mem@2.24.3": false
-  }
-}
+#### 1. 安装前自定义选项
+若你在初次安装前希望按需开启或关闭特定功能（如开启 `opencode-codex-bridge`、`opencode-claude-bridge` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 服务开关、切换默认主控智能体为 `code`/`build`/`plan`）：
+1. 克隆本仓库或解压 release 包并进入目录：`cd opencode-config`
+2. 编辑 `install/options.jsonc` 调整开关（`true` / `false`）：
+   ```jsonc
+   // install/options.jsonc
+   {
+     // 是否启用 rtk 输出压缩（60-90% token 节省）
+     "rtk": true,
+     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
+     "default_agent": "code",
+     // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
+     "mcp": {
+       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+）
+       "serena": true,
+       // CodeGraph AST 代码知识图谱（需 npm）
+       "codegraph": true,
+       // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）
+       "gitnexus": false,
+       // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
+       "dbhub": true
+     },
+     // 外部 npm 插件开关（true: 启用; false: 关闭）
+     "plugin": {
+       // 偷懒编码协议：实现目标并指出更轻量的替代方案
+       "@dietrichgebert/ponytail": true,
+       // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
+       "opencode-qoder-bridge": false,
+       // 会话标题智能自动生成
+       "@frankhommers/opencode-smart-title": true,
+       // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. 执行安装：
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+
+#### 2. 安装后修改与生效
+后续如需变更选项，只需再次编辑 `install/options.jsonc`，并在版本未变时带 `-Force` / `-f` 参数重新安装即可生效：
+```powershell
+pwsh install/install.ps1 install -Force
 ```
+```bash
+./install/install.sh install -f
+```
+
 
 ### Token 节省（rtk）
 

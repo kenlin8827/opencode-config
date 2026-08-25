@@ -638,7 +638,7 @@ Project-config fields (all optional, in the project's `opencode.jsonc`):
 }
 ```
 
-Full `/adr` command suite supported: `/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, `/adr migrate`, and `/adr mode`.
+Full `/adr` command suite supported (`/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, `/adr migrate`, `/adr mode`) as well as **direct natural language interaction** (automatic background research, trade-off analysis, MADR drafting & index sync).
 
 
 ### Secret file guard (`env-guard`)
@@ -774,31 +774,61 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 
 ### Install Options (`options.jsonc`)
 
-[`install/options.jsonc`](install/options.jsonc) is the single source of truth for runtime options. Edit this file and re-run install (`install -Force` when the version is unchanged):
+[`install/options.jsonc`](install/options.jsonc) is the single source of truth for runtime options.
 
-```jsonc
-// install/options.jsonc
-{
-  // rtk output compression (60-90% token savings)
-  "rtk": true,
-  // Primary agent on start: code (default) / build / plan
-  "default_agent": "code",
-  // MCP server switches (missing CLIs auto-provisioned on install)
-  "mcp": {
-    "serena": true,
-    "codegraph": true,
-    "gitnexus": false,
-    "dbhub": true
-  },
-  // External npm plugin switches
-  "plugin": {
-    "@dietrichgebert/ponytail": true,
-    "opencode-qoder-bridge": true,
-    "@frankhommers/opencode-smart-title": true,
-    "opencode-mem@2.24.3": false
-  }
-}
+#### 1. Customizing Options Before Installing
+If you want to toggle optional features (such as enabling `opencode-codex-bridge` / `opencode-claude-bridge` plugins, adjusting Serena / CodeGraph / DBHub MCP servers, or changing the default agent) before running the installer:
+1. Clone the repository or extract the release archive and enter the directory: `cd opencode-config`
+2. Edit `install/options.jsonc` to set switches (`true` / `false`):
+   ```jsonc
+   // install/options.jsonc
+   {
+     // rtk output compression (60-90% token savings)
+     "rtk": true,
+     // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
+     "default_agent": "code",
+     // MCP server switches (missing CLIs auto-provisioned on install)
+     "mcp": {
+       // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+)
+       "serena": true,
+       // CodeGraph AST code knowledge graph (needs npm)
+       "codegraph": true,
+       // GitNexus code graph (PolyForm Noncommercial license; requires indexing)
+       "gitnexus": false,
+       // DBHub universal database gateway (PostgreSQL / MySQL / SQLite; needs npm)
+       "dbhub": true
+     },
+     // External npm plugin switches (true: enabled; false: disabled)
+     "plugin": {
+       // Lazy coding protocol: build what was asked, name the lazier alternative
+       "@dietrichgebert/ponytail": true,
+       // Injects Qoder provider/models via official SDK (needs qoder login)
+       "opencode-qoder-bridge": false,
+       // Auto-generates session titles
+       "@frankhommers/opencode-smart-title": true,
+       // Persistent project memory (vector store; extra LLM capture call per idle session)
+       "opencode-mem@2.24.3": false
+     }
+   }
+   ```
+3. Run the installer:
+   ```bash
+   # macOS / Linux / WSL
+   ./install/install.sh
+
+   # Windows (PowerShell)
+   pwsh install/install.ps1
+   ```
+
+#### 2. Modifying Options After Installation
+To adjust settings later, simply edit `install/options.jsonc` and re-run the installer with the force flag (`-Force` on PowerShell or `-f` on Bash) when the version is unchanged:
+```powershell
+pwsh install/install.ps1 install -Force
 ```
+```bash
+./install/install.sh install -f
+```
+
 
 ### Token savings (rtk)
 

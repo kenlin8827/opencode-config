@@ -26,21 +26,24 @@ In complex codebases, ADRs are structured into three distinct layers:
    - *Scope*: Internal state management, caching schemes, critical algorithm choices.
 
 ## Tooling & Slash Commands
+- `/adr [new] [system|domain|component] <title> [--empty]` — Scaffolds next sequential MADR and dispatches to AI for drafting (pass `--empty` for scaffold only).
+- `/adr supersede <old-id> <new-title> [--empty]` — Marks old ADR superseded, scaffolds new ADR with cross-references, and dispatches to AI.
+- `/adr migrate [h|f|a] [--confirm]` — Restructures ADR directories between flat and hierarchical layouts.
+- `/adr tree` — Visualizes the full hierarchical decision map and Mermaid DAG.
+- `/adr check` — Validates links, frontmatter integrity, and index synchronization.
+- `/adr-guard on|off|status` — Toggles the hard commit guard.
 
-Use the `/adr` command suite or natural language to manage decisions:
-- `/adr new [system|domain|component] <title>` — generates the next sequential MADR template and updates `INDEX.md`.
-- `/adr supersede <old-id> <new-title>` — marks the old ADR as superseded and scaffolds the new ADR with mutual cross-references.
-- `/adr migrate [h|f|a] [--confirm]` — restructures ADR directories between flat and hierarchical layouts.
-- `/adr tree` — visualizes the full hierarchical decision map and Mermaid DAG.
-- `/adr check` — validates links, frontmatter integrity, and index synchronization.
-- `/adr-guard on|off|status` — toggles the hard commit guard.
-
-## Natural Language Interaction
-
-When the user asks in natural language to create, review, supersede, or restructure decisions:
-- **Drafting**: Analyze trade-offs, compare viable options (Pros/Cons), generate the full MADR document with real rationale under the appropriate layer directory, and update `INDEX.md`.
-- **Superseding**: Update the old ADR's status to `status: superseded by <new-id>`, create the successor with `parent: <path>`, and synchronize `INDEX.md`.
-- **Restructuring**: Safely organize decisions between root `docs/adr/` and subsystem directories (`packages/<pkg>/docs/adr/`) when project structure evolves.
+## Slash Command & Natural Language Auto-Drafting Protocol
+When `/adr`, `/adr new`, `/adr supersede`, or a natural language ADR request is received:
+1. **Scaffold Discovery**: The local TypeScript engine has already created the new `docs/adr/NNNN-slug.md` file (and updated `INDEX.md`). Find the latest ADR file in `docs/adr/` (or target layer directory).
+2. **Context Research**: Use tools (`read_file`, `grep_search`, `find_by_name`) to research the workspace context, current technical architecture, dependencies, and requirements.
+3. **Write Complete MADR**: Use `replace_file_content` or `write_to_file` to flesh out the document with:
+   - Real **Context and Problem Statement**
+   - Concrete **Decision Drivers**
+   - Viable **Considered Options** with **Pros and Cons**
+   - Defensible **Decision Outcome** and **Consequences** (Positive, Negative/Risks & Mitigations)
+   - Preserve valid YAML frontmatter (`status`, `date`, `layer`, `scope`, `parent`, `superseded_by`).
+4. **Respond to User**: Provide a crisp walkthrough and summary of the decision record drafted.
 
 
 ## Before you commit — checklist

@@ -72,8 +72,11 @@ export function makeCommandHook(client: PluginInput["client"], handled: () => ne
     }
 
     if (input.command === ADR_COMMAND) {
-      await handleAdrCommand(client, input.arguments || "", input.sessionID, log)
-      return handled()
+      const res = await handleAdrCommand(client, input.arguments || "", input.sessionID, log)
+      if (res?.handled) {
+        return handled()
+      }
+      return
     }
   }
 }
@@ -83,7 +86,7 @@ async function handleAdrCommand(
   rawArgs: string,
   sessionID: string | undefined,
   log: Log,
-): Promise<void> {
+): Promise<{ handled: boolean }> {
   const projectDir = getProjectDir()
   const trimmed = rawArgs.trim()
   if (!trimmed || trimmed === "help") {
@@ -92,15 +95,15 @@ async function handleAdrCommand(
       `### 🏛️ Architecture Decision Records (/adr)\n\n` +
       `Current Mode: **\`${mode}\`**\n\n` +
       `Commands:\n` +
-      `- \`/adr new [layer/scope] <title>\` — Scaffold a new ADR (system / domain / component)\n` +
-      `- \`/adr supersede <old-id> <new-title>\` — Supersede an old decision & create replacement\n` +
+      `- \`/adr [new] [layer/scope] <title> [--empty]\` — Create and auto-draft a new ADR (use --empty for template only)\n` +
+      `- \`/adr supersede <old-id> <new-title> [--empty]\` — Supersede an old decision & auto-draft replacement\n` +
       `- \`/adr tree\` — Visualize hierarchical decision tree & Mermaid DAG\n` +
       `- \`/adr check\` — Verify ADR integrity, links, and complexity advice\n` +
       `- \`/adr mode [auto|flat|hierarchical]\` — Configure ADR hierarchy mode\n` +
       `- \`/adr migrate [flat|hierarchical] [--confirm]\` — Plan and restructure ADR architecture\n` +
       `- \`/adr-guard on|off|status\` — Toggle commit guard enforcement\n`
     await announce(client, helpText, "info", sessionID)
-    return
+    return { handled: true }
   }
 
   const parts = trimmed.split(/\s+/)
@@ -116,7 +119,7 @@ async function handleAdrCommand(
         "info",
         sessionID,
       )
-      return
+      return { handled: true }
     }
     const targetMode = normalizeAdrMode(rest)
     if (!targetMode) {
@@ -126,7 +129,7 @@ async function handleAdrCommand(
         "warning",
         sessionID,
       )
-      return
+      return { handled: true }
     }
     const written = setAdrMode(targetMode)
     await log(
@@ -149,7 +152,7 @@ async function handleAdrCommand(
       "info",
       sessionID,
     )
-    return
+    return { handled: true }
   }
 
   if (sub === "migrate" || sub === "refactor") {
@@ -166,7 +169,7 @@ async function handleAdrCommand(
         "info",
         sessionID,
       )
-      return
+      return { handled: true }
     }
 
     if (isConfirm) {
@@ -190,13 +193,13 @@ async function handleAdrCommand(
       preview += `\`\`\`bash\n/adr migrate ${targetMode} --confirm\n\`\`\``
       await announce(client, preview, "info", sessionID)
     }
-    return
+    return { handled: true }
   }
 
   if (sub === "tree" || sub === "map") {
     const map = generateDecisionMap(projectDir)
     await announce(client, map, "info", sessionID)
-    return
+    return { handled: true }
   }
 
   if (sub === "check" || sub === "lint") {
@@ -222,30 +225,35 @@ async function handleAdrCommand(
     }
 
     await announce(client, report, issues.length > 0 ? "warning" : "info", sessionID)
-    return
+    return { handled: true }
   }
 
 
-  if (sub === "new") {
-    if (!rest) {
+  if (sub === "new" || !["mode", "migrate", "refactor", "tree", "map", "check", "lint", "supersede"].includes(sub)) {
+    const rawDecisionText = sub === "new" ? rest : trimmed
+    const emptyFlagRegex = /(?:^|\s)(--empty|--scaffold|--no-draft)(?:\s|$)/i
+    const isEmptyOnly = emptyFlagRegex.test(rawDecisionText)
+    const cleanRest = rawDecisionText.replace(/(?:^|\s)(--empty|--scaffold|--no-draft)(?:\s|$)/gi, " ").trim()
+
+    if (!cleanRest) {
       await announce(
         client,
-        `❌ Usage: \`/adr new [system|domain|component|scope] <title>\`\nExample: \`/adr new system "Core Event Architecture"\``,
+        `❌ Usage: \`/adr [new] [system|domain|component|scope] <title> [--empty]\`\nExample: \`/adr "Core Event Architecture"\` or \`/adr new system "Core Event Architecture"\``,
         "warning",
         sessionID,
       )
-      return
+      return { handled: true }
     }
 
     let layer: AdrLayer = "system"
     let scope: string | undefined
     let targetDir: string | undefined
-    let title = rest
+    let title = cleanRest
 
-    const firstWord = rest.split(/\s+/)[0].toLowerCase()
+    const firstWord = cleanRest.split(/\s+/)[0].toLowerCase()
     if (firstWord === "system" || firstWord === "domain" || firstWord === "component") {
       layer = firstWord as AdrLayer
-      title = rest.slice(firstWord.length).trim().replace(/^["']|["']$/g, "")
+      title = cleanRest.slice(firstWord.length).trim().replace(/^["']|["']$/g, "")
     } else if (firstWord.includes("/")) {
       // e.g. domain/order or packages/api
       const segs = firstWord.split("/")
@@ -253,9 +261,9 @@ async function handleAdrCommand(
         layer = "domain"
         scope = segs[1]
       }
-      title = rest.slice(firstWord.length).trim().replace(/^["']|["']$/g, "")
+      title = cleanRest.slice(firstWord.length).trim().replace(/^["']|["']$/g, "")
     } else {
-      title = rest.replace(/^["']|["']$/g, "")
+      title = cleanRest.replace(/^["']|["']$/g, "")
     }
 
     try {
@@ -266,46 +274,84 @@ async function handleAdrCommand(
         scope,
         targetDir,
       })
-      const successMsg =
-        `✅ **Created ADR [${created.id}] (${layer})**\n\n` +
-        `- File: \`${created.relPath}\`\n` +
-        `- Template ready. Edit file and commit alongside your code.`
       await log("info", `scaffolded ADR: ${created.relPath}`)
-      await announce(client, successMsg, "info", sessionID)
+
+      if (isEmptyOnly) {
+        const successMsg =
+          `✅ **Created ADR [${created.id}] (${layer}) [Scaffold Only]**\n\n` +
+          `- File: \`${created.relPath}\`\n` +
+          `- Empty template ready. Edit file and commit alongside your code.`
+        await announce(client, successMsg, "info", sessionID)
+        return { handled: true }
+      } else {
+        const successMsg =
+          `✅ **Created ADR [${created.id}] (${layer})**\n\n` +
+          `- File: \`${created.relPath}\`\n` +
+          `- 🤖 *Agent is analyzing codebase context and auto-drafting decision document...*`
+        await announce(client, successMsg, "info", sessionID)
+        // Return handled: false so OpenCode dispatches the prompt to LLM!
+        return { handled: false }
+      }
     } catch (err) {
       await announce(client, `❌ Failed to create ADR: ${String(err)}`, "warning", sessionID)
+      return { handled: true }
     }
-    return
   }
 
   if (sub === "supersede") {
-    const spaceIdx = rest.indexOf(" ")
+    const emptyFlagRegex = /(?:^|\s)(--empty|--scaffold|--no-draft)(?:\s|$)/i
+    const isEmptyOnly = emptyFlagRegex.test(rest)
+    const cleanRest = rest.replace(/(?:^|\s)(--empty|--scaffold|--no-draft)(?:\s|$)/gi, " ").trim()
+    const spaceIdx = cleanRest.indexOf(" ")
     if (spaceIdx === -1) {
       await announce(
         client,
-        `❌ Usage: \`/adr supersede <old-id-or-path> <new-title>\`\nExample: \`/adr supersede 0001 "NATS Streaming Standard"\``,
+        `❌ Usage: \`/adr supersede <old-id-or-path> <new-title> [--empty]\`\nExample: \`/adr supersede 0001 "NATS Streaming Standard"\``,
         "warning",
         sessionID,
       )
-      return
+      return { handled: true }
     }
 
-    const oldRef = rest.slice(0, spaceIdx).trim()
-    const newTitle = rest.slice(spaceIdx + 1).trim().replace(/^["']|["']$/g, "")
+    const oldRef = cleanRest.slice(0, spaceIdx).trim().replace(/^["']|["']$/g, "")
+    const newTitle = cleanRest.slice(spaceIdx + 1).trim().replace(/^["']|["']$/g, "")
+
+    if (!newTitle) {
+      await announce(
+        client,
+        `❌ Missing new ADR title.\nUsage: \`/adr supersede <old-id-or-path> <new-title> [--empty]\``,
+        "warning",
+        sessionID,
+      )
+      return { handled: true }
+    }
 
     try {
       const { newAdr, oldAdr } = supersedeAdr(projectDir, oldRef, newTitle)
-      const successMsg =
-        `🔄 **Superseded ADR [${oldAdr.id}] $\\to$ [${newAdr.id}]**\n\n` +
-        `- Old ADR: \`${oldAdr.relPath}\` (marked as superseded)\n` +
-        `- New ADR: \`${newAdr.relPath}\` (accepted)\n` +
-        `- Indexes updated.`
       await log("info", `superseded ADR: ${oldAdr.id} -> ${newAdr.id}`)
-      await announce(client, successMsg, "info", sessionID)
+
+      if (isEmptyOnly) {
+        const successMsg =
+          `🔄 **Superseded ADR [${oldAdr.id}] $\\to$ [${newAdr.id}] [Scaffold Only]**\n\n` +
+          `- Old ADR: \`${oldAdr.relPath}\` (marked as superseded)\n` +
+          `- New ADR: \`${newAdr.relPath}\` (accepted)\n` +
+          `- Indexes updated.`
+        await announce(client, successMsg, "info", sessionID)
+        return { handled: true }
+      } else {
+        const successMsg =
+          `🔄 **Superseded ADR [${oldAdr.id}] $\\to$ [${newAdr.id}]**\n\n` +
+          `- Old ADR: \`${oldAdr.relPath}\` (marked as superseded)\n` +
+          `- New ADR: \`${newAdr.relPath}\` (accepted)\n` +
+          `- 🤖 *Agent is analyzing codebase context and auto-drafting replacement decision...*`
+        await announce(client, successMsg, "info", sessionID)
+        // Return handled: false so OpenCode dispatches the prompt to LLM!
+        return { handled: false }
+      }
     } catch (err) {
       await announce(client, `❌ Failed to supersede ADR: ${String(err)}`, "warning", sessionID)
+      return { handled: true }
     }
-    return
   }
 
   await announce(
@@ -314,5 +360,6 @@ async function handleAdrCommand(
     "warning",
     sessionID,
   )
+  return { handled: true }
 }
 
