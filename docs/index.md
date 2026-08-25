@@ -28,6 +28,8 @@ features:
     details: 17 domain specialists (@java-dev, @security, @dba, ...) routed dynamically across @code, @build, and @plan modes.
   - title: 🔄 Quality & Automation Loops
     details: /review-fix-loop automated review-fix cycle, adversarial Red-team design audits, and rtk 60-90% token compression.
+  - title: 📐 Specification-Driven Development (SDD)
+    details: PRD Requirements → ADR Architecture → PLAN Task Breakdown → IMPL Code & Verification with flexible entry and interactive stage transitions.
   - title: 🎯 One-Shot Model Governance
     details: /profile unifies 5 model tiers across DeepSeek, Kimi, Claude, Gemini, or custom routers in a single dialog.
   - title: ⚡ 10-Second Zero-Friction Setup

@@ -54,6 +54,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 - [三、进阶工作流与项目护栏](#三进阶工作流与项目护栏)
   - [工作流斜杠命令](#工作流斜杠命令)
     - [命令一览表](#工作流斜杠命令)
+    - [规范驱动开发（SDD）](#规范驱动开发-sdd)
     - [示例：review-fix-loop 自动化闭环](#示例review-fix-loop)
   - [Auto-advisor 模式](#auto-advisor-模式)
     - [模式说明与切换](#auto-advisor-模式)
@@ -522,11 +523,39 @@ bridge 附带的额外能力：
 | `/project init` | 脚手架生成项目基线文件——仅当缺失时创建 `.opencode/opencode.jsonc`、`docs/git-commits.md`、`AGENTS.md`（绝不覆盖）；已存在的项目配置会做只追加补齐：模板在 init 之后新增的开关注释行自动补入（既有内容不动）；随后执行各后端的首次初始化（仅当对应 CLI 已安装且启用）：`codegraph init`、索引缺失时的 `gitnexus analyze`。`docs/git-commits.md` 存在期间提交纪律生效（详见下文「提交纪律」小节） |
 | `/project index` | 手动刷新已有索引：`codegraph sync`（增量追平 watcher 未运行期间的变更）、索引过期时的 `gitnexus analyze` 重建。只刷新、不首次建库（首次归 `/project init`）；CLI 未安装则跳过报告、绝不调用 |
 | `/project sync` | 只做配置补齐：把模板中新增、而现有 `.opencode/opencode.jsonc` 还没有的开关注释行追加进去（只追加、不改既有内容；文件不存在时提示跑 `/project init`） |
+| `/prd <topic>` | 在 `docs/prd/` 中脚手架生成并起草需求规格说明书（详见 [规范驱动开发 (SDD)](#规范驱动开发-sdd)） |
+| `/adr [new\|supersede\|tree\|check\|mode]` | 架构决策记录（ADR）治理：脚手架生成、替代生命周期流转、DAG 拓扑图、断链体检与分层模式切换（详见 [ADR 铁律](#adr-铁律adr-guard)） |
+| `/plan <topic>` | 在 `docs/plan/` 中脚手架生成并起草分阶段实施任务分解计划 |
+| `/impl [task]` | 依照 PRD/ADR/Plan 规范执行测试驱动编码实现与验证交付 |
+| `/sdd [status\|help]` | 规范驱动开发全链路导航与制品状态检查（`/prd` → `/adr` → `/plan` → `/impl`） |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
 | `/md-to-pdf <file.md> [output.pdf]` | Markdown 一键转高清 A4 PDF，支持自然语言 `@filepath 转PDF`、`--doctor` 自检与 `--install-deps` 自动修复（详见 [文档导出与排版渲染](#文档导出与排版渲染md-to-pdf)） |
 | `/md-to-docx <file.md> [output.docx]` | Markdown 导出为出版级 Word (.docx)，支持中文字体排版、自动TOC、智能表格与代码美化（详见 [Word 文档排版与导出](#word-文档排版与导出md-to-docx)） |
+
+---
+
+## 规范驱动开发 (SDD)
+
+规范驱动开发（Specification-Driven Development）建立了一套规格先行的工程化研发流程：
+
+$$\text{PRD (需求规格)} \longrightarrow \text{ADR (架构决策)} \longrightarrow \text{PLAN (实施计划)} \longrightarrow \text{IMPL (编码执行与验证)}$$
+
+### 核心特性
+
+1. **任意阶段起手**：
+   - 需求构思 $\to$ `/prd <feature>` 生成 `docs/prd/PRD-<feature>.md`
+   - 技术选型 $\to$ `/adr <decision>` 生成 `docs/adr/` 架构决策记录
+   - 任务分解 $\to$ `/plan <feature>` 生成 `docs/plan/PLAN-<feature>.md`
+   - 快速实现 $\to$ 直接 `/impl <task>` 测试驱动编码
+2. **交互式阶段流转提示（Ask Tool）**：
+   - 每个阶段完成时，系统主动弹出交互选项，提供**推荐下一阶段**（如 `/prd` $\to$ `/adr`）、**自由跳级**（如 `/prd` 直接跳至 `/impl`）、**阶段回退**与**留在当前阶段**。
+3. **与独立 ADR 治理体系（adr-guard）的协同分工**：
+   - **`adr-guard`（独立专业引擎）**：独立拥有 `/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、单层扁平/三层分层模式以及 Git 提交铁律门禁。
+   - **`sdd`（生命周期编排者）**：负责将 PRD 需求注入 ADR 决策依据，并在 `/plan` 中自动引用最近关联的 ADR 与 PRD。
+
+---
 
 
 ### 示例：review-fix-loop

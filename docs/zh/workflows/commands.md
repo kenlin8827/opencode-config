@@ -19,7 +19,11 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | `/project sync` | 只做配置补齐：把模板中新增、而现有 `.opencode/opencode.jsonc` 还没有的开关注释行追加进去 |
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
+| `/prd <topic>` | 在 `docs/prd/` 中脚手架生成并起草需求规格说明书 (PRD) |
 | `/adr [new\|supersede\|tree\|check\|mode]` | 架构决策记录（ADR）治理：脚手架生成、替代生命周期流转、DAG 拓扑图、断链体检与分层模式切换 |
+| `/plan <topic>` | 在 `docs/plan/` 中脚手架生成并起草分阶段实施计划 (PLAN) |
+| `/impl [task]` | 依照规范执行测试驱动编码实现与验证交付 |
+| `/sdd [status\|help]` | 规范驱动开发导航与制品状态检查（`/prd` → `/adr` → `/plan` → `/impl`） |
 | `/adr-guard [on\|off\|status]` | 切换项目级 ADR 提交铁律门禁（拦截缺少 ADR 的 feat/refactor 提交） |
 | `/md-to-pdf <file.md> [output.pdf] [--style=custom.css]` | Markdown 一键转高清 A4 PDF，支持 300 DPI Mermaid 图表、CSS 样式表与 `.opencode/md-to-pdf.css`、`--doctor` 自检与 `--install-deps` |
 | `/md-to-docx <file.md> [output.docx] [--style=custom.css]` | Markdown 导出为行政级 Word (.docx)，支持纯 TS 架构、中西文双字体排版、Mermaid 流程图、CSS 样式表与 `.opencode/md-to-docx.css`、`--doctor` 与 `--install-deps` |

@@ -31,10 +31,8 @@ import {
   slugify,
   supersedeAdr,
 } from "../plugins/adr-guard/adr-engine"
-import { normalizeAdrMode } from "../plugins/adr-guard/adr-guard-config"
+import { normalizeAdrMode, setProjectDir } from "../plugins/adr-guard/adr-guard-config"
 import { hasAdrChanges } from "../plugins/adr-guard/adr-guard-runtime"
-
-
 
 let passed = 0
 let failed = 0
@@ -58,6 +56,8 @@ function runTests() {
 
   // Setup temporary test sandbox
   const sandbox = mkdtempSync(join(tmpdir(), "adr-test-"))
+  setProjectDir(sandbox)
+  writeFileSync(join(sandbox, "opencode.jsonc"), JSON.stringify({ adrMode: "hierarchical" }, null, 2))
 
   try {
     // 2. Discover directories & calculate next numbers

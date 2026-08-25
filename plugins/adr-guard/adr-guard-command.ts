@@ -287,7 +287,8 @@ async function handleAdrCommand(
         const successMsg =
           `✅ **Created ADR [${created.id}] (${layer})**\n\n` +
           `- File: \`${created.relPath}\`\n` +
-          `- 🤖 *Agent is analyzing codebase context and auto-drafting decision document...*`
+          `- 🤖 *Agent is analyzing codebase context and auto-drafting decision document...*\n` +
+          `- 💡 *SDD Lifecycle: After drafting this ADR, proceed to \`/plan\` or jump directly to \`/impl\`.*`
         await announce(client, successMsg, "info", sessionID)
         // Return handled: false so OpenCode dispatches the prompt to LLM!
         return { handled: false }
@@ -343,7 +344,8 @@ async function handleAdrCommand(
           `🔄 **Superseded ADR [${oldAdr.id}] $\\to$ [${newAdr.id}]**\n\n` +
           `- Old ADR: \`${oldAdr.relPath}\` (marked as superseded)\n` +
           `- New ADR: \`${newAdr.relPath}\` (accepted)\n` +
-          `- 🤖 *Agent is analyzing codebase context and auto-drafting replacement decision...*`
+          `- 🤖 *Agent is analyzing codebase context and auto-drafting replacement decision...*\n` +
+          `- 💡 *SDD Lifecycle: After drafting this ADR, proceed to \`/plan\` or jump directly to \`/impl\`.*`
         await announce(client, successMsg, "info", sessionID)
         // Return handled: false so OpenCode dispatches the prompt to LLM!
         return { handled: false }
