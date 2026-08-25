@@ -22,11 +22,16 @@ $env:LLM_ROUTER_API_KEY = "<your-api-key>"
 | `test-plan.ps1` | Primary plan agent follows Output Protocol |
 | `test-subagent.ps1` | Subagent dispatched by build agent follows Output Protocol |
 | `test-default.ps1` | Default build agent (no custom prompt) — baseline |
-| `test-anchor-unit.ts` | DeepSeek Anchor plugin unit tests (no API, 46 assertions) — verifies anchor injection, idempotency, model detection (DeepSeek V4 Pro only), tool block/restore, config/event hooks |
-| `test-anchor-benchmark.ps1` | DeepSeek Anchor benchmark: on vs off comparison (requires API) — measures reasoning depth, trajectory style ("We" vs "Let me"), tool suppression across 4 test prompts |
-| `test-queue-manager-unit.ts` | Queue Manager TUI plugin unit tests (no API, 23 assertions) — verifies queue computation (unanswered user messages), compaction/subtask/ignored/tombstone exclusions, ordering, preview/age formatting |
-| `test-project-manager-unit.ts` | Project Manager plugin unit tests (no API, 126 assertions) — Conventional Commits gate, file-as-switch, /project init scaffolding & backend index planning, sync append |
-| `test-project-wizard-unit.ts` | Project Wizard TUI plugin unit tests (no API, 48 assertions) — two-tier navigation, switch detection, template generation, re-entrant echoes |
+| `test-sdd-unit.ts` | SDD (Specification-Driven Development) unit tests (no API, 49 assertions) — PRD/ADR/Plan scaffolding, Unicode slugs, fuzzy matching, /sdd handoff |
+| `test-adr-guard-unit.ts` | ADR Guard unit tests (no API, 96 assertions) — MADR generation, auto-drafting, index sync, supersede, check, Git gate |
+| `test-adr-hierarchical-unit.ts` | Hierarchical ADR unit tests (no API, 46 assertions) — 3-layer architecture, migrate flat/hierarchical, auto detection |
+| `test-md-to-docx-unit.ts` | Markdown to Word (.docx) export unit tests (no API, 24 assertions) — Pandoc engine, reference docx, styles |
+| `test-md-to-pdf-unit.ts` | Markdown to PDF export unit tests (no API, 18 assertions) — Puppeteer/Typst engine, offline Mermaid |
+| `test-anchor-unit.ts` | DeepSeek Anchor plugin unit tests (no API, 46 assertions) — verifies anchor injection, idempotency, model detection, tool block/restore |
+| `test-anchor-benchmark.ps1` | DeepSeek Anchor benchmark: on vs off comparison (requires API) |
+| `test-queue-manager-unit.ts` | Queue Manager TUI plugin unit tests (no API, 23 assertions) |
+| `test-project-manager-unit.ts` | Project Manager plugin unit tests (no API, 126 assertions) |
+| `test-project-wizard-unit.ts` | Project Wizard TUI plugin unit tests (no API, 48 assertions) |
 
 ## Run
 

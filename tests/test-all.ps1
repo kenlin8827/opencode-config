@@ -43,10 +43,12 @@ Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
-# instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md
+# instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md + sdd-principles.md
 # (context-efficiency.md was removed — backend routing + token rules are now
 # injected dynamically by plugins/project-profiler with the session profile)
-Check "instructions count = 4" ($config.instructions.Count -eq 4)
+Check "instructions count = 5" ($config.instructions.Count -eq 5)
+Check "instructions contains sdd-principles.md" `
+    ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md")
 Check "instructions does NOT include context-efficiency.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `
@@ -203,6 +205,15 @@ $allFiles = @(
     "plugins/md-to-docx/style.css",
     "plugins/md-to-docx/style-parser.ts",
     "plugins/md-to-docx/assets/reference.docx",
+    "plugins/sdd.ts",
+    "plugins/sdd/sdd.ts",
+    "plugins/sdd/sdd-engine.ts",
+    "plugins/sdd/sdd-command.ts",
+    "plugins/sdd/sdd-protocol.md",
+    "plugins/sdd/sdd-system-inject.ts",
+    "instructions/sdd-principles.md",
+    "docs/workflows/sdd.md",
+    "docs/zh/workflows/sdd.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
     "plugins/queue-manager.ts",
@@ -414,6 +425,24 @@ Check "project-wizard.ts: registers palette command with slashName project-wizar
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
 Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/project-wizard.ts")
 
+# SDD plugin checks (plugins/sdd/ — registered programmatically)
+$sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw
+$sddProtocol = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-protocol.md" -Raw
+$sddEngine = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-engine.ts" -Raw
+$sddCommand = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-command.ts" -Raw
+Check "sdd.ts: imports Plugin type" ($sddPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
+Check "sdd.ts: has config hook registering commands" ($sddPlugin -match "config:" -and $sddPlugin -match 'SLASH_COMMANDS')
+Check "sdd.ts: has system.transform hook" ($sddPlugin -match "experimental\.chat\.system\.transform")
+Check "sdd-protocol.md: specifies PRD -> ADR -> PLAN -> IMPL lifecycle" ($sddProtocol -match "PRD" -and $sddProtocol -match "ADR" -and $sddProtocol -match "PLAN" -and $sddProtocol -match "IMPL")
+Check "sdd-engine.ts: has slugify helper" ($sddEngine -match "export function slugify")
+Check "sdd-engine.ts: has scaffoldPrd" ($sddEngine -match "export function scaffoldPrd")
+Check "sdd-engine.ts: has scaffoldPlan" ($sddEngine -match "export function scaffoldPlan")
+Check "sdd-engine.ts: has parseHandoffOpener" ($sddEngine -match "export function parseHandoffOpener")
+Check "sdd-command.ts: supports prd, adr, plan, impl, handoff" ($sddCommand -match "prd" -and $sddCommand -match "adr" -and $sddCommand -match "plan" -and $sddCommand -match "impl" -and $sddCommand -match "handoff")
+
+$sddBarrel = Get-Content "$PSScriptRoot\..\plugins\sdd.ts" -Raw
+Check "sdd.ts: barrel re-exports SddPlugin" ($sddBarrel -match "export.*SddPlugin")
+
 # Advisor command checks (single file, $ARGUMENTS selects mode)
 $advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
 Check "advisor.md: has description frontmatter" ($advisorCmd -match "description:")
@@ -539,6 +568,17 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Profiles: profiles/ stress test" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-profiles.ps1"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "Unit Tests: SDD & Plugin Ecosystem" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+& bun "$PSScriptRoot\test-sdd-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-adr-guard-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-adr-hierarchical-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)
