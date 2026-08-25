@@ -78,4 +78,11 @@ OpenCode 内置工具原生命名为 `bash`，大语言模型倾向于输出 Uni
 2. **全局指令自适应（Adaptive Shell Execution）**：
    在 `instructions/coding-principles.md` 中注入了全局自适应执行准则。即使在未安装 Git Bash 的纯 PowerShell/CMD 环境中，所有 Agent 也会自适应使用 PowerShell 原生语法（如 `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`）或跨平台命令（`git`, `npm`, `node`），并在遇到命令语法错误时自动切换语法重试。
 
+### 如何在 OpenChamber 桌面端中使用本配置？
+
+只要你已经通过本项目的安装脚本完成了安装，无需任何额外配置：
+1. 下载并安装 [OpenChamber](https://openchamber.dev) 桌面端应用（或 VS Code 扩展）。
+2. 在 OpenChamber 中打开你的代码工程目录。
+3. OpenChamber 会自动连接本地 OpenCode 引擎并读取 `~/.config/opencode` 下的所有配置。你可以在图形界面中直接使用 17 位专家智能体、MCP 数据库网关与工作流命令，并享受双栏 Diff 审查与多模型并行熔合等可视化能力。
+
 

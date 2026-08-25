@@ -77,6 +77,20 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
+## 🖥️ 交互界面与客户端选择
+
+你可以根据个人习惯或场景灵活选择与 OpenCode 交互的前端：
+
+| 客户端形态 | 推荐人群 | 核心优势 | 启动/使用方式 |
+|---|---|---|---|
+| **终端 TUI（默认）** | 命令行极客、SSH 远程开发 | 极轻量、极低资源占用、原生键盘流交互 | 终端直接执行 `opencode` |
+| **OpenChamber 桌面端** | 偏好图形界面、精细 Code Review 用户 | **双栏可视化 Diff**、多模型并行对比与熔合（Fusion）、会话时间线管理 | 下载 [OpenChamber](https://openchamber.dev) 桌面应用或 VS Code 扩展 |
+| **内置 Web 端** | 局域网访问、轻量浏览器体验 | 浏览器内即开即用，无需安装桌面额外程序 | 终端执行 `opencode serve` 并在浏览器打开 |
+
+> 💡 **无缝兼容**：无论你选择哪种客户端，本项目安装在 `~/.config/opencode` 的 **17 个专家智能体、MCP 服务（CodeGraph / DBHub 等）与模型预设（Profiles）** 均会自动生效并完全共享。
+
+---
+
 ### 进阶：自定义可选配置后再安装
 
 若你想在安装前先按需开启或关闭特定功能（例如开启 `opencode-codex-bridge`、`opencode-claude-bridge` 桥接插件，或调整 Serena / CodeGraph / DBHub 等 MCP 开关、切换默认主控智能体）：

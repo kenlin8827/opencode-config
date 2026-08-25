@@ -77,6 +77,20 @@ After running the [10-Second Quick Install](#-10-second-quick-install) above, ge
 
 ---
 
+## 🖥️ Client & UI Options
+
+You can interact with OpenCode through multiple interfaces depending on your preferred workflow:
+
+| Interface | Best for | Key Advantages | How to Launch |
+|---|---|---|---|
+| **Terminal TUI (Default)** | Command-line power users, SSH sessions | Ultra-lightweight, minimal resource usage, pure keyboard flow | Run `opencode` in your terminal |
+| **OpenChamber Desktop / GUI** | Users who prefer visual IDEs & detailed Code Reviews | **Side-by-side visual diffs**, Multi-Model comparison & Fusion, session timelines | Download [OpenChamber](https://openchamber.dev) desktop app or VS Code extension |
+| **Built-in Web UI** | Browser-based access without extra desktop apps | Instant browser access, cross-device friendly | Run `opencode serve` and open in your browser |
+
+> 💡 **Seamless Compatibility**: Whichever UI you choose, all **17 specialist agents, MCP servers (CodeGraph, DBHub, etc.), and Model Profiles** configured by this repository are automatically recognized and shared.
+
+---
+
 ### Advanced: Customize Options Before Installing
 
 If you want to toggle optional features (such as enabling `opencode-codex-bridge` / `opencode-claude-bridge`, switching MCP servers like Serena / CodeGraph / DBHub, or changing the default agent) before running the installer:
