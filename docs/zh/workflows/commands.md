@@ -22,6 +22,7 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | `/adr [new\|supersede\|tree\|check\|mode]` | 架构决策记录（ADR）治理：脚手架生成、替代生命周期流转、DAG 拓扑图、断链体检与分层模式切换 |
 | `/adr-guard [on\|off\|status]` | 切换项目级 ADR 提交铁律门禁（拦截缺少 ADR 的 feat/refactor 提交） |
 | `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息 |
+| `/pdf <file.md> [output.pdf]` | Markdown 一键转高清 A4 PDF，支持自然语言 `@filepath 转PDF`、`--doctor` 自检与 `--install-deps` 自动修复 |
 
 
 ---

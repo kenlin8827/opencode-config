@@ -524,6 +524,7 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 | `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
 | `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
+| `/pdf <file.md> [output.pdf]` | Export Markdown documents to high-quality A4 PDFs. Supports natural language `@filepath to PDF`, `--doctor` diagnostics & `--install-deps` auto-repair (see [Document Export & Typography](#document-export--typography-md-to-pdf)) |
 
 ### Example: review-fix-loop
 
@@ -603,6 +604,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-manager.ts` | `/project` command + commit discipline (see below) |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy (see below) |
 | `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project` TUI dialog wizards (interactive switch configuration & re-entrant echo) |
+| `md-to-pdf.ts` | `/pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 
 For hook-level internals (which OpenCode hooks each plugin uses, registration patterns), see [DEVELOPING.md](DEVELOPING.md#plugin-system).
 
@@ -714,6 +716,15 @@ Note: the gate enforces the mechanically checkable structure only; the rest of `
 When you submit prompts while the session is busy, OpenCode persists them immediately as user messages (the TUI shows a QUEUED badge on them) and works through them after the current run finishes. The bundled `queue-manager.ts` TUI plugin gives that queue an interactive management UI — it ships enabled via `tui.json`, nothing to install.
 
 **Usage**: `/queued` (or command palette → "Manage queued messages") opens a select dialog listing every queued message (preview + age). Picking one opens a per-message menu — **Edit text**, **Cancel message**, **View full text** — and the list also offers a **Cancel ALL** bulk action.
+
+### Document Export & Typography (`md-to-pdf`)
+
+Export Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
+
+- **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
+- **Slash Commands**: `/pdf README.md` (renders PDF), `/pdf --doctor` (diagnostics), `/pdf --install-deps` (auto-repair dependencies).
+- **Refined Typography & Printing**: Pandoc GFM parsing + A4 layout styles + isolated Node.js Playwright printing.
+
 
 **Key behavior**:
 

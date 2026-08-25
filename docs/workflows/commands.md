@@ -22,6 +22,7 @@ OpenCode Multi-Agent ships with a suite of high-leverage workflow slash commands
 | `/adr [new\|supersede\|tree\|check\|mode]` | Architecture Decision Record management: scaffold templates, supersede lifecycle, render DAGs, audit links, and configure hierarchy modes |
 | `/adr-guard [on\|off\|status]` | Toggle the project-level ADR commit iron law gate for `feat`/`refactor` commits |
 | `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy |
+| `/pdf <file.md> [output.pdf]` | Export Markdown documents to high-quality A4 PDFs. Supports natural language `@filepath to PDF`, `--doctor` diagnostics & `--install-deps` auto-repair |
 
 
 ---

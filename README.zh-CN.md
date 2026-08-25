@@ -525,6 +525,7 @@ bridge 附带的额外能力：
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
+| `/pdf <file.md> [output.pdf]` | Markdown 一键转高清 A4 PDF，支持自然语言 `@filepath 转PDF`、`--doctor` 自检与 `--install-deps` 自动修复（详见 [文档导出与排版渲染](#文档导出与排版渲染md-to-pdf)） |
 
 ### 示例：review-fix-loop
 
@@ -604,6 +605,7 @@ bridge 附带的额外能力：
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
 | `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project` TUI 弹窗向导（支持可视化配置各开关并在已有工程中回显） |
+| `md-to-pdf.ts` | `/pdf` 与 `md_to_pdf` —— Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 
 各插件使用的 OpenCode hook 与注册方式等内部细节，见 [DEVELOPING.md](DEVELOPING.md#plugin-system)。
 
@@ -715,6 +717,15 @@ echo on > <project>/.opencode/.env-guard
 会话忙碌时提交的提示，OpenCode 会立即持久化为用户消息（TUI 显示 QUEUED 徽章），并在当前运行结束后逐条处理。内置的 `queue-manager.ts` TUI 插件为这个队列提供交互式管理界面 —— 已通过 `tui.json` 默认启用，无需安装。
 
 **用法**：`/queued`（或命令面板 → "Manage queued messages"）打开选择对话框，列出全部排队消息（预览 + 排队时长）。选中某条后进入单条菜单 —— **编辑文本**、**取消消息**、**查看全文** —— 列表还提供 **Cancel ALL** 批量取消。
+
+### 文档导出与排版渲染（`md-to-pdf`）
+
+将 Markdown 文档（API 规范、ADR 方案、调研报告）一键导出为出版级高保真 A4 PDF。
+
+- **自然语言直接驱动**：发送 `@doc/api-v1.md 转PDF` 或 `帮我把 @README.md 导出为 PDF`，智能体自动提取路径并调用 `md_to_pdf` 工具完成生成。
+- **Slash 命令**：`/pdf README.md`（渲染为 PDF）、`/pdf --doctor`（自检）、`/pdf --install-deps`（自动安装修复依赖）。
+- **现代 A4 排版**：Pandoc GFM 转换 + 优雅 A4 页面与代码高亮 + 隔离 Node.js Playwright 矢量打印。
+
 
 **关键行为**：
 

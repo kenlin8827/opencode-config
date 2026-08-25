@@ -296,6 +296,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `profile-wizard.ts` | TUI plugin | `/profile` dialog wizard: tier review, per-tier model override, live apply via server config API with file-rewrite fallback. Announces active profile on session creation. |
 | `provider-wizard.ts` | TUI plugin | `/provider` dialog wizard: baseURL/apiKey prompts, atomic write, model add/remove management. |
 | `queue-manager.ts` | TUI plugin | `/queued` command: list/edit/cancel queued user messages. |
+| `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 
 All slash commands are registered programmatically via the `config` hook — no `commands/*.md` files are needed. Protocol bodies live as markdown next to their plugin and are loaded at runtime, injected via `experimental.chat.system.transform` (LLM-only, not visible in chat UI).
 

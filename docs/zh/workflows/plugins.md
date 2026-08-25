@@ -24,6 +24,7 @@
 | `project-manager.ts` | `/project` 命令 + 提交纪律 |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示 |
 | `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
+| `md-to-pdf.ts` | `/pdf`、`/md-to-pdf` 命令与 `md_to_pdf` 工具 —— 将 Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 
 ---
 
@@ -164,3 +165,25 @@ echo on > <project>/.opencode/.env-guard
 
 - `/queued` 打开选择对话框，列出全部排队消息。
 - 选中后可执行：**编辑文本**、**取消消息**、**查看全文**，或 **Cancel ALL** 批量取消。
+
+---
+
+## 文档导出与排版渲染（`md-to-pdf` 与 `/pdf`）
+
+将项目中的 Markdown 文档（API 规范、ADR 方案、调研报告）一键导出为出版级高保真 A4 PDF。
+
+### 核心能力
+
+- **自然语言直接驱动**：在聊天框发送 `@doc/api-v1.md 转PDF` 或 `帮我把 @README.md 导出为 PDF`，智能体自动提取路径并调用 `md_to_pdf` 工具完成生成。
+- **Slash 命令确定性执行**：
+  ```text
+  /pdf README.md                         # 渲染为 README.pdf
+  /pdf doc/api-v1.md dist/api-v1.pdf     # 指定输出路径
+  /pdf --doctor                          # 环境与依赖健康检查
+  /pdf --install-deps                    # 自动修复/安装缺失依赖
+  ```
+- **工业级排版与隔离打印**：
+  - **Pandoc 引擎**：生成符合 GFM 规范的 standalone HTML，内置代码高亮与资源内联。
+  - **优雅 A4 样式**：A4 页面、页边距、现代化字体族、代码块及表格自适应边框。
+  - **Playwright 无头打印**：通过隔离 Node runner 驱动 Chromium 打印矢量 PDF，保证毫秒级生成。
+

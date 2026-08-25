@@ -24,6 +24,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-manager.ts` | `/project` command + commit discipline |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy |
 | `profile-wizard.ts`, `provider-wizard.ts` | `/profile` and `/provider` TUI dialog wizards |
+| `md-to-pdf.ts` | `/pdf`, `/md-to-pdf` commands & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 
 ---
 
@@ -161,5 +162,26 @@ While `docs/git-commits.md` exists:
 
 OpenCode persists prompts submitted while busy as user messages. The bundled `queue-manager.ts` TUI plugin provides an interactive UI:
 
-- `/queued` opens a select dialog listing queued messages.
-- Options: **Edit text**, **Cancel message**, **View full text**, **Cancel ALL**.
+- `/queued` opens a picker dialog listing all queued messages.
+- Selected actions: **Edit Prompt**, **Cancel Prompt**, **View Full Text**, or **Cancel ALL**.
+
+---
+
+## Document Export & Typography (`md-to-pdf` & `/pdf`)
+
+Export project Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
+
+### Capabilities
+
+- **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
+- **Deterministic Slash Commands**:
+  ```text
+  /pdf README.md                         # Render to README.pdf
+  /pdf doc/api-v1.md dist/api-v1.pdf     # Custom output path
+  /pdf --doctor                          # Check Pandoc and Playwright health
+  /pdf --install-deps                    # Auto-install missing dependencies
+  ```
+- **Modern Typography & Printing**:
+  - **Pandoc Parser**: Standalone HTML5 with syntax highlighting and asset embedding.
+  - **Refined A4 Styles**: GitHub-flavored typography, code blocks, borders, and margins.
+  - **Playwright Headless Print**: Isolated Node runner printing high-fidelity vector PDFs in milliseconds.
