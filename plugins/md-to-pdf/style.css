@@ -1,0 +1,243 @@
+/* ==========================================================================
+   OpenCode Executive Publication Theme for PDF
+   Designed for Executive Briefs, Tech Whitepapers, PRDs & Architecture Specs
+   ========================================================================== */
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 22mm 18mm;
+  @bottom-center {
+    content: counter(page);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 9pt;
+    color: #64748B;
+  }
+}
+
+:root {
+  /* Mermaid Diagram Styling System */
+  --mermaid-theme: base;                    /* Mermaid theme: base, neutral, default, forest, dark */
+  --mermaid-primary-color: #F0F7FF;         /* Node/Participant background */
+  --mermaid-primary-border-color: #3B82F6;  /* Node/Participant border */
+  --mermaid-text-color: #0F172A;            /* Diagram text color */
+  --mermaid-line-color: #2563EB;            /* Relationship line and message arrow color */
+  --mermaid-secondary-color: #DBEAFE;       /* Loop/Alt fragment header background */
+  --mermaid-secondary-border-color: #93C5FD;/* Loop/Alt fragment border line */
+  --mermaid-accent-color: #1E3A8A;          /* State diagram start/end accent color */
+  --mermaid-tertiary-color: #FFFFFF;        /* Label background pill */
+  --mermaid-card-border-color: #CBD5E1;     /* Pill label and auxiliary card border */
+  --mermaid-lifeline-color: #CBD5E1;        /* Sequence diagram lifeline color */
+  --mermaid-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", sans-serif;
+  --mermaid-font-size: 13px;
+  --mermaid-bg: #FFFFFF;                    /* Diagram background */
+  --mermaid-node-stroke-width: 1.5px;
+  --mermaid-edge-stroke-width: 1.8px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", sans-serif;
+  line-height: 1.6;
+  color: #1E293B;
+  font-size: 10.5pt;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings */
+h1 {
+  font-family: "Segoe UI Semibold", "Microsoft YaHei", sans-serif;
+  font-size: 22pt;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 24px 0 16px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-family: "Segoe UI Semibold", "Microsoft YaHei", sans-serif;
+  font-size: 15pt;
+  font-weight: 600;
+  color: #1E3A8A;
+  margin: 20px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid #E2E8F0;
+  line-height: 1.3;
+}
+
+h3 {
+  font-family: "Segoe UI Semibold", "Microsoft YaHei", sans-serif;
+  font-size: 12.5pt;
+  font-weight: 600;
+  color: #334155;
+  margin: 16px 0 10px;
+  line-height: 1.35;
+}
+
+h4, h5, h6 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #475569;
+  margin: 12px 0 8px;
+}
+
+p, ul, ol {
+  margin: 0 0 12px;
+  color: #1E293B;
+}
+
+ul, ol {
+  padding-left: 22px;
+}
+
+li {
+  margin-bottom: 4px;
+}
+
+/* Blockquotes & Callouts */
+blockquote {
+  border-left: 4px solid #3B82F6;
+  background-color: #F8FAFC;
+  color: #475569;
+  padding: 10px 16px;
+  margin: 14px 0;
+  border-radius: 0 6px 6px 0;
+  font-size: 10pt;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* Image & Diagram centering */
+img {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+  margin: 20px auto;
+  page-break-inside: avoid;
+}
+
+/* Modern Publication Table Styles */
+table {
+  width: 100%;
+  table-layout: auto !important;
+  border-collapse: collapse !important;
+  margin: 18px 0;
+  font-size: 9.5pt;
+  border: 0.75px solid #E2E8F0 !important;
+  page-break-inside: avoid;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+colgroup, colgroup col {
+  width: auto !important;
+}
+
+thead {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+th {
+  background-color: #1E3A8A !important;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap !important;
+  border-top: 0.75px solid #E2E8F0 !important;
+  border-bottom: 0.75px solid #E2E8F0 !important;
+  border-left: none !important;
+  border-right: 0.75px solid rgba(255, 255, 255, 0.15) !important;
+  letter-spacing: 0.02em;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+th:first-child {
+  border-left: 0.75px solid #E2E8F0 !important;
+}
+
+th:last-child {
+  border-right: 0.75px solid #E2E8F0 !important;
+}
+
+td {
+  padding: 8px 12px;
+  border: 0.75px solid #E2E8F0 !important;
+  color: #1E293B;
+  vertical-align: middle;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.cell-nowrap, td.cell-nowrap {
+  white-space: nowrap !important;
+}
+
+td code {
+  white-space: nowrap;
+}
+
+tr:nth-child(even) td {
+  background-color: #F8FAFC !important;
+}
+
+/* Code block cards */
+code {
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  font-size: 9pt;
+  background-color: #F1F5F9;
+  color: #0F172A;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #E2E8F0;
+}
+
+div.sourceCode,
+pre {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 14px 0;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 12px 16px;
+  page-break-inside: avoid;
+}
+
+pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+pre code {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 9pt;
+  line-height: 1.5;
+  color: #0F172A;
+}
+
+/* Image styling */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 16px auto;
+  border-radius: 4px;
+}

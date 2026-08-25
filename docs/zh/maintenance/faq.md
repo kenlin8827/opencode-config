@@ -65,3 +65,17 @@ Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 ### `/profile` 不保留 JSONC 注释
 
 `/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 —— 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。
+
+### Windows 下模型频繁使用 Bash 命令报错（自适应支持）
+
+OpenCode 内置工具原生命名为 `bash`，大语言模型倾向于输出 Unix/POSIX 命令。本配置体系已内置**双层自适应机制**：
+
+1. **安装器自动探测与环境自适应**：
+   运行 `pwsh install/install.ps1` 时，安装器会自动探测系统中的 Git Bash 并为用户配置 `SHELL` 环境变量。如果希望手动配置，可执行：
+   ```powershell
+   [System.Environment]::SetEnvironmentVariable('SHELL', 'C:\Program Files\Git\bin\bash.exe', [System.EnvironmentVariableTarget]::User)
+   ```
+2. **全局指令自适应（Adaptive Shell Execution）**：
+   在 `instructions/coding-principles.md` 中注入了全局自适应执行准则。即使在未安装 Git Bash 的纯 PowerShell/CMD 环境中，所有 Agent 也会自适应使用 PowerShell 原生语法（如 `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`）或跨平台命令（`git`, `npm`, `node`），并在遇到命令语法错误时自动切换语法重试。
+
+

@@ -175,17 +175,64 @@ copy_manifest_files() {
 # reject them). The mapping now lives in tiers.json; the snapshot reads the
 # target's copy, falling back to the repo's for pre-migration targets, and a
 # legacy agent-level tier field still wins for agents it lists.
+# Snapshots user profiles from ~/.config/opencode/profiles so custom or modified profiles survive reinstalls
+read_profiles_preserve() {
+    local pdir="$1/profiles"
+    local out_dir="$2"
+    mkdir -p "$out_dir"
+    [[ -d "$pdir" ]] || return 0
+    find "$pdir" -maxdepth 1 -name '*.json' -exec cp {} "$out_dir" \; 2>/dev/null || true
+}
+
+# Restores custom or user-modified profile files over the freshly copied profiles/ directory
+restore_profiles_preserve() {
+    local target_pdir="$1/profiles"
+    local saved_dir="$2"
+    [[ -d "$saved_dir" ]] || return 0
+    mkdir -p "$target_pdir"
+    local restored=0
+    for f in "$saved_dir"/*.json; do
+        [[ -f "$f" ]] || continue
+        local bname
+        bname="$(basename "$f")"
+        local dst="$target_pdir/$bname"
+        if [[ ! -f "$dst" ]] || ! cmp -s "$f" "$dst"; then
+            cp "$f" "$dst"
+            ((restored++)) || true
+        fi
+    done
+    if [[ $restored -gt 0 ]]; then
+        echo "[cur: $VER] restored $restored custom/modified profile(s) in profiles/"
+    fi
+}
+
+# snapshots user state from the target before the copy overwrites it:
+# provider credentials, the whole provider.*.models map (deep-merged back:
+# user-edited model entries — incl. custom model ids and user-added models —
+# win over the template, template-only models and fields still get in), root
+# model, and per-tier model refs (agents of a tier share one ref — same tier
+# semantics as the /profile plugin).
+# Option switches are NOT snapshotted — the repo's install/options.jsonc
+# is the single source of truth and overwrites the target on every install.
+# Agent→tier mapping: agent-level `tier` fields are gone (opencode forwards
+# unknown agent fields to the provider as model options — strict gateways
+# reject them). The mapping now lives in tiers.json; the snapshot reads the
+# target's copy, falling back to the repo's for pre-migration targets, and a
+# legacy agent-level tier field still wins for agents it lists.
 # outputs a JSON object: {creds: [...], models: {...}, rootModel: "...", tiers: {...}}
 read_preserve() {
     rp_f="$1/opencode.jsonc"
     # fresh target: emit the empty bag so callers can --argjson it unconditionally
-    [[ -f "$rp_f" ]] || { echo '{"creds":[],"models":{},"rootModel":null,"tiers":{}}'; unset rp_f; return 0; }
+    [[ -f "$rp_f" ]] || { echo '{"creds":[],"models":{},"rootModel":null,"tiers":{},"agents":{},"activeProfile":null}'; unset rp_f; return 0; }
     rp_tm="$1/tiers.json"
     rp_tm_tmp=""
     if [[ ! -f "$rp_tm" ]]; then rp_tm="$REPO_ROOT/tiers.json"; fi
     if [[ ! -f "$rp_tm" ]]; then rp_tm_tmp="$(mktemp)"; echo '{}' > "$rp_tm_tmp"; rp_tm="$rp_tm_tmp"; fi
+    rp_act="$1/.active-profile"
+    rp_act_val=""
+    if [[ -f "$rp_act" ]]; then rp_act_val="$(head -1 "$rp_act" | tr -d '\r\n ' || true)"; fi
     # strip comment lines so plain jq can parse the JSONC
-    grep -v '^[[:space:]]*//' "$rp_f" | jq -c --slurpfile tm "$rp_tm" '
+    grep -v '^[[:space:]]*//' "$rp_f" | jq -c --slurpfile tm "$rp_tm" --arg act "$rp_act_val" '
         ($tm[0] // {}) as $map |
         {
           creds: [ .provider // {} | to_entries[] as $p |
@@ -194,14 +241,18 @@ read_preserve() {
                    {provider: $p.key, key: .key, value: .value} ],
           models: (.provider // {} | with_entries(.value |= (.models // {}))),
           rootModel: (.model // null),
+          activeProfile: (if ($act != "") then $act else null end),
           tiers: ([ .agent // {} | to_entries[] |
                     (.value.tier // $map[.key] // null) as $tier |
                     select($tier != null and (.value.model // null) != null) |
-                    {($tier): .value.model} ] | add // {})
+                    {($tier): .value.model} ] | add // {}),
+          agents: ([ .agent // {} | to_entries[] |
+                     select((.value.model // null) != null) |
+                     {key: .key, value: .value.model} ] | from_entries)
         }
-    ' 2>/dev/null || echo '{"creds":[],"models":{},"rootModel":null,"tiers":{}}'
+    ' 2>/dev/null || echo '{"creds":[],"models":{},"rootModel":null,"tiers":{},"agents":{},"activeProfile":null}'
     [[ -n "$rp_tm_tmp" ]] && rm -f "$rp_tm_tmp"
-    unset rp_f rp_tm rp_tm_tmp
+    unset rp_f rp_tm rp_tm_tmp rp_act rp_act_val
 }
 
 # restores preserved credentials + model picks into the freshly-copied opencode.jsonc.
@@ -219,11 +270,22 @@ restore_preserve() {
     rp_tm="$rp_dst/tiers.json"
     rp_tm_tmp=""
     if [[ ! -f "$rp_tm" ]]; then rp_tm_tmp="$(mktemp)"; echo '{}' > "$rp_tm_tmp"; rp_tm="$rp_tm_tmp"; fi
-    jq --slurpfile b "$rp_bag_file" --slurpfile tm "$rp_tm" '
+
+    # Read active profile definition if present
+    rp_act_file="$(mktemp)"
+    echo '{}' > "$rp_act_file"
+    rp_act_name="$(jq -r '.activeProfile // ""' "$rp_bag_file" 2>/dev/null || true)"
+    if [[ -n "$rp_act_name" && -f "$rp_dst/profiles/$rp_act_name.json" ]]; then
+        grep -v '^[[:space:]]*//' "$rp_dst/profiles/$rp_act_name.json" | jq -c '.' > "$rp_act_file" 2>/dev/null || echo '{}' > "$rp_act_file"
+    fi
+
+    jq --slurpfile b "$rp_bag_file" --slurpfile tm "$rp_tm" --slurpfile actProf "$rp_act_file" '
         ($b[0].creds // []) as $c |
         ($b[0].models // {}) as $um |
         ($b[0].tiers // {}) as $t |
+        ($b[0].agents // {}) as $ag |
         ($tm[0] // {}) as $map |
+        ($actProf[0].tiers // {}) as $apt |
         reduce ($c[] | .provider) as $pn (.;
             .provider[$pn] //= {} |
             .provider[$pn].options //= {} |
@@ -246,18 +308,34 @@ restore_preserve() {
                     | ($tm + $userModels)
                     | with_entries(.value = (($tm[.key] // {}) + .value)))
             else . end)
+        # replay active profile baseline
+        | (if ($apt.default // null) != null then .model = $apt.default else . end)
+        | (if ($apt | length) > 0 and ((.agent // {}) | length) > 0 then
+             .agent |= with_entries(
+                 (.key) as $aname
+                 | (.value.tier // $map[$aname] // "") as $tier
+                 | if ($apt | has($tier)) then .value.model = $apt[$tier] else . end)
+           else . end)
+        # restore root model
         | (if ($b[0].rootModel // null) != null then .model = $b[0].rootModel else . end)
+        # restore tier models
         | (if ($t | length) > 0 and ((.agent // {}) | length) > 0 then
              .agent |= with_entries(
                  (.key) as $aname
                  | (.value.tier // $map[$aname] // "") as $tier
                  | if ($t | has($tier)) then .value.model = $t[$tier] else . end)
            else . end)
+        # restore specific agent models
+        | (if ($ag | length) > 0 and ((.agent // {}) | length) > 0 then
+             .agent |= with_entries(
+                 (.key) as $aname
+                 | if ($ag | has($aname)) then .value.model = $ag[$aname] else . end)
+           else . end)
     ' "$rp_f" | style_json > "$rp_tmp"
     mv "$rp_tmp" "$rp_f"
-    rm -f "$rp_bag_file"
+    rm -f "$rp_bag_file" "$rp_act_file"
     [[ -n "$rp_tm_tmp" ]] && rm -f "$rp_tm_tmp"
-    unset rp_dst rp_f rp_bag_file rp_tmp rp_tm rp_tm_tmp
+    unset rp_dst rp_f rp_bag_file rp_tmp rp_tm rp_tm_tmp rp_act_file rp_act_name
 }
 
 # Pretty-prints JSON (stdin -> stdout) while keeping every provider model
@@ -652,6 +730,10 @@ copy_current_files() {
     cur_count="$(read_manifest "$CUR_MAN" | wc -l | tr -d ' ')"
     echo "[cur: $VER] copying $cur_count files"
     read_manifest "$CUR_MAN" | copy_manifest_files "$REPO_ROOT" "$TARGET" "cur"
+    # restore custom or modified profile files
+    if [[ -d "$saved_profiles_dir" ]]; then
+        restore_profiles_preserve "$TARGET" "$saved_profiles_dir"
+    fi
     # fold shipped providers/*.json into the `provider` node before the
     # preserve-restore, so user credentials override {env:...} placeholders
     merge_providers "$TARGET"
@@ -684,10 +766,12 @@ do_install() {
         cp "$TARGET/$MARKER" "$prev_marker_backup"
     fi
 
-    # Snapshot user state in opencode.jsonc BEFORE anything gets removed —
+    # Snapshot user state in opencode.jsonc and profiles/ BEFORE anything gets removed —
     # remove_old_files deletes it as part of the previous manifest
     preserve_bag="$(mktemp)"
     read_preserve "$TARGET" > "$preserve_bag" || true
+    saved_profiles_dir="$(mktemp -d)"
+    read_profiles_preserve "$TARGET" "$saved_profiles_dir"
 
     remove_old_files
     copy_current_files
@@ -704,6 +788,7 @@ do_install() {
     write_new_marker
 
     rm -f "$preserve_bag"
+    rm -rf "$saved_profiles_dir"
     if [[ -n "$prev_marker_backup" ]]; then
         rm -f "$prev_marker_backup"
     fi

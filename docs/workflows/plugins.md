@@ -24,23 +24,93 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-manager.ts` | `/project` command + commit discipline |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy |
 | `profile-wizard.ts`, `provider-wizard.ts` | `/profile` and `/provider` TUI dialog wizards |
+| `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
+| `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
 
 ---
 
-## ADR iron law (`adr-guard`)
+## ADR Iron Law & Living Architecture (`adr-guard` & `/adr`)
 
-Optional per-project enforcement of Architecture Decision Records. The switch is **project-level** and defaults to off:
+Enterprise-grade Architecture Decision Record governance. Operates in two complementary modes:
+
+1. **Commit Iron Law (`/adr-guard`)** — Hard/soft guardrails preventing unrecorded architecture drift on `feat`/`refactor` commits.
+2. **Hierarchical Living Architecture (`/adr`)** — Frictionless authoring, decision lifecycle management, multi-level hierarchy, and interactive DAG visualization.
+
+### Switch & Configuration
+
+The commit guard switch is **project-level** (stored in `opencode.jsonc`):
 
 ```text
-/adr-guard on       # enable for this project (writes <project>/.opencode/.adr-guard)
-/adr-guard off      # disable
+/adr-guard on       # enable commit gate for this project
+/adr-guard off      # disable commit gate
 /adr-guard          # status report (state + ADR dir)
 ```
 
-When on:
-- **Soft layer** — the iron-law protocol is injected into the system prompt: agents write/update the ADR proactively before committing.
-- **Hard layer** — `git commit` is blocked when the message type is `feat`/`refactor` and no file under the ADR directory appears in the working-tree change set.
-- **ADR format** — strict MADR: frontmatter `status` + `date`, body `## Context and Problem Statement` + `## Decision Outcome`.
+The hierarchy governance mode is configured via `/adr mode`:
+
+```text
+/adr mode                   # show current governance mode (auto | flat | hierarchical)
+/adr mode flat              # pure flat single-directory mode (docs/adr/)
+/adr mode hierarchical      # strict multi-tier hierarchy (L1/L2/L3)
+/adr mode auto              # smart adaptive mode (default: flat by default, expands on multi-package)
+```
+
+### Slash Commands (`/adr`)
+
+| Command | Description | Example |
+|---|---|---|
+| `/adr new [layer/scope] <title>` | Scaffold a sequential MADR template & update `INDEX.md` | `/adr new "Use PostgreSQL as Primary DB"` |
+| `/adr supersede <old-id> <new-title>` | Atomically mark old ADR as superseded & scaffold replacement with mutual cross-references | `/adr supersede 0001 "Migrate to NATS JetStream"` |
+| `/adr migrate [h\|f\|a] [--confirm]` | Preview or execute bidirectional ADR directory restructuring | `/adr migrate h` |
+| `/adr tree` / `/adr map` | Render full architecture decision tree & Mermaid DAG diagram | `/adr tree` |
+| `/adr check` / `/adr lint` | Audit link integrity, parent references, and complexity advice | `/adr check` |
+
+#### 1. Creating a Decision (`/adr new`)
+* **Standard / Flat Monolith**:
+  ```text
+  /adr new "Use PostgreSQL as Primary Database"
+  ```
+  Generates `docs/adr/0003-use-postgresql-as-primary-database.md` with standard MADR template sections and updates `docs/adr/INDEX.md`.
+* **Hierarchical / Monorepo**:
+  ```text
+  /adr new system "Global Event Bus Standard"          # L1 System (in docs/adr/)
+  /adr new domain/payment "Stripe Webhook Processing"  # L2 Domain (in packages/payment/docs/adr/)
+  /adr new component/auth "JWT Refresh Rotation"       # L3 Component
+  ```
+
+#### 2. Superseding an Old Decision (`/adr supersede`)
+Architecture decisions are immutable; evolving solutions should be recorded via `supersede`:
+```text
+/adr supersede 0001 "Migrate from RabbitMQ to NATS JetStream"
+```
+**Atomic System Actions**:
+1. Marks `0001` frontmatter status as `status: superseded by 0004` with deprecation notes;
+2. Scaffolds `0004` with `parent: docs/adr/0001-use-rabbitmq.md`;
+3. Automatically synchronizes respective `INDEX.md` files.
+
+#### 3. Restructuring & Migration (`/adr migrate`)
+* **Dry-Run Preview**: `/adr migrate h` (or `/adr migrate hierarchical`) outputs the planned file moves without modifying files.
+* **Execution**: `/adr migrate h --confirm` atomically moves files, rewrites frontmatter and mutual references, and updates all directory indexes.
+
+### Dual-Track Interaction: Natural Language & Slash Commands
+
+The ADR governance system supports **Slash Commands (deterministic local execution)** and **Natural Language (AI-assisted architectural drafting)** side-by-side:
+
+| Scenario | Natural Language (Deep AI Drafting) | Slash Commands (Instant Local Scaffolding) |
+| :--- | :--- | :--- |
+| **New Decision** | "Help me draft an ADR on using Redis for distributed locking"<br>$\to$ **AI researches requirements, compares alternatives (Redlock vs ETCD vs DB lock), drafts full MADR trade-offs, writes file & syncs `INDEX.md`** | `/adr new "Redis Distributed Lock Standard"` |
+| **Supersede** | "Deprecate ADR 0001, we are switching from RabbitMQ to Kafka"<br>$\to$ **AI marks 0001 as `superseded by 0005`, scaffolds the new ADR with migration context and cross-references** | `/adr supersede 0001 "Migrate to Kafka"` |
+| **Integrity Audit** | "Audit all ADRs to verify if there are broken links or missing fields"<br>$\to$ **AI validates frontmatter, parent links, and provides remediation** | `/adr check` |
+| **Architecture Migration** | "We restructured into a monorepo, migrate payment and auth ADRs to their sub-packages"<br>$\to$ **AI plans and safely executes directory restructuring** | `/adr migrate h --confirm` |
+
+### Hierarchical Layers (Coarse to Fine)
+
+
+- **L1: System & Macro (`layer: system`)** — Global `docs/adr/` (tech stack, core communication, global data architecture).
+- **L2: Domain & Subsystem (`layer: domain`)** — `packages/<name>/docs/adr/` or `apps/<name>/docs/adr/` (service boundaries, state machines, domain storage).
+- **L3: Component & Module (`layer: component`)** — Module `docs/adr/` (local algorithms, state management).
+
+
 
 ---
 
@@ -93,5 +163,61 @@ While `docs/git-commits.md` exists:
 
 OpenCode persists prompts submitted while busy as user messages. The bundled `queue-manager.ts` TUI plugin provides an interactive UI:
 
-- `/queued` opens a select dialog listing queued messages.
-- Options: **Edit text**, **Cancel message**, **View full text**, **Cancel ALL**.
+- `/queued` opens a picker dialog listing all queued messages.
+- Selected actions: **Edit Prompt**, **Cancel Prompt**, **View Full Text**, or **Cancel ALL**.
+
+---
+
+## Document Export & Typography (`md-to-pdf` & `/md-to-pdf`)
+
+Export project Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
+
+### Capabilities
+
+- **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
+- **Deterministic Slash Commands**:
+  ```text
+  /md-to-pdf README.md                         # Render to README.pdf
+  /md-to-pdf doc/api-v1.md dist/api-v1.pdf     # Custom output path
+  /md-to-pdf --doctor                          # Check Pandoc and Playwright health
+  /md-to-pdf --install-deps                    # Auto-install missing dependencies
+  ```
+- **Modern Typography & Printing**:
+  - **Pandoc Parser**: Standalone HTML5 with syntax highlighting and asset embedding.
+  - **Refined A4 Styles**: GitHub-flavored typography, code blocks, borders, and margins.
+  - **Playwright Headless Print**: Isolated Node runner printing high-fidelity vector PDFs in milliseconds.
+
+---
+
+## Word Document Export & Typography (`md-to-docx` & `/md-to-docx`)
+
+Export project Markdown documents (technical designs, requirements, ADRs, meeting summaries) into publication-ready, styled Executive Word (`.docx`) files.
+
+### Capabilities
+
+- **Natural Language Steered**: Mention `@docs/design.md convert to word` or `Export @README.md to docx`, and agents automatically invoke the `md_to_docx` tool.
+- **Deterministic Slash Commands**:
+  ```text
+  /md-to-docx README.md                                    # Render to README.docx
+  /md-to-docx docs/design.md dist/design.docx              # Custom output path
+  /md-to-docx doc/whitepaper.md --style=custom-theme.css   # Custom CSS stylesheet
+  /md-to-docx --doctor                                     # Check Pandoc and Playwright status
+  /md-to-docx --install-deps                               # Auto-provision missing packages
+  ```
+- **Pure TypeScript Architecture**: 100% pure TS/Node.js implementation with zero Python dependencies, utilizing OpenXML manipulation via `@xmldom/xmldom` & `adm-zip`.
+- **100% Parameterized CSS Styling**:
+  - Full control over page geometry, typography, palette, table zebra striping, and code cards via CSS variables and selector rules.
+  - Project-level exclusive styling via `.opencode/md-to-docx.css` and template via `.opencode/md-to-docx.docx`.
+- **Mermaid Publication Diagram System**:
+  - **Zero-latency Offline Rendering**: Built-in bundled offline Mermaid engine, eliminating network delays and CDN outages.
+  - **Retina 300+ DPI & 100% Width Expansion**: Generates crystal-clear high-res PNGs scaled proportionally to fill full content width.
+  - **Harmonious Modern Light Blue Theme**: Eliminates black boxes/artifacts across all diagram types (Flowcharts, State Machines, Sequence Diagrams, ER Diagrams, Class Diagrams).
+  - **100% Dynamic CSS Driven**: All diagram colors, typography, and borders dynamically derived from `--mermaid-*` CSS variables.
+- **Executive Publication Typography**:
+  - **Biphasic Typography**: Standard dual-font system for Western (Times New Roman / Segoe UI) and East Asian (SimSun / SimHei / Microsoft YaHei) with standard 10.5pt (No. 5) body sizing.
+  - **Executive Palette**: Royal Deep Navy headers (#1E3A8A), Charcoal slate body text (#1E293B), subtle ice tint zebra stripes (#F8FAFC).
+  - **Adaptive Tables**: Full-width layout, content-based column width calculation, compact header row height (0.74cm), and cleared paragraph margins.
+  - **Code Blocks**: Card styling with Cascadia Code (9.5pt), light gray background (#F8FAFC), and subtle borders.
+
+
+

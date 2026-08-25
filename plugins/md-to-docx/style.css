@@ -1,0 +1,142 @@
+/* ==========================================================================
+   OpenCode Executive Publication Theme for Word (DOCX)
+   100% Parameterized Stylesheet
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. Page & Geometry Metrics (Unit: twips, 1cm ≈ 567 twips)
+     ------------------------------------------------------------------------ */
+  --page-content-width: 8296;       /* Content body width (twips, 8296 ≈ 14.63cm) */
+  --page-margin-top: 1440;          /* Top margin (twips, 1440 ≈ 2.54cm) */
+  --page-margin-bottom: 1440;       /* Bottom margin (twips, 1440 ≈ 2.54cm) */
+  --page-margin-left: 1805;         /* Left margin (twips, 1805 ≈ 3.18cm) */
+  --page-margin-right: 1805;        /* Right margin (twips, 1805 ≈ 3.18cm) */
+
+  /* ------------------------------------------------------------------------
+     2. Executive Palette (Hex or RGB)
+     ------------------------------------------------------------------------ */
+  --primary-color: #1E3A8A;         /* Primary brand / Table header background (Royal Deep Navy) */
+  --header-text-color: #FFFFFF;     /* Table header text color */
+  --text-main-color: #1E293B;       /* Main text charcoal slate */
+  --text-muted-color: #64748B;      /* Secondary muted cool gray */
+  
+  --h1-color: #0F172A;              /* Heading 1 obsidian black */
+  --h2-color: #1E3A8A;              /* Heading 2 deep navy */
+  --h3-color: #334155;              /* Heading 3 slate gray */
+
+  --table-border-color: #E2E8F0;    /* Table border slate-200 */
+  --table-stripe-bg: #F8FAFC;       /* Table alternate row zebra stripe */
+
+  --code-bg: #F8FAFC;               /* Code block background */
+  --code-border-color: #E2E8F0;     /* Code block border color */
+  --code-text-color: #0F172A;       /* Code block text color */
+
+  --blockquote-border-color: #3B82F6;/* Blockquote left accent bar */
+  --blockquote-bg: #F0F7FF;         /* Blockquote light blue tint */
+
+  /* ------------------------------------------------------------------------
+     3. Dual ASCII / EastAsia Typography System
+     ------------------------------------------------------------------------ */
+  /* Body text typography */
+  --font-body-ascii: "Times New Roman";
+  --font-body-eastasia: "SimSun";
+  --font-body: "Times New Roman", "SimSun", "Songti SC", "STSong", "Microsoft YaHei", serif;
+  --font-body-size: 10.5pt;         /* Body text font size (Standard 10.5pt / 21 half-pts) */
+
+  /* Heading typography */
+  --font-heading-ascii: "Segoe UI Semibold";
+  --font-heading-eastasia: "SimHei";
+  --font-heading: "Segoe UI Semibold", "SimHei", "Heiti SC", "Microsoft YaHei", sans-serif;
+  --font-h1-size: 22pt;             /* Heading 1 size */
+  --font-h2-size: 15pt;             /* Heading 2 size */
+  --font-h3-size: 12.5pt;           /* Heading 3 size */
+
+  /* Code typography */
+  --font-code-ascii: "Cascadia Code";
+  --font-code-eastasia: "Microsoft YaHei";
+  --font-code: "Cascadia Code", "JetBrains Mono", Consolas, "Microsoft YaHei", monospace;
+  --code-font-size: 9.5pt;          /* Code font size */
+
+  /* ------------------------------------------------------------------------
+     4. Table Layout Metrics
+     ------------------------------------------------------------------------ */
+  --table-width-pct: 5000;          /* Table width (5000 = 100% full content width) */
+  --table-align: center;            /* Table alignment (center, left) */
+  --table-header-height: 420;       /* Header row height (twips, 420 ≈ 0.74cm) */
+  --table-row-height: 380;          /* Data row height (twips, 380 ≈ 0.67cm) */
+  --table-border-size: 0.5pt;       /* Border line width */
+  --table-cell-v-align: center;     /* Cell vertical alignment (center, top, bottom) */
+  --table-min-col-width: 1000;      /* Minimum column width safeguard (twips, 1000 ≈ 1.76cm) */
+
+  /* ------------------------------------------------------------------------
+     5. Code Card Metrics
+     ------------------------------------------------------------------------ */
+  --code-border-size: 0.5pt;        /* Code block border thickness */
+  --code-border-space: 4;           /* Code block padding space */
+  --code-line-spacing: 240;         /* Code line spacing (twips, 240 = 1.0 single spacing) */
+
+  /* ------------------------------------------------------------------------
+     6. Mermaid Diagram Styling System
+     ------------------------------------------------------------------------ */
+  --mermaid-theme: base;                    /* Mermaid theme: base, neutral, default, forest, dark */
+  --mermaid-primary-color: #F0F7FF;         /* Node/Participant background */
+  --mermaid-primary-border-color: #3B82F6;  /* Node/Participant border */
+  --mermaid-text-color: #0F172A;            /* Diagram text color */
+  --mermaid-line-color: #2563EB;            /* Relationship line and message arrow color */
+  --mermaid-secondary-color: #DBEAFE;       /* Loop/Alt fragment header background */
+  --mermaid-secondary-border-color: #93C5FD;/* Loop/Alt fragment border line */
+  --mermaid-accent-color: #1E3A8A;          /* State diagram start/end accent color */
+  --mermaid-tertiary-color: #FFFFFF;        /* Label background pill */
+  --mermaid-card-border-color: #CBD5E1;     /* Pill label and auxiliary card border */
+  --mermaid-lifeline-color: #CBD5E1;        /* Sequence diagram lifeline color */
+  --mermaid-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", sans-serif;
+  --mermaid-font-size: 13px;
+  --mermaid-bg: #FFFFFF;                    /* Diagram background */
+  --mermaid-node-stroke-width: 1.5px;
+  --mermaid-edge-stroke-width: 1.8px;
+
+  /* ------------------------------------------------------------------------
+     7. Table of Contents, Cover & Page Breaks
+     ------------------------------------------------------------------------ */
+  --toc-title: 目录;                /* TOC Title */
+  --toc-align: center;              /* TOC Title alignment */
+  --heading1-align: center;         /* Heading 1 alignment */
+  --heading1-pagebreak: true;       /* Insert page break before each H1 */
+  --heading2-pagebreak: false;      /* Insert page break before each H2 */
+  --meta-spacing-before: 400;       /* Cover metadata block spacing before */
+  --clean-underlines: true;         /* Sanitize placeholder underlines to wide spaces */
+}
+
+/* ==========================================================================
+   Standard Element Selector Rules
+   ========================================================================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+th {
+  background-color: var(--primary-color);
+  color: var(--header-text-color);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  text-align: center;
+}
+
+td {
+  border-color: var(--table-border-color);
+  color: var(--text-main-color);
+  font-family: var(--font-body);
+  vertical-align: middle;
+}
+
+pre, code {
+  background-color: var(--code-bg);
+  border-color: var(--code-border-color);
+  font-family: var(--font-code);
+  font-size: var(--code-font-size);
+  color: var(--code-text-color);
+}

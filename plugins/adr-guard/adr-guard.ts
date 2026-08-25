@@ -38,7 +38,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { HttpServerResponse } from "effect/unstable/http"
 import { makeAnnounceHook } from "./adr-guard-announce"
 import { makeCommandHook } from "./adr-guard-command"
-import { COMMAND_NAME, setProjectDir } from "./adr-guard-config"
+import { ADR_COMMAND, COMMAND_NAME, setProjectDir } from "./adr-guard-config"
 import { makeSystemHook } from "./adr-guard-system-inject"
 import { makeToolGuardHook } from "./adr-guard-tool-guard"
 
@@ -59,6 +59,11 @@ export const AdrGuardPlugin: Plugin = async ({ client, directory }) => {
         template: "",
         description:
           "Toggle the ADR iron law for this project — every feat/refactor commit requires a new/updated ADR (on | off | status)",
+      }
+      cfg.command[ADR_COMMAND] = {
+        template: "$1",
+        description:
+          "Manage Architecture Decision Records (new | supersede | tree | check | help)",
       }
     },
     "command.execute.before": makeCommandHook(client, handled),

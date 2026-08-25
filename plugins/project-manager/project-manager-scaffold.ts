@@ -115,11 +115,12 @@ export interface SwitchLine {
 }
 
 export interface ProjectSwitches {
-  autoAdvisorMode?: "off" | "lite" | "full" | "commented"
-  adrGuard?: "on" | "off" | "commented"
+  autoAdvisorMode?: "off" | "lite" | "full" | "default"
+  adrGuard?: "on" | "off" | "default"
   adrGuardDir?: string
-  envGuard?: "on" | "off" | "commented"
-  e2eGuard?: "on" | "off" | "commented"
+  adrMode?: "auto" | "flat" | "hierarchical" | "default"
+  envGuard?: "on" | "off" | "default"
+  e2eGuard?: "on" | "off" | "default"
 }
 
 /** Commented switch lines (`// "key": ...`) offered by the config template. */
@@ -141,7 +142,7 @@ export function contentHasKey(content: string, key: string): boolean {
 /**
  * Apply project switch settings to a JSONC config string (template or existing).
  * - active value ("lite", "on", etc.) → active line `"key": "value",`
- * - "commented" → commented line `// "key": "...",`
+ * - "default" → commented line `// "key": "...",`
  * - preserves indentation, comments, and remaining lines.
  */
 export function applySwitchesToConfigContent(
@@ -172,6 +173,11 @@ export function applySwitchesToConfigContent(
       defaultLine: `  // "adrGuardDir": "${switches.adrGuardDir ?? "docs/adr"}",  // ADR directory`,
     },
     {
+      key: "adrMode",
+      value: switches.adrMode,
+      defaultLine: '  // "adrMode": "auto",          // auto | flat | hierarchical — /adr mode <mode>',
+    },
+    {
       key: "envGuard",
       value: switches.envGuard,
       defaultLine: '  // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)',
@@ -190,16 +196,17 @@ export function applySwitchesToConfigContent(
     const lineRegex = new RegExp(`^(\\s*)(//\\s*)?("${escaped}"\\s*:\\s*)"([^"]*)"(.*)$`, "m")
     const match = lineRegex.exec(result)
 
+    const isDefault = entry.value === "default"
+
     if (match) {
       const indent = match[1] || "  "
       const prefix = match[3]
       const suffix = match[5]
-      const isCommented = entry.value === "commented"
-      const val = entry.value === "commented"
-        ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
+      const val = isDefault
+        ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrMode" ? "auto" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
         : entry.value
 
-      const newLine = isCommented
+      const newLine = isDefault
         ? `${indent}// ${prefix}"${val}"${suffix}`
         : `${indent}${prefix}"${val}"${suffix}`
       result = result.replace(match[0], newLine)
@@ -207,11 +214,10 @@ export function applySwitchesToConfigContent(
       // Key absent in existing content: append before closing brace
       const close = result.lastIndexOf("}")
       if (close >= 0) {
-        const isCommented = entry.value === "commented"
-        const val = isCommented
-          ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
+        const val = isDefault
+          ? (entry.key === "autoAdvisorMode" ? "lite" : entry.key === "adrMode" ? "auto" : entry.key === "adrGuardDir" ? (switches.adrGuardDir ?? "docs/adr") : "on")
           : entry.value
-        const line = isCommented
+        const line = isDefault
           ? `  // "${entry.key}": "${val}",`
           : `  "${entry.key}": "${val}",`
         result = result.slice(0, close) + line + eol + result.slice(close)
@@ -221,6 +227,7 @@ export function applySwitchesToConfigContent(
 
   return result
 }
+
 
 /** Read base template and apply the given switches. */
 export function generateConfigContent(switches: ProjectSwitches): string {

@@ -10,6 +10,7 @@
   // "autoAdvisorMode": "lite",  // off | lite | full — /auto-advisor <mode>
   // "adrGuard": "on",           // on | off          — /adr-guard <state>
   // "adrGuardDir": "docs/adr",  // ADR directory
+  // "adrMode": "auto",          // auto | flat | hierarchical — /adr mode <mode>
   // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)
   // "e2eGuard": "on",           // on | off — E2E quality red line: prompts LLM to assess diff impact on feat/fix tasks and interactively confirm with user via ask
 }

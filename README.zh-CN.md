@@ -525,6 +525,9 @@ bridge 附带的额外能力：
 | `/grill-me <topic>` | 逐题逼问式访谈，磨砺计划或设计 |
 | `/grill-with-docs <topic>` | 同 `/grill-me`，同时创建 `CONTEXT.md` 术语表和 ADR |
 | `/queued` | 管理排队提示 —— 交互式 TUI 对话框，查看 / 编辑 / 取消会话忙碌时提交的消息（详见 [管理排队提示](#管理排队提示queued)） |
+| `/md-to-pdf <file.md> [output.pdf]` | Markdown 一键转高清 A4 PDF，支持自然语言 `@filepath 转PDF`、`--doctor` 自检与 `--install-deps` 自动修复（详见 [文档导出与排版渲染](#文档导出与排版渲染md-to-pdf)） |
+| `/md-to-docx <file.md> [output.docx]` | Markdown 导出为出版级 Word (.docx)，支持中文字体排版、自动TOC、智能表格与代码美化（详见 [Word 文档排版与导出](#word-文档排版与导出md-to-docx)） |
+
 
 ### 示例：review-fix-loop
 
@@ -604,6 +607,8 @@ bridge 附带的额外能力：
 | `project-manager.ts` | `/project` 命令 + 提交纪律（见下文） |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示（见下文） |
 | `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project` TUI 弹窗向导（支持可视化配置各开关并在已有工程中回显） |
+| `md-to-pdf.ts` | `/md-to-pdf` 与 `md_to_pdf` —— Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
+| `md-to-docx.ts` | `/md-to-docx` 与 `md_to_docx` —— Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
 
 各插件使用的 OpenCode hook 与注册方式等内部细节，见 [DEVELOPING.md](DEVELOPING.md#plugin-system)。
 
@@ -628,9 +633,13 @@ bridge 附带的额外能力：
 ```jsonc
 {
   "adrGuard": "on",            // 全团队提交默认值
-  "adrGuardDir": "docs/adr"    // ADR 目录
+  "adrGuardDir": "docs/adr",   // ADR 目录
+  "adrMode": "auto"            // auto (自适应) | flat (单层) | hierarchical (分层)
 }
 ```
+
+支持 `/adr` 全套命令：`/adr new`、`/adr supersede`、`/adr tree`、`/adr check`、`/adr migrate` 与 `/adr mode`。
+
 
 ### 密钥文件门控（`env-guard`）
 
@@ -718,6 +727,24 @@ echo on > <project>/.opencode/.env-guard
 - 编辑立即写回存储；处理循环每一步都重读消息，所以轮到该消息时用的就是编辑后的文本。
 - 取消在会话空闲时直接删除消息。忙碌时 OpenCode 拒绝删除消息（409），插件改为清空该消息 —— 文本替换为墓碑说明、附件删除 —— 模型永远收不到原指令。
 - 仅 TUI 插件；headless 会话没有等价入口。
+
+### 文档导出与排版渲染（`md-to-pdf`）
+
+将 Markdown 文档（API 规范、ADR 方案、调研报告）一键导出为出版级高保真 A4 PDF。
+
+- **自然语言直接驱动**：发送 `@doc/api-v1.md 转PDF` 或 `帮我把 @README.md 导出为 PDF`，智能体自动提取路径并调用 `md_to_pdf` 工具完成生成。
+- **Slash 命令**：`/md-to-pdf README.md`（渲染为 PDF）、`/md-to-pdf --doctor`（自检）、`/md-to-pdf --install-deps`（自动安装修复依赖）。
+- **现代 A4 排版**：Pandoc GFM 转换 + 优雅 A4 页面与代码高亮 + 隔离 Node.js Playwright 矢量打印。
+
+### Word 文档排版与导出（`md-to-docx`）
+
+将 Markdown 文档一键导出为符合专业出版标准的中文 Word (`.docx`) 文档。
+
+- **自然语言直接驱动**：发送 `@docs/design.md 转word` 或 `将 @README.md 导出为 docx`，智能体自动调用 `md_to_docx` 工具。
+- **Slash 命令**：`/md-to-docx README.md`（渲染为 DOCX）、`/md-to-docx --doctor`（自检）、`/md-to-docx --install-deps`（自动补齐依赖）。
+- **出版级中文排版**：标准宋体/黑体样式 + A4 页边距 + 自动中文化 TOC 目录与点线对齐 + 100% 满宽自适应美化表格（深蓝底纹表头）+ 代码块高亮与浅灰底框 + 图片智能校准与高清转换。
+
+
 
 ---
 

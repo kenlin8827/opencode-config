@@ -106,7 +106,7 @@ export function isEnabled(): boolean {
   return getState() === "on"
 }
 
-// ─── ADR directory ───────────────────────────────────────────────────
+// ─── ADR directory & Hierarchy Mode ─────────────────────────────────
 
 export const DEFAULT_ADR_DIR = "docs/adr"
 
@@ -119,9 +119,66 @@ export function getAdrDir(): string {
   return DEFAULT_ADR_DIR
 }
 
+export type AdrMode = "auto" | "flat" | "hierarchical"
+
+const VALID_MODES = new Set<string>(["auto", "flat", "hierarchical"])
+const MODE_FIELD = "adrMode"
+const DEFAULT_MODE: AdrMode = "auto"
+
+const MODE_ALIASES: Record<string, AdrMode> = {
+  // auto
+  auto: "auto",
+  a: "auto",
+  smart: "auto",
+  default: "auto",
+
+  // flat
+  flat: "flat",
+  f: "flat",
+  single: "flat",
+  s: "flat",
+  linear: "flat",
+
+  // hierarchical
+  hierarchical: "hierarchical",
+  hierarchy: "hierarchical",
+  h: "hierarchical",
+  tree: "hierarchical",
+  t: "hierarchical",
+  nested: "hierarchical",
+  multi: "hierarchical",
+  levels: "hierarchical",
+  l: "hierarchical",
+}
+
+export function normalizeAdrMode(mode: unknown): AdrMode | null {
+  if (typeof mode !== "string") return null
+  const s = mode.trim().toLowerCase()
+  return MODE_ALIASES[s] ?? null
+}
+
+export function getAdrMode(): AdrMode {
+  const cfg = readProjectConfig()
+  const m = normalizeAdrMode(cfg?.adrMode)
+  return m ?? DEFAULT_MODE
+}
+
+export function setAdrMode(mode: AdrMode): boolean {
+  const normalized = normalizeAdrMode(mode)
+  if (!normalized) return false
+  return setConfigField(MODE_FIELD, normalized)
+}
+
+
+export function clearAdrMode(): boolean {
+  return clearConfigField(MODE_FIELD)
+}
+
+
 // ─── Command ─────────────────────────────────────────────────────────
 
 export const COMMAND_NAME = "adr-guard"
+export const ADR_COMMAND = "adr"
 
 /**
  * Parse the first argument of an `/adr-guard <state>` call. Returns null if
@@ -145,3 +202,4 @@ export function parseResetArg(args: unknown): boolean {
   const first = args.trim().split(/\s+/)[0]?.toLowerCase()
   return RESET_ALIASES.includes(first)
 }
+

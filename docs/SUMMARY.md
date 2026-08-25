@@ -10,6 +10,8 @@
   * [工作流斜杠命令](docs/zh/workflows/commands.md)
   * [Auto-advisor 模式](docs/zh/workflows/auto-advisor.md)
   * [插件系统与项目护栏](docs/zh/workflows/plugins.md)
+  * [ADR 活化架构与升级指南](docs/zh/workflows/adr-upgrade-guide.md)
 * [安装进阶与运维 (Maintenance)](docs/zh/maintenance/options.md)
   * [安装器选项与进阶配置](docs/zh/maintenance/options.md)
   * [常见问题与排查 FAQ](docs/zh/maintenance/faq.md)
+
