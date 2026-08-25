@@ -19,7 +19,11 @@ OpenCode Multi-Agent ships with a suite of high-leverage workflow slash commands
 | `/project sync` | Config top-up only: appends template comment switches that the existing `.opencode/opencode.jsonc` lacks |
 | `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
+| `/prd <topic>` | Scaffold & draft Product Requirements Document in `docs/prd/` |
 | `/adr [new\|supersede\|tree\|check\|mode]` | Architecture Decision Record management: scaffold templates, supersede lifecycle, render DAGs, audit links, and configure hierarchy modes |
+| `/plan <topic>` | Scaffold & draft phased Implementation Plan in `docs/plan/` |
+| `/impl [task]` | Execute code implementation and verification following specifications |
+| `/sdd [status\|help]` | Specification-Driven Development lifecycle navigator (`/prd` → `/adr` → `/plan` → `/impl`) |
 | `/adr-guard [on\|off\|status]` | Toggle the project-level ADR commit iron law gate for `feat`/`refactor` commits |
 | `/md-to-pdf <file.md> [output.pdf] [--style=custom.css]` | Export Markdown documents to high-quality A4 PDFs. Supports 300 DPI Mermaid diagrams, CSS stylesheets, `.opencode/md-to-pdf.css`, `--doctor` diagnostics & `--install-deps` auto-repair |
 | `/md-to-docx <file.md> [output.docx] [--style=custom.css]` | Export Markdown documents to publication-quality Executive Word (.docx). Supports pure TS engine, dual Chinese-Western fonts, Mermaid diagrams, CSS styling, `.opencode/md-to-docx.css`, `--doctor` & `--install-deps` |

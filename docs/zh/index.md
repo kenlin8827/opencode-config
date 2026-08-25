@@ -28,6 +28,8 @@ features:
     details: 17 位垂直领域专家（Java、Go、前端、DBA、安全等）随调随用，@code / @build / @plan 模式自适应切换。
   - title: 🔄 质量与自动化闭环
     details: /review-fix-loop 审查修复闭环、Red-team 对抗式架构评估、rtk 60-90% Token 压缩代理。
+  - title: 📐 规范驱动开发 (SDD)
+    details: PRD 需求规格 → ADR 架构决策 → PLAN 实施计划 → IMPL 编码验证全链路闭环，支持任意阶段起手与交互式跳级流转。
   - title: 🎯 一键分层模型治理
     details: /profile 一键统一调配 5 大模型层级，支持 DeepSeek、Kimi、Claude、Gemini 及自建网关，告别逐个繁琐配置。
   - title: ⚡ 10 秒开箱即用

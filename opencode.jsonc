@@ -9,7 +9,8 @@
     "~/.config/opencode/instructions/output-protocol.md",
     "instructions/test-scope.md",
     "instructions/rfc-keywords.md",
-    "instructions/coding-principles.md"
+    "instructions/coding-principles.md",
+    "instructions/sdd-principles.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-codex-bridge, opencode-claude-bridge, opencode-mem, etc.) are

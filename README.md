@@ -52,6 +52,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 - [Part III: Advanced Workflows & Governance](#part-iii-advanced-workflows--governance)
   - [Workflow Slash Commands](#workflow-slash-commands)
     - [Command Overview Table](#workflow-slash-commands)
+    - [Specification-Driven Development (SDD)](#specification-driven-development-sdd)
     - [Example: review-fix-loop automated cycle](#example-review-fix-loop)
   - [Auto-advisor mode](#auto-advisor-mode)
     - [Mode Overview & Switching](#auto-advisor-mode)
@@ -521,11 +522,39 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 | `/project init` | Scaffold project baseline files — creates `.opencode/opencode.jsonc`, `docs/git-commits.md`, `AGENTS.md` ONLY when missing (never overwrites); existing project configs get append-only top-ups for template switches added after init; then runs first-time backend init (only when CLI installed + enabled): `codegraph init`, `gitnexus analyze` when index is missing. Commit discipline is active while `docs/git-commits.md` exists (see "Commit discipline" below) |
 | `/project index` | Manually refresh existing indexes: `codegraph sync` (catches up on changes while watcher wasn't running), `gitnexus analyze` re-indexing when stale. Refresh-only, never creates first-time index (that belongs to `/project init`); skipped with a report if CLI is not installed |
 | `/project sync` | Config top-up only: appends template comment switches that the existing `.opencode/opencode.jsonc` lacks (append-only, never touches existing content; prompts `/project init` if missing) |
+| `/prd <topic>` | Scaffold & draft Product Requirements Document in `docs/prd/` (see [Specification-Driven Development (SDD)](#specification-driven-development-sdd)) |
+| `/adr [new\|supersede\|tree\|check\|mode]` | Architecture Decision Record management: scaffold templates, supersede lifecycle, render DAGs, audit links, and configure hierarchy modes (see [ADR iron law](#adr-iron-law-adr-guard)) |
+| `/plan <topic>` | Scaffold & draft phased Implementation Plan in `docs/plan/` |
+| `/impl [task]` | Execute code implementation and verification following specifications |
+| `/sdd [status\|help]` | Specification-Driven Development lifecycle navigator (`/prd` → `/adr` → `/plan` → `/impl`) |
 | `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
 | `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
 | `/md-to-pdf <file.md> [output.pdf]` | Export Markdown documents to high-quality A4 PDFs. Supports natural language `@filepath to PDF`, `--doctor` diagnostics & `--install-deps` auto-repair (see [Document Export & Typography](#document-export--typography-md-to-pdf)) |
 | `/md-to-docx <file.md> [output.docx]` | Export Markdown documents to publication-quality Word (.docx) documents. Supports Chinese typography, auto TOC, styled tables, code blocks, `--doctor` & `--install-deps` (see [Word Document Export & Typography](#word-document-export--typography-md-to-docx)) |
+
+---
+
+## Specification-Driven Development (SDD)
+
+Specification-Driven Development (SDD) establishes a structured, specification-first engineering workflow:
+
+$$\text{PRD (Requirements)} \longrightarrow \text{ADR (Architecture)} \longrightarrow \text{PLAN (Implementation Plan)} \longrightarrow \text{IMPL (Code & Verification)}$$
+
+### Key Capabilities
+
+1. **Flexible Entry Points**:
+   - Requirements & User Stories $\to$ `/prd <feature>` creates `docs/prd/PRD-<feature>.md`
+   - Architecture & Tech Decisions $\to$ `/adr <decision>` creates `docs/adr/` records
+   - Task Decomposition $\to$ `/plan <feature>` creates `docs/plan/PLAN-<feature>.md`
+   - Direct Execution $\to$ `/impl <task>` test-driven implementation
+2. **Interactive Stage Transitions (Ask Tool)**:
+   - At the completion of each phase, the agent interactively prompts for the next step, providing **Recommended Next Stage** (e.g. `/prd` $\to$ `/adr`), **Direct Jump** (e.g. `/prd` $\to$ `/impl`), **Backtracking**, or **Finish**.
+3. **Relationship with Standalone ADR Governance (`adr-guard`)**:
+   - **`adr-guard` (Specialized Architecture Engine)**: Independently manages `/adr new`, `/adr supersede`, `/adr tree`, `/adr check`, flat/hierarchical modes, and the Git commit gate.
+   - **`sdd` (Lifecycle Orchestrator)**: Bridges PRD requirements into ADR decision drivers, and automatically links recent ADRs into implementation plans.
+
+---
 
 
 ### Example: review-fix-loop
