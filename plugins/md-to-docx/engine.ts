@@ -19,15 +19,9 @@ export interface DocxConversionResult {
   fileSizeBytes: number
 }
 
-export function getProjectLogDir(projectDir: string = process.cwd()): string {
-  const dir = join(projectDir, ".opencode", "logs")
-  if (!existsSync(dir)) {
-    try {
-      mkdirSync(dir, { recursive: true })
-    } catch {}
-  }
-  return dir
-}
+import { getProjectLogDir } from "../shared/opencode-config"
+
+export { getProjectLogDir }
 
 export function writeErrorLog(
   action: string,

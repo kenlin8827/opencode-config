@@ -22,7 +22,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { CONFIG_REL, resolveTarget, type ScaffoldTarget } from "./project-manager-config"
+import { ensureOpencodeGitignore } from "../shared/opencode-config"
+import { CONFIG_REL, getProjectDir, resolveTarget, type ScaffoldTarget } from "./project-manager-config"
 
 // ─── Templates ───────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ export interface ScaffoldResult {
   status: ScaffoldStatus
 }
 
+export { ensureOpencodeGitignore }
+
 /**
  * Run `/project init`: create each missing target file. Existing files are
  * never overwritten — EXCEPT the project config, which gets an append-only
@@ -80,6 +83,7 @@ export interface ScaffoldResult {
  * (command hook reports them to the user).
  */
 export function runInit(): ScaffoldResult[] {
+  ensureOpencodeGitignore()
   const results: ScaffoldResult[] = []
   for (const relPath of Object.keys(TEMPLATE_FILES) as ScaffoldTarget[]) {
     const absPath = resolveTarget(relPath)
@@ -242,6 +246,7 @@ export function generateConfigContent(switches: ProjectSwitches): string {
  * Also scaffolds docs/git-commits.md and AGENTS.md.
  */
 export function runInitWithSwitches(switches: ProjectSwitches): ScaffoldResult[] {
+  ensureOpencodeGitignore()
   const results: ScaffoldResult[] = []
   for (const relPath of Object.keys(TEMPLATE_FILES) as ScaffoldTarget[]) {
     const absPath = resolveTarget(relPath)

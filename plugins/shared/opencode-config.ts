@@ -303,3 +303,44 @@ export function clearConfigField(field: string): boolean {
     return false
   }
 }
+
+// ─── Project Log & Gitignore Utilities ────────────────────────────────
+
+/**
+ * Automatically ensures `<project>/.opencode/.gitignore` exists to ignore logs and runtime artifacts.
+ * If `.gitignore` already exists, ensures `logs/` and `*.log` are present.
+ */
+export function ensureOpencodeGitignore(root: string = getProjectDir()): void {
+  const opencodeDir = join(root, ".opencode")
+  try {
+    if (!existsSync(opencodeDir)) {
+      mkdirSync(opencodeDir, { recursive: true })
+    }
+    const gitignorePath = join(opencodeDir, ".gitignore")
+    const defaultIgnore = "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\nlogs/\n*.log\n"
+    if (!existsSync(gitignorePath)) {
+      writeFileSync(gitignorePath, defaultIgnore, "utf-8")
+    } else {
+      const content = readFileSync(gitignorePath, "utf-8")
+      if (!content.includes("logs")) {
+        writeFileSync(gitignorePath, content.trimEnd() + "\nlogs/\n*.log\n", "utf-8")
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Resolves `<project>/.opencode/logs` directory, creating it and ensuring
+ * `.opencode/.gitignore` is configured automatically.
+ */
+export function getProjectLogDir(root: string = getProjectDir()): string {
+  const dir = join(root, ".opencode", "logs")
+  try {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+    ensureOpencodeGitignore(root)
+  } catch {}
+  return dir
+}
+
