@@ -24,7 +24,8 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-manager.ts` | `/project` command + commit discipline |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy |
 | `profile-wizard.ts`, `provider-wizard.ts` | `/profile` and `/provider` TUI dialog wizards |
-| `md-to-pdf.ts` | `/pdf`, `/md-to-pdf` commands & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
+| `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
+| `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
 
 ---
 
@@ -167,7 +168,7 @@ OpenCode persists prompts submitted while busy as user messages. The bundled `qu
 
 ---
 
-## Document Export & Typography (`md-to-pdf` & `/pdf`)
+## Document Export & Typography (`md-to-pdf` & `/md-to-pdf`)
 
 Export project Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
 
@@ -176,12 +177,47 @@ Export project Markdown documents (API specs, ADR proposals, research briefs) in
 - **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
 - **Deterministic Slash Commands**:
   ```text
-  /pdf README.md                         # Render to README.pdf
-  /pdf doc/api-v1.md dist/api-v1.pdf     # Custom output path
-  /pdf --doctor                          # Check Pandoc and Playwright health
-  /pdf --install-deps                    # Auto-install missing dependencies
+  /md-to-pdf README.md                         # Render to README.pdf
+  /md-to-pdf doc/api-v1.md dist/api-v1.pdf     # Custom output path
+  /md-to-pdf --doctor                          # Check Pandoc and Playwright health
+  /md-to-pdf --install-deps                    # Auto-install missing dependencies
   ```
 - **Modern Typography & Printing**:
   - **Pandoc Parser**: Standalone HTML5 with syntax highlighting and asset embedding.
   - **Refined A4 Styles**: GitHub-flavored typography, code blocks, borders, and margins.
   - **Playwright Headless Print**: Isolated Node runner printing high-fidelity vector PDFs in milliseconds.
+
+---
+
+## Word Document Export & Typography (`md-to-docx` & `/md-to-docx`)
+
+Export project Markdown documents (technical designs, requirements, ADRs, meeting summaries) into publication-ready, styled Executive Word (`.docx`) files.
+
+### Capabilities
+
+- **Natural Language Steered**: Mention `@docs/design.md convert to word` or `Export @README.md to docx`, and agents automatically invoke the `md_to_docx` tool.
+- **Deterministic Slash Commands**:
+  ```text
+  /md-to-docx README.md                                    # Render to README.docx
+  /md-to-docx docs/design.md dist/design.docx              # Custom output path
+  /md-to-docx doc/whitepaper.md --style=custom-theme.css   # Custom CSS stylesheet
+  /md-to-docx --doctor                                     # Check Pandoc and Playwright status
+  /md-to-docx --install-deps                               # Auto-provision missing packages
+  ```
+- **Pure TypeScript Architecture**: 100% pure TS/Node.js implementation with zero Python dependencies, utilizing OpenXML manipulation via `@xmldom/xmldom` & `adm-zip`.
+- **100% Parameterized CSS Styling**:
+  - Full control over page geometry, typography, palette, table zebra striping, and code cards via CSS variables and selector rules.
+  - Project-level exclusive styling via `.opencode/md-to-docx.css` and template via `.opencode/md-to-docx.docx`.
+- **Mermaid Publication Diagram System**:
+  - **Zero-latency Offline Rendering**: Built-in bundled offline Mermaid engine, eliminating network delays and CDN outages.
+  - **Retina 300+ DPI & 100% Width Expansion**: Generates crystal-clear high-res PNGs scaled proportionally to fill full content width.
+  - **Harmonious Modern Light Blue Theme**: Eliminates black boxes/artifacts across all diagram types (Flowcharts, State Machines, Sequence Diagrams, ER Diagrams, Class Diagrams).
+  - **100% Dynamic CSS Driven**: All diagram colors, typography, and borders dynamically derived from `--mermaid-*` CSS variables.
+- **Executive Publication Typography**:
+  - **Biphasic Typography**: Standard dual-font system for Western (Times New Roman / Segoe UI) and East Asian (SimSun / SimHei / Microsoft YaHei) with standard 10.5pt (No. 5) body sizing.
+  - **Executive Palette**: Royal Deep Navy headers (#1E3A8A), Charcoal slate body text (#1E293B), subtle ice tint zebra stripes (#F8FAFC).
+  - **Adaptive Tables**: Full-width layout, content-based column width calculation, compact header row height (0.74cm), and cleared paragraph margins.
+  - **Code Blocks**: Card styling with Cascadia Code (9.5pt), light gray background (#F8FAFC), and subtle borders.
+
+
+

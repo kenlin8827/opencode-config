@@ -524,7 +524,9 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 | `/grill-me <topic>` | Socratic interview that pressure-tests a plan or design |
 | `/grill-with-docs <topic>` | Same as `/grill-me`, plus creates a `CONTEXT.md` glossary and ADR |
 | `/queued` | Manage queued prompts — interactive TUI dialog to view, edit, or cancel messages submitted while the session was busy (see [Managing queued prompts](#managing-queued-prompts-queued)) |
-| `/pdf <file.md> [output.pdf]` | Export Markdown documents to high-quality A4 PDFs. Supports natural language `@filepath to PDF`, `--doctor` diagnostics & `--install-deps` auto-repair (see [Document Export & Typography](#document-export--typography-md-to-pdf)) |
+| `/md-to-pdf <file.md> [output.pdf]` | Export Markdown documents to high-quality A4 PDFs. Supports natural language `@filepath to PDF`, `--doctor` diagnostics & `--install-deps` auto-repair (see [Document Export & Typography](#document-export--typography-md-to-pdf)) |
+| `/md-to-docx <file.md> [output.docx]` | Export Markdown documents to publication-quality Word (.docx) documents. Supports Chinese typography, auto TOC, styled tables, code blocks, `--doctor` & `--install-deps` (see [Word Document Export & Typography](#word-document-export--typography-md-to-docx)) |
+
 
 ### Example: review-fix-loop
 
@@ -604,7 +606,9 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-manager.ts` | `/project` command + commit discipline (see below) |
 | `queue-manager.ts` | `/queued` command — manage prompts queued while the session is busy (see below) |
 | `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project` TUI dialog wizards (interactive switch configuration & re-entrant echo) |
-| `md-to-pdf.ts` | `/pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
+| `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
+| `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
+
 
 For hook-level internals (which OpenCode hooks each plugin uses, registration patterns), see [DEVELOPING.md](DEVELOPING.md#plugin-system).
 
@@ -717,21 +721,30 @@ When you submit prompts while the session is busy, OpenCode persists them immedi
 
 **Usage**: `/queued` (or command palette → "Manage queued messages") opens a select dialog listing every queued message (preview + age). Picking one opens a per-message menu — **Edit text**, **Cancel message**, **View full text** — and the list also offers a **Cancel ALL** bulk action.
 
-### Document Export & Typography (`md-to-pdf`)
-
-Export Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
-
-- **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
-- **Slash Commands**: `/pdf README.md` (renders PDF), `/pdf --doctor` (diagnostics), `/pdf --install-deps` (auto-repair dependencies).
-- **Refined Typography & Printing**: Pandoc GFM parsing + A4 layout styles + isolated Node.js Playwright printing.
-
-
 **Key behavior**:
 
 - The "queue" is computed from the session history: every user message that has no assistant reply yet, minus internal messages (compaction, subtask) and plugin feedback.
 - Edits are written back to storage immediately; the processing loop re-reads messages every step, so the edited text is what gets used when the message's turn arrives.
 - Cancel deletes the message outright when the session is idle. While busy, OpenCode refuses message deletion (409), so the plugin strips the message instead — its text becomes a tombstone note and attachments are removed — the model never receives the original instruction.
 - TUI-only plugin; headless sessions have no equivalent.
+
+### Document Export & Typography (`md-to-pdf`)
+
+Export Markdown documents (API specs, ADR proposals, research briefs) into publication-ready, styled A4 PDFs.
+
+- **Natural Language Steered**: Type `@doc/api-v1.md to PDF` or `Export @README.md as PDF`, and agents automatically call `md_to_pdf` to render and attach the result.
+- **Slash Commands**: `/md-to-pdf README.md` (renders PDF), `/md-to-pdf --doctor` (diagnostics), `/md-to-pdf --install-deps` (auto-repair dependencies).
+- **Refined Typography & Printing**: Pandoc GFM parsing + A4 layout styles + isolated Node.js Playwright printing.
+
+### Word Document Export & Typography (`md-to-docx`)
+
+Export Markdown documents into publication-ready, styled Word (`.docx`) files.
+
+- **Natural Language Steered**: Mention `@docs/design.md convert to word` or `Export @README.md to docx`, and agents automatically invoke the `md_to_docx` tool.
+- **Slash Commands**: `/md-to-docx README.md` (renders DOCX), `/md-to-docx --doctor` (diagnostics), `/md-to-docx --install-deps` (auto-provision packages).
+- **Publication Typography**: SongTi/HeiTi styles + A4 margins + auto localized TOC + 100% full-width adaptive tables (dark blue header) + monospace code blocks + image calibration.
+
+
 
 ---
 
