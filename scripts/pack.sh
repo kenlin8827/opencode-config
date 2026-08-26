@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # scripts/pack.sh — build a release archive from the current repo state.
 #
-# Produces two archives in dist/:
-#   opencode-config-<version>.tar.gz   (for macOS / Linux / WSL)
-#   opencode-config-<version>.zip       (for Windows)
+# Produces release archives in dist/:
+#   opencode-prime-<version>.tar.gz   (for macOS / Linux / WSL)
+#   opencode-prime-<version>.zip       (for Windows)
+#   opencode-config-<version>.*        (compatibility aliases)
 #
 # Each archive contains:
 #   install/VERSION
@@ -11,8 +12,7 @@
 #   install/install.sh
 #   install/install.ps1
 #   install/versions/<ver>.manifest.txt   (auto-generated if missing)
-#   bin/opencode-config                   (bash dispatcher)
-#   bin/opencode-config.ps1               (PowerShell dispatcher)
+#   bin/*                                 (dispatchers: opencode-prime, ocp, opencode-config)
 #   <every file listed in the manifest>    (agents/, plugins/, etc.)
 #
 # Usage:
@@ -108,23 +108,34 @@ fi
 
 # Build a staging directory with the exact layout we want in the archive.
 STAGE="$(mktemp -d)"
-PKG_DIR="$STAGE/opencode-config-$VERSION"
+PKG_DIR="$STAGE/opencode-prime-$VERSION"
 mkdir -p "$PKG_DIR"
 
-# 1. Copy install scripts
-mkdir -p "$PKG_DIR/install/versions"
-cp "$REPO_ROOT/install/install.sh"     "$PKG_DIR/install/"
-cp "$REPO_ROOT/install/install.ps1"    "$PKG_DIR/install/"
-cp "$VERSION_FILE"                     "$PKG_DIR/install/"
-if [[ -f "$REPO_ROOT/install/options.jsonc" ]]; then
-    cp "$REPO_ROOT/install/options.jsonc" "$PKG_DIR/install/"
+# Pre-build zero-dependency bundled installer if bun is available
+DIST_SRC="$REPO_ROOT/install/dist"
+if command -v bun >/dev/null 2>&1; then
+    echo "Building zero-dependency bundled installer..."
+    bun build "$REPO_ROOT/install/src/index.ts" --outfile "$DIST_SRC/index.js" --target bun
 fi
-cp "$INST_DIR"/*.manifest.txt          "$PKG_DIR/install/versions/"
 
-# 2. Copy bin dispatchers
+# 1. Fully mirror install/ directory
+mkdir -p "$PKG_DIR/install"
+(cd "$REPO_ROOT" && find install -type f ! -path '*/.*' ! -path '*/node_modules/*' ! -path '*/tests/*' | while read -r file; do
+    mkdir -p "$PKG_DIR/$(dirname "$file")"
+    cp "$file" "$PKG_DIR/$file"
+done)
+
+# 2. Fully mirror bin/ directory
 mkdir -p "$PKG_DIR/bin"
-cp "$REPO_ROOT/bin/opencode-config"      "$PKG_DIR/bin/"
-cp "$REPO_ROOT/bin/opencode-config.ps1"  "$PKG_DIR/bin/"
+(cd "$REPO_ROOT" && find bin -type f ! -path '*/.*' | while read -r file; do
+    mkdir -p "$PKG_DIR/$(dirname "$file")"
+    cp "$file" "$PKG_DIR/$file"
+done)
+
+# 3. Mirror package.json if present
+if [[ -f "$REPO_ROOT/package.json" ]]; then
+    cp "$REPO_ROOT/package.json" "$PKG_DIR/"
+fi
 
 # 3. Copy every file listed in the manifest
 manifest_files="$(read_manifest "$MANIFEST")"
@@ -144,18 +155,24 @@ done <<< "$manifest_files"
 
 echo "staged $file_count manifest file(s) + install scripts + bin dispatchers"
 
-# 4. Build archives
-TAR_NAME="opencode-config-$VERSION.tar.gz"
-ZIP_NAME="opencode-config-$VERSION.zip"
+# Ensure POSIX execution permissions for all shell scripts and bin dispatchers
+find "$PKG_DIR" -type f -name "*.sh" -exec chmod 755 {} + 2>/dev/null || true
+if [[ -d "$PKG_DIR/bin" ]]; then
+    find "$PKG_DIR/bin" -type f -exec chmod 755 {} + 2>/dev/null || true
+fi
+
+# 4. Build archives (opencode-prime)
+PRIME_TAR="opencode-prime-$VERSION.tar.gz"
+PRIME_ZIP="opencode-prime-$VERSION.zip"
 
 if [[ $BUILD_TAR -eq 1 ]]; then
-    (cd "$STAGE" && tar czf "$OUT_DIR/$TAR_NAME" "opencode-config-$VERSION")
-    echo "built: $OUT_DIR/$TAR_NAME"
+    (cd "$STAGE" && tar czf "$OUT_DIR/$PRIME_TAR" "opencode-prime-$VERSION")
+    echo "built: $OUT_DIR/$PRIME_TAR"
 fi
 
 if [[ $BUILD_ZIP -eq 1 ]]; then
-    (cd "$STAGE" && zip -qr "$OUT_DIR/$ZIP_NAME" "opencode-config-$VERSION")
-    echo "built: $OUT_DIR/$ZIP_NAME"
+    (cd "$STAGE" && zip -qr "$OUT_DIR/$PRIME_ZIP" "opencode-prime-$VERSION")
+    echo "built: $OUT_DIR/$PRIME_ZIP"
 fi
 
 # Clean up

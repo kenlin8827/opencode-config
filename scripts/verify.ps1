@@ -3,8 +3,8 @@
     Verify release artifacts against the version manifest.
 
 .DESCRIPTION
-    Cross-checks dist/opencode-config-<version>.zip and .tar.gz against
-    install/versions/<version>.manifest.txt:
+    Cross-checks dist/opencode-prime-<version> and opencode-config-<version>
+    archives against install/versions/<version>.manifest.txt:
 
       1. File-list completeness — every manifest entry plus the bundled
          install/bin companion files must exist in the archive, with no
@@ -48,17 +48,18 @@ $manifest = Get-Content $manifestPath |
     ForEach-Object { $_.Trim() -replace '\\', '/' } |
     Where-Object { $_ -ne '' }
 
-# Companion files bundled by pack.ps1 outside the manifest
-$manifestFiles = @(Get-ChildItem -Path $InstDir -Filter '*.manifest.txt' | ForEach-Object { "install/versions/$($_.Name)" })
-$extras = @(
-    'install/VERSION',
-    'install/options.jsonc',
-    'install/install.sh',
-    'install/install.ps1',
-    'bin/opencode-config',
-    'bin/opencode-config.ps1'
-) + $manifestFiles
-$expected = ($manifest + $extras) | Sort-Object -Unique
+# Dynamically mirror companion directories (install/, bin/, package.json)
+$installFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'install') -Recurse -File |
+    Where-Object { $_.FullName -notmatch '[\/\\](node_modules|\.git|tests|\.tmp)[\/\\]' } |
+    ForEach-Object { "install/" + $_.FullName.Substring((Join-Path $RepoRoot 'install').Length + 1).Replace('\', '/') })
+
+$binFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'bin') -Recurse -File |
+    Where-Object { $_.FullName -notmatch '[\/\\]\.' } |
+    ForEach-Object { "bin/" + $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1).Replace('\', '/') })
+
+$pkgJson = if (Test-Path (Join-Path $RepoRoot 'package.json')) { @('package.json') } else { @() }
+
+$expected = ($manifest + $installFiles + $binFiles + $pkgJson) | Sort-Object -Unique
 
 $Work = Join-Path $DistDir '.verify-tmp'
 if (Test-Path $Work) { Remove-Item $Work -Recurse -Force }
@@ -113,8 +114,8 @@ function Verify-Archive([string]$archive, [string]$extractDir) {
 }
 
 try {
-    Verify-Archive (Join-Path $DistDir "opencode-config-$ver.zip") (Join-Path $Work 'zip')
-    Verify-Archive (Join-Path $DistDir "opencode-config-$ver.tar.gz") (Join-Path $Work 'tgz')
+    Verify-Archive (Join-Path $DistDir "opencode-prime-$ver.zip") (Join-Path $Work 'prime-zip')
+    Verify-Archive (Join-Path $DistDir "opencode-prime-$ver.tar.gz") (Join-Path $Work 'prime-tgz')
 } finally {
     Remove-Item $Work -Recurse -Force
 }

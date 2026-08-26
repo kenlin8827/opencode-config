@@ -8,7 +8,7 @@
  * (existing content byte-preserved; reported as "updated").
  *
  * Targets (relative to the project directory):
- *   .opencode/opencode.jsonc — project-level OpenCode config stub; when it
+ *   .opencode/opencode.jsonc — project-level OpenCode Prime stub; when it
  *                               already exists, an append-only top-up adds
  *                               switch lines the template gained since init
  *   docs/git-commits.md      — conventional-commit convention for the repo
@@ -161,37 +161,37 @@ export function applySwitchesToConfigContent(
     value?: string
     defaultLine: string
   }> = [
-    {
-      key: "autoAdvisorMode",
-      value: switches.autoAdvisorMode,
-      defaultLine: '  // "autoAdvisorMode": "lite",  // off | lite | full — /auto-advisor <mode>',
-    },
-    {
-      key: "adrGuard",
-      value: switches.adrGuard,
-      defaultLine: '  // "adrGuard": "on",           // on | off          — /adr-guard <state>',
-    },
-    {
-      key: "adrGuardDir",
-      value: switches.adrGuardDir,
-      defaultLine: `  // "adrGuardDir": "${switches.adrGuardDir ?? "docs/adr"}",  // ADR directory`,
-    },
-    {
-      key: "adrMode",
-      value: switches.adrMode,
-      defaultLine: '  // "adrMode": "auto",          // auto | flat | hierarchical — /adr mode <mode>',
-    },
-    {
-      key: "envGuard",
-      value: switches.envGuard,
-      defaultLine: '  // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)',
-    },
-    {
-      key: "e2eGuard",
-      value: switches.e2eGuard,
-      defaultLine: '  // "e2eGuard": "on",           // on | off — E2E quality red line: prompts LLM to assess diff impact on feat/fix tasks and interactively confirm with user via ask',
-    },
-  ]
+      {
+        key: "autoAdvisorMode",
+        value: switches.autoAdvisorMode,
+        defaultLine: '  // "autoAdvisorMode": "lite",  // off | lite | full — /auto-advisor <mode>',
+      },
+      {
+        key: "adrGuard",
+        value: switches.adrGuard,
+        defaultLine: '  // "adrGuard": "on",           // on | off          — /adr-guard <state>',
+      },
+      {
+        key: "adrGuardDir",
+        value: switches.adrGuardDir,
+        defaultLine: `  // "adrGuardDir": "${switches.adrGuardDir ?? "docs/adr"}",  // ADR directory`,
+      },
+      {
+        key: "adrMode",
+        value: switches.adrMode,
+        defaultLine: '  // "adrMode": "auto",          // auto | flat | hierarchical — /adr mode <mode>',
+      },
+      {
+        key: "envGuard",
+        value: switches.envGuard,
+        defaultLine: '  // "envGuard": "on",           // on | off — blocks agent access to secret .env* files (.env.example exempt)',
+      },
+      {
+        key: "e2eGuard",
+        value: switches.e2eGuard,
+        defaultLine: '  // "e2eGuard": "on",           // on | off — E2E quality red line: prompts LLM to assess diff impact on feat/fix tasks and interactively confirm with user via ask',
+      },
+    ]
 
   for (const entry of switchEntries) {
     if (entry.value === undefined) continue

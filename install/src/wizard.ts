@@ -352,13 +352,9 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
   const status = executeStatus(repoDir);
   const installedVer = status.installedVersion;
   if (installedVer) {
-    if (installedVer !== version) {
-      p.log.step(`🚀 ${t.versionUpgradePrompt}: v${installedVer} ➔ v${version}  (Target: ${status.targetDir})`);
-    } else {
-      p.log.step(`🔄 ${t.versionReapplyPrompt}: v${version}  (Target: ${status.targetDir})`);
-    }
+    p.log.step(`🚀 ${t.installedNote.replace('{version}', installedVer).replace('{target}', status.targetDir)}`);
   } else {
-    p.log.step(`✨ ${t.versionFreshPrompt}: v${version}  (Target: ${status.targetDir})`);
+    p.log.step(`✨ ${t.notInstalledNote.replace('{target}', status.targetDir)}`);
   }
 
   while (true) {

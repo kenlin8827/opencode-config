@@ -44,8 +44,18 @@ export function backupTargetDir(targetDir: string): string | null {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backupDir = `${targetDir}.bak.${timestamp}`;
 
-  fs.cpSync(targetDir, backupDir, { recursive: true });
-  return backupDir;
+  try {
+    fs.cpSync(targetDir, backupDir, {
+      recursive: true,
+      filter: (source) => {
+        const base = path.basename(source);
+        return base !== 'node_modules' && base !== '.git' && !base.startsWith('.bak');
+      },
+    });
+    return backupDir;
+  } catch (err) {
+    return null;
+  }
 }
 
 export function copyRepoFiles(repoDir: string, targetDir: string, files: string[]): number {

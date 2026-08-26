@@ -51,7 +51,7 @@ function assertEq(actual: unknown, expected: unknown, label: string) {
 }
 
 // Fake plugin client — only app.log is used by the guard.
-const fakeClient = { app: { log: async () => {} } } as any
+const fakeClient = { app: { log: async () => { } } } as any
 
 async function expectThrow(fn: () => Promise<unknown>, label: string) {
   try {
@@ -214,7 +214,7 @@ assertEq(getState(), "off", "back to default after clearing")
 rmSync(join(tmp, "opencode.jsonc"))
 assert(setState("on"), "setState succeeds without any config file")
 const created = readFileSync(join(tmp, ".opencode", "opencode.jsonc"), "utf-8")
-assert(created.includes("Project-level OpenCode configuration"), "created from the project template")
+assert(created.includes("Project-level OpenCode Configuration"), "created from the project template")
 assert(created.includes('\n  "envGuard": "on"'), "template bootstrapped with the switch active")
 assert(created.includes('// "adrGuard":'), "other switches stay commented in the bootstrapped config")
 assertEq(getState(), "on", "created config holds the switch")

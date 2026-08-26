@@ -53,7 +53,7 @@ export function parseSubcommand(args: unknown): string | null {
 
 export const GIT_COMMITS_REL = "docs/git-commits.md"
 
-/** Project-level OpenCode config — scaffolded by init, topped up by sync. */
+/** Project-level OpenCode Prime — scaffolded by init, topped up by sync. */
 export const CONFIG_REL = ".opencode/opencode.jsonc" as const
 
 export const SCAFFOLD_TARGETS = [

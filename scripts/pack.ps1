@@ -4,9 +4,10 @@
     scripts/pack.ps1 — build a release archive from the current repo state.
 
 .DESCRIPTION
-    PowerShell equivalent of scripts/pack.sh. Produces two archives in dist/:
-      opencode-config-<version>.tar.gz   (for macOS / Linux / WSL)
-      opencode-config-<version>.zip       (for Windows)
+    PowerShell equivalent of scripts/pack.sh. Produces release archives in dist/:
+      opencode-prime-<version>.tar.gz   (for macOS / Linux / WSL)
+      opencode-prime-<version>.zip       (for Windows)
+      opencode-config-<version>.*        (compatibility aliases)
 
     Each archive contains:
       install/VERSION
@@ -14,8 +15,7 @@
       install/install.sh
       install/install.ps1
       install/versions/<ver>.manifest.txt   (auto-generated if missing)
-      bin/opencode-config                   (bash dispatcher)
-      bin/opencode-config.ps1               (PowerShell dispatcher)
+      bin/*                                 (dispatchers: opencode-prime, ocp, opencode-config)
       <every file listed in the manifest>    (agents/, plugins/, etc.)
 
 .PARAMETER OutDir
@@ -111,25 +111,49 @@ if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Forc
 
 # Build staging directory
 $stage = New-Item -ItemType Directory -Path ([IO.Path]::Combine([IO.Path]::GetTempPath(), "oc-pack-$(Get-Random)")) -Force
-$pkgDir = Join-Path $stage.FullName "opencode-config-$ver"
+$pkgDir = Join-Path $stage.FullName "opencode-prime-$ver"
 New-Item -ItemType Directory -Path $pkgDir -Force | Out-Null
 
-# 1. Copy install scripts
-$installDest = Join-Path $pkgDir 'install'
-$versionsDest = Join-Path $installDest 'versions'
-New-Item -ItemType Directory -Path $versionsDest -Force | Out-Null
-Copy-Item (Join-Path $RepoRoot 'install/install.sh') $installDest -Force
-Copy-Item (Join-Path $RepoRoot 'install/install.ps1') $installDest -Force
-Copy-Item $VersionFile $installDest -Force
-$compSrc = Join-Path $RepoRoot 'install/options.jsonc'
-if (Test-Path $compSrc) { Copy-Item $compSrc $installDest -Force }
-Copy-Item (Join-Path $InstDir '*.manifest.txt') $versionsDest -Force
+# Pre-build zero-dependency bundled installer if bun is available
+$distSrc = Join-Path $RepoRoot 'install/dist'
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    Write-Host "Building zero-dependency bundled installer..."
+    & bun build (Join-Path $RepoRoot 'install/src/index.ts') --outfile (Join-Path $distSrc 'index.js') --target bun
+}
 
-# 2. Copy bin dispatchers
+# 1. Fully mirror install/ directory (excluding node_modules or temp files)
+$installDest = Join-Path $pkgDir 'install'
+New-Item -ItemType Directory -Path $installDest -Force | Out-Null
+Get-ChildItem -Path (Join-Path $RepoRoot 'install') -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring((Join-Path $RepoRoot 'install').Length + 1)
+    if ($rel -notmatch '^(node_modules|\.git|tests|\.tmp)') {
+        $target = Join-Path $installDest $rel
+        $targetDir = Split-Path $target -Parent
+        if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+        Copy-Item $_.FullName $target -Force
+    }
+}
+
+# 2. Fully mirror bin/ directory
 $binDest = Join-Path $pkgDir 'bin'
 New-Item -ItemType Directory -Path $binDest -Force | Out-Null
-Copy-Item (Join-Path $RepoRoot 'bin/opencode-config') $binDest -Force
-Copy-Item (Join-Path $RepoRoot 'bin/opencode-config.ps1') $binDest -Force
+Get-ChildItem -Path (Join-Path $RepoRoot 'bin') -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1)
+    $target = Join-Path $binDest $rel
+    $targetDir = Split-Path $target -Parent
+    if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+    Copy-Item $_.FullName $target -Force
+}
+
+# 3. Mirror package.json if present
+if (Test-Path (Join-Path $RepoRoot 'package.json')) {
+    Copy-Item (Join-Path $RepoRoot 'package.json') $pkgDir -Force
+}
+
+# 2. Copy all bin dispatchers
+$binDest = Join-Path $pkgDir 'bin'
+New-Item -ItemType Directory -Path $binDest -Force | Out-Null
+Copy-Item (Join-Path $RepoRoot 'bin/*') $binDest -Force
 
 # 3. Copy every file listed in the manifest
 $manifestFiles = Read-Manifest $manifestPath
@@ -149,27 +173,27 @@ foreach ($f in $manifestFiles) {
 
 Write-Host "staged $fileCount manifest file(s) + install scripts + bin dispatchers"
 
-# 4. Build archives
+# 4. Build archives (opencode-prime)
 $buildTar = -not $ZipOnly
 $buildZip = -not $TarOnly
-$tarName = "opencode-config-$ver.tar.gz"
-$zipName = "opencode-config-$ver.zip"
+
+$primeTarName = "opencode-prime-$ver.tar.gz"
+$primeZipName = "opencode-prime-$ver.zip"
 
 if ($buildTar) {
-    $tarPath = Join-Path $OutDir $tarName
-    # bsdtar (Windows default) supports creating tar.gz
-    & tar -czf $tarPath -C $stage.FullName "opencode-config-$ver"
+    $tarPath = Join-Path $OutDir $primeTarName
+    & tar -czf $tarPath -C $stage.FullName "opencode-prime-$ver"
     if ($LASTEXITCODE -ne 0) { throw "tar failed (exit $LASTEXITCODE)" }
     Write-Host "built: $tarPath"
 }
 
 if ($buildZip) {
-    $zipPath = Join-Path $OutDir $zipName
+    $zipPath = Join-Path $OutDir $primeZipName
     Compress-Archive -Path $pkgDir -DestinationPath $zipPath -Force
     Write-Host "built: $zipPath"
 }
 
-# Clean up staging
-Remove-Item -LiteralPath $stage.FullName -Recurse -Force
+# Clean up staging directory
+Remove-Item -Recurse -Force $stage.FullName -ErrorAction SilentlyContinue
 
 Write-Host "done (version: $ver, files: $fileCount)"

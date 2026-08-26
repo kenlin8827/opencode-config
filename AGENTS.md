@@ -52,6 +52,11 @@ To prevent mixed-language pollution and ensure optimal cross-platform/cross-mode
 
 ---
 
-## 4. Release & Manifest Integrity
+## 4. Release, Manifest & Packaging Integrity
 
-- When adding, renaming, or removing runtime files in `plugins/`, `agents/`, `instructions/`, or `profiles/`, **always update `install/versions/<VERSION>.manifest.txt`** to ensure clean installer packaging and upgrades.
+- **Runtime Files (`manifest.txt`)**:
+  - When adding, renaming, or removing runtime files in `plugins/`, `agents/`, `instructions/`, or `profiles/`, **always run `bun run install/src/index.ts generate` (or `ocp generate`)** to synchronize `install/versions/<VERSION>.manifest.txt`.
+- **Installer, Shims & Infrastructure (`install/` & `bin/`)**:
+  - Files under `install/` and `bin/` are **automatically mirrored** during release packaging. Any new files placed in `install/` or `bin/` are dynamically included and validated without manual registration.
+- **Pre-Release Verification Hard Gate**:
+  - Always execute `pwsh scripts/pack.ps1 && pwsh scripts/verify.ps1` (or `./scripts/pack.sh && ./scripts/verify.sh`) before creating a release. All 4 release archives must pass SHA-256 integrity and file completeness checks with zero diffs.

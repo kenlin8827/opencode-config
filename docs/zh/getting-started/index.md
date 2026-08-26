@@ -1,6 +1,6 @@
-# 快速起步
+# 快速安装与全景控制台
 
-开箱即用的 [OpenCode](https://opencode.ai) 配置：一支专家智能体团队、三种编排模式、分层 MCP 代码智能与数据库网关、一键模型预设、工作流斜杠命令、可选的项目级护栏 —— 一条命令安装到 `~/.config/opencode`。
+开箱即用的 [OpenCode](https://opencode.ai) 生产级工程化配置：一支专家智能体团队、三种编排模式、分层 MCP 代码智能与数据库网关、一键模型预设、工作流斜杠命令、可选的项目级护栏 —— 一条命令安装到 `~/.config/opencode`。
 
 ---
 
@@ -10,19 +10,51 @@
 
 ### macOS / Linux / WSL
 ```bash
-curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz && tar xzf /tmp/oc-config.tar.gz -C /tmp && /tmp/opencode-config-*/install/install.sh
+curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc.zip"; Expand-Archive -Path "$env:TEMP\oc.zip" -DestinationPath "$env:TEMP\oc" -Force; & (Get-ChildItem "$env:TEMP\oc\opencode-config-*\install\install.ps1").FullName
+$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName
 ```
 
-> 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 API 密钥、自定义模型和层级选择均会**完整保留**。
+> 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 **API 密钥、自定义模型和模型梯队选择均会完整保留**，不会丢失。
 
 ---
 
-## 你将获得什么
+## 单屏 TUI 全景控制台
+
+执行安装命令后（或后续随时在终端运行全局命令 `ocp` / `opencode-prime`），终端将直接唤出 **单屏 TUI 全景控制台**：
+
+![OpenCode TUI 全景控制台](/images/tui-dashboard-zh.webp)
+
+### 核心功能与交互说明
+
+- **实时微调**：按空格键秒级切换启用的 MCP 服务、外部插件、RTK 令牌压缩器，或按空格键循环调整各 Agent 所属模型梯队（`flash` / `standard` / `pro` / `max` / `vision`）；
+- **快捷键指南**：
+  - `↑` / `↓` 或 `j` / `k`：上下移动光标选择配置项
+  - `Space`（空格键）：切换 MCP/插件开关，或循环切换 Agent 梯队
+  - `Enter`（回车键）：执行当前选中的操作（如“保存配置并执行安装”）
+  - `L` 键：即时切换控制台显示语言（中/英）
+  - `Q` 键：退出控制台
+
+---
+
+## 全局快捷命令 (`ocp` / `opencode-prime`)
+
+安装完成后，系统已自动注册全局快捷命令。你可以在**任意终端路径下**直接输入以下任一命令：
+
+```bash
+ocp              # 极简 3 字母直达（推荐）
+opencode-prime   # 完整品牌命令
+opencode-config  # 兼容命令
+```
+
+后续无需记住复杂的安装路径，即可随时秒级唤出全景控制台进行配置微调或一键平滑升级！
+
+---
+
+## 核心特性矩阵
 
 | 特性 | 对你的意义 |
 |---|---|
@@ -38,135 +70,29 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
-## 前置条件
+## ⚖️ 方案横向对比（为什么选择 OpenCode Prime？）
 
-| 要求 | 用途 | 安装方式 |
-|---|---|---|
-| [opencode](https://opencode.ai) CLI | 运行时，读取配置并调度智能体 | `curl -fsSL https://opencode.ai/install \| bash` |
-| PowerShell 7+（Windows） | 安装脚本 | `winget install Microsoft.PowerShell` |
-| Bash 4+ + `jq`（macOS / Linux / WSL） | 同上，Bash 版本 | `brew install jq` 或 `sudo apt install jq` |
-| Git | 版本控制 & 清单回退 | — |
-| Node.js 22.5+ + npm（可选） | CodeGraph / GitNexus / DBHub MCP 运行环境 | [Node.js 官网](https://nodejs.org/) |
-| uv / Python 3.13+（可选） | Serena LSP MCP 运行环境 | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| 核心维度 / 场景 | 官方原生 (Vanilla OpenCode) | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
+| :--- | :--- | :--- | :--- |
+| **核心哲学** | 极简单会话驱动 | 追求全自动黑盒委托 | **生产级工程纪律 + 精准分级掌控** |
+| **日常微调 / 快速修 Bug** | ✅ 快速（单模型） | ⚠️ 较慢（多 Agent 拆解与多层派发开销） | ⚡ **`/quick-dev` 闪电秒级交付（零委托开销）** |
+| **敏捷特性交付** | ⚠️ 无内置审查闭环 | ⚠️ 任务链过长，易陷入死循环 | 🚀 **`/fast-dev` 敏捷单审交付闭环** |
+| **核心架构与重大重构** | ❌ 无多模型审查能力 | ⚠️ 缺乏独立的仲裁机制 | 🧠 **`/deep-dev` 旗舰双审 + 安全仲裁机制** |
+| **Token 消耗与成本** | 🟢 低 | 🔴 极高（冷启动 15k–25k Token 开销） | 🟢 **精细治理（Tier 1/2/3 路由 + RTK 压缩）** |
+| **代码情报与索引** | 基础文本搜索 / Grep | 倾向于全文或大片上下文注入 | 🧭 **Serena (LSP符号) + CodeGraph (调用图) + DBHub** |
+| **工程守卫 (Guardrails)** | ❌ 无 | ❌ 弱（完全依赖模型自律） | 🛡️ **ADR 架构决策 + Secret 拦截 + Commit 规范** |
+| **环境与配置管理** | 手动修改 JSON | JSONC 手动维护 | 🖥️ **单屏交互式 TUI 控制台（多 Provider 热切换）** |
+| **升级体验** | 手动替换 | 脚本安装 | 🔄 **零风险平滑热升级（保留所有 Key 与配置）** |
 
-> - Bun 仅在开发本仓库时需要（见 [DEVELOPING.md](https://github.com/kenlin8827/opencode-config/blob/main/DEVELOPING.md)）—— opencode 会在运行时编译内置的 TypeScript 插件。
-> - Node.js 和 uv 仅在启用对应的 MCP 服务器时需要。在 `install/options.jsonc` 开启且本地缺失 CLI 时，安装器会自动调用 `npm` / `uv` 执行配置好的 `install` 命令。
-
----
-
-## 快速上手
-
-运行顶部的 [一键安装](#-10-秒一键安装) 之后，即可按需开始使用：
-
-### 1. 立即启动开发（最常用）
-在任意代码仓库根目录打开终端，输入 `opencode` 启动：
-```bash
-opencode
-```
-- **🎯 初始化项目环境（强烈推荐）**：首次进入项目运行 `/project init`，自动构建本地代码图谱与项目护栏。
-- **连接服务商与预设**：运行 `/connect deepseek`（或 kimi、anthropic 等），然后运行 `/profile` 打开弹窗一键选择预设并自动分层分配模型！
-- **直接对话编码**：默认即为 `@code` 模式，直接用自然语言描述需求即可。
-
-### 2. 随时打开全景控制台（调整开关与 Agent 梯队）
-在仓库目录下随时运行：
-```powershell
-# Windows
-pwsh install/install.ps1
-
-# macOS / Linux / WSL
-./install/install.sh
-```
-即可进入 **单屏 TUI 全景控制台**，按空格键秒级切换启用的 MCP 服务、外部插件、RTK 令牌压缩器，或按空格键循环调整各 Agent 所属模型梯队（`default` / `code` / `advisor` / `explorer` / `vision`）。
-
-### 3. 一键注册全局快捷命令（随时随地配置）
-在向导菜单中选择 `🌐 注册全局快捷命令 (opencode-config)`，或执行：
-```bash
-opencode-config
-```
-后续在系统的任意路径下输入 `opencode-config`，均可秒级唤出全景控制台或安装向导！
+### 🎯 选型建议指引
+* **选择官方原生 (Vanilla)**：只需最基础的单文件代码补全或简单对话，不涉及复杂工程重构与多 Agent 协作。
+* **选择 `omo.dev`**：偏好全自动黑盒交付、不在意 Token 账单与响应延迟、愿意让 AI 完全自主探索的实验性场景。
+* **选择 OpenCode Prime**：**真实企业与商业代码库开发**——需要极快响应、严格的代码审查与安全底线、低 Token 成本以及专业 LSP/图谱级代码智能。
 
 ---
 
-## 🖥️ 交互界面与客户端选择
+## 下一步：项目初始化
 
-你可以根据个人习惯或场景灵活选择与 OpenCode 交互的前端：
+安装好全局配置后，**进入任意代码仓库后的黄金第一步就是运行 `/project init`**，自动构建本地代码知识图谱与工程护栏：
 
-| 客户端形态 | 推荐人群 | 核心优势 | 启动/使用方式 |
-|---|---|---|---|
-| **终端 TUI（默认）** | 命令行极客、SSH 远程开发 | 极轻量、极低资源占用、原生键盘流交互 | 终端直接执行 `opencode` |
-| **OpenChamber 桌面端** | 偏好图形界面、精细 Code Review 用户 | **双栏可视化 Diff**、多模型并行对比与熔合（Fusion）、会话时间线管理 | 下载 [OpenChamber](https://openchamber.dev) 桌面应用或 VS Code 扩展 |
-| **内置 Web 端** | 局域网访问、轻量浏览器体验 | 浏览器内即开即用，无需安装桌面额外程序 | 终端执行 `opencode serve` 并在浏览器打开 |
-
-> 💡 **无缝兼容**：无论你选择哪种客户端，本项目安装在 `~/.config/opencode` 的 **17 个专家智能体、MCP 服务（CodeGraph / DBHub 等）与模型预设（Profiles）** 均会自动生效并完全共享。
-
----
-
-### 进阶：自定义可选配置后再安装
-
-若你想在安装前先按需开启或关闭特定功能（例如开启 `opencode-qoder-bridge`、`opencode-mem` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 开关、切换默认主控智能体）：
-
-1. **克隆仓库**：
-   ```bash
-   git clone https://github.com/kenlin8827/opencode-config.git
-   cd opencode-config
-   ```
-2. **编辑 `install/options.jsonc`**：
-   按需调整各项开关（`true` / `false`），例如：
-   ```jsonc
-   // install/options.jsonc
-   {
-     // 是否启用 rtk 输出压缩（60-90% token 节省）
-     "rtk": true,
-     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
-     "default_agent": "code",
-     // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
-     "mcp": {
-       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+）
-       "serena": true,
-       // CodeGraph AST 代码知识图谱（需 npm）
-       "codegraph": true,
-       // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）
-       "gitnexus": false,
-       // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
-       "dbhub": true
-     },
-     // 外部 npm 插件开关（true: 启用; false: 关闭）
-     "plugin": {
-       // 偷懒编码协议：实现目标并指出更轻量的替代方案
-       "@dietrichgebert/ponytail": true,
-       // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
-       "opencode-qoder-bridge": false,
-       // 会话标题智能自动生成
-       "@frankhommers/opencode-smart-title": true,
-       // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
-       "opencode-mem@2.24.3": false
-     }
-   }
-   ```
-3. **执行安装**：
-   ```bash
-   # macOS / Linux / WSL
-   ./install/install.sh
-
-   # Windows (PowerShell)
-   pwsh install/install.ps1
-   ```
-   > 💡 安装脚本会读取 `install/options.jsonc` 并自动应用至目标配置；若开启了尚未安装 CLI 的 MCP 服务，安装器会自动拉取。后续如需变更选项，只需修改该文件后带 `-Force`（或 `-f`）重新执行安装即可。
-
----
-
-### 开发者方式：克隆仓库安装
-
-如果你想参与本配置的开发或通过 Git 管理修改，可使用克隆方式：
-
-```bash
-# 1. 克隆仓库
-git clone https://github.com/kenlin8827/opencode-config.git
-cd opencode-config
-
-# 2. 执行安装（Windows 用 pwsh install/install.ps1）
-./install/install.sh
-```
-
-> **术语约定**：下文中的"专家团"指各专家智能体（`@java-dev`、`@security` 等）组成的团队；`@build` / `@plan` 是调度它们的编排器（团长）。技术标识符（agent 名、`@` 引用）保持英文，是 opencode 平台约定。
-
+👉 **前往查看：[项目初始化与工程护栏](/zh/getting-started/project-init)**

@@ -49,20 +49,33 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "tag=${GITHUB_REF_NAME:-manual}" >> "$GITHUB_OUTPUT"
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: |
+          bun install
+
       - name: Build archives
         run: |
-          chmod +x scripts/pack.sh
+          chmod +x scripts/pack.sh scripts/verify.sh
           ./scripts/pack.sh --out dist
           echo "--- Archives built ---"
           ls -lh dist/
 
+      - name: Verify archive completeness & SHA-256 integrity (Hard Gate)
+        run: |
+          ./scripts/verify.sh dist
+
       - name: Create latest aliases
         run: |
           VER="${{ steps.version.outputs.version }}"
-          cp "dist/opencode-config-${VER}.tar.gz" "dist/opencode-config-latest.tar.gz"
-          cp "dist/opencode-config-${VER}.zip" "dist/opencode-config-latest.zip"
+          cp "dist/opencode-prime-${VER}.tar.gz" "dist/opencode-prime-latest.tar.gz"
+          cp "dist/opencode-prime-${VER}.zip" "dist/opencode-prime-latest.zip"
           echo "--- Aliases created ---"
-          ls -lh dist/opencode-config-latest.*
+          ls -lh dist/*latest*
 
       - name: Generate release notes
         id: notes
@@ -81,38 +94,23 @@ jobs:
           fi
 
           {
-            echo '# opencode-config'
+            echo '# OpenCode Prime (OCP)'
             echo ''
-            echo '## What''s included'
+            echo '## What'\''s included'
             echo ''
             echo '- **Platform**: Windows (PowerShell) / macOS / Linux / WSL (Bash)'
-            echo '- **Archives**: versioned `.tar.gz` (Unix) + `.zip` (Windows) + `latest` aliases'
-            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers'
+            echo '- **Archives**: `opencode-prime-<version>.tar.gz` (Unix) + `opencode-prime-<version>.zip` (Windows) + `latest` aliases'
+            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers (opencode-prime, ocp, opencode-config)'
             echo ''
-            echo '## Install from release'
+            echo '## Install & Quick Start'
             echo ''
-            echo '```bash'
-            echo '# macOS / Linux / WSL — use latest alias'
-            echo 'curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz'
-            echo 'tar xzf /tmp/oc-config.tar.gz -C /tmp'
-            echo 'cd /tmp/opencode-config-*/'
-            echo './install/install.sh'
-            echo '```'
-            echo ''
-            echo '```powershell'
-            echo '# Windows — use latest alias'
-            echo '$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"'
-            echo 'Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc-config.zip"'
-            echo 'Expand-Archive -Path "$env:TEMP\oc-config.zip" -DestinationPath "$env:TEMP\oc-config" -Force'
-            echo 'Set-Location "$env:TEMP\oc-config\opencode-config-*"'
-            echo 'pwsh install/install.ps1'
-            echo '```'
+            echo 'See documentation: [https://kenlin8827.github.io/opencode-prime/](https://kenlin8827.github.io/opencode-prime/)'
             echo ''
             echo '## Changes'
             echo ''
             echo "${COMMITS}"
             echo ''
-            echo 'See [install/README.md](https://github.com/kenlin8827/opencode-config/blob/main/install/README.md) for installer internals.'
+            echo 'See [install/README.md](https://github.com/kenlin8827/opencode-prime/blob/main/install/README.md) for installer internals.'
           } > dist/RELEASE_NOTES.md
           echo "notes_path=dist/RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
 
@@ -121,13 +119,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: opencode-config v${{ steps.version.outputs.version }}
+          name: OpenCode Prime v${{ steps.version.outputs.version }}
           body_path: dist/RELEASE_NOTES.md
           files: |
-            dist/opencode-config-${{ steps.version.outputs.version }}.tar.gz
-            dist/opencode-config-${{ steps.version.outputs.version }}.zip
-            dist/opencode-config-latest.tar.gz
-            dist/opencode-config-latest.zip
+            dist/opencode-prime-${{ steps.version.outputs.version }}.tar.gz
+            dist/opencode-prime-${{ steps.version.outputs.version }}.zip
+            dist/opencode-prime-latest.tar.gz
+            dist/opencode-prime-latest.zip
           draft: false
           prerelease: false
           generate_release_notes: false
@@ -136,6 +134,6 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: opencode-config-${{ steps.version.outputs.version }}-archives
-          path: dist/opencode-config-*.*
+          name: opencode-prime-${{ steps.version.outputs.version }}-archives
+          path: dist/*.*
           retention-days: 7

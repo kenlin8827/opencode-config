@@ -1,6 +1,6 @@
-# install (v0.5.1)
+# install (v0.6.0)
 
-Self-installing OpenCode config powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
+Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
 ## 🌟 Interactive TUI Wizard (Recommended)
 
@@ -18,7 +18,7 @@ The wizard guides you through:
 - 🚀 **Quick Install / Update**: Instantly apply the repository configuration to `~/.config/opencode`.
 - ⚙️ **Custom Component Setup**: Interactively choose your default agent (`code`, `build`, `plan`), toggle MCP servers (`serena`, `codegraph`, `dbhub`), and configure RTK.
 - 🔍 **Check Status**: Inspect target vs repo versions.
-- 🌐 **Register Global Command**: Provision `opencode-config` directly into PATH.
+- 🌐 **Register Global Commands**: Provision `ocp` & `opencode-prime` directly into PATH.
 - 🧹 **Reset & Clear (Init)**: Full backup and clean start.
 - ❌ **Safe Uninstall**: Precision manifest-driven cleanup.
 
@@ -66,17 +66,17 @@ pwsh install/install.ps1 uninstall -Yes
 ./install/install.sh uninstall -y
 ```
 
-## Global command
+## Global commands (`ocp` / `opencode-prime`)
 
-After installing the files, register the repo as a global `opencode-config`
-command so you can run it from any directory.
+After installing the files, register the repo to provision global command shortcuts
+(`ocp`, `opencode-prime`, and `opencode-config`) so you can run it from any directory.
 
 PowerShell:
 
 ```pwsh
-pwsh install/install.ps1 register              # shim to ~/.local/bin
+pwsh install/install.ps1 register              # shims to ~/.local/bin
 pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom location
-pwsh install/install.ps1 unregister            # remove shim
+pwsh install/install.ps1 unregister            # remove shims
 ```
 
 Bash:
@@ -87,9 +87,9 @@ Bash:
 ./install/install.sh unregister
 ```
 
-`register` writes a tiny trampoline that re-executes the in-repo dispatcher
-(`bin/opencode-config.ps1` on PowerShell, `bin/opencode-config` on Bash), so
-`git pull` updates the command immediately. It will refuse to overwrite a file
+`register` writes tiny trampolines that re-execute the in-repo dispatchers
+(`bin/opencode-prime.ps1` on PowerShell, `bin/opencode-prime` on Bash), so
+`git pull` updates the commands immediately. It will refuse to overwrite a file
 it didn't create.
 
 Add `~/.local/bin` to your user PATH, then run:
@@ -98,16 +98,16 @@ Add `~/.local/bin` to your user PATH, then run:
 # PowerShell
 [Environment]::SetEnvironmentVariable('Path', "$env:Path;$HOME\.local\bin", 'User')
 # then in a fresh session:
-opencode-config status
-opencode-config install -Force
+ocp status
+ocp install -Force
 ```
 
 ```bash
 # bash/zsh
 export PATH="$HOME/.local/bin:$PATH"
 # then:
-opencode-config status
-opencode-config update
+ocp status
+ocp update
 ```
 
 ## Configuring credentials
@@ -423,7 +423,7 @@ literal key is never silently overwritten.
 The two implementations share the same contract — same manifest format, same
 preserved fields, same default target — but are tested independently. If you
 find a behavioural drift, file it. The retired `config.ps1` / `config.sh`
-helpers are replaced by in-opencode configuration (`/connect` + `/profile`).
+helpers are replaced by in-OpenCode Configuration (`/connect` + `/profile`).
 
 ## Model name verification principle
 

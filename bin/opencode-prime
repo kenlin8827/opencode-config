@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# bin/opencode-prime — global dispatcher for the OpenCode Prime (OCP) repo.
+#
+# This file lives in the opencode-prime repo. The global shim at
+# ~/.local/bin/opencode-prime re-execs this file (created by
+# install.sh's `register` subcommand). The same path is used when running
+# the command directly from a clone: `bin/opencode-prime install`,
+# `bin/opencode-prime status`, etc.
+#
+# Subcommands:
+#   install         Apply the current version's manifest to the default target
+#   update          Same as install, but forces reapply (-f)
+#   init            Backup + clear the target for a fresh start
+#   uninstall       Remove the installed version's manifest files from the target
+#   status          Show installed vs repo version
+#   generate        Regenerate install/versions/<ver>.manifest.txt
+#   register        Install global shims (opencode-prime, ocp, opencode-config) into ~/.local/bin
+#   unregister      Remove global shims from ~/.local/bin
+#   version         Print the repo's install/VERSION
+#   help            Print this help
+#
+# Anything else falls through to `install.sh` (so unknown flags + future
+# subcommands still work after an upgrade).
+
+set -eo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+INSTALL="$REPO_ROOT/install/install.sh"
+
+print_help() {
+    awk 'NR>=2 && /^$/{exit} NR>=2' "$0"
+}
+
+if [[ $# -eq 0 ]]; then
+    set -- install
+fi
+
+sub="$1"
+shift || true
+
+case "$sub" in
+    -h|--help|help)
+        print_help
+        ;;
+    install)
+        exec "$INSTALL" install "$@"
+        ;;
+    update)
+        exec "$INSTALL" install -f "$@"
+        ;;
+    init)
+        exec "$INSTALL" init "$@"
+        ;;
+    uninstall)
+        exec "$INSTALL" uninstall "$@"
+        ;;
+    status)
+        exec "$INSTALL" status "$@"
+        ;;
+    generate)
+        exec "$INSTALL" generate "$@"
+        ;;
+    register)
+        exec "$INSTALL" register "$@"
+        ;;
+    unregister)
+        exec "$INSTALL" unregister "$@"
+        ;;
+    version|--version|-v)
+        cat "$REPO_ROOT/install/VERSION"
+        echo ""
+        ;;
+    *)
+        exec "$INSTALL" "$sub" "$@"
+        ;;
+esac

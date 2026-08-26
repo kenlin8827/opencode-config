@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Verify release artifacts against the version manifest.
 #
-# Cross-checks dist/opencode-config-<version>.zip and .tar.gz against
-# install/versions/<version>.manifest.txt:
+# Cross-checks dist/opencode-prime-<version> and opencode-config-<version>
+# archives against install/versions/<version>.manifest.txt:
 #
 #   1. File-list completeness — every manifest entry plus the bundled
 #      install/bin companion files must exist in the archive, with no
@@ -35,18 +35,11 @@ manifest_entries() {
     grep -v '^[[:space:]]*#' "$MANIFEST" | sed 's/[[:space:]]*$//' | grep -v '^$' | sort -u
 }
 
-# companion files bundled by pack.sh outside the manifest
+# dynamically scan all companion files (install/, bin/, package.json)
 extras() {
-    printf '%s\n' \
-        "install/VERSION" \
-        "install/options.jsonc" \
-        "install/install.sh" \
-        "install/install.ps1" \
-        "bin/opencode-config" \
-        "bin/opencode-config.ps1"
-    for m in "$INST_DIR"/*.manifest.txt; do
-        [[ -f "$m" ]] && printf 'install/versions/%s\n' "$(basename "$m")"
-    done
+    (cd "$REPO_ROOT" && find install -type f ! -path '*/.*' ! -path '*/node_modules/*' ! -path '*/tests/*' ! -path '*/.tmp/*')
+    (cd "$REPO_ROOT" && find bin -type f ! -path '*/.*')
+    [[ -f "$REPO_ROOT/package.json" ]] && echo "package.json"
 }
 
 EXPECTED="$( { manifest_entries; extras; } | sort -u )"
@@ -119,8 +112,8 @@ verify_archive() {
     echo ''
 }
 
-verify_archive "$DIST_DIR/opencode-config-$VER.zip" "$WORK/zip"
-verify_archive "$DIST_DIR/opencode-config-$VER.tar.gz" "$WORK/tgz"
+verify_archive "$DIST_DIR/opencode-prime-$VER.zip" "$WORK/prime-zip"
+verify_archive "$DIST_DIR/opencode-prime-$VER.tar.gz" "$WORK/prime-tgz"
 
 if [[ $FAILURES -gt 0 ]]; then
     echo "verify: FAILED ($FAILURES problem(s))" >&2

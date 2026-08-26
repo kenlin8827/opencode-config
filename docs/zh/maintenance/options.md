@@ -13,8 +13,8 @@
 | 查看状态 | `pwsh install/install.ps1 status` | `./install/install.sh status` | 显示已安装版本与仓库版本 |
 | 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
 | 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
-| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-config` shim 安装到 `~/.local/bin` |
-| 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除 shim |
+| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-prime`、`ocp` 与 `opencode-config` shim 安装到 `~/.local/bin` |
+| 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除全局 shims |
 
 ---
 
@@ -26,7 +26,7 @@
 
 1. **进入仓库目录**（若使用 Git 克隆或解压了 release 包）：
    ```bash
-   cd opencode-config
+   cd opencode-prime
    ```
 2. **编辑 `install/options.jsonc`** 设定所需的可选功能开关：
    ```jsonc
@@ -116,9 +116,9 @@
 
 ---
 
-## 全局命令
+## 全局命令 (`ocp` / `opencode-prime`)
 
-首次安装后，可将仓库注册为全局 `opencode-config` 命令：
+首次安装后，可将仓库注册为全局快捷命令（`ocp`、`opencode-prime` 与 `opencode-config`）：
 
 ```powershell
 pwsh install/install.ps1 register

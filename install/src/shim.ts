@@ -19,33 +19,46 @@ export function registerShim(repoDir: string, customBinDir?: string): { success:
   const isWindows = process.platform === 'win32';
 
   if (isWindows) {
-    const cmdPath = path.join(binDir, 'opencode-config.cmd');
-    const ps1Path = path.join(binDir, 'opencode-config.ps1');
+    const commands = [
+      { name: 'opencode-prime', script: 'opencode-prime.ps1' },
+      { name: 'ocp', script: 'ocp.ps1' },
+      { name: 'opencode-config', script: 'opencode-config.ps1' },
+    ];
 
-    // Windows CMD Trampoline
-    const cmdContent = `@echo off\r\nrem ${SHIM_MARKER}\r\npwsh -NoProfile -ExecutionPolicy Bypass -File "${path.join(repoDir, 'bin', 'opencode-config.ps1')}" %*\r\n`;
-    // Windows PowerShell Trampoline
-    const ps1Content = `# ${SHIM_MARKER}\r\n& "${path.join(repoDir, 'bin', 'opencode-config.ps1')}" @args\r\n`;
+    for (const cmd of commands) {
+      const cmdPath = path.join(binDir, `${cmd.name}.cmd`);
+      const ps1Path = path.join(binDir, `${cmd.name}.ps1`);
 
-    fs.writeFileSync(cmdPath, cmdContent, 'utf8');
-    fs.writeFileSync(ps1Path, ps1Content, 'utf8');
+      const cmdContent = `@echo off\r\nrem ${SHIM_MARKER}\r\npwsh -NoProfile -ExecutionPolicy Bypass -File "${path.join(repoDir, 'bin', cmd.script)}" %*\r\n`;
+      const ps1Content = `# ${SHIM_MARKER}\r\n& "${path.join(repoDir, 'bin', cmd.script)}" @args\r\n`;
+
+      fs.writeFileSync(cmdPath, cmdContent, 'utf8');
+      fs.writeFileSync(ps1Path, ps1Content, 'utf8');
+    }
 
     return {
       success: true,
       binDir,
-      message: `Registered global command in ${binDir} (created opencode-config.cmd and opencode-config.ps1).`,
+      message: `Registered global commands (opencode-prime, ocp, opencode-config) into ${binDir}.`,
     };
   } else {
-    // POSIX Shell Trampoline
-    const shPath = path.join(binDir, 'opencode-config');
-    const shContent = `#!/bin/sh\n# ${SHIM_MARKER}\nexec "${path.join(repoDir, 'bin', 'opencode-config')}" "$@"\n`;
+    // POSIX Shell Trampolines
+    const commands = [
+      { name: 'opencode-prime', script: 'opencode-prime' },
+      { name: 'ocp', script: 'ocp' },
+      { name: 'opencode-config', script: 'opencode-config' },
+    ];
 
-    fs.writeFileSync(shPath, shContent, { mode: 0o755 });
+    for (const cmd of commands) {
+      const shPath = path.join(binDir, cmd.name);
+      const shContent = `#!/bin/sh\n# ${SHIM_MARKER}\nexec "${path.join(repoDir, 'bin', cmd.script)}" "$@"\n`;
+      fs.writeFileSync(shPath, shContent, { mode: 0o755 });
+    }
 
     return {
       success: true,
       binDir,
-      message: `Registered global command in ${binDir} (created opencode-config shim).`,
+      message: `Registered global commands (opencode-prime, ocp, opencode-config) into ${binDir}.`,
     };
   }
 }
@@ -55,8 +68,15 @@ export function unregisterShim(customBinDir?: string): { success: boolean; remov
   const removed: string[] = [];
 
   const targets = process.platform === 'win32'
-    ? ['opencode-config.cmd', 'opencode-config.ps1']
-    : ['opencode-config'];
+    ? [
+        'opencode-prime.cmd',
+        'opencode-prime.ps1',
+        'ocp.cmd',
+        'ocp.ps1',
+        'opencode-config.cmd',
+        'opencode-config.ps1',
+      ]
+    : ['opencode-prime', 'ocp', 'opencode-config'];
 
   for (const name of targets) {
     const p = path.join(binDir, name);

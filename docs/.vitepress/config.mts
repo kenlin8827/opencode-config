@@ -3,135 +3,150 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(
   defineConfig({
-  title: "OpenCode Engineering",
-  description: "Production Software Engineering Configuration for OpenCode",
-  base: "/opencode-config/",
-  cleanUrls: true,
-  lastUpdated: true,
-  srcExclude: ['SUMMARY.md'],
+    title: "OpenCode Prime",
+    description: "The Flagship Production Engineering & Multi-Agent Suite for OpenCode",
+    base: "/opencode-prime/",
+    cleanUrls: true,
+    lastUpdated: true,
+    srcExclude: ['SUMMARY.md'],
 
-  locales: {
-    root: {
-      label: 'English',
-      lang: 'en',
-      title: "OpenCode Engineering",
-      description: "Production Software Engineering & Multi-Agent Configuration for OpenCode",
-      themeConfig: {
-        siteTitle: 'OpenCode Engineering',
-        nav: [
-          { text: 'Getting Started', link: '/getting-started/' },
-          { text: 'Core Capabilities', link: '/core/daily-use' },
-          { text: 'Workflows & Guards', link: '/workflows/commands' },
-          { text: 'Maintenance', link: '/maintenance/options' },
-          { text: 'GitHub', link: 'https://github.com/kenlin8827/opencode-config' }
-        ],
-        sidebar: [
-          {
-            text: 'Part I: Getting Started',
-            items: [
-              { text: 'Overview & Quick Start', link: '/getting-started/' },
-            ]
-          },
-          {
-            text: 'Part II: Core Capabilities',
-            items: [
-              { text: 'Daily Use & Modes', link: '/core/daily-use' },
-              { text: 'MCP Servers & Code Intelligence', link: '/core/mcp-servers' },
-              { text: 'Configuration & Profiles', link: '/core/profiles' },
-            ]
-          },
-          {
-            text: 'Part III: Workflows & Governance',
-            items: [
-              { text: 'Workflow Slash Commands', link: '/workflows/commands' },
-              { text: 'Three-Tier Dev Loops', link: '/workflows/dev-loops' },
-              { text: 'Specification-Driven Development (SDD)', link: '/workflows/sdd' },
-              { text: 'Auto-Advisor Mode', link: '/workflows/auto-advisor' },
-              { text: 'Plugins & Project Guardrails', link: '/workflows/plugins' },
-              { text: 'Hierarchical ADR Upgrade Guide', link: '/workflows/adr-upgrade-guide' },
-            ]
-          },
-          {
-            text: 'Part IV: Maintenance & Reference',
-            items: [
-              { text: 'Installation & Options', link: '/maintenance/options' },
-              { text: 'Troubleshooting & FAQ', link: '/maintenance/faq' },
-            ]
+    locales: {
+      root: {
+        label: 'English',
+        lang: 'en',
+        title: "OpenCode Prime",
+        description: "The Flagship Production Engineering & Multi-Agent Suite for OpenCode",
+        themeConfig: {
+          siteTitle: 'OpenCode Prime',
+          nav: [
+            { text: 'Getting Started', link: '/getting-started/' },
+            { text: 'Core Capabilities', link: '/core/daily-use' },
+            { text: 'Workflows & Guards', link: '/workflows/commands' },
+            { text: 'Maintenance', link: '/maintenance/options' },
+            { text: 'GitHub', link: 'https://github.com/kenlin8827/opencode-prime' }
+          ],
+          sidebar: [
+            {
+              text: 'Part I: Installation & Setup',
+              items: [
+                { text: 'Quick Install & Dashboard', link: '/getting-started/' },
+                { text: 'Project Initialization & Guardrails', link: '/getting-started/project-init' },
+                { text: 'Clients & UI Options', link: '/getting-started/clients' },
+                { text: 'Prerequisites & Source Install', link: '/getting-started/prerequisites' },
+              ]
+            },
+            {
+              text: 'Part II: Core Capabilities',
+              items: [
+                { text: 'Daily Use & Modes', link: '/core/daily-use' },
+                { text: 'MCP Servers & Code Intelligence', link: '/core/mcp-servers' },
+                { text: 'Configuration & Profiles', link: '/core/profiles' },
+              ]
+            },
+            {
+              text: 'Part III: Workflows & Governance',
+              items: [
+                { text: 'Workflow Slash Commands', link: '/workflows/commands' },
+                { text: 'Three-Tier Dev Loops', link: '/workflows/dev-loops' },
+                { text: 'Specification-Driven Development (SDD)', link: '/workflows/sdd' },
+                { text: 'Auto-Advisor Mode', link: '/workflows/auto-advisor' },
+                { text: 'Plugins & Project Guardrails', link: '/workflows/plugins' },
+                { text: 'Hierarchical ADR Upgrade Guide', link: '/workflows/adr-upgrade-guide' },
+              ]
+            },
+            {
+              text: 'Part IV: Maintenance & Reference',
+              items: [
+                { text: 'Installation & Options', link: '/maintenance/options' },
+                { text: 'Troubleshooting & FAQ', link: '/maintenance/faq' },
+              ]
+            }
+          ],
+          footer: {
+            message: 'Released under the MIT License.',
+            copyright: 'Copyright © 2026 OpenCode Prime Contributors'
           }
-        ],
-        footer: {
-          message: 'Released under the MIT License.',
-          copyright: 'Copyright © 2026 OpenCode Config Contributors'
+        }
+      },
+      zh: {
+        label: '简体中文',
+        lang: 'zh-CN',
+        link: '/zh/',
+        title: "OpenCode Prime",
+        description: "OpenCode 旗舰级生产工程与多智能体研发套件",
+        themeConfig: {
+          siteTitle: 'OpenCode Prime',
+          nav: [
+            { text: '快速起步', link: '/zh/getting-started/' },
+            { text: '核心能力', link: '/zh/core/daily-use' },
+            { text: '进阶工作流与护栏', link: '/zh/workflows/commands' },
+            { text: '安装与运维', link: '/zh/maintenance/options' },
+            { text: 'GitHub', link: 'https://github.com/kenlin8827/opencode-prime' }
+          ],
+          sidebar: {
+            '/zh/': [
+              {
+                text: '第一部分：安装与上手',
+                items: [
+                  { text: '快速安装与全景控制台', link: '/zh/getting-started/' },
+                  { text: '项目初始化与工程护栏', link: '/zh/getting-started/project-init' },
+                  { text: '客户端与交互界面', link: '/zh/getting-started/clients' },
+                  { text: '环境要求与源码开发', link: '/zh/getting-started/prerequisites' },
+                ]
+              },
+              {
+                text: '第二部分：核心能力与使用',
+                items: [
+                  { text: '日常使用与工作模式', link: '/zh/core/daily-use' },
+                  { text: 'MCP 代码智能与数据库', link: '/zh/core/mcp-servers' },
+                  { text: '模型配置与预设 Profiles', link: '/zh/core/profiles' },
+                ]
+              },
+              {
+                text: '第三部分：进阶工作流与护栏',
+                items: [
+                  { text: '工作流斜杠命令', link: '/zh/workflows/commands' },
+                  { text: '三阶闭环开发', link: '/zh/workflows/dev-loops' },
+                  { text: '规范驱动开发 (SDD)', link: '/zh/workflows/sdd' },
+                  { text: 'Auto-advisor 模式', link: '/zh/workflows/auto-advisor' },
+                  { text: '插件系统与项目护栏', link: '/zh/workflows/plugins' },
+                  { text: '分层 ADR 体系升级指南', link: '/zh/workflows/adr-upgrade-guide' },
+                ]
+              },
+              {
+                text: '第四部分：安装进阶与运维',
+                items: [
+                  { text: '安装器进阶与选项', link: '/zh/maintenance/options' },
+                  { text: '常见问题与排查 FAQ', link: '/zh/maintenance/faq' },
+                ]
+              }
+            ]
+          },
+          footer: {
+            message: '基于 MIT 协议发布。',
+            copyright: 'Copyright © 2026 OpenCode Prime Contributors'
+          }
         }
       }
     },
-    zh: {
-      label: '简体中文',
-      lang: 'zh-CN',
-      link: '/zh/',
-      title: "OpenCode 生产级工程化配置",
-      description: "为真实软件研发而生的 OpenCode 生产级工程化配置",
-      themeConfig: {
-        siteTitle: 'OpenCode 工程化配置',
-        nav: [
-          { text: '快速起步', link: '/zh/getting-started/' },
-          { text: '核心能力', link: '/zh/core/daily-use' },
-          { text: '进阶工作流与护栏', link: '/zh/workflows/commands' },
-          { text: '安装与运维', link: '/zh/maintenance/options' },
-          { text: 'GitHub', link: 'https://github.com/kenlin8827/opencode-config' }
-        ],
-        sidebar: {
-          '/zh/': [
-            {
-              text: '第一部分：快速起步',
-              items: [
-                { text: '概览与快速上手', link: '/zh/getting-started/' },
-              ]
-            },
-            {
-              text: '第二部分：核心能力与使用',
-              items: [
-                { text: '日常使用与工作模式', link: '/zh/core/daily-use' },
-                { text: 'MCP 代码智能与数据库', link: '/zh/core/mcp-servers' },
-                { text: '模型配置与预设 Profiles', link: '/zh/core/profiles' },
-              ]
-            },
-            {
-              text: '第三部分：进阶工作流与护栏',
-              items: [
-                { text: '工作流斜杠命令', link: '/zh/workflows/commands' },
-                { text: '三阶闭环开发', link: '/zh/workflows/dev-loops' },
-                { text: '规范驱动开发 (SDD)', link: '/zh/workflows/sdd' },
-                { text: 'Auto-advisor 模式', link: '/zh/workflows/auto-advisor' },
-                { text: '插件系统与项目护栏', link: '/zh/workflows/plugins' },
-                { text: '分层 ADR 体系升级指南', link: '/zh/workflows/adr-upgrade-guide' },
-              ]
-            },
-            {
-              text: '第四部分：安装进阶与运维',
-              items: [
-                { text: '安装器进阶与选项', link: '/zh/maintenance/options' },
-                { text: '常见问题与排查 FAQ', link: '/zh/maintenance/faq' },
-              ]
-            }
-          ]
-        },
-        footer: {
-          message: '基于 MIT 协议发布。',
-          copyright: 'Copyright © 2026 OpenCode Config Contributors'
-        }
+
+    themeConfig: {
+      logo: '/logo.svg',
+      socialLinks: [
+        { icon: 'github', link: 'https://github.com/kenlin8827/opencode-prime' }
+      ],
+      search: {
+        provider: 'local'
+      }
+    },
+
+    vite: {
+      optimizeDeps: {
+        include: ['mermaid', 'fastdom', '@braintree/sanitize-url', 'dayjs'],
+      },
+      ssr: {
+        noExternal: ['mermaid', 'vitepress-plugin-mermaid', 'fastdom'],
       }
     }
-  },
-
-  themeConfig: {
-    logo: '/logo.svg',
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/kenlin8827/opencode-config' }
-    ],
-    search: {
-      provider: 'local'
-    }
-  }
-})
+  })
 )

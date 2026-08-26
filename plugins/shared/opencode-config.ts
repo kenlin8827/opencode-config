@@ -251,7 +251,7 @@ export function removeConfigField(raw: string, field: string): string {
 // Project-scoped writes that degrade to a false return instead of throwing,
 // so plugin hooks never crash the session on a read-only project dir.
 
-// When a project has no opencode config yet, bootstrap from the /project
+// When a project has no OpenCode Prime yet, bootstrap from the /project
 // init template (commented, uncomment-ready switch documentation) instead of
 // a bare `{ "field": "value" }` stub. Cached; null when the template is not
 // deployed next to the plugins (falls back to the bare bootstrap).
@@ -336,7 +336,7 @@ export function ensureOpencodeGitignore(root: string = getProjectDir()): void {
         writeFileSync(gitignorePath, nextContent, "utf-8")
       }
     }
-  } catch {}
+  } catch { }
 }
 
 /**
@@ -350,7 +350,7 @@ export function getProjectLogDir(root: string = getProjectDir()): string {
       mkdirSync(dir, { recursive: true })
     }
     ensureOpencodeGitignore(root)
-  } catch {}
+  } catch { }
   return dir
 }
 
@@ -365,7 +365,7 @@ export function getProjectHandoffDir(root: string = getProjectDir()): string {
       mkdirSync(dir, { recursive: true })
     }
     ensureOpencodeGitignore(root)
-  } catch {}
+  } catch { }
   return dir
 }
 

@@ -1,11 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import enLocale from '../locales/en.json' with { type: 'json' };
+import zhLocale from '../locales/zh-CN.json' with { type: 'json' };
 
 export interface I18nMeta {
   code: string;
   name: string;
   hint: string;
 }
+
+export const EMBEDDED_LOCALES: Record<string, I18nText> = {
+  'en': enLocale as unknown as I18nText,
+  'zh-CN': zhLocale as unknown as I18nText,
+};
 
 export interface I18nText {
   _meta?: I18nMeta;
@@ -98,7 +105,7 @@ export interface I18nText {
 }
 
 export const FALLBACK_EN: I18nText = {
-  wizardTitle: '⚡ OpenCode Config — Interactive Setup Wizard',
+  wizardTitle: '⚡ OpenCode Prime (OCP) — Interactive Setup Wizard',
   installedNote: 'Installed version: v{version} (Target: {target})',
   notInstalledNote: 'Target not yet initialized (Target: {target})',
   menuPrompt: 'Select an action to proceed:',
@@ -110,7 +117,7 @@ export const FALLBACK_EN: I18nText = {
   customInstallHint: 'Interactive step-by-step picker for agents, MCPs, and plugins',
   statusLabel: '📊 Check Status & Tracked Files',
   statusHint: 'Compare local repo with installed target version',
-  registerLabel: '🌐 Register Global Command (opencode-config)',
+  registerLabel: '🌐 Register Global Command (ocp / opencode-prime)',
   registerHint: 'Add global CLI wrapper to ~/.local/bin',
   initLabel: '🧹 Reset Target Directory (Backup + Fresh Start)',
   initHint: 'Wipe target directory and prepare fresh environment',
@@ -119,7 +126,7 @@ export const FALLBACK_EN: I18nText = {
   exitLabel: '🚪 Exit',
   exitHint: 'Quit without making further changes',
   targetDirPrompt: 'Target installation directory:',
-  installingSpinner: 'Installing OpenCode configuration files...',
+  installingSpinner: 'Installing OpenCode Prime configuration files...',
   installSuccessNote: 'Configuration successfully installed!',
   saveOptionsSuccess: 'Updated options saved to install/options.jsonc',
   installSummaryTitle: '📦 Installation Summary',
@@ -158,7 +165,7 @@ export const FALLBACK_EN: I18nText = {
   selectLanguagePrompt: '🌐 Select Language:',
   switchLanguageLabel: '🌐 Switch Language',
   switchLanguageHint: 'Change UI display language',
-  thankYouOutro: 'Thank you for using OpenCode Config!',
+  thankYouOutro: 'Thank you for using OpenCode Prime!',
   configStatusDetail: '📊 Config Status Details',
   globalRegTitle: '🌐 Global Command Registration',
   confirmResetPrompt: 'Are you sure you want to reset and clear {target}? (Backup created)',
@@ -188,14 +195,20 @@ export const FALLBACK_EN: I18nText = {
 
 const localeCache: Record<string, I18nText> = {};
 
+export const BUILTIN_LOCALE_METAS: I18nMeta[] = [
+  { code: 'zh-CN', name: '简体中文', hint: '简体中文界面' },
+  { code: 'en', name: 'English', hint: 'US English interface' },
+];
+
 export function getLocalesDir(repoDir: string): string {
   return path.join(repoDir, 'install', 'locales');
 }
 
-export function getAvailableLocales(repoDir: string): I18nMeta[] {
+export function getAvailableLocales(repoDir?: string): I18nMeta[] {
+  if (!repoDir) return BUILTIN_LOCALE_METAS;
   const localesDir = getLocalesDir(repoDir);
   if (!fs.existsSync(localesDir)) {
-    return [{ code: 'en', name: 'US English', hint: 'Default English' }];
+    return BUILTIN_LOCALE_METAS;
   }
 
   const files = fs.readdirSync(localesDir).filter((f) => f.endsWith('.json'));
@@ -211,7 +224,7 @@ export function getAvailableLocales(repoDir: string): I18nMeta[] {
       } else {
         metas.push({
           code,
-          name: code,
+          name: code === 'zh-CN' ? '简体中文' : code === 'en' ? 'English' : code,
           hint: `${code} locale`,
         });
       }
@@ -220,9 +233,7 @@ export function getAvailableLocales(repoDir: string): I18nMeta[] {
     }
   }
 
-  return metas.length > 0
-    ? metas
-    : [{ code: 'en', name: 'US English', hint: 'Default English' }];
+  return metas.length > 0 ? metas : BUILTIN_LOCALE_METAS;
 }
 
 export function loadLocale(repoDir: string, code: string): I18nText {
@@ -231,42 +242,46 @@ export function loadLocale(repoDir: string, code: string): I18nText {
     return localeCache[cacheKey];
   }
 
+  // 1. Try embedded in-memory locale (fastest, standalone safe)
+  if (EMBEDDED_LOCALES[code]) {
+    localeCache[cacheKey] = EMBEDDED_LOCALES[code];
+    return EMBEDDED_LOCALES[code];
+  }
+
+  // 2. Try file system locale if available
   const localesDir = getLocalesDir(repoDir);
   const localeFile = path.join(localesDir, `${code}.json`);
 
-  if (!fs.existsSync(localeFile)) {
-    const defaultEn = path.join(localesDir, 'en.json');
-    if (fs.existsSync(defaultEn)) {
-      try {
-        const loaded = JSON.parse(fs.readFileSync(defaultEn, 'utf8'));
-        const merged = { ...FALLBACK_EN, ...loaded };
-        localeCache[cacheKey] = merged;
-        return merged;
-      } catch { }
-    }
-    localeCache[cacheKey] = FALLBACK_EN;
-    return FALLBACK_EN;
+  if (fs.existsSync(localeFile)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(localeFile, 'utf8'));
+      const merged = { ...FALLBACK_EN, ...raw };
+      localeCache[cacheKey] = merged;
+      return merged;
+    } catch { }
   }
 
-  try {
-    const raw = JSON.parse(fs.readFileSync(localeFile, 'utf8'));
-    const merged = { ...FALLBACK_EN, ...raw };
-    localeCache[cacheKey] = merged;
-    return merged;
-  } catch {
-    localeCache[cacheKey] = FALLBACK_EN;
-    return FALLBACK_EN;
-  }
+  const fallback = EMBEDDED_LOCALES['en'] || FALLBACK_EN;
+  localeCache[cacheKey] = fallback;
+  return fallback;
 }
 
 export function detectDefaultLocaleCode(): string {
+  // 1. Environment variables
   const envLang = process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || '';
   if (/zh|cn|hans/i.test(envLang)) {
     return 'zh-CN';
   }
+
+  // 2. Intl system locale
   try {
     const sysLocale = Intl.DateTimeFormat().resolvedOptions().locale;
-    if (/zh/i.test(sysLocale)) return 'zh-CN';
+    if (/zh|cn/i.test(sysLocale)) return 'zh-CN';
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (/Shanghai|Chongqing|Urumqi|Harbin|Beijing|PRC|Asia\/Taipei|Asia\/Hong_Kong/i.test(tz)) {
+      return 'zh-CN';
+    }
   } catch { }
+
   return 'en';
 }

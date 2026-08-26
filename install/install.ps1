@@ -1,20 +1,73 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Lightweight bootstrap launcher for OpenCode Config installer.
+    Lightweight bootstrap launcher for OpenCode Prime installer.
 #>
 
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir '..')).Path
 $EntryFile = Join-Path $ScriptDir 'src/index.ts'
 
-# 1. Try Bun (fastest, native TS support)
+$isInfoCmd = $args -contains "status" -or $args -contains "version" -or $args -contains "--help" -or $args -contains "-h" -or $args -contains "help" -or $args -contains "unregister" -or $args -contains "generate"
+
+# 0. Check for OpenCode CLI and offer automated install if missing (only for installation workflows)
+if (-not $isInfoCmd -and -not (Get-Command opencode -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Yellow
+    Write-Host "  ⚠️  OpenCode CLI was not found in your PATH"                -ForegroundColor Yellow
+    Write-Host "============================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "OpenCode is required to run agents, commands, and workflows."
+    
+    $installOpencode = $false
+    if ($args -contains "-Yes" -or $args -contains "--yes" -or $args -contains "-y") {
+        $installOpencode = $true
+    }
+    elseif ([Environment]::UserInteractive) {
+        $choice = Read-Host "Would you like to install OpenCode CLI automatically now? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($choice) -or $choice.Trim().ToLower() -eq 'y' -or $choice.Trim().ToLower() -eq 'yes') {
+            $installOpencode = $true
+        }
+    }
+    
+    if ($installOpencode) {
+        Write-Host "`n🚀 Installing OpenCode CLI via official installer..." -ForegroundColor Cyan
+        try {
+            Invoke-Expression (Invoke-RestMethod "https://opencode.ai/install.ps1")
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+            Write-Host "✔ OpenCode CLI installed successfully!`n" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "⚠️ Automatic installation encountered an issue. You can install it manually from https://opencode.ai" -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "ℹ️ Skipping OpenCode CLI installation. You can install it later from https://opencode.ai`n" -ForegroundColor DarkGray
+    }
+}
+
+# 1. Prefer bundled single-file engine (zero-dependency, instant startup)
+$BundledFile = Join-Path $ScriptDir 'dist/index.js'
+$SrcFile = Join-Path $ScriptDir 'src/index.ts'
+
+if (Test-Path $BundledFile) {
+    if (Get-Command bun -ErrorAction SilentlyContinue) {
+        & bun "$BundledFile" @args
+        exit $LASTEXITCODE
+    }
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        & node "$BundledFile" @args
+        exit $LASTEXITCODE
+    }
+}
+
+# 2. Try Bun with source files
 if (Get-Command bun -ErrorAction SilentlyContinue) {
-    & bun run "$EntryFile" @args
+    & bun run "$SrcFile" @args
     exit $LASTEXITCODE
 }
 
-# 2. Try Node.js + tsx
+# 3. Try Node.js + tsx
 if (Get-Command node -ErrorAction SilentlyContinue) {
     # Ensure dependencies installed if node_modules is missing
     $NodeModules = Join-Path $RepoRoot 'node_modules'
@@ -22,8 +75,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         Write-Host "Installing installer dependencies via npm..." -ForegroundColor Cyan
         & npm install --prefix "$RepoRoot"
     }
-
-    & npx --prefix "$RepoRoot" tsx "$EntryFile" @args
+    & npx --prefix "$RepoRoot" tsx "$SrcFile" @args
     exit $LASTEXITCODE
 }
 

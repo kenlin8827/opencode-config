@@ -1,8 +1,10 @@
-# OpenCode 生产级工程化配置
+# OpenCode Prime (OCP)
 
-开箱即用的 [OpenCode](https://opencode.ai) 生产级工程化配置：分层 MCP 代码智能与数据库网关、全链路工程护栏（ADR 铁律 / 密钥防护 / E2E 门控 / 提交纪律）、21 位专家智能体协作与一键模型分层治理 —— 一条命令安装到 `~/.config/opencode`。
+> **OpenCode 旗舰级生产工程与多智能体研发套件**
 
-> [English](README.md) | **中文** | 📖 **[在线文档站 (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/zh/)**
+开箱即用的 [OpenCode](https://opencode.ai) 旗舰级生产工程与多智能体研发套件：分层 MCP 代码智能与数据库网关、全链路工程护栏（ADR 铁律 / 密钥防护 / E2E 门控 / 提交纪律）、21 位专家智能体协作与一键模型分层治理 —— 一条命令安装到 `~/.config/opencode`。
+
+> [English](README.md) | **中文** | 📖 **[在线文档站 (GitBook / Docs)](https://kenlin8827.github.io/opencode-prime/zh/)**
 >
 > 本 README 是用户手册。如果你想修改本仓库本身（智能体、插件、测试、发布），请看 **[DEVELOPING.md](DEVELOPING.md)**。
 
@@ -14,15 +16,19 @@
 
 ### macOS / Linux / WSL
 ```bash
-curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz && tar xzf /tmp/oc-config.tar.gz -C /tmp && /tmp/opencode-config-*/install/install.sh
+curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc.zip"; Expand-Archive -Path "$env:TEMP\oc.zip" -DestinationPath "$env:TEMP\oc" -Force; & (Get-ChildItem "$env:TEMP\oc\opencode-config-*\install\install.ps1").FullName
+$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName
 ```
 
 > 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 API 密钥、自定义模型和层级选择均会**完整保留**。
+
+<p align="center" style="margin-top: 18px;">
+  <img src="./docs/public/images/tui-dashboard-zh.webp" alt="OpenCode TUI 全景控制台" width="880"/>
+</p>
 
 ---
 
@@ -31,6 +37,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 - [一、快速起步](#一快速起步)
   - [你将获得什么（特性矩阵）](#你将获得什么)
+  - [方案横向对比（为什么选择本方案？）](#方案横向对比为什么选择本方案)
   - [前置条件](#前置条件)
   - [快速上手（4 步实操）](#快速上手)
 - [二、核心能力与日常使用](#二核心能力与日常使用)
@@ -84,7 +91,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 # 一、快速起步
 
-## 你将获得什么
+## ✨ 你将获得什么
 
 | 特性 | 对你的意义 |
 |---|---|
@@ -100,7 +107,28 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
-## 前置条件
+## ⚖️ 方案横向对比（为什么选择 OpenCode Prime？）
+
+| 核心维度 / 场景 | 官方原生 (Vanilla OpenCode) | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
+| :--- | :--- | :--- | :--- |
+| **核心哲学** | 极简单会话驱动 | 追求全自动黑盒委托 | **生产级工程纪律 + 精准分级掌控** |
+| **日常微调 / 快速修 Bug** | ✅ 快速（单模型） | ⚠️ 较慢（多 Agent 拆解与多层派发开销） | ⚡ **`/quick-dev` 闪电秒级交付（零委托开销）** |
+| **敏捷特性交付** | ⚠️ 无内置审查闭环 | ⚠️ 任务链过长，易陷入死循环 | 🚀 **`/fast-dev` 敏捷单审交付闭环** |
+| **核心架构与重大重构** | ❌ 无多模型审查能力 | ⚠️ 缺乏独立的仲裁机制 | 🧠 **`/deep-dev` 旗舰双审 + 安全仲裁机制** |
+| **Token 消耗与成本** | 🟢 低 | 🔴 极高（冷启动 15k–25k Token 开销） | 🟢 **精细治理（Tier 1/2/3 路由 + RTK 压缩）** |
+| **代码情报与索引** | 基础文本搜索 / Grep | 倾向于全文或大片上下文注入 | 🧭 **Serena (LSP符号) + CodeGraph (调用图) + DBHub** |
+| **工程守卫 (Guardrails)** | ❌ 无 | ❌ 弱（完全依赖模型自律） | 🛡️ **ADR 架构决策 + Secret 拦截 + Commit 规范** |
+| **环境与配置管理** | 手动修改 JSON | JSONC 手动维护 | 🖥️ **单屏交互式 TUI 控制台（多 Provider 热切换）** |
+| **升级体验** | 手动替换 | 脚本安装 | 🔄 **零风险平滑热升级（保留所有 Key 与配置）** |
+
+### 🎯 选型建议指引
+* **选择官方原生 (Vanilla)**：只需最基础的单文件代码补全或简单对话，不涉及复杂工程重构与多 Agent 协作。
+* **选择 `omo.dev`**：偏好全自动黑盒交付、不在意 Token 账单与响应延迟、愿意让 AI 完全自主探索的实验性场景。
+* **选择 OpenCode Prime**：**真实企业与商业代码库开发**——需要极快响应、严格的代码审查与安全底线、低 Token 成本以及专业 LSP/图谱级代码智能。
+
+---
+
+## 📋 前置条件
 
 | 要求 | 用途 | 安装方式 |
 |---|---|---|
@@ -116,7 +144,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
-## 快速上手
+## 🚀 快速上手
 
 运行顶部的 [一键安装](#-10-秒一键安装) 之后，即可按需开始使用：
 
@@ -125,27 +153,30 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 ```bash
 opencode
 ```
-- **🎯 初始化项目环境（强烈推荐）**：首次进入项目运行 `/project init`，自动构建本地代码图谱与项目护栏。
+- **🎯 初始化项目环境（强烈推荐）**：首次进入项目运行 `/project init`，自动构建本地代码图谱（CodeGraph + Serena LSP）与工程护栏（ADR + 敏感密钥防护）：
+  <p align="center" style="margin-top: 10px;">
+    <img src="./docs/public/images/tui-project-wizard-zh.webp" alt="Project Wizard 交互向导" width="880"/>
+  </p>
 - **连接服务商与预设**：运行 `/connect deepseek`（或 kimi、anthropic 等），然后运行 `/profile` 打开弹窗一键选择预设并自动分层分配模型！
 - **直接对话编码**：默认即为 `@code` 模式，直接用自然语言描述需求即可。
 
-### 2. 随时打开全景控制台（调整开关与 Agent 梯队）
-在仓库目录下随时运行：
-```powershell
-# Windows
-pwsh install/install.ps1
+### 2. 单屏 TUI 全景控制台（调整开关与 Agent 梯队）
+执行安装命令后（或后续随时在终端输入 `ocp` / `opencode-prime`），终端将直接唤出 **单屏 TUI 全景控制台**，按空格键秒级切换启用的 MCP 服务、外部插件、RTK 令牌压缩器，或按空格键循环调整各 Agent 所属模型梯队（`flash` / `standard` / `pro` / `max` / `vision`）：
 
-# macOS / Linux / WSL
-./install/install.sh
-```
-即可进入 **单屏 TUI 全景控制台**，按空格键秒级切换启用的 MCP 服务、外部插件、RTK 令牌压缩器，或按空格键循环调整各 Agent 所属模型梯队（`default` / `code` / `advisor` / `explorer` / `vision`）。
+<p align="center">
+  <img src="./docs/public/images/tui-dashboard-zh.webp" alt="OpenCode TUI 全景控制台" width="880"/>
+</p>
 
-### 3. 一键注册全局快捷命令（随时随地配置）
-在向导菜单中选择 `🌐 注册全局快捷命令 (opencode-config)`，或执行：
+> 💡 **快捷键操作指南**：`↑/↓` 移动光标，`Space` 空格键切换/轮换，`Enter` 回车执行操作，`L` 键秒级切换语言（中/英），`Q` 退出。
+
+### 3. 随时随地调出控制台 (`ocp` / `opencode-prime`)
+安装完成后，在系统的**任意终端路径下**直接输入以下任一命令：
 ```bash
-opencode-config
+ocp              # 极简 3 字母直达（推荐）
+opencode-prime   # 完整品牌命令
+opencode-config  # 兼容命令
 ```
-后续在系统的任意路径下输入 `opencode-config`，均可秒级唤出全景控制台或安装向导！
+即可秒级再次唤出全景控制台进行配置微调或一键平滑升级！
 
 ---
 
@@ -155,8 +186,8 @@ opencode-config
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/kenlin8827/opencode-config.git
-cd opencode-config
+git clone https://github.com/kenlin8827/opencode-prime.git
+cd opencode-prime
 
 # 2. 执行安装（Windows 用 pwsh install/install.ps1）
 ./install/install.sh
@@ -817,8 +848,8 @@ echo on > <project>/.opencode/.env-guard
 | 查看状态 | `pwsh install/install.ps1 status` | `./install/install.sh status` | 显示已安装版本与仓库版本 |
 | 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
 | 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
-| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-config` shim 安装到 `~/.local/bin` |
-| 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除 shim |
+| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-prime`、`ocp` 与 `opencode-config` shim 安装到 `~/.local/bin` |
+| 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除全局 shims |
 
 ### 安装选项（`options.jsonc`）
 
@@ -826,7 +857,7 @@ echo on > <project>/.opencode/.env-guard
 
 #### 1. 安装前自定义选项
 若你在初次安装前希望按需开启或关闭特定功能（如开启 `opencode-qoder-bridge`、`opencode-mem` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 服务开关、切换默认主控智能体为 `code`/`build`/`plan`）：
-1. 克隆本仓库或解压 release 包并进入目录：`cd opencode-config`
+1. 克隆本仓库或解压 release 包并进入目录：`cd opencode-prime`
 2. 编辑 `install/options.jsonc` 调整开关（`true` / `false`）：
    ```jsonc
    // install/options.jsonc
@@ -898,12 +929,12 @@ pwsh install/install.ps1 install -Force
 
 其他所有字段来自仓库模板。如需丢弃保留的设置，在重装前删除 `<target>/opencode.jsonc`。
 
-### 全局命令
+### 全局快捷命令 (`ocp` / `opencode-prime`)
 
-首次安装后，可将仓库注册为全局 `opencode-config` 命令：
+首次安装后，可将仓库注册为全局快捷命令（`ocp`、`opencode-prime` 与 `opencode-config`）：
 
 ```powershell
-pwsh install/install.ps1 register              # shim 位于 ~/.local/bin
+pwsh install/install.ps1 register              # shims 位于 ~/.local/bin
 pwsh install/install.ps1 register -BinDir C:\Tools\bin  # 自定义目录
 ```
 
@@ -912,12 +943,12 @@ pwsh install/install.ps1 register -BinDir C:\Tools\bin  # 自定义目录
 ./install/install.sh register --bin-dir ~/bin
 ```
 
-`register` 创建的是一个跳板，会重新执行仓库内的调度脚本，因此 `git pull` 后命令立即更新。它拒绝覆盖不是自己创建的文件。将 `~/.local/bin` 加入用户 PATH 后即可使用：
+`register` 创建的是跳板脚本，会重新执行仓库内的调度脚本，因此 `git pull` 后命令立即更新。它拒绝覆盖不是自己创建的文件。将 `~/.local/bin` 加入用户 PATH 后即可在任意目录执行：
 
 ```powershell
-opencode-config status
-opencode-config install -Force
-opencode-config unregister   # 移除 shim
+ocp status
+ocp install -Force
+ocp unregister   # 移除全局 shims
 ```
 
 ### 自定义目标目录（安全测试）
@@ -972,7 +1003,7 @@ rm -rf ~/.config/opencode
 Remove-Item -Recurse -Force "$HOME/.config/opencode"
 ```
 
-这会移除所有智能体、命令、插件、指令和配置。`~/.config/opencode/.metrics/` 中的指标也会被删除。如果注册过全局命令，请先运行 `opencode-config unregister`（或删除 `~/.local/bin` 中的 shim）。
+这会移除所有智能体、命令、插件、指令和配置。`~/.config/opencode/.metrics/` 中的指标也会被删除。如果注册过全局命令，请先运行 `ocp unregister`（或删除 `~/.local/bin` 中的 shims）。
 
 ### Init 模式（备份 + 清空）
 

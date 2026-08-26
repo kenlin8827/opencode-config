@@ -48,7 +48,7 @@ const LEGACY_TIER_MIGRATION: Record<string, string> = {
 
 interface RowItem {
   id: string;
-  type: 'agent' | 'rtk' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_exit';
+  type: 'lang' | 'agent' | 'rtk' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_exit';
   key?: string;
   label: string;
   hint?: string;
@@ -113,6 +113,15 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
   const buildRows = (): RowItem[] => {
     const t = loadLocale(repoDir, currentLocaleCode);
     const r: RowItem[] = [];
+
+    // 0. Language / 语言
+    const curLangMeta = availableLocales.find((l) => l.code === currentLocaleCode) || { name: currentLocaleCode };
+    r.push({
+      id: 'lang',
+      type: 'lang',
+      label: t.switchLanguageLabel || '🌐 Language / 语言',
+      hint: `${t.switchLanguageHint} (Space/L to switch)`,
+    });
 
     // 1. Agent
     r.push({
@@ -250,7 +259,11 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
 
       let valueDisplay = '';
 
-      if (row.type === 'agent') {
+      if (row.type === 'lang') {
+        const curMeta = availableLocales.find((l) => l.code === currentLocaleCode) || { name: currentLocaleCode };
+        valueDisplay = ` [ ${C.bold}${C.green}${curMeta.name}${C.reset} ]   ${C.dim}(Space / L to switch)${C.reset}`;
+        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+      } else if (row.type === 'agent') {
         valueDisplay = ` [ ${C.bold}${C.yellow}${currentAgent}${C.reset} ]   ${C.dim}(${t.cycleAgentHint})${C.reset}`;
         buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
       } else if (row.type === 'rtk') {
@@ -424,7 +437,15 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       const t = loadLocale(repoDir, currentLocaleCode);
 
       if (key.name === 'space' || key.name === 'return') {
-        if (currentRow.type === 'agent') {
+        if (currentRow.type === 'lang') {
+          const curIdx = availableLocales.findIndex((l) => l.code === currentLocaleCode);
+          const nextIdx = (curIdx + 1) % availableLocales.length;
+          currentLocaleCode = availableLocales[nextIdx].code;
+          rows = buildRows();
+          statusMessage = loadLocale(repoDir, currentLocaleCode).switchLangHint;
+          render();
+          return;
+        } else if (currentRow.type === 'agent') {
           const curIdx = availableAgents.indexOf(currentAgent);
           const nextIdx = (curIdx + 1) % availableAgents.length;
           currentAgent = availableAgents[nextIdx];

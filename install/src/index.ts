@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import { CliArgs, CommandAction } from './types';
 import {
   executeInstall,
@@ -81,7 +82,7 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
 
 function printHelp(): void {
   console.log(`
-OpenCode Config Installer & Manager
+OpenCode Prime (OCP) Installer & Manager
 
 Usage:
   pwsh install/install.ps1 [action] [options]
@@ -91,13 +92,13 @@ Usage:
 Actions:
   (default)    Interactive setup wizard (in TTY) or install (in non-interactive)
   wizard       Launch the interactive TUI setup wizard
-  install      Install or update opencode configuration files
+  install      Install or update OpenCode Prime configuration files
   status       Check installed version and comparison with current repo
   generate     Generate manifest for current repo VERSION
   init         Backup and reset the target configuration directory
   uninstall    Safely remove installed managed configuration files
-  register     Register global 'opencode-config' command trampoline into PATH
-  unregister   Remove global 'opencode-config' command trampoline
+  register     Register global 'opencode-prime' & 'ocp' command shims into PATH
+  unregister   Remove global 'opencode-prime' & 'ocp' command shims
 
 Options:
   -t, --target <path>      Custom target directory (default: ~/.config/opencode)
@@ -109,9 +110,55 @@ Options:
 `);
 }
 
+/**
+ * Resolve the repository root directory at runtime.
+ *
+ * When the installer is run from source (bun run install/src/index.ts),
+ * __dirname correctly points to install/src/ and two levels up gives the repo root.
+ *
+ * However, when run from the bundled dist/index.js (produced by `bun build`),
+ * Bun hard-codes __dirname to the build machine's absolute path (e.g.
+ * "D:\\OpenHub\\opencode-config\\install\\src"), which does not exist on
+ * end-user machines. This causes ENOTSUP errors when trying to mkdir
+ * manifest paths under a non-existent directory tree.
+ *
+ * Fallback chain:
+ *   1. __dirname (works for source mode)
+ *   2. dirname(process.argv[1]) (works for bundled mode — argv[1] is the script path)
+ *   3. process.cwd() (last resort)
+ */
+function resolveRepoDir(): string {
+  // Try __dirname first (two levels up: install/src/ -> repo root)
+  const candidates: string[] = [
+    path.resolve(__dirname, '..', '..'),
+  ];
+
+  // In bundled mode, process.argv[1] is the actual script path on the user's machine
+  if (process.argv[1]) {
+    const scriptDir = path.dirname(path.resolve(process.argv[1]));
+    // dist/index.js is at install/dist/index.js, so repo root is two levels up
+    candidates.push(path.resolve(scriptDir, '..', '..'));
+    // If script is install/src/index.ts, repo root is also two levels up
+    candidates.push(path.resolve(scriptDir, '..', '..'));
+  }
+
+  // Last resort: cwd
+  candidates.push(process.cwd());
+
+  // Return the first candidate that contains install/VERSION
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'install', 'VERSION'))) {
+      return c;
+    }
+  }
+
+  // If none matched, return the first candidate (let downstream errors surface naturally)
+  return candidates[0];
+}
+
 async function main() {
-  // Find repo root (two levels up from install/src/ or process.cwd())
-  const repoDir = path.resolve(__dirname, '..', '..');
+  // Find repo root at runtime (see resolveRepoDir for fallback logic)
+  const repoDir = resolveRepoDir();
   const rawArgs = process.argv.slice(2);
   const args = parseCliArgs(rawArgs);
 

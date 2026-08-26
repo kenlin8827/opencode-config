@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: "OpenCode"
-  text: "生产级工程化配置"
-  tagline: "为真实软件研发而生 · 分层 MCP 代码智能 · 全链路工程护栏 · 21 位专家协同"
+  name: "OpenCode Prime"
+  text: "(OCP)"
+  tagline: "OpenCode 旗舰级生产工程与多智能体研发套件 · 分层代码智能 · 全链路工程护栏"
   image:
     src: /logo.svg
-    alt: OpenCode 生产级工程化配置
+    alt: OpenCode Prime (OCP)
   actions:
     - theme: brand
       text: ⚡ 10 秒极速安装
@@ -17,7 +17,7 @@ hero:
       link: /zh/core/daily-use
     - theme: alt
       text: GitHub 仓库
-      link: https://github.com/kenlin8827/opencode-config
+      link: https://github.com/kenlin8827/opencode-prime
 
 features:
   - title: 🛡️ 生产级工程护栏
@@ -26,8 +26,8 @@ features:
     details: Serena LSP 符号精准定位 + CodeGraph 架构调用链与改动影响面分析，杜绝盲目翻文件与 Token 浪费。
   - title: 🤖 专家分工与自适应编排
     details: 17 位垂直领域专家（Java、Go、前端、DBA、安全等）随调随用，@code / @build / @plan 模式自适应切换。
-  - title: 🔄 质量与自动化闭环
-    details: /review-fix-loop 审查修复闭环、Red-team 对抗式架构评估、rtk 60-90% Token 压缩代理。
+  - title: 🔄 三阶敏捷/严谨闭环开发
+    details: /quick-dev 极速自写直出、/fast-dev 敏捷单审单修闭环、/deep-dev 双旗舰对抗仲裁，搭配 rtk 60-90% Token 压缩代理。
   - title: 📐 规范驱动开发 (SDD)
     details: PRD 需求规格 → ADR 架构决策 → PLAN 实施计划 → IMPL 编码验证全链路闭环，支持任意阶段起手与交互式跳级流转。
   - title: 🎯 一键分层模型治理

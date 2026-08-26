@@ -13,8 +13,8 @@ Learn about installer commands, configuration options, token savings, and preser
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
-| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
-| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
+| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-prime`, `ocp`, and `opencode-config` shims to `~/.local/bin` |
+| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove global shims |
 
 ---
 
@@ -26,7 +26,7 @@ Learn about installer commands, configuration options, token savings, and preser
 
 1. **Enter the repository directory** (if cloned via Git or extracted from release archive):
    ```bash
-   cd opencode-config
+   cd opencode-prime
    ```
 2. **Edit `install/options.jsonc`** to set desired switches (`true` / `false`):
    ```jsonc
@@ -116,9 +116,9 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 
 ---
 
-## Global command
+## Global commands (`ocp` / `opencode-prime`)
 
-After initial install, register the repo as a global `opencode-config` command:
+After initial install, register the repo to provision global command shortcuts (`ocp`, `opencode-prime`, and `opencode-config`):
 
 ```powershell
 pwsh install/install.ps1 register

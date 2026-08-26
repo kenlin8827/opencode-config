@@ -1,8 +1,10 @@
-# OpenCode Production Engineering Config
+# OpenCode Prime (OCP)
 
-A production-ready [OpenCode](https://opencode.ai) configuration for real-world software engineering: layered MCP code intelligence and database gateway, hard engineering guardrails (ADR / secret-file / E2E / commit discipline), 21 specialist agents, and one-shot model tier governance — installed into `~/.config/opencode` with a single command.
+> **The Flagship Production Engineering & Multi-Agent Suite for OpenCode**
 
-> **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/)**
+A production-ready [OpenCode](https://opencode.ai) suite for real-world software engineering: layered MCP code intelligence and database gateway, hard engineering guardrails (ADR / secret-file / E2E / commit discipline), 21 specialist agents, and one-shot model tier governance — installed into `~/.config/opencode` with a single command.
+
+> **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-prime/)**
 >
 > This README is the user manual. If you want to modify this repo itself (agents, plugins, tests, releases), see **[DEVELOPING.md](DEVELOPING.md)**.
 
@@ -14,21 +16,26 @@ Install directly to `~/.config/opencode` with a single command (no Git clone req
 
 ### macOS / Linux / WSL
 ```bash
-curl -fsSL https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.tar.gz -o /tmp/oc-config.tar.gz && tar xzf /tmp/oc-config.tar.gz -C /tmp && /tmp/opencode-config-*/install/install.sh
+curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/opencode-config-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\oc.zip"; Expand-Archive -Path "$env:TEMP\oc.zip" -DestinationPath "$env:TEMP\oc" -Force; & (Get-ChildItem "$env:TEMP\oc\opencode-config-*\install\install.ps1").FullName
+$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName
 ```
 
 > 💡 **Zero-Risk Upgrades**: Re-running the command above smoothly upgrades to the latest release while **preserving** all your API keys, custom models, and tier assignments.
+
+<p align="center" style="margin-top: 18px;">
+  <img src="./docs/public/images/tui-dashboard-en.webp" alt="OpenCode TUI Panoramic Dashboard" width="880"/>
+</p>
 
 <details>
 <summary><b>📑 Table of Contents (Click to expand)</b></summary>
 
 - [Part I: Getting Started](#part-i-getting-started)
   - [What you get](#what-you-get)
+  - [Comparison matrix (Why choose this over alternatives?)](#comparison-matrix-why-choose-this-suite)
   - [Prerequisites](#prerequisites)
   - [Quick start (4 steps)](#quick-start)
 - [Part II: Core Capabilities & Daily Use](#part-ii-core-capabilities--daily-use)
@@ -82,7 +89,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 # Part I: Getting Started
 
-## What you get
+## ✨ What you get
 
 | Feature | What it means for you |
 |---|---|
@@ -98,7 +105,28 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
-## Prerequisites
+## ⚖️ Comparison Matrix (Why choose OpenCode Prime?)
+
+| Feature / Dimension | Vanilla OpenCode | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
+| :--- | :--- | :--- | :--- |
+| **Core Philosophy** | Minimal single-session coding | Autonomous black-box delegation | **Production engineering discipline + Tiered control** |
+| **Quick Tweaks / Bug Fixes** | ✅ Fast (Single model) | ⚠️ Slow (Heavy multi-agent breakdown) | ⚡ **`/quick-dev` Zero-delegation fast track** |
+| **Agile Feature Delivery** | ⚠️ No built-in review loop | ⚠️ Long chains, risk of stuck loops | 🚀 **`/fast-dev` Agile single-review loop** |
+| **Architectural Refactoring** | ❌ No multi-model review | ⚠️ Lacks independent arbitration | 🧠 **`/deep-dev` Flagship dual-review + Safety arbitration** |
+| **Token Cost & Predictability** | 🟢 Low | 🔴 High (15k–25k startup overhead) | 🟢 **Controlled (Tier 1/2/3 governance + RTK compression)** |
+| **Code Intelligence** | Basic text search / grep | Heavy whole-context injection | 🧭 **Serena (LSP symbols) + CodeGraph (call paths) + DBHub** |
+| **Engineering Guardrails** | ❌ None | ❌ Weak (Relies on model self-discipline) | 🛡️ **ADR enforcement + Secret-file gate + Commit discipline** |
+| **Environment & Management** | Manual JSON editing | Manual JSONC maintenance | 🖥️ **Interactive Single-Screen TUI + Hot-reloading profiles** |
+| **Upgrade Safety** | Manual file replacement | Script re-execution | 🔄 **Zero-Risk in-place upgrade (Keys & profiles preserved)** |
+
+### 🎯 When to choose which?
+* **Choose Vanilla OpenCode**: When you only need lightweight inline autocompletion and simple, single-turn conversational edits.
+* **Choose `omo.dev`**: When you prefer fully autonomous black-box task delegation and are unconcerned with high token consumption or startup latency.
+* **Choose OpenCode Prime**: When you build **real-world commercial software** requiring high delivery velocity, predictable token costs, strict code quality guardrails, and deep LSP/graph-backed code intelligence.
+
+---
+
+## 📋 Prerequisites
 
 | Requirement | Why | Install |
 |---|---|---|
@@ -114,7 +142,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ---
 
-## Quick start
+## 🚀 Quick start
 
 After running the [10-Second Quick Install](#-10-second-quick-install) above, you can proceed with whichever workflow fits your needs:
 
@@ -123,27 +151,30 @@ Open any project directory in your terminal and launch OpenCode:
 ```bash
 opencode
 ```
-- **🎯 Initialize project environment (Highly Recommended)**: Run `/project init` to scaffold the code knowledge graph and project guards.
+- **🎯 Initialize project environment (Highly Recommended)**: Run `/project init` to scaffold the code knowledge graph (CodeGraph + Serena LSP) and project guardrails (ADR + secret-file gates):
+  <p align="center" style="margin-top: 10px;">
+    <img src="./docs/public/images/tui-project-wizard-en.webp" alt="Project Wizard Interactive Dialog" width="880"/>
+  </p>
 - **Connect provider & profile**: Run `/connect deepseek` (or kimi, anthropic, openai, etc.), then `/profile` to assign models across all 5 tiers.
 - **Start coding**: `@code` mode is the default daily driver — just describe your task in natural language!
 
-### 2. Open the TUI Control Center Anytime (Toggle switches & agent tiers)
-Run from within the repository at any time:
-```powershell
-# Windows (PowerShell)
-pwsh install/install.ps1
+### 2. Single-Screen TUI Control Center (Toggle switches & agent tiers)
+Running the install command (or running the global command `ocp` / `opencode-prime` anytime later) directly opens the **Single-Screen TUI Control Center**, allowing you to press Space to toggle MCP servers, plugins, RTK optimizer, or cycle Agent-to-Tier model assignments (`flash` / `standard` / `pro` / `max` / `vision`):
 
-# macOS / Linux / WSL (Bash)
-./install/install.sh
-```
-This opens the **Single-Screen TUI Control Center**, allowing you to press Space to toggle MCP servers, plugins, RTK optimizer, or cycle Agent-to-Tier model assignments (`default` / `code` / `advisor` / `explorer` / `vision`).
+<p align="center">
+  <img src="./docs/public/images/tui-dashboard-en.webp" alt="OpenCode TUI Panoramic Dashboard" width="880"/>
+</p>
 
-### 3. Register Global Command (Configure from anywhere)
-Select `🌐 Register Global Command (opencode-config)` in the wizard menu, or run:
+> 💡 **Keyboard Shortcuts**: `↑/↓` Move cursor, `Space` Toggle/Cycle tier, `Enter` Execute action, `L` Instant language switch (EN/ZH), `Q` Exit.
+
+### 3. Open Dashboard Anytime (`ocp` / `opencode-prime`)
+After installation, run any of the global commands from **any terminal directory**:
 ```bash
-opencode-config
+ocp              # 3-letter quick direct access (recommended)
+opencode-prime   # Official full suite command
+opencode-config  # Backward-compatible alias
 ```
-You can now run `opencode-config` from any terminal path across your entire system!
+You can now adjust settings or perform one-click seamless upgrades anytime without worrying about install paths!
 
 ---
 
@@ -153,8 +184,8 @@ If you plan to modify or contribute to this repo, install via Git:
 
 ```bash
 # 1. Clone
-git clone https://github.com/kenlin8827/opencode-config.git
-cd opencode-config
+git clone https://github.com/kenlin8827/opencode-prime.git
+cd opencode-prime
 
 # 2. Run install (Windows: pwsh install/install.ps1)
 ./install/install.sh
@@ -817,8 +848,8 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
-| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-config` shim to `~/.local/bin` |
-| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove the shim |
+| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-prime`, `ocp`, and `opencode-config` shims to `~/.local/bin` |
+| Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove global shims |
 
 ### Install Options (`options.jsonc`)
 
@@ -826,7 +857,7 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 
 #### 1. Customizing Options Before Installing
 If you want to toggle optional features (such as enabling `opencode-qoder-bridge` / `opencode-mem` plugins, adjusting Serena / CodeGraph / DBHub MCP servers, or changing the default agent) before running the installer:
-1. Clone the repository or extract the release archive and enter the directory: `cd opencode-config`
+1. Clone the repository or extract the release archive and enter the directory: `cd opencode-prime`
 2. Edit `install/options.jsonc` to set switches (`true` / `false`):
    ```jsonc
    // install/options.jsonc
@@ -898,12 +929,12 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 
 All other fields come from the repo template. To discard preserved picks, remove `<target>/opencode.jsonc` before reinstalling.
 
-### Global command
+### Global commands (`ocp` / `opencode-prime`)
 
-After the initial install, register the repo as a global `opencode-config` command:
+After the initial install, register the repo to provision global command shortcuts (`ocp`, `opencode-prime`, and `opencode-config`):
 
 ```powershell
-pwsh install/install.ps1 register              # shim at ~/.local/bin
+pwsh install/install.ps1 register              # shims at ~/.local/bin
 pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom directory
 ```
 
@@ -912,12 +943,12 @@ pwsh install/install.ps1 register -BinDir C:\Tools\bin  # custom directory
 ./install/install.sh register --bin-dir ~/bin
 ```
 
-`register` creates a trampoline that re-executes the in-repo dispatcher, so `git pull` updates the command immediately. It will refuse to overwrite a file it did not create. Add `~/.local/bin` to your user PATH, then run:
+`register` creates trampoline scripts that re-execute the in-repo dispatcher, so `git pull` updates the command immediately. It will refuse to overwrite a file it did not create. Add `~/.local/bin` to your user PATH, then run from any directory:
 
 ```powershell
-opencode-config status
-opencode-config install -Force
-opencode-config unregister   # remove the shim
+ocp status
+ocp install -Force
+ocp unregister   # remove global shims
 ```
 
 ### Custom target (safe testing)
@@ -972,7 +1003,7 @@ rm -rf ~/.config/opencode
 Remove-Item -Recurse -Force "$HOME/.config/opencode"
 ```
 
-This removes all agents, commands, plugins, instructions, and configuration. Metrics under `~/.config/opencode/.metrics/` are also deleted. If you registered the global command, run `opencode-config unregister` first (or delete the shim from `~/.local/bin`).
+This removes all agents, commands, plugins, instructions, and configuration. Metrics under `~/.config/opencode/.metrics/` are also deleted. If you registered the global command, run `ocp unregister` first (or delete the shims from `~/.local/bin`).
 
 ### Init mode (backup + clear)
 

@@ -1,7 +1,7 @@
 #requires -Version 7.0
 <#
 .SYNOPSIS
-    bin/opencode-config.ps1 — backward-compatible alias for OpenCode Prime (OCP)
+    bin/ocp.ps1 — alias dispatcher for OpenCode Prime (OCP)
 #>
 [CmdletBinding()]
 param(
