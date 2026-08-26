@@ -25,7 +25,7 @@ export function getCurrentRepoVersion(repoDir: string): string {
   if (fs.existsSync(versionFile)) {
     return fs.readFileSync(versionFile, 'utf8').trim();
   }
-  return '0.5.0';
+  return '0.5.1';
 }
 
 export function getInstalledVersion(targetDir: string): string | null {

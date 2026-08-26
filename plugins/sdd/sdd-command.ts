@@ -87,7 +87,7 @@ Lifecycle: /prd → /adr → /plan → /impl`
           await client.session.prompt({
             path: { id: input.sessionID },
             body: {
-              parts: [{ type: "text", text: `[SDD] 📦 Generating SDD Handoff Package... Compacting active stage, artifacts, and next steps into temporary handoff document.` }],
+              parts: [{ type: "text", text: `[SDD] 📦 Generating SDD Handoff Package... Compacting active stage, artifacts, and next steps into .opencode/handoffs/.` }],
               noReply: true,
               ignored: true,
             },

@@ -19,7 +19,7 @@ OpenCode Multi-Agent ships with a suite of high-leverage workflow slash commands
 | **`/deep-dev <task> [--max-rounds=N]`** | Dev Loop | **Deep-Dev Mission-Critical Dual-Review Loop**: Flash coding + dual flagship review + Advisor consensus arbitration with full-stack multi-stage staging (see [Three-Tier Dev Loops](dev-loops.md)) |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | Quality Loop | Automated review-verify-fix-re-review loop until zero P0/P1 issues. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or uncommitted changes |
 | **`/goal [text]`** | Goal Execution | Structured goal execution protocol with audit-friendly checklists and mechanically checkable stop conditions |
-| **`/handoff [focus]`** | Session State | Compacts current session state into a temporary handoff bundle and outputs a paste-ready opener for a fresh session |
+| **`/handoff [focus]`** | Session State | Compacts current session state into a git-safe handoff bundle (`.opencode/handoffs/`) and outputs a paste-ready opener for a fresh session |
 | **`/adr-guard [on\|off\|status]`** | Quality Gate | Project-level ADR commit gate: enforces architecture decision records on `feat:` and `refactor:` commits |
 | **`/e2e-guard [on\|off\|status]`** | Quality Gate | Project-level E2E testing gate: requires end-to-end coverage verification on features and bug fixes |
 | **`/env-guard [on\|off\|status]`** | Security Gate | Project-level secret leak prevention: blocks reading or leaking `.env` files to external tools |

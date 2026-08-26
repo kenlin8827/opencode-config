@@ -288,7 +288,7 @@ Check "handoff.ts: has config hook registering command" ($handoffPlugin -match "
 Check "handoff.ts: NO command.execute.before hook" (-not ($handoffPlugin -match '"command\.execute\.before"'))
 Check "handoff.ts: has system.transform hook" ($handoffPlugin -match "experimental.chat.system.transform")
 Check "handoff.ts: agent is build" ($handoffPlugin -match 'agent:.*"build"')
-Check "handoff.md: writes to OS temp dir, not workspace" ($handoffProtocol -match "Temp directory only")
+Check "handoff.md: stores in git-safe directory" ($handoffProtocol -match "Git-safe directory only")
 Check "handoff.md: references artifacts instead of duplicating" ($handoffProtocol -match "Reference, don't duplicate")
 Check "handoff.md: redacts sensitive information" ($handoffProtocol -match "Redact sensitive information")
 Check "handoff.md: has suggested agents section" ($handoffProtocol -match "Suggested agents")

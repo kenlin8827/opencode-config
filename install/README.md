@@ -1,4 +1,4 @@
-# install (v0.5.0)
+# install (v0.5.1)
 
 Self-installing OpenCode config powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 

@@ -307,8 +307,8 @@ export function clearConfigField(field: string): boolean {
 // ─── Project Log & Gitignore Utilities ────────────────────────────────
 
 /**
- * Automatically ensures `<project>/.opencode/.gitignore` exists to ignore logs and runtime artifacts.
- * If `.gitignore` already exists, ensures `logs/` and `*.log` are present.
+ * Automatically ensures `<project>/.opencode/.gitignore` exists to ignore logs, handoffs, and runtime artifacts.
+ * If `.gitignore` already exists, ensures `logs/`, `*.log`, and `handoffs/` are present.
  */
 export function ensureOpencodeGitignore(root: string = getProjectDir()): void {
   const opencodeDir = join(root, ".opencode")
@@ -317,13 +317,23 @@ export function ensureOpencodeGitignore(root: string = getProjectDir()): void {
       mkdirSync(opencodeDir, { recursive: true })
     }
     const gitignorePath = join(opencodeDir, ".gitignore")
-    const defaultIgnore = "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\nlogs/\n*.log\n"
+    const defaultIgnore = "node_modules\npackage.json\npackage-lock.json\nbun.lock\n.gitignore\nlogs/\n*.log\nhandoffs/\n"
     if (!existsSync(gitignorePath)) {
       writeFileSync(gitignorePath, defaultIgnore, "utf-8")
     } else {
       const content = readFileSync(gitignorePath, "utf-8")
+      let needsUpdate = false
+      let nextContent = content
       if (!content.includes("logs")) {
-        writeFileSync(gitignorePath, content.trimEnd() + "\nlogs/\n*.log\n", "utf-8")
+        nextContent = nextContent.trimEnd() + "\nlogs/\n*.log\n"
+        needsUpdate = true
+      }
+      if (!content.includes("handoffs")) {
+        nextContent = nextContent.trimEnd() + "\nhandoffs/\n"
+        needsUpdate = true
+      }
+      if (needsUpdate) {
+        writeFileSync(gitignorePath, nextContent, "utf-8")
       }
     }
   } catch {}
@@ -343,4 +353,20 @@ export function getProjectLogDir(root: string = getProjectDir()): string {
   } catch {}
   return dir
 }
+
+/**
+ * Resolves `<project>/.opencode/handoffs` directory, creating it and ensuring
+ * `.opencode/.gitignore` is configured automatically.
+ */
+export function getProjectHandoffDir(root: string = getProjectDir()): string {
+  const dir = join(root, ".opencode", "handoffs")
+  try {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+    ensureOpencodeGitignore(root)
+  } catch {}
+  return dir
+}
+
 

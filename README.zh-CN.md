@@ -536,7 +536,7 @@ bridge 附带的额外能力：
 | **`/deep-dev <task> [--max-rounds=N]`** | 闭环开发 | **Deep-Dev 深度双审共识闭环**：Flash 模型编码 + 双旗舰顶级会审（需求 100% 对齐 + 质量与安全防线） + Advisor 争议仲裁共识，支持全栈多阶段拆解汇总（默认上限 10 轮） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
-| **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至系统临时目录），生成新会话一键恢复开场白 |
+| **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至 Git 忽略的 `.opencode/handoffs/`），生成新会话一键恢复开场白 |
 | **`/adr-guard [on\|off\|status]`** | 质量硬门禁 | 项目级 ADR 提交铁律门禁：拦截缺少架构决策记录的 `feat:` 与 `refactor:` 提交 |
 | **`/e2e-guard [on\|off\|status]`** | 质量硬门禁 | 项目级 E2E 测试硬门禁：在功能变更和 Bug 修复时强制进行端到端测试覆盖检查 |
 | **`/env-guard [on\|off\|status]`** | 安全护栏 | 项目级敏感信息防泄漏护栏：拦截读取或向 Bash 暴露 `.env` 等凭据的行为 |
