@@ -92,3 +92,37 @@
   margin: 0 auto;
   display: block;
 }
+
+/* Table Optimization: Prevent awkward line wrapping on short cells & headers */
+.vp-doc table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 16px 0;
+  border-collapse: collapse;
+}
+
+/* Table headers never wrap */
+.vp-doc table th {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Code tokens inside tables never wrap */
+.vp-doc table code {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+/* Short key columns (all except last description column) never wrap */
+.vp-doc table td:not(:last-child) {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+/* General table cells preserve natural word flow */
+.vp-doc table td {
+  word-break: normal;
+}
