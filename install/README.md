@@ -1,67 +1,69 @@
-# install
+# install (v0.4.0)
 
-Self-installing opencode config. Each tagged version carries a file manifest;
-install removes the previous manifest's files from the target and overwrites
-them with the current manifest's files.
+Self-installing OpenCode config powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
-## Usage (PowerShell — Windows default)
+## 🌟 Interactive TUI Wizard (Recommended)
+
+Running the installer without arguments in an interactive terminal opens the **TUI Setup Wizard**:
 
 ```pwsh
-# 1. Edit install/VERSION (one line).
-# 2. Apply (manifest for the new version is auto-generated if missing):
+# Windows (PowerShell)
 pwsh install/install.ps1
 
-# Force re-apply, or just check state:
-pwsh install/install.ps1 install -Force
-pwsh install/install.ps1 status
-
-# Generate the manifest for the current VERSION without installing:
-pwsh install/install.ps1 generate
-
-# Backup + clear the entire target directory (fresh start):
-pwsh install/install.ps1 init
-pwsh install/install.ps1 init -NoBackup   # clear without backup
-pwsh install/install.ps1 init -Yes       # skip confirmation prompt
-
-# Remove the installed files precisely (manifest-driven; user files survive):
-pwsh install/install.ps1 uninstall
-pwsh install/install.ps1 uninstall -Yes  # skip confirmation prompt
+# macOS / Linux / WSL (Bash)
+./install/install.sh
 ```
 
-Default target is `~/.config/opencode`. To test without touching your real
-config, point `-Target` at a scratch directory:
+The wizard guides you through:
+- 🚀 **Quick Install / Update**: Instantly apply the repository configuration to `~/.config/opencode`.
+- ⚙️ **Custom Component Setup**: Interactively choose your default agent (`code`, `build`, `plan`), toggle MCP servers (`serena`, `codegraph`, `dbhub`), and configure RTK.
+- 🔍 **Check Status**: Inspect target vs repo versions.
+- 🌐 **Register Global Command**: Provision `opencode-config` directly into PATH.
+- 🧹 **Reset & Clear (Init)**: Full backup and clean start.
+- ❌ **Safe Uninstall**: Precision manifest-driven cleanup.
+
+---
+
+## ⚡ Direct CLI / Non-Interactive Usage
+
+All CLI flags remain fully compatible for CI and terminal power users:
+
+### PowerShell (Windows)
 
 ```pwsh
-$tmp = Join-Path $env:TEMP "opencode-test-$(Get-Random)"
-pwsh install/install.ps1 install -Target $tmp
-Get-ChildItem -Force $tmp
-Remove-Item -Recurse -Force $tmp
+# Quick install / re-apply:
+pwsh install/install.ps1 install -Force -Yes
+
+# Check installation status:
+pwsh install/install.ps1 status
+
+# Custom target directory:
+pwsh install/install.ps1 install -Target C:\custom\path
+
+# Backup + clear target directory:
+pwsh install/install.ps1 init -Yes
+
+# Precise uninstall:
+pwsh install/install.ps1 uninstall -Yes
 ```
 
-## Usage (Bash — macOS / Linux / WSL / Git Bash)
-
-Requires `jq`. Install with `sudo apt install jq` or `brew install jq`.
+### Bash (macOS / Linux / WSL)
 
 ```bash
-# 1. Edit install/VERSION.
-# 2. Apply:
-./install/install.sh
+# Quick install / re-apply:
+./install/install.sh install -f -y
 
-# Force, status, generate, custom target, init:
-./install/install.sh -f
+# Check status:
 ./install/install.sh status
-./install/install.sh generate
-./install/install.sh install -t /path/to/target
-./install/install.sh init               # backup + clear target
-./install/install.sh init --no-backup    # clear without backup
-./install/install.sh init -y            # skip confirmation prompt
-./install/install.sh uninstall          # remove installed files (precise)
-./install/install.sh uninstall -y       # skip confirmation prompt
 
-# Global command:
-./install/install.sh register
-./install/install.sh register --bin-dir ~/bin
-./install/install.sh unregister
+# Custom target directory:
+./install/install.sh install -t /path/to/target
+
+# Backup + clear target directory:
+./install/install.sh init -y
+
+# Precise uninstall:
+./install/install.sh uninstall -y
 ```
 
 ## Global command
