@@ -93,36 +93,57 @@
   display: block;
 }
 
-/* Table Optimization: Prevent awkward line wrapping on short cells & headers */
+/* Table Layout & Column Width Optimization */
 .vp-doc table {
-  display: block;
+  display: table;
   width: 100%;
-  overflow-x: auto;
-  margin: 16px 0;
   border-collapse: collapse;
+  margin: 20px 0;
+  box-sizing: border-box;
 }
 
-/* Table headers never wrap */
+/* Base cell styles: natural wrapping & readable spacing */
+.vp-doc table th,
+.vp-doc table td {
+  padding: 10px 16px;
+  line-height: 1.6;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  vertical-align: middle;
+}
+
 .vp-doc table th {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
   font-weight: 600;
+  background-color: var(--vp-c-bg-soft);
   text-align: left;
 }
 
-/* Code tokens inside tables never wrap */
+/* 1. First column (short names, keys, commands, profiles, tiers):
+   Provide ample minimum width so short entries (<=10 chars) stay cleanly on one line */
+.vp-doc table th:first-child,
+.vp-doc table td:first-child {
+  min-width: 150px;
+  max-width: 260px;
+}
+
+/* 2. Middle columns (short tags, agent names, tiers, categories) */
+.vp-doc table th:not(:first-child):not(:last-child),
+.vp-doc table td:not(:first-child):not(:last-child) {
+  min-width: 130px;
+}
+
+/* 3. Last column (descriptions, details) takes flexible remaining room */
+.vp-doc table th:last-child,
+.vp-doc table td:last-child {
+  min-width: 240px;
+  width: auto;
+}
+
+/* 4. Code badges in tables: keep intact as inline blocks */
 .vp-doc table code {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
-}
-
-/* Short key columns (all except last description column) never wrap */
-.vp-doc table td:not(:last-child) {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
-}
-
-/* General table cells preserve natural word flow */
-.vp-doc table td {
-  word-break: normal;
+  display: inline-block;
+  white-space: nowrap;
+  padding: 2px 6px;
+  font-size: 0.88em;
 }
