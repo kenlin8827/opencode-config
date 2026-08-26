@@ -2,9 +2,9 @@
  * SDD Plugin (Specification-Driven Development).
  *
  * Implements full SDD lifecycle orchestration:
- *   /prd  → Product Requirements Document (docs/prd/PRD-<topic>.md)
+ *   /prd  → Product Requirements Document (docs/prd/<topic>.md)
  *   /adr  → Architecture Decision Record (docs/adr/)
- *   /plan → Implementation Plan (docs/plan/PLAN-<topic>.md)
+ *   /plan → Implementation Plan (docs/plan/<topic>.md)
  *   /impl → Code Implementation & Verification
  *   /sdd  → Lifecycle status, artifact discovery, and workflow navigation
  *

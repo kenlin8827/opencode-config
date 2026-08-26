@@ -561,9 +561,9 @@ bridge 附带的额外能力：
 ### 核心特性
 
 1. **任意阶段起手**：
-   - 需求构思 → `/prd <feature>` 生成 `docs/prd/PRD-<feature>.md`
+   - 需求构思 → `/prd <feature>` 生成 `docs/prd/<feature>.md`
    - 技术选型 → `/adr <decision>` 生成 `docs/adr/` 架构决策记录
-   - 任务分解 → `/plan <feature>` 生成 `docs/plan/PLAN-<feature>.md`
+   - 任务分解 → `/plan <feature>` 生成 `docs/plan/<feature>.md`
    - 快速实现 → 直接 `/impl <task>` 测试驱动编码
 2. **交互式阶段流转提示（Ask Tool）**：
    - 每个阶段完成时，系统主动弹出交互选项，提供**推荐下一阶段**（如 `/prd` → `/adr`）、**自由跳级**（如 `/prd` 直接跳至 `/impl`）、**阶段回退**与**留在当前阶段**。

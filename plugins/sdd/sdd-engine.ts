@@ -194,7 +194,7 @@ export function scaffoldPrd(cwd: string, topic: string): { path: string; relPath
   }
 
   const slug = slugify(topic)
-  const filename = `PRD-${slug}.md`
+  const filename = `${slug}.md`
   const targetPath = join(prdDir, filename)
   const relPath = join("docs", "prd", filename).replace(/\\/g, "/")
 
@@ -264,7 +264,7 @@ export function scaffoldPlan(cwd: string, topic: string): { path: string; relPat
   }
 
   const slug = slugify(topic)
-  const filename = `PLAN-${slug}.md`
+  const filename = `${slug}.md`
   const targetPath = join(planDir, filename)
   const relPath = join("docs", "plan", filename).replace(/\\/g, "/")
 
@@ -275,17 +275,17 @@ export function scaffoldPlan(cwd: string, topic: string): { path: string; relPat
   const dateStr = new Date().toISOString().split("T")[0]
   
   // Resolve upstream references
-  const prdRelPath = `../prd/PRD-${slug}.md`
-  const prdExists = existsSync(join(cwd, "docs", "prd", `PRD-${slug}.md`))
+  const prdRelPath = `../prd/${slug}.md`
+  const prdExists = existsSync(join(cwd, "docs", "prd", `${slug}.md`))
   const artifacts = listSddArtifacts(cwd)
   const recentAdrs = artifacts.adrs.slice(-3)
 
-  let prdRefSection = `  - PRD: [PRD-${slug}.md](${prdRelPath}) (if applicable)`
+  let prdRefSection = `  - PRD: [${slug}.md](${prdRelPath}) (if applicable)`
   if (prdExists) {
-    prdRefSection = `  - PRD: [PRD-${slug}.md](${prdRelPath})`
+    prdRefSection = `  - PRD: [${slug}.md](${prdRelPath})`
   } else if (artifacts.prds.length > 0) {
     const latestPrd = artifacts.prds[artifacts.prds.length - 1]
-    prdRefSection = `  - PRD: [${latestPrd}](../prd/${latestPrd}) (or [PRD-${slug}.md](${prdRelPath}))`
+    prdRefSection = `  - PRD: [${latestPrd}](../prd/${latestPrd}) (or [${slug}.md](${prdRelPath}))`
   }
 
   let adrRefSection = "  - ADR: [ADRs in docs/adr/](../adr/) (if applicable)"

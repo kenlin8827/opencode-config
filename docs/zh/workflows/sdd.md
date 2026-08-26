@@ -15,13 +15,13 @@
 
 1. **`/prd [topic]`**：需求规格说明书 (Product Requirements Document)
    - 明确问题背景、用户画像、用户故事 (US-xx)、功能需求 (FR-xx)、非功能需求 (NFR)、边界/排除范围 (Out of Scope) 与验收标准 (Given/When/Then)。
-   - 自动生成并维护在 `docs/prd/PRD-<topic>.md`。
+   - 自动生成并维护在 `docs/prd/<topic>.md`。
 2. **`/adr [title]`**：架构决策记录 (Architecture Decision Record)
    - 记录技术选型、架构分层、数据模型、API 契约、利弊权衡与决策后果。
    - 自动生成并维护在 `docs/adr/`（支持单层扁平模式与分层模式）。
 3. **`/plan [topic]`**：实施计划与任务分解 (Implementation Plan)
    - 将 PRD 与 ADR 规范细化拆解为原子化、测试驱动的实施阶段与任务清单。
-   - 自动生成并维护在 `docs/plan/PLAN-<topic>.md`。
+   - 自动生成并维护在 `docs/plan/<topic>.md`。
 4. **`/impl [task]`**：编码实现与验证交付 (Implementation & Verification)
    - 严格依照 Plan、ADR 与 PRD 进行测试驱动编码，遵循 Karpathy 代码质量准则。
    - 自动运行单元测试、类型检查 (`tsc`) 与质量门禁。
@@ -109,9 +109,9 @@ ADR 在工程化体系中具备双重身份：
 
 | 指令 | 说明 | 对应产物目录 |
 |---|---|---|
-| `/prd [topic]` | 创建或编写需求规格说明书 | `docs/prd/PRD-<topic>.md` |
-| `/adr [title]` | 创建或更新架构决策记录 | `docs/adr/` |
-| `/plan [topic]` | 创建分阶段实施任务计划 | `docs/plan/PLAN-<topic>.md` |
+| `/prd [topic]` | 创建或维护需求规格说明书 | `docs/prd/<topic>.md` |
+| `/adr [title]` | 创建或废弃/替代架构决策记录 | `docs/adr/` |
+| `/plan [topic]` | 创建分阶段实施任务计划 | `docs/plan/<topic>.md` |
 | `/impl [task]` | 执行编码实现与自动化测试验证 | 源码文件与测试套件 |
 | `/sdd status` | 检查项目内所有 SDD 规范制品清单 | 主对话界面 / TUI |
 | `/sdd handoff [msg]` | 暂存当前 SDD 状态与隐式上下文，供新会话接手 | 系统临时目录（不污染仓库） |

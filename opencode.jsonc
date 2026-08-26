@@ -134,7 +134,7 @@
       "prompt": "{file:~/.config/opencode/agents/build.md}"
     },
     "plan": {
-      "description": "Plan orchestrator — read-only coordinator that dispatches analysis tasks to specialist agents. Use for architecture review, code audit, security assessment, refactoring planning, and pre-implementation design.",
+      "description": "Plan orchestrator — coordinator that dispatches analysis tasks to specialists, persists structured plan artifacts (docs/plan/<topic>.md), and provides clean execution handoffs.",
       "mode": "primary",
       "model": "llm-router/standard",
       "temperature": 0.3,

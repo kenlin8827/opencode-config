@@ -23,7 +23,7 @@
 
 ## Phase Deliverables
 
-- **`/prd`**: `docs/prd/PRD-<topic>.md` — Problem statement, user stories, acceptance criteria, boundaries.
+- **`/prd`**: `docs/prd/<topic>.md` — Problem statement, user stories, acceptance criteria, boundaries.
 - **`/adr`**: `docs/adr/<NNNN>-<title>.md` — Context, decision drivers, considered options, decision outcome.
-- **`/plan`**: `docs/plan/PLAN-<topic>.md` — Phased task breakdown, file change paths, verification checklist.
+- **`/plan`**: `docs/plan/<topic>.md` — Phased task breakdown, file change paths, verification checklist.
 - **`/impl`**: Code files + unit test suites + test execution output.

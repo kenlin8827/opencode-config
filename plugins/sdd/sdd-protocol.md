@@ -25,7 +25,7 @@ SDD guarantees software quality and maintainability through a rigorous specifica
 - **Agent**: `@build` or `@tech-writer`
 - **Objective**: Capture user needs, boundaries, acceptance criteria, and non-functional requirements.
 - **Deliverables**:
-  - Scaffolds & writes `docs/prd/PRD-<topic>.md`.
+  - Scaffolds & writes `docs/prd/<topic>.md`.
   - Defines User Stories (US-xx), Functional Requirements (FR-xx), Non-Functional Requirements (NFR), Out-of-Scope boundaries, and Acceptance Criteria (Given/When/Then).
 - **Completion Transition**:
   - Summarize the PRD.
@@ -59,7 +59,7 @@ SDD guarantees software quality and maintainability through a rigorous specifica
 - **Agent**: `@plan` / `@build`
 - **Objective**: Decompose PRD & ADR into atomic, phased, test-driven implementation steps with verification criteria.
 - **Deliverables**:
-  - Scaffolds & writes `docs/plan/PLAN-<topic>.md` (or planning mode artifact).
+  - Scaffolds & writes `docs/plan/<topic>.md` (or planning mode artifact).
   - Outlines exact files to create/modify, dependency ordering, testing strategy, rollback plan, and acceptance checklist.
 - **Completion Transition**:
   - Summarize the plan.

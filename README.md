@@ -560,9 +560,9 @@ Specification-Driven Development (SDD) establishes a structured, specification-f
 ### Key Capabilities
 
 1. **Flexible Entry Points**:
-   - Requirements & User Stories → `/prd <feature>` creates `docs/prd/PRD-<feature>.md`
+   - Requirements & User Stories → `/prd <feature>` creates `docs/prd/<feature>.md`
    - Architecture & Tech Decisions → `/adr <decision>` creates `docs/adr/` records
-   - Task Decomposition → `/plan <feature>` creates `docs/plan/PLAN-<feature>.md`
+   - Task Decomposition → `/plan <feature>` creates `docs/plan/<feature>.md`
    - Direct Execution → `/impl <task>` test-driven implementation
 2. **Interactive Stage Transitions (Ask Tool)**:
    - At the completion of each phase, the agent interactively prompts for the next step, providing **Recommended Next Stage** (e.g. `/prd` → `/adr`), **Direct Jump** (e.g. `/prd` → `/impl`), **Backtracking**, or **Finish**.

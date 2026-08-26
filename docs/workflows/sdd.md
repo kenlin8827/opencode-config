@@ -15,13 +15,13 @@ Specification-Driven Development (SDD) provides a structured, specification-firs
 
 1. **`/prd [topic]`**: Product Requirements Document
    - Defines problem statement, user personas, user stories (US-xx), functional requirements (FR-xx), non-functional requirements (NFRs), out-of-scope boundaries, and acceptance criteria.
-   - Scaffolds and writes to `docs/prd/PRD-<topic>.md`.
+   - Scaffolds and writes to `docs/prd/<topic>.md`.
 2. **`/adr [title]`**: Architecture Decision Record
    - Records architecture design, tech stack choices, schema/API contracts, trade-offs, and decision outcomes.
    - Scaffolds and writes to `docs/adr/` (supports flat and hierarchical structures).
 3. **`/plan [topic]`**: Implementation Plan & Task Breakdown
    - Decomposes specifications into atomic, test-driven phases and tasks.
-   - Scaffolds and writes to `docs/plan/PLAN-<topic>.md`.
+   - Scaffolds and writes to `docs/plan/<topic>.md`.
 4. **`/impl [task]`**: Code Implementation & Verification
    - Implements code following the Plan and ADR specifications with strict adherence to Karpathy coding tenets.
    - Executes automated unit tests, linters, and verification checks.
@@ -109,9 +109,9 @@ When you need to pause work, switch tasks, or combat context window token bloat,
 
 | Command | Purpose | Output Location |
 |---|---|---|
-| `/prd [topic]` | Create or update Product Requirements Document | `docs/prd/PRD-<topic>.md` |
+| `/prd [topic]` | Create or update Product Requirements Document | `docs/prd/<topic>.md` |
 | `/adr [title]` | Create or supersede Architecture Decision Record | `docs/adr/` |
-| `/plan [topic]` | Create phased Implementation Plan | `docs/plan/PLAN-<topic>.md` |
+| `/plan [topic]` | Create phased Implementation Plan | `docs/plan/<topic>.md` |
 | `/impl [task]` | Execute code implementation & test verification | Source files & test suites |
 | `/sdd status` | Inspect all SDD artifacts (PRDs, ADRs, Plans) in project | Main chat / TUI |
 | `/sdd handoff [msg]` | Compact active SDD state for a fresh session takeover | OS Temp directory |
@@ -125,7 +125,7 @@ When you need to pause work, switch tasks, or combat context window token bloat,
 ```bash
 /prd User Authentication
 ```
-*Output: Scaffolds `docs/prd/PRD-user-authentication.md`, populates requirements, and prompts user:*
+*Output: Scaffolds `docs/prd/user-authentication.md`, populates requirements, and prompts user:*
 > **SDD Phase Complete: PRD**
 > - (Recommended) Proceed to `/adr` (Architecture Decisions & System Design)
 > - Skip to `/plan` (Implementation Plan & Task Breakdown)

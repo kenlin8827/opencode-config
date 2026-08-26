@@ -108,7 +108,7 @@ try {
   const prd1 = scaffoldPrd(testTmpDir, "Shopping Cart")
   assert(prd1.created, "PRD scaffold created new file")
   assert(existsSync(prd1.path), "PRD file exists on disk")
-  assert(prd1.relPath.includes("PRD-shopping-cart.md"), "PRD file has correct relative path")
+  assert(prd1.relPath.includes("shopping-cart.md") && !prd1.relPath.includes("PRD-"), "PRD file has correct relative path without prefix")
 
   const prd2 = scaffoldPrd(testTmpDir, "Shopping Cart")
   assert(!prd2.created, "Second call does not overwrite existing PRD (idempotent)")
@@ -117,7 +117,7 @@ try {
   const plan1 = scaffoldPlan(testTmpDir, "Shopping Cart")
   assert(plan1.created, "Plan scaffold created new file")
   assert(existsSync(plan1.path), "Plan file exists on disk")
-  assert(plan1.relPath.includes("PLAN-shopping-cart.md"), "Plan file has correct relative path")
+  assert(plan1.relPath.includes("shopping-cart.md") && !plan1.relPath.includes("PLAN-"), "Plan file has correct relative path without prefix")
 
   const plan2 = scaffoldPlan(testTmpDir, "Shopping Cart")
   assert(!plan2.created, "Second call does not overwrite existing Plan (idempotent)")
