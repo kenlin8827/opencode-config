@@ -121,7 +121,7 @@ Two kinds of batteries, two kinds of rides. omp builds and ships its own native 
 | **Token & Cost Governance** | hashline edit savings + efficient in-process tools | 🏆 **Five-tier agent-to-model routing (`tiers.json`) + RTK proxy-layer output compression (60–90%) auto-provisioned at install** |
 | **Guardrails** | Stream rules course-correct model behavior mid-stream | 🏆 **Auditable policy gates: ADR/MADR enforcement + secret-file gate + E2E gate + commit discipline** |
 | **Code Intelligence** | 🟢 Built-in LSP/DAP/AST (14 LSP + 28 DAP ops) | Serena LSP + CodeGraph call graphs + GitNexus + DBHub database gateway |
-| **Provider Governance** | 60+ providers, role-based routing | 🏆 **`/profile` five-tier presets + TUI dashboard + first-class Chinese coding-plan presets** |
+| **Provider Governance** | 60+ providers, role-based routing | 🏆 **`/profile` one-shot five-tier mapping — 36 presets covering the entire OpenCode built-in model family (opencode-go) plus Anthropic / OpenAI / Google / DeepSeek, routers, and first-class Chinese coding plans; TUI dashboard** |
 | **Upgrade Safety** | Binary reinstall | 🏆 **Manifest-based zero-risk upgrade — keys & model picks preserved across every reinstall** |
 | **Documentation** | English | 🏆 **Full bilingual docs tree (English + Chinese)** |
 | **Ecosystem & Extensibility** | 🟢 TS extension modules, plugin hot-reload, inherits 8 existing config formats | 🏆 **Rides the OpenCode ecosystem — the whole npm plugin registry, MCP ecosystem, and community assets are directly reusable; OCP itself is 30+ composable plugins** |

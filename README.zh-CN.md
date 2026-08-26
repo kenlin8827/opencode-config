@@ -123,7 +123,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 | **Token 与成本治理** | hashline 编辑省 token + 进程内高效工具 | 🏆 **五级智能体—模型路由（`tiers.json`）+ RTK 代理层输出压缩 60–90%，安装时自动配置** |
 | **工程护栏** | 流式规则实时纠偏模型行为 | 🏆 **可审计的策略级门控：ADR/MADR 强制 + 密钥文件拦截 + E2E 门控 + 提交纪律** |
 | **代码情报** | 🟢 内置 LSP/DAP/AST（14 LSP + 28 DAP 操作） | Serena LSP + CodeGraph 调用图 + GitNexus + DBHub 数据库网关 |
-| **服务商治理** | 60+ 服务商，角色制路由 | 🏆 **`/profile` 五级预设 + TUI 仪表盘 + 国内 Coding Plan 预设一等公民** |
+| **服务商治理** | 60+ 服务商，角色制路由 | 🏆 **`/profile` 一键五级映射——36 个预设全覆盖 OpenCode 内置官方模型族（opencode-go）及 Anthropic / OpenAI / Google / DeepSeek 等一线服务商、路由器方案，国内 Coding Plan 一等公民；TUI 仪表盘** |
 | **升级安全性** | 二进制重装 | 🏆 **基于清单的零风险升级——每次重装后 Key 与模型选择完整保留** |
 | **文档** | 英文 | 🏆 **完整双语文档树（English + 中文）** |
 | **生态与扩展性** | 🟢 TS 扩展模块、插件热重载，兼容继承 8 种已有配置格式 | 🏆 **骑在 OpenCode 生态上——整个 npm 插件库、MCP 生态与社区资产直接复用；OCP 自身亦由 30+ 可插拔插件组合而成** |
