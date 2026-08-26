@@ -70,3 +70,25 @@
     max-height: 260px !important;
   }
 }
+
+/* Mermaid Diagram Enhancements */
+.mermaid,
+.vp-mermaid {
+  cursor: zoom-in;
+  position: relative;
+  overflow-x: auto;
+  padding: 16px 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mermaid:hover,
+.vp-mermaid:hover {
+  background-color: var(--vp-c-bg-soft);
+}
+
+.mermaid svg,
+.vp-mermaid svg {
+  margin: 0 auto;
+  display: block;
+}
