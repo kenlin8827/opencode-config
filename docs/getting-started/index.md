@@ -56,24 +56,34 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ## Quick start
 
-After running the [10-Second Quick Install](#-10-second-quick-install) above, get started in 3 simple steps:
+After running the [10-Second Quick Install](#-10-second-quick-install) above, you can proceed with whichever workflow fits your needs:
 
-1. **Launch in your project**: Open a terminal in any project root and run `opencode`.
-2. **🎯 Initialize project environment (Highly Recommended)**:
-   ```
-   /project init        # Auto-builds CodeGraph index, scaffolds project config, dbhub template & commit rules
-   ```
-3. **Connect your provider & profile**:
-   ```
-   /connect deepseek    # Connect your provider (or kimi, anthropic, openai, etc.)
-   /profile             # Open picker dialog and apply preset profile for all 5 tiers
-   ```
-4. **Start coding**: `@code` mode is the default daily driver — just describe your task in natural language!
+### 1. Start Coding Immediately (Most Common)
+Open any project directory in your terminal and launch OpenCode:
+```bash
+opencode
+```
+- **🎯 Initialize project environment (Highly Recommended)**: Run `/project init` to scaffold the code knowledge graph and project guards.
+- **Connect provider & profile**: Run `/connect deepseek` (or kimi, anthropic, openai, etc.), then `/profile` to assign models across all 5 tiers.
+- **Start coding**: `@code` mode is the default daily driver — just describe your task in natural language!
 
-> 💡 **Why run `/project init`?**
-> Without overwriting any existing code, it auto-scaffolds essential infrastructure for your project:
-> - Runs `codegraph init` to build the local AST knowledge graph (enables agents to trace call paths & blast radius instantly).
-> - Generates `dbhub.toml` database gateway scaffold and `docs/git-commits.md` commit discipline rules.
+### 2. Open the TUI Control Center Anytime (Toggle switches & agent tiers)
+Run from within the repository at any time:
+```powershell
+# Windows (PowerShell)
+pwsh install/install.ps1
+
+# macOS / Linux / WSL (Bash)
+./install/install.sh
+```
+This opens the **Single-Screen TUI Control Center**, allowing you to press Space to toggle MCP servers, plugins, RTK optimizer, or cycle Agent-to-Tier model assignments (`default` / `code` / `advisor` / `explorer` / `vision`).
+
+### 3. Register Global Command (Configure from anywhere)
+Select `🌐 Register Global Command (opencode-config)` in the wizard menu, or run:
+```bash
+opencode-config
+```
+You can now run `opencode-config` from any terminal path across your entire system!
 
 ---
 

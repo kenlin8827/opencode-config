@@ -118,24 +118,34 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 ## 快速上手
 
-运行顶部的 [一键安装](#-10-秒一键安装) 之后，只需 3 步即可进入高效开发：
+运行顶部的 [一键安装](#-10-秒一键安装) 之后，即可按需开始使用：
 
-1. **进入你的项目并启动**：在任意代码仓库根目录打开终端，输入 `opencode` 启动。
-2. **🎯 一键初始化项目环境（强烈推荐）**：
-   ```
-   /project init        # 自动构建 CodeGraph 代码图谱、生成项目级配置、dbhub 模板与提交规范
-   ```
-3. **连接服务商与预设**：
-   ```
-   /connect deepseek    # 连接你的服务商（或 kimi、anthropic、openai 等）
-   /profile             # 打开弹窗选择对应预设，一键分配 5 个模型层级
-   ```
-4. **开始编码**：默认即为 `@code` 模式，直接用自然语言描述需求即可！
+### 1. 立即启动开发（最常用）
+在任意代码仓库根目录打开终端，输入 `opencode` 启动：
+```bash
+opencode
+```
+- **🎯 初始化项目环境（强烈推荐）**：首次进入项目运行 `/project init`，自动构建本地代码图谱与项目护栏。
+- **连接服务商与预设**：运行 `/connect deepseek`（或 kimi、anthropic 等），然后运行 `/profile` 打开弹窗一键选择预设并自动分层分配模型！
+- **直接对话编码**：默认即为 `@code` 模式，直接用自然语言描述需求即可。
 
-> 💡 **为什么必须跑 `/project init`？**
-> 它会在不覆盖既有代码的前提下，自动完成项目级基础设施装配：
-> - 运行 `codegraph init` 建立本地代码知识图谱（供智能体秒查调用链与影响面）。
-> - 自动生成 `dbhub.toml` 数据库网关模板与 `docs/git-commits.md` 规范提交护栏。
+### 2. 随时打开全景控制台（调整开关与 Agent 梯队）
+在仓库目录下随时运行：
+```powershell
+# Windows
+pwsh install/install.ps1
+
+# macOS / Linux / WSL
+./install/install.sh
+```
+即可进入 **单屏 TUI 全景控制台**，按空格键秒级切换启用的 MCP 服务、外部插件、RTK 令牌压缩器，或按空格键循环调整各 Agent 所属模型梯队（`default` / `code` / `advisor` / `explorer` / `vision`）。
+
+### 3. 一键注册全局快捷命令（随时随地配置）
+在向导菜单中选择 `🌐 注册全局快捷命令 (opencode-config)`，或执行：
+```bash
+opencode-config
+```
+后续在系统的任意路径下输入 `opencode-config`，均可秒级唤出全景控制台或安装向导！
 
 ---
 
