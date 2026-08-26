@@ -72,22 +72,22 @@ You can now adjust settings or perform one-click seamless upgrades anytime witho
 
 ## ⚖️ Comparison Matrix (Why choose OpenCode Prime?)
 
-| Feature / Dimension | Vanilla OpenCode | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
+| Feature / Dimension | Vanilla OpenCode | omp (`omp.sh`) | **OpenCode Prime (`OCP`)** |
 | :--- | :--- | :--- | :--- |
-| **Core Philosophy** | Minimal single-session coding | Autonomous black-box delegation | **Production engineering discipline + Tiered control** |
-| **Quick Tweaks / Bug Fixes** | ✅ Fast (Single model) | ⚠️ Slow (Heavy multi-agent breakdown) | ⚡ **`/quick-dev` Zero-delegation fast track** |
-| **Agile Feature Delivery** | ⚠️ No built-in review loop | ⚠️ Long chains, risk of stuck loops | 🚀 **`/fast-dev` Agile single-review loop** |
-| **Architectural Refactoring** | ❌ No multi-model review | ⚠️ Lacks independent arbitration | 🧠 **`/deep-dev` Flagship dual-review + Safety arbitration** |
-| **Token Cost & Predictability** | 🟢 Low | 🔴 High (15k–25k startup overhead) | 🟢 **Controlled (Tier 1/2/3 governance + RTK compression)** |
-| **Code Intelligence** | Basic text search / grep | Heavy whole-context injection | 🧭 **Serena (LSP symbols) + CodeGraph (call paths) + DBHub** |
-| **Engineering Guardrails** | ❌ None | ❌ Weak (Relies on model self-discipline) | 🛡️ **ADR enforcement + Secret-file gate + Commit discipline** |
-| **Environment & Management** | Manual JSON editing | Manual JSONC maintenance | 🖥️ **Interactive Single-Screen TUI + Hot-reloading profiles** |
-| **Upgrade Safety** | Manual file replacement | Script re-execution | 🔄 **Zero-Risk in-place upgrade (Keys & profiles preserved)** |
+| **Core Philosophy** | Minimal single-session coding | Batteries-included standalone harness (Rust core; replaces the runtime) | **Production engineering discipline + Tiered control on top of OpenCode** |
+| **Quick Tweaks / Bug Fixes** | ✅ Fast (Single model) | ✅ Fast (single agent, `smol` role) | ⚡ **`/quick-dev` Zero-delegation fast track** |
+| **Agile Feature Delivery** | ⚠️ No built-in review loop | ⚠️ Single-track; `/review` verdict comes after the fact | 🚀 **`/fast-dev` Agile single-review loop (fixes converge inside the loop)** |
+| **Architectural Refactoring** | ❌ No multi-model review | ⚠️ `/review` ranks P0–P3, but single reviewer, no arbitration | 🧠 **`/deep-dev` Flagship dual-review + `@advisor` Safety arbitration** |
+| **Token Cost & Predictability** | 🟢 Low | 🟢 Efficient (hashline edits, in-process tools) | 🟢 **Governed (Tier routing + RTK 60–90% output compression)** |
+| **Code Intelligence** | Basic text search / grep | 🟢 Built-in LSP/DAP/AST (per-language servers required) | 🧭 **Serena (LSP) + CodeGraph (call graphs) + GitNexus + DBHub (DB gateway)** |
+| **Engineering Guardrails** | ❌ None | ⚠️ Stream rules course-correct model behavior (no policy governance) | 🛡️ **Policy-level: ADR/MADR enforcement + Secret-file gate + E2E gate + Commit discipline** |
+| **Environment & Management** | Manual JSON editing | Interactive `omp setup`, role-based model routing | 🖥️ **Interactive TUI dashboard + `/profile` presets incl. Chinese coding plans** |
+| **Upgrade Safety** | Manual file replacement | Binary reinstall | 🔄 **Manifest-based zero-risk upgrade (Keys & profiles preserved)** |
 
 ### 🎯 When to choose which?
 * **Choose Vanilla OpenCode**: When you only need lightweight inline autocompletion and simple, single-turn conversational edits.
-* **Choose `omo.dev`**: When you prefer fully autonomous black-box task delegation and are unconcerned with high token consumption or startup latency.
-* **Choose OpenCode Prime**: When you build **real-world commercial software** requiring high delivery velocity, predictable token costs, strict code quality guardrails, and deep LSP/graph-backed code intelligence.
+* **Choose `omp.sh`**: When you want one batteries-included harness with native tooling (LSP/DAP/browser/memory) out of the box and are fine replacing your runtime entirely.
+* **Choose OpenCode Prime**: When you build **real-world commercial software** on OpenCode and need explicit delivery tiers, multi-model review gates, auditable policy guardrails, and Chinese provider governance — without leaving the OpenCode ecosystem.
 
 ---
 
