@@ -152,28 +152,15 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       });
     }
 
-    // 5. Agent Tier Mappings (Focusing on core agents)
-    const featuredAgents = [
-      'code',
-      'advisor',
-      'build',
-      'plan',
-      'fast-coder',
-      'explorer',
-      'architect',
-      'code-review',
-      'qa',
-      'devops',
-      'vision',
-    ];
-    for (const agentName of featuredAgents) {
-      if (tiersState[agentName]) {
+    // 5. Agent Tier Mappings (Purely dynamic directly from tiers.json / tiersState)
+    for (const [agentName, tierValue] of Object.entries(tiersState)) {
+      if (typeof tierValue === 'string') {
         r.push({
           id: `tier:${agentName}`,
           type: 'tier',
           key: agentName,
           label: `@${agentName}`,
-          hint: `${agentName} -> tier: ${tiersState[agentName]} (${t.tiersHint})`,
+          hint: `${agentName} -> tier: ${tierValue} (${t.tiersHint})`,
         });
       }
     }
