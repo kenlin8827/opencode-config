@@ -53,8 +53,6 @@ Learn about installer commands, configuration options, token savings, and preser
        "@dietrichgebert/ponytail": true,
        // Injects Qoder provider/models via official SDK (needs qoder login)
        "opencode-qoder-bridge": false,
-       // Auto-generates session titles
-       "@frankhommers/opencode-smart-title": true,
        // Persistent project memory (vector store; extra LLM capture call per idle session)
        "opencode-mem@2.24.3": false
      }

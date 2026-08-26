@@ -373,7 +373,6 @@ on install).
   "plugin": {
     "@dietrichgebert/ponytail": true,
     "opencode-qoder-bridge": false,
-    "@frankhommers/opencode-smart-title": true,
     "opencode-mem@2.24.3": false
   }
 }

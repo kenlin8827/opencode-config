@@ -12,6 +12,7 @@
 | `design-token-guard.ts` | 阻止写入硬编码的颜色/间距/圆角 —— 让前端代码坚守设计令牌 |
 | `ai-slop-scanner.ts` | 警告前端文件中的 AI 反模式（渐变汤、div 汤等） |
 | `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
+| `smart-title.ts` | 会话空闲时自动生成精简标题 —— 候选链从 opencode 配置解析（smart-title.jsonc 覆盖 → flash 层 `agent.explorer.model` → 会话自身模型 → 全局模型），不依赖环境变量；全部候选失败时降级用首条用户提问作标题，最后才退位给 opencode 官方内置标题机制。可用 `~/.config/opencode/smart-title.jsonc` 微调 |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
 | `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：直接就地改码出结果（零调度中转，零审查等待） |
@@ -241,7 +242,6 @@ echo on > <project>/.opencode/.env-guard
 | 插件名称 | 默认状态 | 说明与前置要求 |
 |---|---|---|
 | `@dietrichgebert/ponytail` | 启用 (`true`) | **偷懒编码协议**：在完成需求的同时，主动向开发者指出更轻量、更优雅的替代实现。 |
-| `@frankhommers/opencode-smart-title` | 启用 (`true`) | **智能会话命名**：基于会话初期的对话上下文，自动为会话生成精简明了的标题。 |
 | `opencode-qoder-bridge` | 可选 (`false`) | **Qoder 官方桥接**：通过官方 `@qoder-ai/qoder-agent-sdk` 自动注入 `qoder` 服务商与全部模型（需 `qoder login`）。 |
 | `opencode-mem@2.24.3` | 可选 (`false`) | **持久化向量记忆库**：基于本地向量库记录项目历史背景（空闲时会发起额外的轻量 LLM 提炼调用）。 |
 
