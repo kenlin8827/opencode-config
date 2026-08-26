@@ -109,22 +109,22 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ## ⚖️ 方案横向对比（为什么选择 OpenCode Prime？）
 
-| 核心维度 / 场景 | 官方原生 (Vanilla OpenCode) | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
+| 核心维度 / 场景 | 官方原生 (Vanilla OpenCode) | omp (`omp.sh`) | **OpenCode Prime (`OCP`)** |
 | :--- | :--- | :--- | :--- |
-| **核心哲学** | 极简单会话驱动 | 追求全自动黑盒委托 | **生产级工程纪律 + 精准分级掌控** |
-| **日常微调 / 快速修 Bug** | ✅ 快速（单模型） | ⚠️ 较慢（多 Agent 拆解与多层派发开销） | ⚡ **`/quick-dev` 闪电秒级交付（零委托开销）** |
-| **敏捷特性交付** | ⚠️ 无内置审查闭环 | ⚠️ 任务链过长，易陷入死循环 | 🚀 **`/fast-dev` 敏捷单审交付闭环** |
-| **核心架构与重大重构** | ❌ 无多模型审查能力 | ⚠️ 缺乏独立的仲裁机制 | 🧠 **`/deep-dev` 旗舰双审 + 安全仲裁机制** |
-| **Token 消耗与成本** | 🟢 低 | 🔴 极高（冷启动 15k–25k Token 开销） | 🟢 **精细治理（Tier 1/2/3 路由 + RTK 压缩）** |
-| **代码情报与索引** | 基础文本搜索 / Grep | 倾向于全文或大片上下文注入 | 🧭 **Serena (LSP符号) + CodeGraph (调用图) + DBHub** |
-| **工程守卫 (Guardrails)** | ❌ 无 | ❌ 弱（完全依赖模型自律） | 🛡️ **ADR 架构决策 + Secret 拦截 + Commit 规范** |
-| **环境与配置管理** | 手动修改 JSON | JSONC 手动维护 | 🖥️ **单屏交互式 TUI 控制台（多 Provider 热切换）** |
-| **升级体验** | 手动替换 | 脚本安装 | 🔄 **零风险平滑热升级（保留所有 Key 与配置）** |
+| **核心哲学** | 极简单会话驱动 | 电池全装的独立智能体外壳（Rust 核心，直接替换运行时） | **基于 OpenCode 的生产级工程纪律 + 精准分级掌控** |
+| **日常微调 / 快速修 Bug** | ✅ 快速（单模型） | ✅ 快速（单智能体，`smol` 角色） | ⚡ **`/quick-dev` 闪电秒级交付（零委托开销）** |
+| **敏捷特性交付** | ⚠️ 无内置审查闭环 | ⚠️ 单轨推进，`/review` 判级在交付之后 | 🚀 **`/fast-dev` 敏捷单审闭环（修复在闭环内收敛）** |
+| **核心架构与重大重构** | ❌ 无多模型审查能力 | ⚠️ `/review` 按 P0–P3 判级，但单一审查者、无仲裁 | 🧠 **`/deep-dev` 旗舰双审 + `@advisor` 安全仲裁机制** |
+| **Token 消耗与成本** | 🟢 低 | 🟢 高效（hashline 锚定编辑、进程内工具） | 🟢 **精细治理（Tier 路由 + RTK 60–90% 输出压缩）** |
+| **代码情报与索引** | 基础文本搜索 / Grep | 🟢 内置 LSP/DAP/AST（需自备各语言服务器） | 🧭 **Serena (LSP) + CodeGraph (调用图) + GitNexus + DBHub (数据库网关)** |
+| **工程守卫 (Guardrails)** | ❌ 无 | ⚠️ 流式规则纠偏模型行为（无策略级治理） | 🛡️ **策略级治理：ADR/MADR 强制 + Secret 拦截 + E2E 门控 + 提交纪律** |
+| **环境与配置管理** | 手动修改 JSON | 交互式 `omp setup`，角色制模型路由 | 🖥️ **交互式 TUI 仪表盘 + `/profile` 预设（含国内 Coding Plan）** |
+| **升级体验** | 手动替换 | 二进制重装 | 🔄 **基于清单的零风险升级（Key 与配置完整保留）** |
 
 ### 🎯 选型建议指引
 * **选择官方原生 (Vanilla)**：只需最基础的单文件代码补全或简单对话，不涉及复杂工程重构与多 Agent 协作。
-* **选择 `omo.dev`**：偏好全自动黑盒交付、不在意 Token 账单与响应延迟、愿意让 AI 完全自主探索的实验性场景。
-* **选择 OpenCode Prime**：**真实企业与商业代码库开发**——需要极快响应、严格的代码审查与安全底线、低 Token 成本以及专业 LSP/图谱级代码智能。
+* **选择 `omp.sh`**：希望开箱即得一个电池全装的独立外壳（原生 LSP/DAP/浏览器/记忆），并且愿意整体替换现有运行时。
+* **选择 OpenCode Prime**：**真实企业与商业代码库开发**——在 OpenCode 生态内需要显式交付分档、多模型审查门控、可审计的策略级护栏与国内服务商治理。
 
 ---
 
@@ -883,8 +883,6 @@ echo on > <project>/.opencode/.env-guard
        "@dietrichgebert/ponytail": true,
        // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
        "opencode-qoder-bridge": false,
-       // 会话标题智能自动生成
-       "@frankhommers/opencode-smart-title": true,
        // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
        "opencode-mem@2.24.3": false
      }

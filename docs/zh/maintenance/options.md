@@ -53,8 +53,6 @@
        "@dietrichgebert/ponytail": true,
        // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
        "opencode-qoder-bridge": false,
-       // 会话标题智能自动生成
-       "@frankhommers/opencode-smart-title": true,
        // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
        "opencode-mem@2.24.3": false
      }

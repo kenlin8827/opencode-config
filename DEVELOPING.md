@@ -270,7 +270,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
-- **npm plugins**: default active plugins are listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`, `@frankhommers/opencode-smart-title`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
+- **npm plugins**: default active plugins are listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
 - **Shared plumbing**: `plugins/shared/opencode-config.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
 ### Hook inventory
@@ -280,6 +280,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `design-token-guard.ts` | `tool.execute.before` | Blocks writes with hardcoded colors/spacing/radius. Throws error. |
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, …). Logs warnings. |
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary in `~/.config/opencode/.metrics/`. |
+| `smart-title.ts` | `event: session.status(idle)` + `session.idle` | Auto-generates session titles: candidate chain (override → flash tier → session model → global model) resolved from opencode config, called over OpenAI-compatible HTTP; first success wins, total failure falls back to the first user question as title, then to opencode's built-in titling. Skips subagents; never silent on failure. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `browser-screenshot.ts` | custom tool | Registers `browser_screenshot` tool (Playwright headless) for `@vision` / `@frontend-dev`. |
 | `project-profiler.ts` (+ `plugins/project-profiler/`) | `session.created` + `system.transform` | Detects project nature at session start (config-driven, zero CLI probing) and injects a compact profile + code-intelligence backend recommendation (Serena vs CodeGraph, GitNexus optional) into the system prompt. |
