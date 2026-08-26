@@ -102,7 +102,7 @@ Architecture decisions are immutable; evolving solutions should be recorded via 
 * **Dry-Run Preview**: `/adr migrate h` (or `/adr migrate hierarchical`) outputs the planned file moves without modifying files.
 * **Execution**: `/adr migrate h --confirm` atomically moves files, rewrites frontmatter and mutual references, and updates all directory indexes.
 
-### Dual-Track Interaction: Natural Language & Slash Commands
+### Dual-Modal Interaction: Natural Language & Slash Commands
 
 The ADR governance system supports **Slash Commands (deterministic numbering + automated AI drafting)** and **Natural Language** side-by-side:
 

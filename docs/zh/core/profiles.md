@@ -35,26 +35,38 @@
 
 配置预设是一个命名预设，将服务商与各层级模型选择打包在一起，一次性应用，而非逐层级 `set model`。
 
-### 可用预设
-| 预设 | 说明 |
-|---|---|
-| `deepseek` | 官方 DeepSeek API 直连 (V3.2 Reasoner, Chat, V4 Flash) |
-| `kimi-for-coding` | 月之暗面 Kimi For Coding 官方开发套餐 (K1.5 / K2 系列) |
-| `openai` | 官方 OpenAI API (GPT-5, o3-mini, o4-preview) |
-| `anthropic` | 官方 Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
-| `google` | 官方 Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
-| `alibaba-coding-plan` | 阿里百炼通义千问 Coding 计划 (Qwen3-Coder, Qwen3.7-Plus) |
-| `minimax-coding-plan` | 稀宇科技 MiniMax 官方开发套餐 (M2.5, M2.7, M3) |
-| `llm-router` | 服务端路由基线 |
-| `codex-router` | 自建 codex 网关（Sol/Luna 系列） |
-| `qoder-router` | 自建 qoder 网关（Ultimate/Performance/Lite） |
-| `claude-code-router` | 自建 Claude Code 网关（Anthropic 协议） |
-| `antigravity-router` | 自建 Antigravity 网关（Gemini Flash/Pro + Claude Sonnet/Opus Thinking） |
-| `qoder` | Qoder 订阅，经 opencode-qoder-bridge（官方 Qoder Agent SDK；需 `qoder login`） |
-| `opencode-go-ultimate` | 质量优先，旗舰满血阶梯 |
-| `opencode-go-performance` | 日常主力性价比平衡 |
-| `opencode-go-economy` | 经济实惠阶梯 |
-| `opencode-go-lite` | 最低可用成本 |
+### 可用预设全景表
+
+| 预设 | 分类 | 说明 |
+|---|---|---|
+| `deepseek` | 官方 API 直连 | 官方 DeepSeek API 直连 (V3.2 Reasoner, Chat, V4 Flash) |
+| `anthropic` | 官方 API 直连 | 官方 Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
+| `openai` | 官方 API 直连 | 官方 OpenAI API (GPT-5, o3-mini, o4-preview) |
+| `google` | 官方 API 直连 | 官方 Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
+| `kimi-for-coding` | 官方 Coding Plan | 月之暗面 Kimi For Coding 官方开发套餐 (K1.5 / K2 系列) |
+| `alibaba-coding-plan` / `-cn` | 官方 Coding Plan | 阿里百炼通义千问 Coding 计划 (Qwen3-Coder, Qwen3.7-Plus) |
+| `alibaba-token-plan` / `-cn` | 官方 Coding Plan | 阿里百炼 Token 计划 (DeepSeek V4 Flash / Qwen 3.8 Max) |
+| `minimax-coding-plan` / `-cn` | 官方 Coding Plan | 稀宇科技 MiniMax 官方开发套餐 (M2.5, M2.7, M3) |
+| `zhipuai-coding-plan` | 官方 Coding Plan | 智谱 AI 官方 Coding 计划 (GLM-5.1, GLM-5.2, GLM-5v) |
+| `zai-coding-plan` | 官方 Coding Plan | Z.AI 官方开发套餐 (GLM 系列) |
+| `tencent-coding-plan` | 官方 Coding Plan | 腾讯混元 Coding 计划 (Hunyuan Turbo, TC Code, MiniMax M2.5) |
+| `tencent-token-plan` | 官方 Coding Plan | 腾讯混元 Token 计划 (HY3) |
+| `xiaomi-token-plan-cn` / `-ams` / `-sgp` | 官方 Coding Plan | 小米大模型 Token 计划（国内 / 欧洲 / 新加坡节点，MiMo v2.5 系列） |
+| `opencode-go-ultimate` | OpenCode Go 网关 | 旗舰满血阶梯 (Kimi K3 / MiniMax M3 / GPT-5.6 / Qwen 3.8 Max) |
+| `opencode-go-performance` | OpenCode Go 网关 | 日常主力性价比平衡阶梯 |
+| `opencode-go-economy` | OpenCode Go 网关 | 经济实惠高性价比阶梯 |
+| `opencode-go-lite` | OpenCode Go 网关 | 最低可用成本极速阶梯 |
+| `opencode-go-deepseek` | OpenCode Go 网关 | 全 DeepSeek 模型族纯享预设 |
+| `opencode-go-kimi` | OpenCode Go 网关 | 全 Kimi 模型族纯享预设 |
+| `opencode-go-qwen` | OpenCode Go 网关 | 全 Qwen 模型族纯享预设 |
+| `opencode-go-glm` | OpenCode Go 网关 | 全 GLM 模型族纯享预设 |
+| `qoder` | 订阅与网关 | Qoder 订阅，经 opencode-qoder-bridge（需 `qoder login`） |
+| `qoder-deepseek` / `qoder-qwen` | 订阅与网关 | Qoder 平台上的 DeepSeek / Qwen 纯享预设 |
+| `antigravity-router` | 自建网关 | 自建 Antigravity 网关（Gemini Flash/Pro + Claude Sonnet/Opus Thinking） |
+| `claude-code-router` | 自建网关 | 自建 Claude Code 网关（Anthropic 协议） |
+| `codex-router` | 自建网关 | 自建 codex 网关（Sol/Luna 系列） |
+| `qoder-router` | 自建网关 | 自建 qoder 网关（Ultimate/Performance/Lite） |
+| `llm-router` | 自建网关 | 服务端路由基线 |
 
 ### 使用预设
 

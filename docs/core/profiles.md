@@ -35,27 +35,38 @@ For existing providers (such as official DeepSeek, Kimi, Qwen APIs, not self-hos
 
 A profile is a named preset that maps all model tiers to a specific provider's models in one shot, rather than setting each tier individually.
 
-### Available profiles
-
-| Profile | Description |
-|---|---|
-| `deepseek` | Official DeepSeek API (V3.2 Reasoner, Chat, V4 Flash) |
-| `kimi-for-coding` | Kimi For Coding official coding plan (K1.5 / K2 series) |
-| `openai` | Official OpenAI API (GPT-5, o3-mini, o4-preview) |
-| `anthropic` | Official Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
-| `google` | Official Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
-| `alibaba-coding-plan` | Alibaba Tongyi Qwen official coding plan (Qwen3-Coder, Qwen3.7-Plus) |
-| `minimax-coding-plan` | MiniMax official coding plan (M2.5, M2.7, M3) |
-| `llm-router` | Server-side routing baseline |
-| `codex-router` | Self-hosted codex gateway (Sol/Luna series) |
-| `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
-| `claude-code-router` | Self-hosted Claude Code gateway (Anthropic protocol) |
-| `antigravity-router` | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking) |
-| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
-| `opencode-go-ultimate` | Quality first, flagship quality ladder |
-| `opencode-go-performance` | Daily driver balance |
-| `opencode-go-economy` | Cost-effective balanced tier |
-| `opencode-go-lite` | Minimum viable cost |
+### Available profiles overview
+ 
+| Profile | Category | Description |
+|---|---|---|
+| `deepseek` | Official API Direct | Official DeepSeek API (V3.2 Reasoner, Chat, V4 Flash) |
+| `anthropic` | Official API Direct | Official Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
+| `openai` | Official API Direct | Official OpenAI API (GPT-5, o3-mini, o4-preview) |
+| `google` | Official API Direct | Official Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
+| `kimi-for-coding` | Official Coding Plan | Moonshot Kimi For Coding official coding plan (K1.5 / K2 series) |
+| `alibaba-coding-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Tongyi Qwen coding plan (Qwen3-Coder, Qwen3.7-Plus) |
+| `alibaba-token-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Token plan (DeepSeek V4 Flash / Qwen 3.8 Max) |
+| `minimax-coding-plan` / `-cn` | Official Coding Plan | MiniMax official coding plan (M2.5, M2.7, M3) |
+| `zhipuai-coding-plan` | Official Coding Plan | Zhipu AI official coding plan (GLM-5.1, GLM-5.2, GLM-5v) |
+| `zai-coding-plan` | Official Coding Plan | Z.AI official coding plan (GLM series) |
+| `tencent-coding-plan` | Official Coding Plan | Tencent Hunyuan Coding Plan (Hunyuan Turbo, TC Code, MiniMax M2.5) |
+| `tencent-token-plan` | Official Coding Plan | Tencent Hunyuan Token Plan (HY3) |
+| `xiaomi-token-plan-cn` / `-ams` / `-sgp` | Official Coding Plan | Xiaomi LLM Token Plan (China / Europe / Singapore nodes, MiMo v2.5) |
+| `opencode-go-ultimate` | OpenCode Go Gateway | Ultimate quality first flagship ladder (Kimi K3 / MiniMax M3 / GPT-5.6 / Qwen 3.8 Max) |
+| `opencode-go-performance` | OpenCode Go Gateway | Daily driver balance ladder |
+| `opencode-go-economy` | OpenCode Go Gateway | Cost-effective balanced tier |
+| `opencode-go-lite` | OpenCode Go Gateway | Minimum viable cost high-velocity tier |
+| `opencode-go-deepseek` | OpenCode Go Gateway | All-DeepSeek family fallback |
+| `opencode-go-kimi` | OpenCode Go Gateway | All-Kimi family fallback |
+| `opencode-go-qwen` | OpenCode Go Gateway | All-Qwen family fallback |
+| `opencode-go-glm` | OpenCode Go Gateway | All-GLM family fallback |
+| `qoder` | Subscription & Gateway | Qoder subscription via opencode-qoder-bridge (needs `qoder login`) |
+| `qoder-deepseek` / `qoder-qwen` | Subscription & Gateway | All-DeepSeek / All-Qwen on Qoder platform |
+| `antigravity-router` | Custom Gateway | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking) |
+| `claude-code-router` | Custom Gateway | Self-hosted Claude Code gateway (Anthropic protocol) |
+| `codex-router` | Custom Gateway | Self-hosted codex gateway (Sol/Luna series) |
+| `qoder-router` | Custom Gateway | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
+| `llm-router` | Custom Gateway | Server-side routing baseline |
 
 ### Using profiles
 
