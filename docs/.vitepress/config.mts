@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(
+  defineConfig({
   title: "OpenCode Engineering",
   description: "Production Software Engineering Configuration for OpenCode",
   base: "/opencode-config/",
@@ -130,3 +132,4 @@ export default defineConfig({
     }
   }
 })
+)
