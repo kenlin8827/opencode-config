@@ -36,26 +36,25 @@
 配置预设是一个命名预设，将服务商与各层级模型选择打包在一起，一次性应用，而非逐层级 `set model`。
 
 ### 可用预设
-
 | 预设 | 说明 |
 |---|---|
+| `deepseek` | 官方 DeepSeek API 直连 (V3.2 Reasoner, Chat, V4 Flash) |
+| `kimi-for-coding` | 月之暗面 Kimi For Coding 官方开发套餐 (K1.5 / K2 系列) |
+| `openai` | 官方 OpenAI API (GPT-5, o3-mini, o4-preview) |
+| `anthropic` | 官方 Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
+| `google` | 官方 Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
+| `alibaba-coding-plan` | 阿里百炼通义千问 Coding 计划 (Qwen3-Coder, Qwen3.7-Plus) |
+| `minimax-coding-plan` | 稀宇科技 MiniMax 官方开发套餐 (M2.5, M2.7, M3) |
 | `llm-router` | 服务端路由基线 |
 | `codex-router` | 自建 codex 网关（Sol/Luna 系列） |
 | `qoder-router` | 自建 qoder 网关（Ultimate/Performance/Lite） |
-| `claude-code-router` | 自建 Claude Code 网关（Anthropic 协议，Fable/Opus/Sonnet/Haiku 系列） |
-| `antigravity-router` | 自建 Antigravity 网关（Gemini Flash/Pro + Claude Sonnet/Opus Thinking + GPT-OSS） |
+| `claude-code-router` | 自建 Claude Code 网关（Anthropic 协议） |
+| `antigravity-router` | 自建 Antigravity 网关（Gemini Flash/Pro + Claude Sonnet/Opus Thinking） |
 | `qoder` | Qoder 订阅，经 opencode-qoder-bridge（官方 Qoder Agent SDK；需 `qoder login`） |
-| `qoder-deepseek` | Qoder 上的全 DeepSeek 系列备选（dmodel = DeepSeek-V4-Pro，dfmodel = DeepSeek-V4-Flash） |
-| `qoder-qwen` | Qoder 上的全通义千问系列备选（qmodel_preview = Qwen3.8-Max-Preview，qmodel_latest = Qwen3.7-Max，qmodel = Qwen3.7-Plus） |
-| `opencode-go-ultimate` | 质量优先，不计成本 |
-| `opencode-go-performance` | 日常主力 |
-| `opencode-go-economy` | 性价比平衡 |
+| `opencode-go-ultimate` | 质量优先，旗舰满血阶梯 |
+| `opencode-go-performance` | 日常主力性价比平衡 |
+| `opencode-go-economy` | 经济实惠阶梯 |
 | `opencode-go-lite` | 最低可用成本 |
-| `opencode-go-qwen` | 全通义千问系列备选 |
-| `opencode-go-kimi` | 全 Kimi 系列备选 |
-| `kimi-code` | Kimi For Coding（官方计划） |
-| `opencode-go-deepseek` | 全 DeepSeek 系列备选 |
-| `opencode-go-glm` | 全 GLM 系列备选 |
 
 ### 使用预设
 
@@ -82,11 +81,11 @@
 
 | 层级 | 用途 | 智能体 |
 |---|---|---|
-| `default` | 通用，强推理 | build, plan, code, researcher, architect, security, tech-writer |
-| `code` | 代码生成，实现 | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | 分析，审查，反馈 | code-review, advisor |
-| `explorer` | 快速，廉价，高吞吐 | explorer |
-| `vision` | 图像理解 | vision |
+| `flash` | 快速，轻量，代码粗筛，高吞吐 | explorer, fast-coder |
+| `standard` | 通用编排中枢，高吞吐主力（根模型） | build, plan, researcher, tech-writer |
+| `pro` | 专业全栈工程，代码生成与实现 | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `max` | 深度推理，系统架构，安全合规，严苛审查 | advisor, architect, security, code-review |
+| `vision` | 图像理解与多模态分析 | vision |
 
 每个层级解析到当前活跃预设为它映射的 provider/模型。**Variant**（low/medium/high）控制每个智能体的思考/推理深度；如果后端模型不支持 variant，会被静默忽略。
 

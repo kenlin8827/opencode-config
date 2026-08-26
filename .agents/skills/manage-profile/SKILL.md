@@ -63,10 +63,10 @@ Check the `suggested_tiers` field. Adjust if needed:
 
 | Tier | What to pick | Keywords that boost score |
 |------|-------------|---------------------------|
-| `default` | **Second-highest** tier (strong but not flagship) — default is the high-traffic main agent + fallback | pro, max, plus, chat, sonnet |
-| `code` | Coding-focused or strongest reasoning | codestral, coder, sonnet, pro, opus, max, large |
-| `advisor` | **Absolute flagship** — highest quality available, low-frequency | opus, max, large, ultra, pro |
-| `explorer` | Cheapest, fast | flash, haiku, mini, lite, turbo, nano, small, highspeed |
+| `flash` | **Cheapest, fastest** — rapid exploration, fast coder, lightweight search | flash, haiku, mini, lite, turbo, nano, small, highspeed |
+| `standard` | **Second-highest / general workhorse** — high-traffic main orchestrator (build, plan, researcher, tech-writer) | pro, max, plus, chat, sonnet, flash |
+| `pro` | **Strongest coding / engineering** — professional development (code, frontend, backend, devops, qa, dba) | codestral, coder, sonnet, pro, opus, max, large |
+| `max` | **Absolute flagship / reasoning** — architecture design, security, red-team review, advisor | opus, max, large, ultra, pro, reasoner, r1, thinking |
 | `vision` | Must have `attachment: true` + `image` in input modalities | (auto-selected by script) |
 
 ### Quality ladder
@@ -74,18 +74,18 @@ Check the `suggested_tiers` field. Adjust if needed:
 The tier-to-model assignment must follow a strict quality ladder:
 
 ```
-explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest coding)  <=  advisor  (absolute flagship)
+flash  (fastest/cheapest)  <=  standard  (general workhorse)  <=  pro  (strongest coding)  <=  max  (flagship reasoning)
 ```
 
 Rules:
-- **`default` = second-highest, NOT the cheapest.** The default tier drives 6 agents (build, plan, architect, security, researcher, tech-writer) — orchestration and architecture analysis need strong reasoning. Use the flagship's previous-gen or fast variant (e.g. qwen3.7-max not qwen3.6-plus, glm-5.1 not glm-4.7, kimi-for-coding not highspeed).
-- **`advisor` = absolute flagship.** Must be >= `code` in quality. Never put a weaker model in advisor than code (quality inversion).
-- **`explorer` = cheapest/fastest variant.** Use flash/turbo/highspeed/lite/mini variants. Should be <= `default`.
-- **`code` = strongest coding model.** Prefer codex/coder variants when available.
+- **`flash` = cheapest/fastest variant.** Use flash/turbo/highspeed/lite/mini variants.
+- **`standard` = high-traffic workhorse.** The standard tier drives orchestrator & analysis agents (build, plan, researcher, tech-writer).
+- **`pro` = strongest coding model.** Prefer codex/coder variants when available.
+- **`max` = absolute flagship / reasoning.** Must be >= `pro` in quality. Used by advisor, architect, security, code-review.
 - Skip `deprecated` status models.
 - If no model has `attachment: true`, **omit** the `vision` tier entirely.
 - Prefer the latest release date when scores tie.
-- When the provider has a small catalog (<= 2 models), tiers can share the same model — but `advisor` should always get the strongest one available.
+- When the provider has a small catalog (<= 2 models), tiers can share the same model — but `max` should always get the strongest one available.
 
 ### 3. Write the profile file
 
@@ -93,12 +93,12 @@ Write to `profiles/<provider_id>.json`:
 
 ```json
 {
-  "description": "<Provider Name> (official API) — <model-id> carries the high-traffic default tier (<why>), <model-id> codes, <model-id> judges on the low-frequency advisor slot, <model-id> explores<vision sentence>.",
+  "description": "<Provider Name> (official API) — <model-id> carries the high-traffic standard tier (<why>), <model-id> codes on pro, <model-id> judges on max, <model-id> explores on flash<vision sentence>.",
   "tiers": {
-    "default": "<provider>/<model_id>",
-    "code": "<provider>/<model_id>",
-    "advisor": "<provider>/<model_id>",
-    "explorer": "<provider>/<model_id>",
+    "flash": "<provider>/<model_id>",
+    "standard": "<provider>/<model_id>",
+    "pro": "<provider>/<model_id>",
+    "max": "<provider>/<model_id>",
     "vision": "<provider>/<model_id>"
   }
 }
@@ -111,7 +111,7 @@ If the file already exists, **update** it (overwrite all tiers and description).
 In `install/README.md`, find the profile table (the `| Profile | Tier | ...` markdown table). Add or update the row for this provider:
 
 ```
-| `<provider_id>` | <Provider Name> (official API) | <default> / <code> / <advisor> / <explorer> / <vision or —> |
+| `<provider_id>` | <Provider Name> (official API) | <flash> / <standard> / <pro> / <max> / <vision or —> |
 ```
 
 If the provider has no vision tier, write `—` in the vision column.
@@ -168,7 +168,7 @@ User: "Add an anthropic profile"
 
 1. Run: `python .agents/skills/manage-profile/scripts/fetch-provider.py anthropic`
 2. Script returns models: claude-haiku-4-5, claude-sonnet-5, claude-opus-5, etc.
-3. Suggested tiers: default=claude-haiku-4-5, code=claude-sonnet-5, advisor=claude-opus-5, explorer=claude-haiku-4-5, vision=claude-sonnet-5
+3. Suggested tiers: flash=claude-haiku-4-5, standard=claude-haiku-4-5, pro=claude-sonnet-5, max=claude-opus-5, vision=claude-sonnet-5
 4. Write `profiles/anthropic.json` with real model IDs
 5. Update README table
 6. Run `pwsh tests/test-profiles.ps1` to verify

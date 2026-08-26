@@ -1,10 +1,10 @@
 {
-  "description": "Economy tier — cost-performance: previous-gen flagship for orchestration, -code variant kept, mid-tier review, flash exploration; vision goes to qwen3.8-max — the only vision-capable model on this gateway.",
+  "description": "Economy tier — cost-optimized for high-traffic daily coding: qwen3.7-plus orchestrates on standard, kimi-k2.7-code codes on pro, glm-5.2 judges on max, mimo-v2.5 explores on flash; vision uses qwen3.8-max.",
   "tiers": {
-    "default": "opencode-go/kimi-k2.6",
-    "code": "opencode-go/kimi-k2.7-code",
-    "advisor": "opencode-go/glm-5.2",
-    "explorer": "opencode-go/deepseek-v4-flash",
+    "flash": "opencode-go/mimo-v2.5",
+    "standard": "opencode-go/qwen3.7-plus",
+    "pro": "opencode-go/kimi-k2.7-code",
+    "max": "opencode-go/glm-5.2",
     "vision": "opencode-go/qwen3.8-max"
   }
 }

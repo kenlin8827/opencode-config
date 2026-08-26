@@ -1,10 +1,10 @@
 {
-  "description": "DeepSeek (official DeepSeek API) — deepseek-chat carries the high-traffic default tier (non-reasoning, fastest), deepseek-v4-pro flagship codes and judges on the low-frequency advisor slot, deepseek-v4-flash explores. All DeepSeek models are text-only — no vision tier. Requires DEEPSEEK_API_KEY environment variable.",
+  "description": "DeepSeek (official DeepSeek API) — deepseek-v4-flash carries standard and flash tiers (non-reasoning, fastest), deepseek-v4-pro codes on pro and handles max-tier reasoning. Vision delegates to MiniMax-M3 hybrid fallback. Requires DEEPSEEK_API_KEY environment variable.",
   "tiers": {
-    "default": "deepseek/deepseek-v4-flash",
-    "code": "deepseek/deepseek-v4-flash",
-    "advisor": "deepseek/deepseek-v4-pro",
-    "explorer": "deepseek/deepseek-v4-flash",
+    "flash": "deepseek/deepseek-v4-flash",
+    "standard": "deepseek/deepseek-v4-flash",
+    "pro": "deepseek/deepseek-v4-pro",
+    "max": "deepseek/deepseek-v4-pro",
     "vision": "minimax-cn-coding-plan/MiniMax-M3"
   }
 }

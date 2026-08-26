@@ -1,10 +1,10 @@
 {
-  "description": "All-Qwen family picks via opencode-qoder-bridge — qmodel_preview (Qwen3.8-Max-Preview) judges and codes, qmodel_latest (Qwen3.7-Max) handles dispatch, qmodel (Qwen3.7-Plus, 0.04x) explores; vision goes to auto (server-side pick). Family fallback profile; requires Qoder CLI login.",
+  "description": "All-Qwen family picks via opencode-qoder-bridge — qmodel_38max codes on pro and judges on max, qmodel_latest handles standard, qmodel explores on flash; vision uses qmodel. Requires Qoder CLI login.",
   "tiers": {
-    "default": "qoder/qmodel_latest",
-    "code": "qoder/qmodel_38max",
-    "advisor": "qoder/qmodel_38max",
-    "explorer": "qoder/qmodel",
+    "flash": "qoder/qmodel",
+    "standard": "qoder/qmodel_latest",
+    "pro": "qoder/qmodel_38max",
+    "max": "qoder/qmodel_38max",
     "vision": "qoder/qmodel"
   }
 }

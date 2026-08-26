@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "OpenCode"
   text: "生产级工程化配置"
-  tagline: "为真实软件研发而生 · 分层 MCP 代码智能 · 全链路工程护栏 · 17 位专家协同"
+  tagline: "为真实软件研发而生 · 分层 MCP 代码智能 · 全链路工程护栏 · 21 位专家协同"
   image:
     src: /logo.svg
     alt: OpenCode 生产级工程化配置

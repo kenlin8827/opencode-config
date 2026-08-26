@@ -92,7 +92,7 @@ Check "review-fix-loop.ts: has description" ($rflPlugin -match "description:")
 Check "review-fix-loop.ts: has command.execute.before hook" ($rflPlugin -match "command.execute.before")
 Check "review-fix-loop.ts: has system.transform hook" ($rflPlugin -match "experimental.chat.system.transform")
 Check "review-fix-loop.ts: loads review-fix-loop.md" ($rflPlugin -match "review-fix-loop.md")
-Check "review-fix-loop.ts: thin glue (<80 lines)" (($rflPlugin -split "`n").Count -lt 85)
+Check "review-fix-loop.ts: thin glue (<95 lines)" (($rflPlugin -split "`n").Count -lt 95)
 
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)

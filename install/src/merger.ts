@@ -129,6 +129,21 @@ export function extractPreserveBag(targetDir: string): PreserveBag {
   return bag;
 }
 
+const VALID_TIERS = new Set(['flash', 'standard', 'pro', 'max', 'vision']);
+const LEGACY_TIER_MIGRATION: Record<string, string> = {
+  default: 'standard',
+  code: 'pro',
+  advisor: 'max',
+  explorer: 'flash',
+  vision: 'vision',
+};
+
+function normalizeTier(tier: string, fallback: string): string {
+  if (VALID_TIERS.has(tier)) return tier;
+  if (LEGACY_TIER_MIGRATION[tier]) return LEGACY_TIER_MIGRATION[tier];
+  return fallback;
+}
+
 /**
  * Merges repo templates tiers.json with custom user tiers and writes to target
  */
@@ -154,13 +169,17 @@ export function mergeTiersJson(
 
   if (preservedTiers) {
     for (const [k, v] of Object.entries(preservedTiers)) {
-      if (typeof v === 'string') effectiveTiers[k] = v;
+      if (typeof v === 'string') {
+        effectiveTiers[k] = normalizeTier(v, effectiveTiers[k] || 'standard');
+      }
     }
   }
 
   if (customTiers) {
     for (const [k, v] of Object.entries(customTiers)) {
-      if (typeof v === 'string') effectiveTiers[k] = v;
+      if (typeof v === 'string') {
+        effectiveTiers[k] = normalizeTier(v, effectiveTiers[k] || 'standard');
+      }
     }
   }
 

@@ -1,10 +1,10 @@
 {
-  "description": "All-Qwen family picks — switch to wholesale when other families are rate-limited, repriced, or underperforming. qwen3.7-max (second-highest) orchestrates, qwen3.8-max flagship codes and judges, qwen3.6-plus explores. vision uses qwen3.8-max — the only vision-capable model on this gateway.",
+  "description": "All-Qwen family picks — qwen3.7-max orchestrates on standard, qwen3.8-max codes on pro and judges on max, qwen3.6-plus explores on flash; vision uses qwen3.8-max.",
   "tiers": {
-    "default": "opencode-go/qwen3.7-max",
-    "code": "opencode-go/qwen3.8-max",
-    "advisor": "opencode-go/qwen3.8-max",
-    "explorer": "opencode-go/qwen3.6-plus",
+    "flash": "opencode-go/qwen3.6-plus",
+    "standard": "opencode-go/qwen3.7-max",
+    "pro": "opencode-go/qwen3.8-max",
+    "max": "opencode-go/qwen3.8-max",
     "vision": "opencode-go/qwen3.8-max"
   }
 }

@@ -39,23 +39,23 @@ A profile is a named preset that maps all model tiers to a specific provider's m
 
 | Profile | Description |
 |---|---|
+| `deepseek` | Official DeepSeek API (V3.2 Reasoner, Chat, V4 Flash) |
+| `kimi-for-coding` | Kimi For Coding official coding plan (K1.5 / K2 series) |
+| `openai` | Official OpenAI API (GPT-5, o3-mini, o4-preview) |
+| `anthropic` | Official Anthropic API (Claude 3.5/3.7 Sonnet, Opus, Haiku) |
+| `google` | Official Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
+| `alibaba-coding-plan` | Alibaba Tongyi Qwen official coding plan (Qwen3-Coder, Qwen3.7-Plus) |
+| `minimax-coding-plan` | MiniMax official coding plan (M2.5, M2.7, M3) |
 | `llm-router` | Server-side routing baseline |
 | `codex-router` | Self-hosted codex gateway (Sol/Luna series) |
 | `qoder-router` | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
-| `claude-code-router` | Self-hosted Claude Code gateway (Anthropic protocol, Fable/Opus/Sonnet/Haiku series) |
-| `antigravity-router` | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking + GPT-OSS) |
+| `claude-code-router` | Self-hosted Claude Code gateway (Anthropic protocol) |
+| `antigravity-router` | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking) |
 | `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) |
-| `qoder-deepseek` | Full DeepSeek lineup alternative on Qoder (dmodel = DeepSeek-V4-Pro, dfmodel = DeepSeek-V4-Flash) |
-| `qoder-qwen` | Full Qwen lineup alternative on Qoder (qmodel_preview = Qwen3.8-Max-Preview, qmodel_latest = Qwen3.7-Max, qmodel = Qwen3.7-Plus) |
-| `opencode-go-ultimate` | Quality first, cost no object |
-| `opencode-go-performance` | Daily driver |
-| `opencode-go-economy` | Balanced price/performance |
+| `opencode-go-ultimate` | Quality first, flagship quality ladder |
+| `opencode-go-performance` | Daily driver balance |
+| `opencode-go-economy` | Cost-effective balanced tier |
 | `opencode-go-lite` | Minimum viable cost |
-| `opencode-go-qwen` | Full Qwen lineup alternative |
-| `opencode-go-kimi` | Full Kimi lineup alternative |
-| `kimi-code` | Kimi For Coding (official plan) |
-| `opencode-go-deepseek` | Full DeepSeek lineup alternative |
-| `opencode-go-glm` | Full GLM lineup alternative |
 
 ### Using profiles
 
@@ -84,11 +84,11 @@ The system uses 5 model tiers, each mapped to a set of agents:
 
 | Tier | Purpose | Agents |
 |---|---|---|
-| `default` | General, strong reasoning | build, plan, code, researcher, architect, security, tech-writer |
-| `code` | Code generation, implementation | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | Analysis, review, feedback | code-review, advisor |
-| `explorer` | Fast, cheap, high-throughput | explorer |
-| `vision` | Image understanding | vision |
+| `flash` | Fast, lightweight, exploration, high-throughput | explorer, fast-coder |
+| `standard` | General orchestrator, high-traffic workhorse (root model) | build, plan, researcher, tech-writer |
+| `pro` | Professional engineering, code generation & debugging | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `max` | Deep reasoning, system design, security, red-team review | advisor, architect, security, code-review |
+| `vision` | Multimodal visual analysis, UI critique | vision |
 
 Each tier resolves to the provider/model mapped by the active profile. **Variant** (low/medium/high) controls thinking/reasoning effort per agent; silently ignored if the backing model does not support variants.
 

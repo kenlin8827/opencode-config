@@ -350,10 +350,16 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
   p.intro(`${t.wizardTitle} (v${version})`);
 
   const status = executeStatus(repoDir);
-  const statusNote = status.installedVersion
-    ? t.installedNote.replace('{version}', status.installedVersion).replace('{target}', status.targetDir)
-    : t.notInstalledNote.replace('{target}', status.targetDir);
-  p.log.info(statusNote);
+  const installedVer = status.installedVersion;
+  if (installedVer) {
+    if (installedVer !== version) {
+      p.log.step(`🚀 ${t.versionUpgradePrompt}: v${installedVer} ➔ v${version}  (Target: ${status.targetDir})`);
+    } else {
+      p.log.step(`🔄 ${t.versionReapplyPrompt}: v${version}  (Target: ${status.targetDir})`);
+    }
+  } else {
+    p.log.step(`✨ ${t.versionFreshPrompt}: v${version}  (Target: ${status.targetDir})`);
+  }
 
   while (true) {
     t = loadLocale(repoDir, currentLocaleCode);

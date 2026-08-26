@@ -1,6 +1,6 @@
 # OpenCode Production Engineering Config
 
-A production-ready [OpenCode](https://opencode.ai) configuration for real-world software engineering: layered MCP code intelligence and database gateway, hard engineering guardrails (ADR / secret-file / E2E / commit discipline), 17 specialist agents, and one-shot model tier governance — installed into `~/.config/opencode` with a single command.
+A production-ready [OpenCode](https://opencode.ai) configuration for real-world software engineering: layered MCP code intelligence and database gateway, hard engineering guardrails (ADR / secret-file / E2E / commit discipline), 21 specialist agents, and one-shot model tier governance — installed into `~/.config/opencode` with a single command.
 
 > **English** | [中文](README.zh-CN.md) | 📖 **[Online Documentation (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/)**
 >
@@ -86,7 +86,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 | Feature | What it means for you |
 |---|---|
-| **Specialist agent team** | 17 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, …) with domain-tuned prompts, routed automatically |
+| **Specialist Agents** | 21 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, `@fast-coder`, etc.) tuned with domain-specific prompts, routed automatically |
 | **Three working modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
 | **Code intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
@@ -425,7 +425,7 @@ Apply a profile with the `/profile` slash command inside an opencode session (se
   → Esc cancels
 ```
 
-All agents in covered tiers are rewritten to the profile's `provider/model_id` reference; the root `model` follows the `default` tier. Tiers not listed in the profile remain unchanged. Everything is validated before write; hot-apply path is patched server-side preserving JSONC comments, while fallback path creates a backup `opencode.jsonc.bak` before rewriting and requires a restart. Note: hot-apply recreates the server instance, which can interrupt an ongoing reply stream (session history is preserved).
+All agents in covered tiers are rewritten to the profile's `provider/model_id` reference; the root `model` follows the `standard` tier. Tiers not listed in the profile remain unchanged. Everything is validated before write; hot-apply path is patched server-side preserving JSONC comments, while fallback path creates a backup `opencode.jsonc.bak` before rewriting and requires a restart. Note: hot-apply recreates the server instance, which can interrupt an ongoing reply stream (session history is preserved).
 
 ### Model Routing & Tier Architecture
 
@@ -433,11 +433,11 @@ The system uses 5 model tiers, each mapped to a set of agents:
 
 | Tier | Purpose | Agents |
 |---|---|---|
-| `default` | General, strong reasoning | build, plan, code, researcher, architect, security, tech-writer |
-| `code` | Code generation, implementation | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | Analysis, review, feedback | code-review, advisor |
-| `explorer` | Fast, cheap, high-throughput | explorer |
-| `vision` | Image understanding | vision |
+| `flash` | Fast, lightweight, exploration, high-throughput | explorer, fast-coder |
+| `standard` | General orchestrator, high-traffic workhorse (root model) | build, plan, researcher, tech-writer |
+| `pro` | Professional engineering, code generation & debugging | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `max` | Deep reasoning, system design, security, red-team review | advisor, architect, security, code-review |
+| `vision` | Multimodal visual analysis, UI critique | vision |
 
 Each tier resolves to the provider/model mapped by the active profile. **Variant** (low/medium/high) controls thinking/reasoning effort per agent; silently ignored if the backing model does not support variants.
 
@@ -825,7 +825,7 @@ The installer copies whitelisted runtime files (`agents/`, `commands/`, `plugins
 [`install/options.jsonc`](install/options.jsonc) is the single source of truth for runtime options.
 
 #### 1. Customizing Options Before Installing
-If you want to toggle optional features (such as enabling `opencode-codex-bridge` / `opencode-claude-bridge` plugins, adjusting Serena / CodeGraph / DBHub MCP servers, or changing the default agent) before running the installer:
+If you want to toggle optional features (such as enabling `opencode-qoder-bridge` / `opencode-mem` plugins, adjusting Serena / CodeGraph / DBHub MCP servers, or changing the default agent) before running the installer:
 1. Clone the repository or extract the release archive and enter the directory: `cd opencode-config`
 2. Edit `install/options.jsonc` to set switches (`true` / `false`):
    ```jsonc
