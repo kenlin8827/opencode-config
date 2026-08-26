@@ -1,10 +1,10 @@
 {
-  "description": "MiniMax Token Plan (minimaxi.com) — MiniMax-M2.7-highspeed carries the high-traffic default tier (fast variant of flagship), MiniMax-M3 codes and judges on the low-frequency advisor slot, M2.7-highspeed explores. MiniMax-M3 also handles vision (image input). Requires MINIMAX_API_KEY environment variable.",
+  "description": "MiniMax Token Plan (minimaxi.com) — MiniMax-M2.7-highspeed carries standard and flash tiers (fast variant), MiniMax-M3 codes on pro and judges on max. MiniMax-M3 also handles vision (image input). Requires MINIMAX_API_KEY environment variable.",
   "tiers": {
-    "default": "minimax-cn-coding-plan/MiniMax-M3",
-    "code": "minimax-cn-coding-plan/MiniMax-M3",
-    "advisor": "minimax-cn-coding-plan/MiniMax-M3",
-    "explorer": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "flash": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "standard": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "pro": "minimax-cn-coding-plan/MiniMax-M3",
+    "max": "minimax-cn-coding-plan/MiniMax-M3",
     "vision": "minimax-cn-coding-plan/MiniMax-M3"
   }
 }

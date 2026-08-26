@@ -83,6 +83,6 @@ OpenCode 内置工具原生命名为 `bash`，大语言模型倾向于输出 Uni
 只要你已经通过本项目的安装脚本完成了安装，无需任何额外配置：
 1. 下载并安装 [OpenChamber](https://openchamber.dev) 桌面端应用（或 VS Code 扩展）。
 2. 在 OpenChamber 中打开你的代码工程目录。
-3. OpenChamber 会自动连接本地 OpenCode 引擎并读取 `~/.config/opencode` 下的所有配置。你可以在图形界面中直接使用 17 位专家智能体、MCP 数据库网关与工作流命令，并享受双栏 Diff 审查与多模型并行熔合等可视化能力。
+3. OpenChamber 会自动连接本地 OpenCode 引擎并读取 `~/.config/opencode` 下的所有配置。你可以在图形界面中直接使用 21 位专家智能体、MCP 数据库网关与工作流命令，并享受双栏 Diff 审查与多模型并行熔合等可视化能力。
 
 

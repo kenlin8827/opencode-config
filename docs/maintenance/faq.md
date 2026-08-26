@@ -83,4 +83,4 @@ OpenCode's built-in tool is natively named `bash`, so LLMs frequently output POS
 As long as you have completed the installation using this repository's install script, no extra setup is required:
 1. Download and install the [OpenChamber](https://openchamber.dev) desktop app (or VS Code extension).
 2. Open your project directory in OpenChamber.
-3. OpenChamber automatically connects to the local OpenCode daemon and loads all configurations under `~/.config/opencode`. All 17 specialist agents, MCP servers, and workflow commands will be immediately available through the GUI, along with visual side-by-side diffs and multi-model fusion features.
+3. OpenChamber automatically connects to the local OpenCode daemon and loads all configurations under `~/.config/opencode`. All 21 specialist agents, MCP servers, and workflow commands will be immediately available through the GUI, along with visual side-by-side diffs and multi-model fusion features.

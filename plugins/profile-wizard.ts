@@ -245,7 +245,7 @@ function loadTierMap(): Record<string, string> {
 
 // ─── Profile application (same semantics as the former plugin) ──────
 // Validates tier ref format, then rewrites every agent whose tier
-// matches. Mixed providers are allowed. Root `model` tracks tier.default.
+// matches. Mixed providers are allowed. Root `model` tracks tier.standard.
 // Also emits a merge patch (agent names → model) so the live path can
 // go through the server's global config API instead of a raw rewrite.
 
@@ -294,7 +294,7 @@ function applyProfile(
     if (count === 0) {
       throw new Error(`no agent currently uses tier ${tier}`)
     }
-    if (tier === "default") {
+    if (tier === "standard" || (tier === "default" && !("standard" in profile.tiers))) {
       config.model = ref
       patch.model = ref
     }
@@ -360,7 +360,7 @@ function showCurrentMapping(api: TuiPluginApi): void {
   ]
   try {
     const config = readConfig(CONFIG_FILE)
-    lines.push(`model → ${config.model ?? "(unset)"}  (tracks tier.default)`)
+    lines.push(`model → ${config.model ?? "(unset)"}  (tracks tier.standard)`)
     const tiers = getCurrentTierMapping(config, loadTierMap())
     for (const [tier, ref] of Object.entries(tiers).sort()) {
       lines.push(`tier.${tier} → ${ref}`)

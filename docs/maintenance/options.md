@@ -111,7 +111,7 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 | `provider.<name>.options.baseURL` | Your API endpoint |
 | `provider.<name>.options.apiKey` | Your API key |
 | `provider.<name>.models` | Your model definitions (custom model ids, user-added models) |
-| `model` (root) | Your default-tier model pick |
+| `model` (root) | Your standard-tier model pick |
 | `agent.<name>.model` (per tier) | Your per-tier model assignments |
 
 ---

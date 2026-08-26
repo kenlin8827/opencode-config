@@ -48,7 +48,7 @@ Check "plugin includes @dietrichgebert/ponytail" `
 # injected dynamically by plugins/project-profiler with the session profile)
 Check "instructions count = 5" ($config.instructions.Count -eq 5)
 Check "instructions contains sdd-principles.md" `
-    ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md")
+    ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md" -or $config.instructions -contains "instructions/sdd-principles.md")
 Check "instructions does NOT include context-efficiency.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `
@@ -443,16 +443,16 @@ Check "sdd-command.ts: supports prd, adr, plan, impl, handoff" ($sddCommand -mat
 $sddBarrel = Get-Content "$PSScriptRoot\..\plugins\sdd.ts" -Raw
 Check "sdd.ts: barrel re-exports SddPlugin" ($sddBarrel -match "export.*SddPlugin")
 
-# Advisor command checks (single file, $ARGUMENTS selects mode)
-$advisorCmd = Get-Content "$PSScriptRoot\..\commands\advisor.md" -Raw
-Check "advisor.md: has description frontmatter" ($advisorCmd -match "description:")
-Check "advisor.md: lists all 3 modes (off/lite/full)" `
+# Advisor command checks (via auto-advisor plugin)
+$advisorCmd = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-instructions.ts" -Raw
+Check "auto-advisor: has advisor protocol text" ($advisorCmd.Length -gt 0)
+Check "auto-advisor: lists all 3 modes (off/lite/full)" `
     (($advisorCmd -match "lite") -and ($advisorCmd -match "full") -and ($advisorCmd -match "off"))
-Check "advisor.md: references @advisor dispatch" ($advisorCmd -match "@advisor")
-Check "advisor.md: mentions blocking decisions" ($advisorCmd -match "blocking")
-Check "advisor.md: references confidence score" ($advisorCmd -match "confidence")
-Check "advisor.md: mentions threshold 8" ($advisorCmd -match "8")
-Check "advisor.md: mentions auto-execute" ($advisorCmd -match "auto-execute" -or $advisorCmd -match "directly")
+Check "auto-advisor: references @advisor dispatch" ($advisorCmd -match "@advisor")
+Check "auto-advisor: mentions blocking decisions" ($advisorCmd -match "blocking")
+Check "auto-advisor: references confidence score" ($advisorCmd -match "confidence")
+Check "auto-advisor: mentions threshold 8" ($advisorCmd -match "8")
+Check "auto-advisor: mentions auto-execute or direct" ($advisorCmd -match "auto-execute" -or $advisorCmd -match "directly")
 
 # Advisor agent checks
 $advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw

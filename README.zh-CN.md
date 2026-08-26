@@ -1,6 +1,6 @@
 # OpenCode 生产级工程化配置
 
-开箱即用的 [OpenCode](https://opencode.ai) 生产级工程化配置：分层 MCP 代码智能与数据库网关、全链路工程护栏（ADR 铁律 / 密钥防护 / E2E 门控 / 提交纪律）、17 位专家智能体协作与一键模型分层治理 —— 一条命令安装到 `~/.config/opencode`。
+开箱即用的 [OpenCode](https://opencode.ai) 生产级工程化配置：分层 MCP 代码智能与数据库网关、全链路工程护栏（ADR 铁律 / 密钥防护 / E2E 门控 / 提交纪律）、21 位专家智能体协作与一键模型分层治理 —— 一条命令安装到 `~/.config/opencode`。
 
 > [English](README.md) | **中文** | 📖 **[在线文档站 (GitBook / Docs)](https://kenlin8827.github.io/opencode-config/zh/)**
 >
@@ -88,7 +88,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 | 特性 | 对你的意义 |
 |---|---|
-| **专家智能体团队** | 17 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev` 等），提示词按领域调优，自动路由 |
+| **专家智能体团队** | 21 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等），提示词按领域调优，自动路由 |
 | **三种工作模式** | `@code`（直接开发，默认）、`@build`（编排执行）、`@plan`（只读分析）—— 可在 `install/options.jsonc` 中切换 |
 | **代码智能与数据库（MCP）** | 预配置 MCP 服务（Serena LSP、CodeGraph 图谱、GitNexus、DBHub 数据库网关），开箱按需自动装 CLI |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
@@ -428,7 +428,7 @@ readonly = true        # 生产环境安全：限制为只读查询
   → Esc 取消
 ```
 
-被覆盖层级的所有智能体会被统一重写为预设的 `provider/model_id` 引用，根级 `model` 跟随 `default` 层级。预设未列出的层级保持不变。应用前会校验所有内容；热应用路径由服务端用 patch 方式写 `opencode.jsonc`（保留注释），降级路径会先备份 `opencode.jsonc.bak` 再全量重写，且需重启生效。注意：热应用会销毁重建服务端 instance，切换瞬间正在进行的回复流可能被中断（会话历史不受影响）。
+被覆盖层级的所有智能体会被统一重写为预设的 `provider/model_id` 引用，根级 `model` 跟随 `standard` 层级。预设未列出的层级保持不变。应用前会校验所有内容；热应用路径由服务端用 patch 方式写 `opencode.jsonc`（保留注释），降级路径会先备份 `opencode.jsonc.bak` 再全量重写，且需重启生效。注意：热应用会销毁重建服务端 instance，切换瞬间正在进行的回复流可能被中断（会话历史不受影响）。
 
 ### 模型路由与层级架构
 
@@ -436,11 +436,11 @@ readonly = true        # 生产环境安全：限制为只读查询
 
 | 层级 | 用途 | 智能体 |
 |---|---|---|
-| `default` | 通用，强推理 | build, plan, code, researcher, architect, security, tech-writer |
-| `code` | 代码生成，实现 | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | 分析，审查，反馈 | code-review, advisor |
-| `explorer` | 快速，廉价，高吞吐 | explorer |
-| `vision` | 图像理解 | vision |
+| `flash` | 快速，轻量，代码粗筛，高吞吐 | explorer, fast-coder |
+| `standard` | 通用编排中枢，高吞吐主力（根模型） | build, plan, researcher, tech-writer |
+| `pro` | 专业全栈工程，代码生成与实现 | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `max` | 深度推理，系统架构，安全合规，严苛审查 | advisor, architect, security, code-review |
+| `vision` | 图像理解与多模态分析 | vision |
 
 每个层级解析到当前活跃预设为它映射的 provider/模型。**Variant**（low/medium/high）控制每个智能体的思考/推理深度；如果后端模型不支持 variant，会被静默忽略。
 
@@ -825,7 +825,7 @@ echo on > <project>/.opencode/.env-guard
 [`install/options.jsonc`](install/options.jsonc) 是控制安装配置的单一事实来源。
 
 #### 1. 安装前自定义选项
-若你在初次安装前希望按需开启或关闭特定功能（如开启 `opencode-codex-bridge`、`opencode-claude-bridge` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 服务开关、切换默认主控智能体为 `code`/`build`/`plan`）：
+若你在初次安装前希望按需开启或关闭特定功能（如开启 `opencode-qoder-bridge`、`opencode-mem` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 服务开关、切换默认主控智能体为 `code`/`build`/`plan`）：
 1. 克隆本仓库或解压 release 包并进入目录：`cd opencode-config`
 2. 编辑 `install/options.jsonc` 调整开关（`true` / `false`）：
    ```jsonc

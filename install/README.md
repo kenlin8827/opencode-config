@@ -1,4 +1,4 @@
-# install (v0.4.0)
+# install (v0.5.0)
 
 Self-installing OpenCode config powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -155,7 +155,7 @@ Semantics (as implemented by the `/profile` plugin):
 - Tiers not listed by a profile are left untouched; all bundled profiles
   cover all five tiers, `vision` included.
 - Unknown tier names in a profile are rejected; every agent of a tier is
-  rewritten in lockstep, and the root `model` tracks the `default` tier.
+  rewritten in lockstep, and the root `model` tracks the `standard` tier.
 - Apply validates everything up front per tier and backs up the target
   (`opencode.jsonc.bak`) before writing; restart opencode to take effect.
 
@@ -171,21 +171,18 @@ image-capable model (GLM, DeepSeek) omit the `vision` tier.
 The tier-to-model assignment follows a strict quality ladder:
 
 ```
-explorer  (cheapest/fastest)  <  default  (second-highest)  <  code  (strongest coding)  <=  advisor  (absolute flagship)
+flash  (fastest/cheapest)  <=  standard  (general workhorse)  <=  pro  (strongest coding)  <=  max  (flagship reasoning)
 ```
 
-- **`default` = second-highest**, NOT the cheapest. The default tier drives 6 agents
-  (build, plan, architect, security, researcher, tech-writer) — orchestration and
-  architecture analysis need strong reasoning. Use the flagship's previous-gen or
-  non-pro variant (e.g. qwen3.7-max not qwen3.6-plus, glm-5.1 not glm-4.7).
-- **`advisor` = absolute flagship.** Must be >= `code` in quality. Never put a weaker
-  model in advisor than code (quality inversion).
-- **`code` = strongest coding model.** Prefer codex/coder variants when available.
-- **`explorer` = cheapest/fastest variant.** Use flash/turbo/highspeed/lite/mini.
+- **`flash` = cheapest/fastest variant.** Use flash/turbo/highspeed/lite/mini.
+- **`standard` = second-highest / general workhorse.** The standard tier drives high-traffic
+  orchestrator & analysis agents (build, plan, researcher, tech-writer) and tracks root `model`.
+- **`pro` = strongest coding model.** Prefer codex/coder variants when available.
+- **`max` = absolute flagship / reasoning.** Must be >= `pro` in quality. Used by advisor, architect, security, code-review.
 - **`vision` = any model with `attachment: true` + image input.**
-- When a provider has <= 2 models, tiers can share — but `advisor` always gets the strongest.
+- When a provider has <= 2 models, tiers can share — but `max` always gets the strongest.
 
-| Profile | Tier | default / code / advisor / explorer / vision |
+| Profile | Tier | flash / standard / pro / max / vision |
 | --- | --- | --- |
 | `llm-router` | Auto — server-side routing baseline | its five router slots |
 | `codex-router` | codex gateway — Sol heavy / Luna cheap | gpt-5.6-sol / gpt-5.6-sol-max / gpt-5.6-sol-ultra / gpt-5.6-luna-low / gpt-5.6-sol |
@@ -342,7 +339,7 @@ then write it back afterwards:
 | -------------------------- | ------------------------------------- |
 | `provider.<name>.options.baseURL` | User's API endpoint          |
 | `provider.<name>.options.apiKey`  | User's API key (secret)      |
-| `model` (root)             | User's model pick for `tier.default`  |
+| `model` (root)             | User's model pick for `tier.standard` |
 | `agent.<name>.model`       | User's per-tier model picks           |
 
 Model picks are preserved **per tier** (the same semantics the `/profile`

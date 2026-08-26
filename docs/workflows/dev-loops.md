@@ -41,7 +41,7 @@ Three-Tier Dev Loops completely decouple **Execution/Writing (high-throughput ta
 | Dimension | ⚡ `/quick-dev` (Quick Track) | 🚀 `/fast-dev` (Fast Track) | 🧠 `/deep-dev` (Deep Track) |
 | :--- | :--- | :--- | :--- |
 | **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping, human-only reviews | 80% of daily tasks: CRUD endpoints, UI components, single-module refactoring | 20% mission-critical tasks: Payments, auth & security, distributed transactions, full-stack |
-| **Coder Agent** | **Direct `@code` in-session (Zero dispatch overhead)** | Flash / Fast model (`@fast-coder` dispatch) | Flash / Fast model (`@fast-coder` dispatch) |
+| **Coder Agent** | **Direct `@code` in-session (Zero dispatch overhead)** | Flash / Fast model (`@fast-coder` dispatch, mapped to `flash` tier) | Flash / Fast model (`@fast-coder` dispatch, mapped to `flash` tier) |
 | **Review Team** | ❌ **None (Bypassed)** | ⚖️ 1 Flagship Reviewer (`@code-review`) | 🏛️ **2 Flagship Reviewers (`@architect` ➕ `@code-review`)** |
 | **Consensus & Arbitration** | None | Direct iterative fixes | **Disagreements trigger `@advisor` arbitration under Safety-First principles** |
 | **Review Standards** | Basic syntax correctness | Strict lint, correct types, no regressions | **Deep requirement traceability, contract verification, PUA-grade boundary checks** |

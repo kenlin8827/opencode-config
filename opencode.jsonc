@@ -2,7 +2,7 @@
   "adrMode": "flat",
   "$schema": "https://opencode.ai/config.json",
   "snapshot": true,
-  "model": "llm-router/default",
+  "model": "llm-router/standard",
   "permission": "allow",
   "default_agent": "build",
   "instructions": [
@@ -13,8 +13,7 @@
     "instructions/sdd-principles.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
-  // opencode-codex-bridge, opencode-claude-bridge, opencode-mem, etc.) are
-  // managed and enabled via install/options.jsonc, which injects them on install.
+  // opencode-mem, etc.) are managed and enabled via install/options.jsonc.
   "plugin": [
     "@dietrichgebert/ponytail",
     "@frankhommers/opencode-smart-title"
@@ -117,10 +116,10 @@
         "apiKey": "{env:LLM_ROUTER_API_KEY}"
       },
       "models": {
-        "default":  { "name": "LLM Router default",  "id": "default",  "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
-        "code":     { "name": "LLM Router code",     "id": "code",     "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
-        "advisor":  { "name": "LLM Router advisor",  "id": "advisor",  "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
-        "explorer": { "name": "LLM Router explorer", "id": "explorer", "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
+        "flash":    { "name": "LLM Router flash",    "id": "flash",    "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
+        "standard": { "name": "LLM Router standard", "id": "standard", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
+        "pro":      { "name": "LLM Router pro",      "id": "pro",      "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
+        "max":      { "name": "LLM Router max",      "id": "max",      "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
         "vision":   { "name": "LLM Router vision",   "id": "vision",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
       }
     }
@@ -129,7 +128,7 @@
     "build": {
       "description": "Build — default entry point for all tasks. Routes every coding task to the right specialist agent (even simple ones); handles only non-coding tasks (exploration, Q&A, git info) directly. Coordinates multi-step workflows across agents.",
       "mode": "primary",
-      "model": "llm-router/default",
+      "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/build.md}"
@@ -137,7 +136,7 @@
     "plan": {
       "description": "Plan orchestrator — read-only coordinator that dispatches analysis tasks to specialist agents. Use for architecture review, code audit, security assessment, refactoring planning, and pre-implementation design.",
       "mode": "primary",
-      "model": "llm-router/default",
+      "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/plan.md}"
@@ -145,7 +144,7 @@
     "code": {
       "description": "Code — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
       "mode": "primary",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/code.md}"
@@ -153,7 +152,7 @@
     "advisor": {
       "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
       "mode": "subagent",
-      "model": "llm-router/advisor",
+      "model": "llm-router/max",
       "temperature": 0.3,
       "steps": 25,
       "variant": "high",
@@ -163,7 +162,7 @@
     "explorer": {
       "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, symbol outlines) go to Serena MCP tools; multi-hop call paths and impact analysis go to CodeGraph instead.",
       "mode": "subagent",
-      "model": "llm-router/explorer",
+      "model": "llm-router/flash",
       "temperature": 0.2,
       "steps": 40,
       "variant": "low",
@@ -173,7 +172,7 @@
     "researcher": {
       "description": "Tech researcher — evaluates technologies, compares alternatives, produces feasibility studies and trade-off reports. Invoke for research, compare, evaluate, benchmark, or 'which should we use?' questions.",
       "mode": "subagent",
-      "model": "llm-router/default",
+      "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/researcher.md}",
@@ -182,7 +181,7 @@
     "architect": {
       "description": "Tech lead / software architect — system design, ADRs, task decomposition, trade-off analysis, API contract design. Invoke for architecture, system design, task breakdown, or 'how should we design this?'",
       "mode": "subagent",
-      "model": "llm-router/default",
+      "model": "llm-router/max",
       "temperature": 0.4,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/architect.md}",
@@ -191,7 +190,7 @@
     "dba": {
       "description": "Database architect — schema design, SQL optimization, index strategy, query analysis, migration planning, sharding/partitioning. Invoke for database, SQL, schema, migration, index, or query optimization.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/dba.md}"
@@ -199,7 +198,7 @@
     "security": {
       "description": "Security engineer — vulnerability assessment, security architecture review, OWASP analysis, dependency scanning, compliance. Invoke for security, vulnerability, OWASP, encryption, or 'is this secure?'",
       "mode": "subagent",
-      "model": "llm-router/default",
+      "model": "llm-router/max",
       "temperature": 0.2,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/security.md}",
@@ -208,7 +207,7 @@
     "java-dev": {
       "description": "Java/Spring Boot engineer — Java, Spring Boot, Spring Security, JPA/Hibernate, Maven/Gradle, JUnit. Invoke for Java, Spring, JPA, Hibernate, Maven, Gradle, or JVM tasks.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/java-dev.md}"
@@ -216,7 +215,7 @@
     "python-dev": {
       "description": "Python engineer — FastAPI, Django, Flask, async Python, pandas/numpy, scripting, pytest. Invoke for Python, FastAPI, Django, Flask, pandas, numpy, or pip tasks.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/python-dev.md}"
@@ -224,7 +223,7 @@
     "go-dev": {
       "description": "Go engineer — Gin, Echo, Fiber, gRPC, protobuf, Cobra, microservices, goroutines. Invoke for Go, Golang, Gin, gRPC, protobuf, or Cobra tasks.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/go-dev.md}"
@@ -232,7 +231,7 @@
     "rust-dev": {
       "description": "Rust engineer — Cargo, Axum, Actix, Tokio, serde, WASM, systems programming. Invoke for Rust, Cargo, Tokio, Axum, Actix, serde, or wasm tasks.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/rust-dev.md}"
@@ -240,7 +239,7 @@
     "node-dev": {
       "description": "Node.js/TypeScript engineer — NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm. Invoke for Node.js, NestJS, Express, Fastify, Prisma, TypeORM, or npm/pnpm tasks.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/node-dev.md}"
@@ -248,7 +247,7 @@
     "frontend-dev": {
       "description": "Frontend engineer — React/Vue/Svelte/Next.js, TypeScript, CSS/Tailwind, accessibility, performance. Invoke for frontend, React, Vue, Svelte, CSS, Tailwind, UI, or component work.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}"
@@ -256,7 +255,7 @@
     "qa": {
       "description": "QA engineer — test planning, test generation, coverage analysis, E2E strategy, quality gates. Invoke for testing, QA, coverage, E2E, integration tests, or regression.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/qa.md}",
@@ -265,7 +264,7 @@
     "code-review": {
       "description": "Code reviewer — reviews git diffs, PRs, staged/unstaged changes, specific files. Invoke for code review, PR review, or feedback on code quality, correctness, security, or best practices.",
       "mode": "subagent",
-      "model": "llm-router/advisor",
+      "model": "llm-router/max",
       "temperature": 0.3,
       "variant": "high",
       "prompt": "{file:~/.config/opencode/agents/code-review.md}",
@@ -274,7 +273,7 @@
     "devops": {
       "description": "DevOps/SRE engineer — Docker, Kubernetes, CI/CD, Terraform, monitoring, deployment. Invoke for Docker, K8s, deploy, CI/CD, pipeline, Terraform, or infrastructure.",
       "mode": "subagent",
-      "model": "llm-router/code",
+      "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/devops.md}"
@@ -282,7 +281,7 @@
     "tech-writer": {
       "description": "Technical writer — README, API docs, architecture docs, ADRs, changelogs, user guides. Invoke for documentation, README, changelog, ADR, or developer guide tasks.",
       "mode": "subagent",
-      "model": "llm-router/default",
+      "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
       "prompt": "{file:~/.config/opencode/agents/tech-writer.md}"
@@ -300,7 +299,7 @@
     "fast-coder": {
       "description": "Flash Coder — agile, high-throughput full-stack coding subagent powered by Flash/Lite model tiers. Dispatched for rapid coding and iterative review loops.",
       "mode": "subagent",
-      "model": "llm-router/explorer",
+      "model": "llm-router/flash",
       "temperature": 0.2,
       "variant": "low",
       "prompt": "{file:~/.config/opencode/agents/fast-coder.md}"

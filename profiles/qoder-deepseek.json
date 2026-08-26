@@ -1,10 +1,10 @@
 {
-  "description": "All-DeepSeek family picks via opencode-qoder-bridge — dmodel (DeepSeek-V4-Pro) carries code and advisor; dfmodel (DeepSeek-V4-Flash, 0.10x) handles dispatch and exploration; vision goes to auto (server-side pick). Family fallback profile; requires Qoder CLI login.",
+  "description": "All-DeepSeek family picks via opencode-qoder-bridge — dmodel carries pro and max tiers; dfmodel handles standard and flash tiers; vision goes to qmodel. Requires Qoder CLI login.",
   "tiers": {
-    "default": "qoder/dfmodel",
-    "code": "qoder/dmodel",
-    "advisor": "qoder/dmodel",
-    "explorer": "qoder/dfmodel",
+    "flash": "qoder/dfmodel",
+    "standard": "qoder/dfmodel",
+    "pro": "qoder/dmodel",
+    "max": "qoder/dmodel",
     "vision": "qoder/qmodel"
   }
 }

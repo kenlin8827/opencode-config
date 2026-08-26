@@ -132,7 +132,7 @@ export const FALLBACK_EN: I18nText = {
   targetSectionHeader: '── 📁 Installation Target ──',
   targetHint: 'Press Enter or Space to edit target path',
   tiersSectionHeader: '── 🎯 Agent Tier Mappings (Space to cycle tier) ──',
-  tiersHint: 'Model tier mapping (default, code, advisor, explorer, vision) used by /profile wizard',
+  tiersHint: 'Model tier mapping (flash, standard, pro, max, vision) used by /profile wizard',
   actionsSectionHeader: '── ⚡ Execution Actions ──',
   saveAndInstallBtn: '🚀 SAVE & INSTALL NOW',
   saveAndInstallHint: 'Apply configuration and install all files to target',
@@ -242,7 +242,7 @@ export function loadLocale(repoDir: string, code: string): I18nText {
         const merged = { ...FALLBACK_EN, ...loaded };
         localeCache[cacheKey] = merged;
         return merged;
-      } catch {}
+      } catch { }
     }
     localeCache[cacheKey] = FALLBACK_EN;
     return FALLBACK_EN;
@@ -267,6 +267,6 @@ export function detectDefaultLocaleCode(): string {
   try {
     const sysLocale = Intl.DateTimeFormat().resolvedOptions().locale;
     if (/zh/i.test(sysLocale)) return 'zh-CN';
-  } catch {}
+  } catch { }
   return 'en';
 }

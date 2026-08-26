@@ -41,7 +41,7 @@
 | 维度 | ⚡ `/quick-dev` (Quick Track) | 🚀 `/fast-dev` (Fast Track) | 🧠 `/deep-dev` (Deep Track) |
 | :--- | :--- | :--- | :--- |
 | **定位与场景** | 临时脚本、极简改动、样式微调、快速原型、完全人肉把关 | 80% 的日常业务需求、CRUD 接口、前端 UI、单模块重构 | 20% 的核心高危场景：金融支付、核心鉴权、分布式事务、跨端全栈 |
-| **编码 Agent** | **直接化身 `@code` 就地出码（零派发开销）** | Flash / Fast 模型（`@fast-coder` 派发） | Flash / Fast 模型（`@fast-coder` 派发） |
+| **编码 Agent** | **直接化身 `@code` 就地出码（零派发开销）** | Flash / Fast 模型（`@fast-coder` 派发，绑定 `flash` 档） | Flash / Fast 模型（`@fast-coder` 派发，绑定 `flash` 档） |
 | **审查阵容** | ❌ **无审查（跳过）** | ⚖️ 1 位旗舰法官（`@code-review`） | 🏛️ **2 位旗舰法官会审（`@architect` ➕ `@code-review`）** |
 | **分歧对齐** | 无 | 单审直通，逐项整改 | **发生分歧时启动 `@advisor` 辩论仲裁，按安全第一原则形成统一清单** |
 | **审查标准** | 基础语法正确 | 规范、功能、边界、无 Regression | **顶级需求理解、全链路契约对齐、地毯式 PUA 挑刺、零容忍** |

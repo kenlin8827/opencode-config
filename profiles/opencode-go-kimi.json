@@ -1,10 +1,10 @@
 {
-  "description": "All-Kimi family picks — k2.6 orchestrates (flagship stays off the high-traffic default slot), the -code variant codes, k3 judges on the low-frequency advisor slot. Family fallback profile. vision goes to qwen3.8-max — Kimi is not vision-capable here; only Qwen is.",
+  "description": "All-Kimi family picks — k2.6 orchestrates on standard and flash, k2.7-code codes on pro, k3 judges on max. vision goes to qwen3.8-max — Kimi is not vision-capable here; only Qwen is.",
   "tiers": {
-    "default": "opencode-go/kimi-k2.6",
-    "code": "opencode-go/kimi-k2.7-code",
-    "advisor": "opencode-go/kimi-k3",
-    "explorer": "opencode-go/kimi-k2.6",
+    "flash": "opencode-go/kimi-k2.6",
+    "standard": "opencode-go/kimi-k2.6",
+    "pro": "opencode-go/kimi-k2.7-code",
+    "max": "opencode-go/kimi-k3",
     "vision": "opencode-go/qwen3.8-max"
   }
 }

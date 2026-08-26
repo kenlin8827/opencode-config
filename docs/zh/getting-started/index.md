@@ -26,7 +26,7 @@ $url = "https://github.com/kenlin8827/opencode-config/releases/latest/download/o
 
 | 特性 | 对你的意义 |
 |---|---|
-| **专家智能体团队** | 17 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev` 等），提示词按领域调优，自动路由 |
+| **专家智能体团队** | 21 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等），提示词按领域调优，自动路由 |
 | **三种工作模式** | `@code`（直接开发，默认）、`@build`（编排执行）、`@plan`（只读分析）—— 可在 `install/options.jsonc` 中切换 |
 | **代码智能与数据库（MCP）** | 预配置 MCP 服务（Serena LSP、CodeGraph 图谱、GitNexus、DBHub 数据库网关），开箱按需自动装 CLI |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
@@ -103,7 +103,7 @@ opencode-config
 
 ### 进阶：自定义可选配置后再安装
 
-若你想在安装前先按需开启或关闭特定功能（例如开启 `opencode-codex-bridge`、`opencode-claude-bridge` 桥接插件，或调整 Serena / CodeGraph / DBHub 等 MCP 开关、切换默认主控智能体）：
+若你想在安装前先按需开启或关闭特定功能（例如开启 `opencode-qoder-bridge`、`opencode-mem` 插件，或调整 Serena / CodeGraph / DBHub 等 MCP 开关、切换默认主控智能体）：
 
 1. **克隆仓库**：
    ```bash

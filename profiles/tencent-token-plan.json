@@ -1,9 +1,10 @@
 {
-  "description": "Tencent Token Plan — hy3 carries the high-traffic default tier hy3 codes hy3 judges on the low-frequency advisor slot hy3 explores. All models are text-only — no vision tier. Requires TENCENT_TOKEN_PLAN_API_KEY environment variable.",
+  "description": "Tencent Token Plan — hy3 carries all 5 tiers across the board. Requires TENCENT_TOKEN_PLAN_API_KEY environment variable.",
   "tiers": {
-    "default": "tencent-token-plan/hy3",
-    "code": "tencent-token-plan/hy3",
-    "advisor": "tencent-token-plan/hy3",
-    "explorer": "tencent-token-plan/hy3"
+    "flash": "tencent-token-plan/hy3",
+    "standard": "tencent-token-plan/hy3",
+    "pro": "tencent-token-plan/hy3",
+    "max": "tencent-token-plan/hy3",
+    "vision": "tencent-token-plan/hy3"
   }
 }

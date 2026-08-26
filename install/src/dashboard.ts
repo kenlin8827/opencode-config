@@ -6,6 +6,7 @@ import {
   executeStatus,
   getDefaultTargetDir,
   getCurrentRepoVersion,
+  getInstalledVersion,
 } from './installer';
 import {
   parseDynamicOptionsSchema,
@@ -35,7 +36,15 @@ const C = {
   showCursor: '\x1b[?25h',
 };
 
-const AVAILABLE_TIERS = ['default', 'code', 'advisor', 'explorer', 'vision'];
+const AVAILABLE_TIERS = ['flash', 'standard', 'pro', 'max', 'vision'];
+
+const LEGACY_TIER_MIGRATION: Record<string, string> = {
+  default: 'standard',
+  code: 'pro',
+  advisor: 'max',
+  explorer: 'flash',
+  vision: 'vision',
+};
 
 interface RowItem {
   id: string;
@@ -78,12 +87,21 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
     pluginState[item.key] = item.value;
   }
 
-  // Load effective tiers map
+  // Load effective tiers map from repo (source of truth) and migrate/override with valid user tiers
   const defaultTiers = readTierMap(repoDir);
   const userTiers = readTierMap(targetDir);
+  const migratedUserTiers: Record<string, string> = {};
+  for (const [agent, tier] of Object.entries(userTiers)) {
+    if (AVAILABLE_TIERS.includes(tier)) {
+      migratedUserTiers[agent] = tier;
+    } else if (LEGACY_TIER_MIGRATION[tier]) {
+      migratedUserTiers[agent] = LEGACY_TIER_MIGRATION[tier];
+    }
+  }
+
   const tiersState: Record<string, string> = {
     ...defaultTiers,
-    ...userTiers,
+    ...migratedUserTiers,
   };
 
   // Available agent candidates
@@ -203,8 +221,20 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
 
     let buf = C.clear + C.hideCursor;
 
-    // Header Box
-    const title = `${t.wizardTitle} (v${version}) [Lang: ${currentLocaleCode}]`;
+    // Header Box with Version Flow Detection
+    const installedVer = getInstalledVersion(targetDir);
+    let versionText = '';
+    if (installedVer) {
+      if (installedVer !== version) {
+        versionText = `v${installedVer} ➔ v${version}`;
+      } else {
+        versionText = `v${version}`;
+      }
+    } else {
+      versionText = `v${version} (${t.versionFreshPrompt || 'Fresh'})`;
+    }
+
+    const title = `${t.wizardTitle} [${versionText}] [Lang: ${currentLocaleCode}]`;
     buf += `${C.cyan}┌${line}┐${C.reset}\n`;
     buf += `${C.cyan}│${C.bold}  ${title}  ${C.reset}${' '.repeat(Math.max(0, width - title.length - 6))}${C.cyan}│${C.reset}\n`;
     buf += `${C.cyan}└${line}┘\n`;
@@ -260,8 +290,8 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         const safeHint = truncateText(row.hint || '', maxHintLen);
         buf += `  ${cursor}${switchBadge}  ${nameBadge}  ${C.dim}${safeHint}${C.reset}\n`;
       } else if (row.type === 'tier' && row.key) {
-        const curTier = tiersState[row.key] || 'default';
-        const tierColor = curTier === 'advisor' ? C.magenta : curTier === 'code' ? C.green : curTier === 'explorer' ? C.yellow : curTier === 'vision' ? C.blue : C.cyan;
+        const curTier = tiersState[row.key] || 'standard';
+        const tierColor = curTier === 'max' ? C.magenta : curTier === 'pro' ? C.green : curTier === 'flash' ? C.yellow : curTier === 'vision' ? C.blue : C.cyan;
         const tierBadge = `[ ${tierColor}${C.bold}${curTier.padEnd(8)}${C.reset} ]`;
         const nameBadge = isSelected ? `${C.bold}${C.yellow}${row.label.padEnd(18)}${C.reset}` : `${C.bold}${row.label.padEnd(18)}${C.reset}`;
         buf += `  ${cursor}${nameBadge} : ${tierBadge}  ${C.dim}(${t.cycleTierHint})${C.reset}\n`;

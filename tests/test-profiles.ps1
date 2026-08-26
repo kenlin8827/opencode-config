@@ -3,7 +3,7 @@
 #
 # For every bundled profile: apply it to a fresh copy of the repo template
 # and assert that (a) every agent of a covered tier carries the profile ref,
-# (b) the root model tracks tier.default, (c) tiers not listed by the profile
+# (b) the root model tracks tier.standard, (c) tiers not listed by the profile
 # keep the template ref. Optionally cross-checks every ref against
 # `opencode models` when the CLI is available and authenticated.
 #
@@ -35,7 +35,7 @@ function Get-AgentTier($agents, [string]$name) {
 }
 
 # Apply a profile to $obj in place: rewrite every agent of a covered tier to
-# the profile ref in lockstep; root `model` tracks tier.default. Mirrors the
+# the profile ref in lockstep; root `model` tracks tier.standard. Mirrors the
 # /profile plugin's applyProfile semantics.
 function Apply-ProfileInPlace([hashtable]$obj, [hashtable]$p) {
     foreach ($tier in $p.tiers.Keys) {
@@ -45,7 +45,7 @@ function Apply-ProfileInPlace([hashtable]$obj, [hashtable]$p) {
             if ((Get-AgentTier $obj.agent $aname) -eq $tier) { $obj.agent[$aname].model = $ref; $n++ }
         }
         if ($n -eq 0) { throw "no agent currently uses tier $tier" }
-        if ($tier -eq 'default') { $obj['model'] = $ref }
+        if ($tier -eq 'standard' -or ($tier -eq 'default' -and -not $p.tiers.ContainsKey('standard'))) { $obj['model'] = $ref }
     }
 }
 
@@ -89,7 +89,7 @@ try {
                 }
             }
             if ($n -eq 0) { $errors += "tier ${tier}: no agent matched" }
-            if ($tier -eq 'default' -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
+            if (($tier -eq 'standard' -or ($tier -eq 'default' -and -not $p.tiers.ContainsKey('standard'))) -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
         }
         # uncovered tiers: agents must keep the template ref
         foreach ($aname in $obj.agent.Keys) {

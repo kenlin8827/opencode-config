@@ -1,10 +1,10 @@
 {
-  "description": "Qoder via opencode-qoder-bridge (official Qoder Agent SDK) — Ultimate flags judge and code, Performance is the daily default, Lite explores for free, Auto takes vision (server-side pick). Requires Qoder CLI login (qoder login).",
+  "description": "Qoder via opencode-qoder-bridge (official Qoder Agent SDK) — Ultimate judges on max and codes on pro, Performance is the daily standard, Lite explores on flash, Auto takes vision. Requires Qoder CLI login.",
   "tiers": {
-    "default": "qoder/performance",
-    "code": "qoder/ultimate",
-    "advisor": "qoder/ultimate",
-    "explorer": "qoder/lite",
+    "flash": "qoder/lite",
+    "standard": "qoder/performance",
+    "pro": "qoder/ultimate",
+    "max": "qoder/ultimate",
     "vision": "qoder/auto"
   }
 }

@@ -1,10 +1,10 @@
 {
-  "description": "Google (official Vertex AI / Gemini API) — gemini-2.5-flash carries the high-traffic default tier (fast, multimodal), gemini-3-pro-preview codes, gemini-2.5-pro judges on the low-frequency advisor slot, gemini-flash-lite-latest explores. All Gemini models accept images — vision uses gemini-2.5-flash. Requires GOOGLE_GENERATIVE_AI_API_KEY environment variable.",
+  "description": "Google (official Vertex AI / Gemini API) — gemini-2.5-flash carries the high-traffic standard tier (fast, multimodal), gemini-3-pro-preview codes on pro, gemini-2.5-pro judges on max, gemini-flash-lite-latest explores on flash. All Gemini models accept images — vision uses gemini-2.5-flash. Requires GOOGLE_GENERATIVE_AI_API_KEY environment variable.",
   "tiers": {
-    "default": "google/gemini-2.5-flash",
-    "code": "google/gemini-3-pro-preview",
-    "advisor": "google/gemini-2.5-pro",
-    "explorer": "google/gemini-flash-lite-latest",
+    "flash": "google/gemini-flash-lite-latest",
+    "standard": "google/gemini-2.5-flash",
+    "pro": "google/gemini-3-pro-preview",
+    "max": "google/gemini-2.5-pro",
     "vision": "google/gemini-2.5-flash"
   }
 }

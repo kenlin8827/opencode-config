@@ -111,7 +111,7 @@
 | `provider.<name>.options.baseURL` | 你的 API 端点 |
 | `provider.<name>.options.apiKey` | 你的 API 密钥 |
 | `provider.<name>.models` | 你的模型定义（自定义 model id、用户自加的模型） |
-| `model`（根级别） | 你为 default 层级选择的模型 |
+| `model`（根级别） | 你为 standard 层级选择的模型 |
 | `agent.<name>.model`（每个层级） | 你为各层级分配的模型 |
 
 ---

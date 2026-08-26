@@ -1,10 +1,10 @@
 {
-  "description": "Alibaba Coding Plan — qwen3.7-plus carries the high-traffic default tier qwen3-coder-next codes MiniMax-M2.5 judges on the low-frequency advisor slot qwen3.7-plus explores. qwen3.7-plus also handles vision (image input). Requires ALIBABA_CODING_PLAN_API_KEY environment variable.",
+  "description": "Alibaba Coding Plan (International) — qwen3.7-plus carries the high-traffic standard tier, qwen3-coder-next codes on pro, MiniMax-M2.5 judges on max, qwen3.7-plus explores on flash. All Qwen models accept images — vision uses qwen3.7-plus. Requires ALIBABA_CODING_PLAN_API_KEY environment variable.",
   "tiers": {
-    "default": "alibaba-coding-plan/qwen3.7-plus",
-    "code": "alibaba-coding-plan/qwen3-coder-next",
-    "advisor": "alibaba-coding-plan/MiniMax-M2.5",
-    "explorer": "alibaba-coding-plan/qwen3.7-plus",
+    "flash": "alibaba-coding-plan/qwen3.7-plus",
+    "standard": "alibaba-coding-plan/qwen3.7-plus",
+    "pro": "alibaba-coding-plan/qwen3-coder-next",
+    "max": "alibaba-coding-plan/MiniMax-M2.5",
     "vision": "alibaba-coding-plan/qwen3.7-plus"
   }
 }

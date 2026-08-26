@@ -97,13 +97,13 @@ You can interact with OpenCode through multiple interfaces depending on your pre
 | **OpenChamber Desktop / GUI** | Users who prefer visual IDEs & detailed Code Reviews | **Side-by-side visual diffs**, Multi-Model comparison & Fusion, session timelines | Download [OpenChamber](https://openchamber.dev) desktop app or VS Code extension |
 | **Built-in Web UI** | Browser-based access without extra desktop apps | Instant browser access, cross-device friendly | Run `opencode serve` and open in your browser |
 
-> 💡 **Seamless Compatibility**: Whichever UI you choose, all **17 specialist agents, MCP servers (CodeGraph, DBHub, etc.), and Model Profiles** configured by this repository are automatically recognized and shared.
+> 💡 **Seamless Compatibility**: Whichever UI you choose, all **21 specialist agents, MCP servers (CodeGraph, DBHub, etc.), and Model Profiles** configured by this repository are automatically recognized and shared.
 
 ---
 
 ### Advanced: Customize Options Before Installing
 
-If you want to toggle optional features (such as enabling `opencode-codex-bridge` / `opencode-claude-bridge`, switching MCP servers like Serena / CodeGraph / DBHub, or changing the default agent) before running the installer:
+If you want to toggle optional features (such as enabling `opencode-qoder-bridge` / `opencode-mem`, switching MCP servers like Serena / CodeGraph / DBHub, or changing the default agent) before running the installer:
 
 1. **Clone the repository**:
    ```bash
