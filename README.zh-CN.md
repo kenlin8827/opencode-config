@@ -37,7 +37,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 - [一、快速起步](#一快速起步)
   - [你将获得什么（特性矩阵）](#你将获得什么)
-  - [方案横向对比（为什么选择本方案？）](#方案横向对比为什么选择本方案)
+  - [定位对比：omp 与 OpenCode Prime](#定位对比omp-与-opencode-prime)
   - [前置条件](#前置条件)
   - [快速上手（4 步实操）](#快速上手)
 - [二、核心能力与日常使用](#二核心能力与日常使用)
@@ -107,24 +107,32 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ---
 
-## ⚖️ 方案横向对比（为什么选择 OpenCode Prime？）
+## ⚖️ 定位对比：omp 与 OpenCode Prime
 
-| 核心维度 / 场景 | 官方原生 (Vanilla OpenCode) | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
-| :--- | :--- | :--- | :--- |
-| **核心哲学** | 极简单会话驱动 | 追求全自动黑盒委托 | **生产级工程纪律 + 精准分级掌控** |
-| **日常微调 / 快速修 Bug** | ✅ 快速（单模型） | ⚠️ 较慢（多 Agent 拆解与多层派发开销） | ⚡ **`/quick-dev` 闪电秒级交付（零委托开销）** |
-| **敏捷特性交付** | ⚠️ 无内置审查闭环 | ⚠️ 任务链过长，易陷入死循环 | 🚀 **`/fast-dev` 敏捷单审交付闭环** |
-| **核心架构与重大重构** | ❌ 无多模型审查能力 | ⚠️ 缺乏独立的仲裁机制 | 🧠 **`/deep-dev` 旗舰双审 + 安全仲裁机制** |
-| **Token 消耗与成本** | 🟢 低 | 🔴 极高（冷启动 15k–25k Token 开销） | 🟢 **精细治理（Tier 1/2/3 路由 + RTK 压缩）** |
-| **代码情报与索引** | 基础文本搜索 / Grep | 倾向于全文或大片上下文注入 | 🧭 **Serena (LSP符号) + CodeGraph (调用图) + DBHub** |
-| **工程守卫 (Guardrails)** | ❌ 无 | ❌ 弱（完全依赖模型自律） | 🛡️ **ADR 架构决策 + Secret 拦截 + Commit 规范** |
-| **环境与配置管理** | 手动修改 JSON | JSONC 手动维护 | 🖥️ **单屏交互式 TUI 控制台（多 Provider 热切换）** |
-| **升级体验** | 手动替换 | 脚本安装 | 🔄 **零风险平滑热升级（保留所有 Key 与配置）** |
+两种电池，装在两种车上。omp 自建并交付一个原生运行时；OCP 则把工程纪律的电池装进你正在使用的 OpenCode。
 
-### 🎯 选型建议指引
-* **选择官方原生 (Vanilla)**：只需最基础的单文件代码补全或简单对话，不涉及复杂工程重构与多 Agent 协作。
-* **选择 `omo.dev`**：偏好全自动黑盒交付、不在意 Token 账单与响应延迟、愿意让 AI 完全自主探索的实验性场景。
-* **选择 OpenCode Prime**：**真实企业与商业代码库开发**——需要极快响应、严格的代码审查与安全底线、低 Token 成本以及专业 LSP/图谱级代码智能。
+| 维度 | omp (`omp.sh`) | **OpenCode Prime (`OCP`)** |
+| :--- | :--- | :--- |
+| **与运行时的关系** | 独立智能体外壳——替换你的 Agent 运行时 | ⚡ **零迁移的纪律层——保留 OpenCode 运行时、插件与全部配置** |
+| **开箱能力侧重** | 🔧 原生工具火力：~8 万行 Rust 核心、hashline 编辑、内置 LSP/DAP、记忆、浏览器、协作 | 🧰 工程纪律火力：21 位专家智能体、MCP 代码智能、`/profile` 预设、护栏、工作流命令 |
+| **交付分档** | 魔法关键词（`ultrathink` / `orchestrate`），单轨自主推进 | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` 显式人选档位，可写入团队 SOP** |
+| **调度与编排** | 🟢 `task` 子智能体扇出至隔离工作树，类型化结果，实时监督面板 | 🏆 **`@build` 编排器 + 预定义角色流水线（执行计划先公示再执行）+ 分级模型调度（Flash 写码、旗舰审查）+ 动态领域人格注入 + 失败自动重试并原任务续跑** |
+| **审查门控** | `/review` 事后判级 P0–P3，单一审查者 | 🏆 **`/deep-dev` 旗舰双审 + `@advisor` 安全仲裁，修复在闭环内收敛** |
+| **规范驱动生命周期** | 无内置（需外接工具） | 🏆 **`/prd` → `/plan`（自动链接 PRD 与 ADR）→ `/impl` → `/sdd handoff` 完整 SDD 生命周期** |
+| **工作流命令套件** | `ultrathink` / `orchestrate` / `workflowz` 关键词 | 🏆 **`/grill-me` 苏格拉底式方案拷问 + `/review-fix-loop` 自动修复至零 P0/P1 + `/goal` 机械可校验的停止条件 + `/handoff` git-safe 会话交接包** |
+| **Token 与成本治理** | hashline 编辑省 token + 进程内高效工具 | 🏆 **五级智能体—模型路由（`tiers.json`）+ RTK 代理层输出压缩 60–90%，安装时自动配置** |
+| **工程护栏** | 流式规则实时纠偏模型行为 | 🏆 **可审计的策略级门控：ADR/MADR 强制 + 密钥文件拦截 + E2E 门控 + 提交纪律** |
+| **代码情报** | 🟢 内置 LSP/DAP/AST（14 LSP + 28 DAP 操作） | Serena LSP + CodeGraph 调用图 + GitNexus + DBHub 数据库网关 |
+| **服务商治理** | 60+ 服务商，角色制路由 | 🏆 **`/profile` 五级预设 + TUI 仪表盘 + 国内 Coding Plan 预设一等公民** |
+| **升级安全性** | 二进制重装 | 🏆 **基于清单的零风险升级——每次重装后 Key 与模型选择完整保留** |
+| **文档** | 英文 | 🏆 **完整双语文档树（English + 中文）** |
+| **生态与扩展性** | 🟢 TS 扩展模块、插件热重载，兼容继承 8 种已有配置格式 | 🏆 **骑在 OpenCode 生态上——整个 npm 插件库、MCP 生态与社区资产直接复用；OCP 自身亦由 30+ 可插拔插件组合而成** |
+| **客户端 / UI 面** | 终端 TUI + Zed（ACP）+ 协作观看页 | 🏆 **TUI + 浏览器 Web UI + OpenChamber 桌面 GUI（并列差异对比、多模型对比）——同一套配置全端共享，零重复配置** |
+
+### 🎯 怎么选？
+* **选择 `omp.sh`**：想要一个电池全装的原生外壳，并且愿意整体替换运行时——它的 Rust 工具链、hashline 编辑和 DAP 调试确实出色。
+* **选择 OpenCode Prime**：在 OpenCode 上做**真实商业软件**，想要显式交付分档、多模型审查门控、可审计的策略护栏和国内服务商治理——不离开你已投入的生态。
+* **两者可以共存**：omp 作为独立火力工具，OCP 作为 OpenCode 技术栈内的团队纪律。
 
 ---
 
@@ -883,8 +891,6 @@ echo on > <project>/.opencode/.env-guard
        "@dietrichgebert/ponytail": true,
        // Qoder 订阅桥接（通过官方 SDK 注入 qoder 服务商及模型，需 qoder login）
        "opencode-qoder-bridge": false,
-       // 会话标题智能自动生成
-       "@frankhommers/opencode-smart-title": true,
        // 持久化项目记忆库（向量存储，空闲时产生额外 LLM 捕获调用）
        "opencode-mem@2.24.3": false
      }

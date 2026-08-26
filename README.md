@@ -35,7 +35,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 - [Part I: Getting Started](#part-i-getting-started)
   - [What you get](#what-you-get)
-  - [Comparison matrix (Why choose this over alternatives?)](#comparison-matrix-why-choose-this-suite)
+  - [Positioning: omp vs OpenCode Prime](#positioning-omp-vs-opencode-prime)
   - [Prerequisites](#prerequisites)
   - [Quick start (4 steps)](#quick-start)
 - [Part II: Core Capabilities & Daily Use](#part-ii-core-capabilities--daily-use)
@@ -105,24 +105,32 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ---
 
-## ⚖️ Comparison Matrix (Why choose OpenCode Prime?)
+## ⚖️ Positioning: omp vs OpenCode Prime
 
-| Feature / Dimension | Vanilla OpenCode | Oh My OpenCode (`omo.dev`) | **OpenCode Prime (`OCP`)** |
-| :--- | :--- | :--- | :--- |
-| **Core Philosophy** | Minimal single-session coding | Autonomous black-box delegation | **Production engineering discipline + Tiered control** |
-| **Quick Tweaks / Bug Fixes** | ✅ Fast (Single model) | ⚠️ Slow (Heavy multi-agent breakdown) | ⚡ **`/quick-dev` Zero-delegation fast track** |
-| **Agile Feature Delivery** | ⚠️ No built-in review loop | ⚠️ Long chains, risk of stuck loops | 🚀 **`/fast-dev` Agile single-review loop** |
-| **Architectural Refactoring** | ❌ No multi-model review | ⚠️ Lacks independent arbitration | 🧠 **`/deep-dev` Flagship dual-review + Safety arbitration** |
-| **Token Cost & Predictability** | 🟢 Low | 🔴 High (15k–25k startup overhead) | 🟢 **Controlled (Tier 1/2/3 governance + RTK compression)** |
-| **Code Intelligence** | Basic text search / grep | Heavy whole-context injection | 🧭 **Serena (LSP symbols) + CodeGraph (call paths) + DBHub** |
-| **Engineering Guardrails** | ❌ None | ❌ Weak (Relies on model self-discipline) | 🛡️ **ADR enforcement + Secret-file gate + Commit discipline** |
-| **Environment & Management** | Manual JSON editing | Manual JSONC maintenance | 🖥️ **Interactive Single-Screen TUI + Hot-reloading profiles** |
-| **Upgrade Safety** | Manual file replacement | Script re-execution | 🔄 **Zero-Risk in-place upgrade (Keys & profiles preserved)** |
+Two kinds of batteries, two kinds of rides. omp builds and ships its own native runtime; OCP loads engineering-discipline batteries into the OpenCode you already run.
 
-### 🎯 When to choose which?
-* **Choose Vanilla OpenCode**: When you only need lightweight inline autocompletion and simple, single-turn conversational edits.
-* **Choose `omo.dev`**: When you prefer fully autonomous black-box task delegation and are unconcerned with high token consumption or startup latency.
-* **Choose OpenCode Prime**: When you build **real-world commercial software** requiring high delivery velocity, predictable token costs, strict code quality guardrails, and deep LSP/graph-backed code intelligence.
+| Dimension | omp (`omp.sh`) | **OpenCode Prime (`OCP`)** |
+| :--- | :--- | :--- |
+| **Relationship to Runtime** | Standalone harness — replaces your agent runtime | ⚡ **Zero-migration discipline layer — keep your OpenCode runtime, plugins & config** |
+| **What's in the Box** | 🔧 Native tooling firepower: ~80k-line Rust core, hashline edits, built-in LSP/DAP, memory, browser, collab | 🧰 Discipline firepower: 21 specialist agents, MCP code intelligence, `/profile` presets, guardrails, workflow commands |
+| **Delivery Pacing** | Magic keywords (`ultrathink` / `orchestrate`), single-track autonomy | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` — explicit human-selected tiers, SOP-friendly** |
+| **Scheduling & Orchestration** | 🟢 `task` fan-out into isolated worktrees, typed results, live subagent hub | 🏆 **`@build` orchestrator + predefined role pipelines (plan visible before execution) + tiered scheduling (Flash codes, Flagship reviews) + dynamic domain-persona injection + auto-retry with task resume** |
+| **Review Gates** | `/review` post-hoc P0–P3 verdict, single reviewer | 🏆 **`/deep-dev` dual flagship review + `@advisor` safety arbitration — fixes converge inside the loop** |
+| **Spec-Driven Lifecycle** | None built-in (requires external tools) | 🏆 **`/prd` → `/plan` (auto-links PRD & ADRs) → `/impl` → `/sdd handoff` — full SDD lifecycle** |
+| **Workflow Command Suite** | `ultrathink` / `orchestrate` / `workflowz` keywords | 🏆 **`/grill-me` Socratic plan interrogation + `/review-fix-loop` auto-fix until zero P0/P1 + `/goal` mechanically-checkable stop conditions + `/handoff` git-safe session bundles** |
+| **Token & Cost Governance** | hashline edit savings + efficient in-process tools | 🏆 **Five-tier agent-to-model routing (`tiers.json`) + RTK proxy-layer output compression (60–90%) auto-provisioned at install** |
+| **Guardrails** | Stream rules course-correct model behavior mid-stream | 🏆 **Auditable policy gates: ADR/MADR enforcement + secret-file gate + E2E gate + commit discipline** |
+| **Code Intelligence** | 🟢 Built-in LSP/DAP/AST (14 LSP + 28 DAP ops) | Serena LSP + CodeGraph call graphs + GitNexus + DBHub database gateway |
+| **Provider Governance** | 60+ providers, role-based routing | 🏆 **`/profile` five-tier presets + TUI dashboard + first-class Chinese coding-plan presets** |
+| **Upgrade Safety** | Binary reinstall | 🏆 **Manifest-based zero-risk upgrade — keys & model picks preserved across every reinstall** |
+| **Documentation** | English | 🏆 **Full bilingual docs tree (English + Chinese)** |
+| **Ecosystem & Extensibility** | 🟢 TS extension modules, plugin hot-reload, inherits 8 existing config formats | 🏆 **Rides the OpenCode ecosystem — the whole npm plugin registry, MCP ecosystem, and community assets are directly reusable; OCP itself is 30+ composable plugins** |
+| **Client / UI Surfaces** | Terminal TUI + Zed (ACP) + collab viewer | 🏆 **TUI + browser Web UI + OpenChamber desktop GUI (side-by-side diff, multi-model comparison) — one config shared across all surfaces, zero re-setup** |
+
+### 🎯 Which one fits you?
+* **Choose `omp.sh`**: When you want a batteries-included native harness and are fine replacing your runtime — its Rust tooling, hashline edits, and DAP debugging are genuinely excellent.
+* **Choose OpenCode Prime**: When you build **real-world commercial software on OpenCode** and want explicit delivery tiers, multi-model review gates, auditable policy guardrails, and Chinese-provider governance — without leaving the ecosystem you've already invested in.
+* **Coexistence is fine**: omp as a standalone power tool, OCP as team discipline inside your OpenCode stack.
 
 ---
 
@@ -883,8 +891,6 @@ If you want to toggle optional features (such as enabling `opencode-qoder-bridge
        "@dietrichgebert/ponytail": true,
        // Injects Qoder provider/models via official SDK (needs qoder login)
        "opencode-qoder-bridge": false,
-       // Auto-generates session titles
-       "@frankhommers/opencode-smart-title": true,
        // Persistent project memory (vector store; extra LLM capture call per idle session)
        "opencode-mem@2.24.3": false
      }
