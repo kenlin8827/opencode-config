@@ -14,6 +14,9 @@
 | `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
+| `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：直接就地改码出结果（零调度中转，零审查等待） |
+| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审 PUA 把关 |
+| `deep-dev.ts` | `/deep-dev` 命令与协议 —— 深度双审共识闭环：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁 |
 | `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
 | `goal.ts` | `/goal` 命令与协议 |
 | `handoff.ts` | `/handoff` 命令与协议 |
@@ -23,7 +26,7 @@
 | `e2e-guard.ts` | `/e2e-guard` 命令 —— 按项目门控：E2E 运行需用户确认 |
 | `project-manager.ts` | `/project` 命令 + 提交纪律 |
 | `queue-manager.ts` | `/queued` 命令 —— 管理会话忙碌时排队的提示 |
-| `profile-wizard.ts`、`provider-wizard.ts` | `/profile` 与 `/provider` TUI 弹窗向导 |
+| `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project-wizard` TUI 弹窗向导 |
 | `md-to-pdf.ts` | `/md-to-pdf` 命令与 `md_to_pdf` 工具 —— 将 Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 | `md-to-docx.ts` | `/md-to-docx` 命令与 `md_to_docx` 工具 —— 将 Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
 

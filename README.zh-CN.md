@@ -521,6 +521,9 @@ bridge 附带的额外能力：
 | **`/sdd [status\|handoff\|help]`** | SDD 规范驱动 | 规范驱动开发全链路导航、制品状态检查与跨会话暂存交接（`/sdd handoff`） |
 | **`/grill-me <topic>`** | 架构与构思 | 逐题逼问式苏格拉底访谈，全方位磨砺需求与技术设计 |
 | **`/grill-with-docs <topic>`** | 架构与构思 | 同 `/grill-me`，同时自动沉淀 `CONTEXT.md` 领域术语表与对应 ADR |
+| **`/quick-dev <task>`** | 闭环开发 | **Quick-Dev 极速免审直通**：Flash 极速编码 + 动态领域灵魂注入（零审查开销，出码即交付，别名 `/flash-dev`，详见 [三阶闭环开发](docs/zh/workflows/dev-loops.md)） |
+| **`/fast-dev <task> [--max-rounds=N]`** | 闭环开发 | **Fast-Dev 敏捷单审闭环**：Flash 模型极速编码（动态注入领域灵魂） + 旗舰单审 PUA 级严苛把关，多轮迭代直至通过（默认上限 10 轮） |
+| **`/deep-dev <task> [--max-rounds=N]`** | 闭环开发 | **Deep-Dev 深度双审共识闭环**：Flash 模型编码 + 双旗舰顶级会审（需求 100% 对齐 + 质量与安全防线） + Advisor 争议仲裁共识，支持全栈多阶段拆解汇总（默认上限 10 轮） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
 | **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至系统临时目录），生成新会话一键恢复开场白 |
@@ -629,6 +632,9 @@ bridge 附带的额外能力：
 | `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制（见 [Auto-advisor 模式](#auto-advisor-模式)） |
+| `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：Flash 极速编码 + 动态领域灵魂注入（零审查开销，出码即交付） |
+| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审 PUA 把关 |
+| `deep-dev.ts` | `/deep-dev` 命令与协议 —— 深度双审共识闭环：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁 |
 | `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
 | `goal.ts` | `/goal` 命令与协议 |
 | `handoff.ts` | `/handoff` 命令与协议 |

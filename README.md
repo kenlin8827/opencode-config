@@ -520,6 +520,9 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 | **`/sdd [status\|handoff\|help]`** | SDD Lifecycle | Specification-Driven Development lifecycle navigator & session handoff (`/sdd handoff`) |
 | **`/grill-me <topic>`** | Brainstorming | Socratic interview that rigorously pressure-tests a plan or design |
 | **`/grill-with-docs <topic>`** | Brainstorming | Same as `/grill-me`, plus automatically creates `CONTEXT.md` glossary and ADRs |
+| **`/quick-dev <task>`** | Dev Loop | **Quick-Dev Zero-Review Fast Track**: Flash model coding + dynamic domain persona injection (zero review overhead, instant delivery, alias `/flash-dev`, see [Three-Tier Dev Loops](docs/workflows/dev-loops.md)) |
+| **`/fast-dev <task> [--max-rounds=N]`** | Dev Loop | **Fast-Dev Agile Single-Review Loop**: High-velocity Flash model coding (with dynamic domain persona injection) + flagship single-review PUA audit until approval (default max 10 rounds) |
+| **`/deep-dev <task> [--max-rounds=N]`** | Dev Loop | **Deep-Dev Mission-Critical Dual-Review Loop**: Flash model coding + dual flagship review (100% requirement alignment + quality/security defense) + Advisor consensus arbitration with full-stack multi-stage decomposition (default max 10 rounds) |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | Quality Loop | Automated review-verify-fix-re-review loop until zero P0/P1 issues. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or uncommitted changes |
 | **`/goal [text]`** | Goal Execution | Structured goal execution protocol with audit-friendly checklists and mechanically checkable stop conditions |
 | **`/handoff [focus]`** | Session State | Compacts current session state into a temporary handoff bundle and outputs a paste-ready opener for a fresh session |
@@ -628,6 +631,9 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `metrics.ts` | Auto-records tool call metrics (duration, success, agent) as JSONL in `~/.config/opencode/.metrics/` |
 | `auto-format.ts` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edits |
 | `auto-advisor-mode.ts` | `/auto-advisor` command, protocol injection, mode gating, red-team suppression (see [Auto-advisor mode](#auto-advisor-mode)) |
+| `quick-dev.ts` | `/quick-dev` (and `/flash-dev`) command & protocol — Zero-review fast-track: Flash coding + dynamic domain persona (zero review overhead, instant delivery) |
+| `fast-dev.ts` | `/fast-dev` command & protocol — Agile single-review loop: Flash coding (dynamic domain persona) + Flagship review |
+| `deep-dev.ts` | `/deep-dev` command & protocol — Mission-critical dual-review consensus loop: Flash coding + Dual flagship review + Advisor arbitration |
 | `review-fix-loop.ts` | `/review-fix-loop` command and protocol |
 | `goal.ts` | `/goal` command and protocol |
 | `handoff.ts` | `/handoff` command and protocol |
