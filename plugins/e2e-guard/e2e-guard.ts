@@ -22,6 +22,7 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { setProjectDir } from "./e2e-guard-config"
 import { COMMAND_NAME, makeCommandHook } from "./e2e-guard-command"
+import { makeEventHook } from "./e2e-guard-announce"
 import { makeSystemHook } from "./e2e-guard-system-inject"
 
 export const E2eGuardPlugin: Plugin = async ({ client, directory }) => {
@@ -36,7 +37,8 @@ export const E2eGuardPlugin: Plugin = async ({ client, directory }) => {
           "E2E guard project controls — /e2e-guard status shows gate state; /e2e-guard on|off flips the project gate in opencode.jsonc",
       }
     },
-    "experimental.chat.system.transform": makeSystemHook(client),
+    "experimental.chat.system.transform": makeSystemHook(client) as any,
     "command.execute.before": makeCommandHook(),
+    event: makeEventHook(client) as any,
   }
 }

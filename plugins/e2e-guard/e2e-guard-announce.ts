@@ -8,8 +8,6 @@
  * with their session (session.deleted).
  *
  * Two surfaces, one message builder:
- *   - session.created → top-level sessions only (subagent sessions carry
- *     parentID), state=off stays silent, on gets a warning variant.
  *   - /e2e-guard <state|allow|status> → the command hook reuses the
  *     announce helpers for switch confirmation, approval confirmation and
  *     status reports.
@@ -18,12 +16,16 @@
  *   tui.showToast is the sole surface — non-intrusive, no chat-transcript
  *   pollution, and degrades to a log line in headless/older-server
  *   environments. Never fatal.
+ *
+ * Note: The session.created announce was replaced by the TUI sidebar-status
+ * slot plugin (plugins/sidebar-status.ts) which shows a persistent badge. Only
+ * the session.deleted cleanup hook remains here.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getState, type GuardState } from "./e2e-guard-config"
 import { revokeApproval } from "./e2e-guard-runtime"
-import { makeLogger, safeHook } from "../adr-guard/adr-guard-runtime"
+import { makeLogger } from "../adr-guard/adr-guard-runtime"
 
 type Client = PluginInput["client"]
 
@@ -102,28 +104,15 @@ async function announce(
   await showToast(client, message, variant)
 }
 
-export function makeAnnounceHook(client: Client) {
-  const log = makeLogger(client, "e2e-guard")
-
-  return safeHook(
-    async ({ event }: { event: SessionEvent }) => {
-      if (event.type === "session.deleted") {
-        // Approvals are session-scoped — never let one outlive its session.
-        const id = event.properties?.info?.id
-        if (id) revokeApproval(id)
-        return
-      }
-      if (event.type !== "session.created") return
-      // Subagent sessions (task-dispatched) carry parentID — only announce on
-      // the top-level session the user actually opened.
-      if (event.properties?.info?.parentID) return
-      const state = getState()
-      if (state === "off") return
-      const sessionID = event.properties?.info?.id
-      await announce(client, announceMessage(state), "warning", sessionID)
-    },
-    log,
-  )
+export function makeEventHook(_client: Client) {
+  return async (input: { event: SessionEvent }) => {
+    const event = input.event
+    if (event.type === "session.deleted") {
+      // Approvals are session-scoped — never let one outlive its session.
+      const id = event.properties?.info?.id
+      if (id) revokeApproval(id)
+    }
+  }
 }
 
 /** Immediate user-visible confirmation for `/e2e-guard on|off` switches. */

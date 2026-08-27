@@ -489,7 +489,7 @@ Check "auto-advisor-mode.ts: has command.execute.before hook" ($advisorPlugin -m
 Check "auto-advisor-mode.ts: has system.transform hook" ($advisorPlugin -match "experimental.chat.system.transform")
 Check "auto-advisor-mode.ts: has tool.execute.before hook" ($advisorPlugin -match "tool.execute.before")
 Check "auto-advisor-mode.ts: has tool.execute.after hook" ($advisorPlugin -match "tool.execute.after")
-Check "auto-advisor-mode.ts: has event hook (session announce)" ($advisorPlugin -match "event: makeAnnounceHook")
+Check "auto-advisor-mode.ts: no event hook (session announce moved to sidebar-status slot)" ($advisorPlugin -notmatch "event: makeAnnounceHook")
 Check "auto-advisor-mode.ts: thin glue (<70 lines)" (($advisorPlugin -split "`n").Count -lt 70)
 
 $advisorConfig = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-config.ts" -Raw
@@ -545,7 +545,7 @@ Check "auto-advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($ad
 
 # Session-created announce + /auto-advisor switch feedback (user visibility)
 $advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-announce.ts" -Raw
-Check "auto-advisor-announce.ts: has makeAnnounceHook" ($advisorAnnounce -match "makeAnnounceHook")
+Check "auto-advisor-announce.ts: has announceSwitch for /auto-advisor" ($advisorAnnounce -match "announceSwitch")
 Check "auto-advisor-announce.ts: listens on session.created" ($advisorAnnounce -match "session.created")
 Check "auto-advisor-announce.ts: filters subagent sessions via parentID" ($advisorAnnounce -match "parentID")
 Check "auto-advisor-announce.ts: full-mode message names auto-answer risk" ($advisorAnnounce -match "answer blocking questions on your")

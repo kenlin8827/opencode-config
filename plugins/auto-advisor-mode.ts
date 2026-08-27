@@ -22,8 +22,8 @@
  *                                  on system prompt soft guard, no hard block
  *   auto-advisor-full-inject.ts       — tool.after hook: auto-answer FACTUAL ≥ 8 in
  *                                  full mode; arms auto-answer state on success
- *   auto-advisor-announce.ts          — event hook (session-created mode notice,
- *                                  toast → log fallback; also switch feedback)
+ *   auto-advisor-announce.ts          — toast feedback for /auto-advisor
+ *                                  mode switches (confirmation toast)
  *
  * Mode storage: `autoAdvisorMode` field in the project-level opencode.jsonc —
  * project-level only (read + write); default is off.
@@ -31,7 +31,6 @@
 
 import type { Plugin } from "@opencode-ai/plugin"
 import { HttpServerResponse } from "effect/unstable/http"
-import { makeAnnounceHook } from "./auto-advisor/auto-advisor-announce"
 import { makeCommandHook } from "./auto-advisor/auto-advisor-mode-tracker"
 import { makeSystemHook } from "./auto-advisor/auto-advisor-system-inject"
 import { makeToolGuardHook } from "./auto-advisor/auto-advisor-tool-guard"
@@ -60,6 +59,5 @@ export const AutoAdvisorModePlugin: Plugin = async ({ client, directory }) => {
     "experimental.chat.system.transform": makeSystemHook(client),
     "tool.execute.before": makeToolGuardHook(client),
     "tool.execute.after": makeFullInjectHook(client),
-    event: makeAnnounceHook(client) as any,
   }
 }

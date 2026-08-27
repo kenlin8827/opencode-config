@@ -1,17 +1,13 @@
 /**
- * Hook: event — announce the active auto-advisor mode to the user.
+ * Toast helpers for the auto-advisor mode.
  *
  * The mode is persisted as `autoAdvisorMode` in the project's opencode.jsonc
- * and silently
- * survives across sessions; without a visible signal the user can forget
- * full mode is on — and full mode auto-answers on their behalf.
+ * and silently survives across sessions; without a visible signal the user
+ * can forget full mode is on — and full mode auto-answers on their behalf.
  *
- * Two surfaces, one message builder:
- *   - session.created → top-level sessions only (subagent sessions carry
- *     parentID), mode=off stays silent, full gets a warning variant that
- *     names the auto-answer risk, lite gets a light info toast.
- *   - /auto-advisor <mode> → the command hook reuses announceMessage() for the
- *     switch confirmation.
+ * The session.created announce was replaced by the TUI sidebar-status slot
+ * plugin (plugins/sidebar-status.ts) which shows a persistent badge.
+ * This file now only provides toast feedback for /auto-advisor switches.
  *
  * Toast-only strategy:
  *   tui.showToast is the sole surface — non-intrusive, no chat-transcript
@@ -21,15 +17,9 @@
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getMode, type AdvisorMode } from "./auto-advisor-config"
-import { CONFIDENCE_THRESHOLD, makeLogger, MAX_AUTO_ANSWERS, safeHook } from "./auto-advisor-runtime"
+import { CONFIDENCE_THRESHOLD, makeLogger, MAX_AUTO_ANSWERS } from "./auto-advisor-runtime"
 
 type Client = PluginInput["client"]
-
-/** Minimal shape we rely on; the SDK's Event union is broader. */
-type SessionCreatedEvent = {
-  type: string
-  properties?: { info?: { parentID?: string; id?: string } }
-}
 
 /** One user-visible line per mode. Full MUST name the auto-answer risk. */
 export function announceMessage(mode: AdvisorMode): string {
@@ -75,24 +65,6 @@ async function showToast(client: Client, mode: AdvisorMode): Promise<void> {
  */
 async function announce(client: Client, mode: AdvisorMode, _sessionID?: string): Promise<void> {
   await showToast(client, mode)
-}
-
-export function makeAnnounceHook(client: Client) {
-  const log = makeLogger(client, "auto-advisor-mode")
-
-  return safeHook(
-    async ({ event }: { event: SessionCreatedEvent }) => {
-      if (event.type !== "session.created") return
-      // Subagent sessions (task-dispatched) carry parentID — only announce on
-      // the top-level session the user actually opened.
-      if (event.properties?.info?.parentID) return
-      const mode = getMode()
-      if (mode === "off") return
-      const sessionID = event.properties?.info?.id
-      await announce(client, mode, sessionID)
-    },
-    log,
-  )
 }
 
 /** Immediate user-visible confirmation for `/auto-advisor <mode>` switches. */

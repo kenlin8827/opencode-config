@@ -1,17 +1,15 @@
 /**
- * Hook: event — announce the ADR iron-law state to the user.
+ * Toast helpers for the ADR iron-law state.
  *
  * The switch is persisted as the `adrGuard` field of the project's
  * opencode.jsonc and silently survives across sessions; without a visible
- * signal the user
- * can forget the iron law is on — and commits may get blocked unexpectedly.
+ * signal the user can forget the iron law is on — and commits may get
+ * blocked unexpectedly.
  *
- * Two surfaces, one message builder:
- *   - session.created → top-level sessions only (subagent sessions carry
- *     parentID), state=off stays silent, on gets a warning variant that
- *     names the ADR directory.
- *   - /adr-guard <state|status> → the command hook reuses the announce
- *     helpers for switch confirmation and status reports.
+ * The session.created announce was replaced by the TUI sidebar-status slot
+ * plugin (plugins/sidebar-status.ts) which shows a persistent badge.
+ * This file now only provides toast feedback for /adr-guard switches and
+ * status reports.
  *
  * Toast-only strategy:
  *   tui.showToast is the sole surface — non-intrusive, no chat-transcript
@@ -21,15 +19,9 @@
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import { getAdrDir, getState, type GuardState } from "./adr-guard-config"
-import { makeLogger, safeHook } from "./adr-guard-runtime"
+import { makeLogger } from "./adr-guard-runtime"
 
 type Client = PluginInput["client"]
-
-/** Minimal shape we rely on; the SDK's Event union is broader. */
-type SessionCreatedEvent = {
-  type: string
-  properties?: { info?: { parentID?: string; id?: string } }
-}
 
 /** One user-visible line per state. ON MUST name the enforcement surface. */
 export function announceMessage(state: GuardState): string {
@@ -81,24 +73,6 @@ export async function announce(
   _sessionID?: string,
 ): Promise<void> {
   await showToast(client, message, variant)
-}
-
-export function makeAnnounceHook(client: Client) {
-  const log = makeLogger(client, "adr-guard")
-
-  return safeHook(
-    async ({ event }: { event: SessionCreatedEvent }) => {
-      if (event.type !== "session.created") return
-      // Subagent sessions (task-dispatched) carry parentID — only announce on
-      // the top-level session the user actually opened.
-      if (event.properties?.info?.parentID) return
-      const state = getState()
-      if (state === "off") return
-      const sessionID = event.properties?.info?.id
-      await announce(client, announceMessage(state), "warning", sessionID)
-    },
-    log,
-  )
 }
 
 /** Immediate user-visible confirmation for `/adr-guard on|off` switches. */

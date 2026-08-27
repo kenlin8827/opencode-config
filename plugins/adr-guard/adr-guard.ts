@@ -28,15 +28,15 @@
  *   adr-guard-tool-guard.ts    — tool.before hook: blocks feat/refactor
  *                                  git commit with no ADR change
  *   adr-guard-command.ts       — command hook (/adr-guard on|off|status)
- *   adr-guard-announce.ts      — event hook (session-created notice,
- *                                  toast → log fallback; switch feedback)
+ *   adr-guard-announce.ts      — toast feedback for /adr-guard
+ *                                  on|off|status (switch confirmations
+ *                                  and status reports)
  *
  * Switch: `adrGuard` field in the project-level opencode.jsonc (no state file).
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
 import { HttpServerResponse } from "effect/unstable/http"
-import { makeAnnounceHook } from "./adr-guard-announce"
 import { makeCommandHook } from "./adr-guard-command"
 import { ADR_COMMAND, COMMAND_NAME, setProjectDir } from "./adr-guard-config"
 import { makeSystemHook } from "./adr-guard-system-inject"
@@ -69,6 +69,5 @@ export const AdrGuardPlugin: Plugin = async ({ client, directory }) => {
     "command.execute.before": makeCommandHook(client, handled),
     "experimental.chat.system.transform": makeSystemHook(client),
     "tool.execute.before": makeToolGuardHook(client),
-    event: makeAnnounceHook(client) as any,
   }
 }

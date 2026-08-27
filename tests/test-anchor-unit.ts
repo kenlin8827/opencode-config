@@ -344,12 +344,13 @@ async function test09_ConfigHook() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//  10. Event hook — session.created subagent tracking + announce on target model
+//  10. Event hook — session.created subagent tracking (announce moved to sidebar-status)
 // ═════════════════════════════════════════════════════════════════════════
 
 async function test10_EventHook() {
-  section("10: Event hook — session.created + subagent tracking + announce on target model")
-  // Use a mock client to track announce calls
+  section("10: Event hook — session.created + subagent tracking (announce moved to sidebar-status)")
+  // Use a mock client to track announce calls (should remain empty —
+  // the session-level announce was replaced by the TUI sidebar-status slot plugin).
   let announceCalls: string[] = []
   const mockClient: any = {
     session: {
@@ -405,7 +406,7 @@ async function test10_EventHook() {
     assert(false, "Non-target event should not throw")
   }
 
-  // ── Announce fires on system.transform for target model only ──────────
+  // ── Announce no longer fires on system.transform (moved to sidebar-status) ──
   announceCalls = []
 
   // Non-DeepSeek model → NO announce
@@ -413,30 +414,28 @@ async function test10_EventHook() {
   await sysHook({ sessionID: "announce-1", model: makeModel({ providerID: "openai", modelID: "gpt-4o" }) }, outNonTarget)
   assert(announceCalls.length === 0, "Non-DeepSeek model → no announce")
 
-  // DeepSeek V4 Pro → announce fires once
+  // DeepSeek V4 Pro → anchor injects but announce NO LONGER fires (sidebar-status handles it)
   const outTarget = { system: ["base"] }
   await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget)
-  // announceToUI is fire-and-forget (async), give it a tick to resolve
   await new Promise((r) => setTimeout(r, 50))
-  assert(announceCalls.length === 1, "DeepSeek V4 Pro → announce fires once")
-  assert(announceCalls[0]?.includes("[deepseek-anchor]"), "Announce message includes '[deepseek-anchor]'")
+  assert(announceCalls.length === 0, "DeepSeek V4 Pro → no announce (moved to sidebar-status slot)")
 
-  // Second system.transform for same session → no re-announce (dedup)
+  // Second system.transform for same session → anchor already injected (idempotent)
   const outTarget2 = { system: ["base"] }
   await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget2)
   await new Promise((r) => setTimeout(r, 50))
-  assert(announceCalls.length === 1, "Same session second step → no re-announce (dedup)")
+  assert(announceCalls.length === 0, "Same session second step → still no announce")
 
-  // session.deleted cleans up announcedSessions
+  // session.deleted cleans up injectedSessions (anchor state, not announce state)
   await eventHook({
     event: { type: "session.deleted", properties: { info: { id: "announce-2" } } },
   })
 
-  // After cleanup, a new target-model session with same ID → announce fires again
+  // After cleanup, a new target-model session with same ID → anchor re-injects (but no announce)
   const outTarget3 = { system: ["base"] }
   await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget3)
   await new Promise((r) => setTimeout(r, 50))
-  assert(announceCalls.length === 2, "After session.deleted cleanup → announce fires again for same ID")
+  assert(announceCalls.length === 0, "After session.deleted cleanup → still no announce (sidebar-status handles it)")
 }
 
 // ─── Main entry ───────────────────────────────────────────────────────────

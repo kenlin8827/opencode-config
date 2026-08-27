@@ -7,8 +7,10 @@
     "lib": ["ESNext"],
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js"
   },
-  "include": ["plugins/**/*.ts", "tools/**/*.ts"],
+  "include": ["plugins/**/*.ts", "plugins/**/*.tsx", "tools/**/*.ts"],
   "exclude": ["node_modules"]
 }

@@ -1,18 +1,15 @@
 /**
- * Announce helpers for the deepseek-anchor plugin.
+ * Toast helpers for the deepseek-anchor plugin.
  *
  * The mode is persisted in ~/.config/opencode/.deepseek-anchor-enabled and silently
  * survives across sessions; without a visible signal the user can forget
  * the anchor is enabled — this helps users understand why DeepSeek models
  * are behaving differently (forced reasoning before tool use).
  *
- * Surface:
- *   - system.transform (first target-model detection) → top-level sessions
- *     only, mode=off stays silent, mode=on shows a brief notice.
- *   - Unlike auto-advisor/adr-guard, the announce is NOT triggered by
- *     session.created because at that point we don't know the model yet.
- *     Triggering on session.created would announce even for non-DeepSeek
- *     models, which is confusing noise.
+ * The session-level announce was replaced by the TUI sidebar-status slot
+ * plugin (plugins/sidebar-status.ts) which shows a persistent badge.
+ * This file now only provides toast helpers for the command hook
+ * (/deepseek-anchor on|off) and potential future use.
  *
  * Toast-only strategy:
  *   tui.showToast is the sole surface — non-intrusive, no chat-transcript
