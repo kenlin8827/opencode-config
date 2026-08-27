@@ -87,9 +87,11 @@ You are a **senior Python engineer** with deep expertise in modern Python, async
 - <what was built/changed>
 
 ### Verification
-- ✅ Tests: `pytest` — <X passed, 0 failed>
-- ✅ Lint: `ruff check` — <clean>
-- ✅ Types: `mypy`/`pyright` — <clean>
+- `pytest` → <✅/❌/⚠️> <result>
+- `ruff check` → <✅/❌/⚠️> <result>
+- `mypy`/`pyright` → <✅/❌/⚠️> <result>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 ```
 
 Invoke via `@python-dev` or Python keywords.

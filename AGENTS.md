@@ -1,62 +1,30 @@
 # OpenCode Agent & Development Guidelines (AGENTS.md)
 
-This document defines the core architecture, coding disciplines, and language standards for all AI agents and human contributors working on this repository.
+This repo is **OpenCode Prime (OCP)** — a multi-agent configuration suite for [OpenCode](https://opencode.ai). It ships agent prompts, plugins, profiles, and an installer into `~/.config/opencode`. See `DEVELOPING.md` for architecture and contribution details.
 
 ---
 
-## 1. Language & Localization Disciplines (Strict Boundary Separation)
+## 1. Language Standards
 
-To prevent mixed-language pollution and ensure optimal cross-platform/cross-model compatibility, enforce the following strict boundaries:
+All source code, agent prompts, instructions, plugin protocols, and contributor guidelines (`AGENTS.md`, `DEVELOPING.md`) must be **100% English**.
 
-### A. Source Code, Plugins & Tooling (100% English)
-- **All TypeScript/JavaScript files** (`plugins/**/*.ts`, `scripts/**/*.ts`):
-  - JSDoc, inline comments, log/error messages, and slash command metadata (`description`, `template`) **MUST be written in standard English**.
-  - Example: `description: "Quick-Dev — zero-delegation fast track with direct in-session coding..."` (NEVER write non-English strings in plugin code unless it is explicitly an internal localized TUI label).
-- **All Installer & Shell Scripts** (`install/*.ps1`, `install/*.sh`): English comments and messages only.
-
-### B. System Prompts & Protocol Markdown (100% English)
-- **Agent Prompts** (`agents/*.md`): Standard English only.
-- **Shared Instructions** (`instructions/*.md`): Standard English only.
-- **Plugin Protocols** (`plugins/*/*.md`): Standard English only.
-- **Contributor Guidelines** (`AGENTS.md`, `DEVELOPING.md`): Standard English only.
-  *Rationale*: LLMs follow English system prompts and guidelines with the highest precision, lowest ambiguity, and optimal token efficiency.
-
-### C. User Documentation (Strict Bilingual Separation)
-- **English Docs Tree**: `README.md` and `docs/**/*.md` (outside `docs/zh/`) must be **100% English**.
-- **Chinese Docs Tree**: `README.zh-CN.md` and `docs/zh/**/*.md` must be **100% Chinese**.
-- **Hard Rule**: Chinese text is strictly confined to the Chinese documentation tree (`README.zh-CN.md` and `docs/zh/`). Never insert uncoordinated Chinese text into English files, codebases, or protocols.
+User docs are strictly bilingual: `README.md` + `docs/**` (outside `docs/zh/`) = English; `README.zh-CN.md` + `docs/zh/**` = Chinese. Never mix.
 
 ---
 
-## 2. Multi-Agent & Workflow Architecture
+## 2. Release, Manifest & Packaging
 
-### Three-Tier Development Loops
-- **⚡ `/quick-dev <task>` (or `/flash-dev`)**:
-  - **Role**: Direct in-session fast coding (`agent: "code"`).
-  - **Discipline**: Zero delegation overhead (no subagent spawning), zero review overhead, instant delivery.
-- **🚀 `/fast-dev <task> [--max-rounds=N]`**:
-  - **Role**: Agile single-review loop (`agent: "build"`).
-  - **Discipline**: Zero-loss requirement passthrough to `@fast-coder` (Flash) ➡️ Flagship single review (`@code-review`) ➡️ iterative fix loop (default max 10 rounds).
-- **🧠 `/deep-dev <task> [--max-rounds=N]`**:
-  - **Role**: Mission-critical dual-review loop (`agent: "build"`).
-  - **Discipline**: Flash coding ➡️ Dual flagship review (`@architect` + `@code-review`) ➡️ `@advisor` consensus arbitration under Safety-First principle.
+The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.**
 
----
+### Version Bump Steps
 
-## 3. Code Intelligence & Indexing First
+1. Bump `install/VERSION` (e.g. `0.7.0`). Sync `package.json` `version` + `install/README.md` title.
+2. Run `bun run install/src/index.ts generate` (or `ocp generate`) to regenerate the manifest.
+3. Pre-release gate: `pwsh scripts/pack.ps1 && pwsh scripts/verify.ps1` (or `.sh` variants).
 
-- **Never blindly grep or crawl entire repositories.**
-- **LSP First**: Use Serena MCP tools (`find_symbol`, `find_referencing_symbols`, `get_symbols_overview`) for symbol-level definition and reference lookups.
-- **Graph First**: Use CodeGraph (`codegraph_explore`) or GitNexus for multi-hop call graphs, architectural overviews, and blast-radius impact analysis.
-- **Database First**: Use DBHub (`search_objects`) before executing SQL queries.
+### What Ships
 
----
-
-## 4. Release, Manifest & Packaging Integrity
-
-- **Runtime Files (`manifest.txt`)**:
-  - When adding, renaming, or removing runtime files in `plugins/`, `agents/`, `instructions/`, or `profiles/`, **always run `bun run install/src/index.ts generate` (or `ocp generate`)** to synchronize `install/versions/<VERSION>.manifest.txt`.
-- **Installer, Shims & Infrastructure (`install/` & `bin/`)**:
-  - Files under `install/` and `bin/` are **automatically mirrored** during release packaging. Any new files placed in `install/` or `bin/` are dynamically included and validated without manual registration.
-- **Pre-Release Verification Hard Gate**:
-  - Always execute `pwsh scripts/pack.ps1 && pwsh scripts/verify.ps1` (or `./scripts/pack.sh && ./scripts/verify.sh`) before creating a release. All 4 release archives must pass SHA-256 integrity and file completeness checks with zero diffs.
+- **Auto-discovered** (`SHIPPED_DIRS`): `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` — all files in these dirs ship automatically.
+- **Explicit** (`SHIPPED_FILES` in `manifest.ts`): `opencode.jsonc`, `tiers.json`, `tui.json`, `scripts/serena-workspace-daemon.mjs`.
+- `scripts/` is NOT in `SHIPPED_DIRS` — only the one runtime script above is installed; the rest (`pack.*`, `verify.*`, `capture-*.ts`) stays repo-side. New standalone ship files must be added to `SHIPPED_FILES`.
+- `install/` and `bin/` are auto-mirrored during packaging.

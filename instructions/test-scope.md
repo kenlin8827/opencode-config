@@ -41,22 +41,15 @@ A bug fix with zero tests is not a real bug fix. Default to at least the 2–5-f
 
 ## Skip rules (when NOT to run a higher tier)
 
-- **E2E**: slow + flaky + expensive. Last resort. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation path. Even then, evaluate impact and confirm with the user before executing. Projects can enable this protocol via the `e2eGuard` switch (`/e2e-guard on` in `opencode.jsonc`). **Red line**: when `e2eGuard` is on, the agent MUST assess the E2E impact on all `feat` and `fix` tasks, flag any missing E2E test specs (test gaps), and interactively ask the user (targeted affected specs / full suite / supplement test cases / skip) via interactive question tools before running or completing tasks.
+- **E2E**: last resort — slow, flaky, expensive. Only when explicitly requested OR diff touches critical user journey / auth / payment / data-mutation. Confirm with user before executing.
+  - **e2eGuard** (`/e2e-guard on`): when on, agent MUST assess E2E impact on all `feat`/`fix` tasks, flag missing specs (test gaps), and interactively ask user (targeted specs / full suite / supplement / skip) before proceeding.
 - **Full suite**: only when requested, on release branches, or when the change is genuinely cross-cutting and module-scoped tests give no confidence.
 
 ## Transparency rule
 
 `@qa` and `@code-review` reports MUST state which tier they ran and why. Silent "all green" without a tier label is a bug in the report.
 
-## Coverage tiering (matches `agents/qa.md`)
-
-| Code class | Statements | Examples |
-|---|---|---|
-| Critical paths | **100%** | auth, payment, data-mutation, security |
-| Business core | ≥80% | domain logic, validation, state machines |
-| Other code | ≥60% recommended | UI glue, config, plumbing |
-
-The agent names the class in the report. Coverage numbers without a class are noise.
+Coverage tiering is defined in `agents/qa.md` — the agent names the code class (Critical / Business / Other) in the report.
 
 ## What this policy is NOT
 

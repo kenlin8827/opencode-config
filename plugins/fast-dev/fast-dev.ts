@@ -4,8 +4,8 @@
  * into the system prompt.
  *
  * Fast-Dev Workflow:
- *   1. Dispatch user requirements to Flash Coder (@<lang>-dev / @code)
- *   2. Single Flagship Reviewer (@code-review) performs rigorous PUA-grade audit
+ *   1. Zero-loss dispatch to @fast-coder (Flash tier) for rapid implementation
+ *   2. Single Reviewer (@code-review) performs evidence-driven code quality audit
  *   3. Iterate in a feedback loop (default max 10 rounds) until Approve or Fuse
  *
  * See: plugins/fast-dev/fast-dev.md
@@ -34,7 +34,7 @@ export const FastDevPlugin: Plugin = async () => ({
     cfg.command[COMMAND_NAME] = {
       template: "/fast-dev $ARGUMENTS",
       description:
-        "Fast-Dev — agile single-review loop: Flash coding + Flagship single-review audit (default max 10 rounds). Usage: /fast-dev <task> [--max-rounds=N]",
+        "Fast-Dev — agile single-review loop: @fast-coder coding + single-review audit (default max 10 rounds). Usage: /fast-dev <task> [--max-rounds=N]",
       agent: "build",
     }
   },

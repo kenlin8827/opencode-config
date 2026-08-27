@@ -8,7 +8,7 @@
   * [模型配置与预设 Profiles](docs/zh/core/profiles.md)
 * [进阶工作流与项目护栏 (Workflows & Governance)](docs/zh/workflows/commands.md)
   * [工作流斜杠命令](docs/zh/workflows/commands.md)
-  * [三阶闭环开发](docs/zh/workflows/dev-loops.md)
+  * [四阶闭环开发](docs/zh/workflows/dev-loops.md)
   * [Auto-advisor 模式](docs/zh/workflows/auto-advisor.md)
   * [插件系统与项目护栏](docs/zh/workflows/plugins.md)
   * [ADR 活化架构与升级指南](docs/zh/workflows/adr-upgrade-guide.md)

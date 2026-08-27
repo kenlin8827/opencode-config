@@ -16,9 +16,11 @@
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
 | `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：直接就地改码出结果（零调度中转，零审查等待） |
-| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审 PUA 把关 |
+| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审证据驱动把关 |
 | `deep-dev.ts` | `/deep-dev` 命令与协议 —— 深度双审共识闭环：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁 |
+| `ultra-dev.ts` | `/ultra-dev` 命令与协议 —— 自主多阶段执行闭环：将大型目标分解为多阶段，每阶段独立 `/deep-dev` 循环 |
 | `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
+| `grill-improve-loop.ts` | `/grill-improve-loop` 命令与协议 —— 评分驱动改进闭环 |
 | `goal.ts` | `/goal` 命令与协议 |
 | `handoff.ts` | `/handoff` 命令与协议 |
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |

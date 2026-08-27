@@ -11,9 +11,9 @@ You are now executing the **fast-dev** workflow — an agile, high-velocity, sin
 ```mermaid
 stateDiagram-v2
     [*] --> RawDispatch: 1. User enters raw requirement
-    RawDispatch --> FlashCoding: 2. Zero-loss passthrough dispatch to @fast-coder (Flash)
-    FlashCoding --> FlagshipReview: 3. Submit Git Diff + Raw requirement to @code-review (Flagship PUA Audit)
-    FlagshipReview --> CheckVerdict: 4. Evaluate review verdict
+    RawDispatch --> FlashCoding: 2. Zero-loss passthrough dispatch to @fast-coder
+    FlashCoding --> Review: 3. Submit Git Diff + Raw requirement to @code-review (Evidence-Driven Audit)
+    Review --> CheckVerdict: 4. Evaluate review verdict
     
     CheckVerdict --> Approved: Approve (Zero blockers/defects)
     CheckVerdict --> NeedFix: Request Changes / Block
@@ -36,17 +36,15 @@ stateDiagram-v2
 
 ---
 
-## Role Assignment & Model Tiers
+## Role Assignment
 
 1. **Orchestrator (`@build`)**:
    - Manages state machine, round counting, and zero-loss dispatch.
    - **Hard Rule**: Must forward raw user requirements faithfully without altering or omitting a single word.
 2. **Coder (`@fast-coder`)**:
-   - Model Tier: **Flash / Fast model** (`llm-router/explorer`).
    - Reads the full, raw user requirements and produces clean, production-grade code.
 3. **Reviewer (`@code-review`)**:
-   - Model Tier: **Flagship model** (`llm-router/advisor` / `variant: high`).
-   - Top-tier reasoning engine; strictly audit code under maximum scrutiny and zero tolerance.
+   - Evidence-driven auditor. Verdicts must be grounded in executed checks, observed evidence, and requirement traceability — not subjective judgment.
 
 ---
 
@@ -60,29 +58,33 @@ Dispatch directly to `@fast-coder` by invoking `task(agent="fast-coder", prompt=
 <Insert the user's exact prompt word-for-word without any modification>
 
 ### Execution Directive:
-You are the full-stack developer. Read and 100% implement every requirement, implicit constraint, and boundary case requested by the user above. No fake mocks, no empty TODOs, and no skipped edge cases.
+You are the full-stack developer. Read and 100% implement every requirement, implicit constraint, and boundary case requested by the user above. Follow existing codebase conventions. No fake mocks, no empty TODOs, and no skipped edge cases.
 ```
 
 ### Step 2 — Flash Coding
 - `@fast-coder` reads codebase context and user requirements, directly implementing changes across touched files.
 - Ensures basic compilation and syntax validity.
+- Run tests at the tier defined by `instructions/test-scope.md` based on change size. If a subset is run, state which subset and why (Rule 7 — no selective evidence).
 
-### Step 3 — Flagship Single Review (Orchestrator High-Pressure PUA Audit)
+### Step 3 — Single Review (Evidence-Driven Audit)
 Dispatch the git diff alongside the **exact, raw user requirements** to `@code-review` by invoking `task(agent="code-review", prompt="...")`:
 
 ```markdown
 ### Raw User Requirements (Unaltered):
 <Insert the user's exact prompt word-for-word without any modification>
 
-### Orchestrator Directives to Reviewer (Extreme Scrutiny & Maximum Pressure):
-Listen carefully: You are the most expensive, highest-reasoning flagship reviewer on this team. Your sole existence is to guard the absolute quality line!
-If you fail to catch requirement omissions, fake implementations (mocks), empty TODOs, concurrency bugs, or unhandled edge cases, your flagship reasoning is entirely useless.
+### Orchestrator Directive to Reviewer (Evidence-Driven Audit):
+You are the quality gate. Your verdict MUST be grounded in verifiable evidence — not subjective judgment or optimism.
 
-Deploy your full cognitive depth and conduct an exhaustive, zero-tolerance review:
-1. **Top-Tier Requirement Traceability**: Scrutinize every word of the user's raw prompt. Verify whether 100% of explicit and implicit requirements are fully built. Do not be deceived by surface-level implementations.
-2. **Ruthless Quality Audit**: Ground-up audit on concurrency races, boundary overflows, null/undefined safety, uncaught exceptions, type safety (strict no-any), and resource leaks.
-3. **Uncompromising Veto**: If there is even ONE unsatisfied requirement or latent defect, firmly reject with `Verdict: REQUEST_CHANGES`. Reject all sloppy work until it is bulletproof!
-4. **Actionable Output**: Every finding MUST cite exact `file:line` + root cause + concrete corrected code snippet.
+Audit the diff using the Execute → Observe → Match method:
+1. **Requirement Traceability**: Walk through every requirement in the user's raw prompt. For each, locate the exact code that implements it. If a requirement has no corresponding code, that is a finding — cite the requirement and state "no implementation found".
+2. **Defensive Code Audit**: Inspect concurrency safety, boundary conditions, null/undefined handling, uncaught exceptions, type safety (strict no-any), and resource leaks. For each suspected issue, cite `file:line` and explain the failure mode concretely.
+3. **Anti-Slop Check**: Hunt for fake mocks, empty TODOs, happy-path-only logic, or scope cuts. Each finding must cite `file:line` + what was expected vs. what was found.
+4. **Verdict by Evidence**: Your verdict MUST follow this rule:
+   - `APPROVE` only when every requirement is traceable to code AND no concrete defect is found.
+   - `REQUEST_CHANGES` when any requirement is unimplemented OR any concrete defect exists.
+   - Do NOT reject based on style preference or speculation. Do NOT approve with "should work" reasoning.
+5. **Actionable Output**: Every finding MUST include: `file:line` + root cause + concrete corrected code snippet. No vague suggestions.
 ```
 
 ### Step 4 — Loop Evaluation
@@ -90,8 +92,19 @@ Deploy your full cognitive depth and conduct an exhaustive, zero-tolerance revie
 - **If `REQUEST_CHANGES`**:
   - Check current round count against `--max-rounds` (default 10).
   - If `Round < Max`: Format all review comments into a structured fix checklist, increment round counter (`Round = Round + 1`), and dispatch back to `@fast-coder` to fix.
+
+  **Fix dispatch template**:
+  ```markdown
+  ### Consolidated Review Checklist (Round <N>):
+  <insert the reviewer checklist with file:line references>
+
+  ### Fix Directive:
+  Fix every issue listed above. Do NOT introduce new issues. Do NOT refactor unrelated code. Address each finding at the exact file:line cited. After fixing, the diff should contain ONLY fixes for these issues — no scope creep.
+  ```
+
   - If `Round >= Max`: Halt the loop. Generate an **Unresolved Issues Report** highlighting remaining blockers for human intervention.
 
 ### Step 5 — Delivery
 - Summarize files modified/created.
-- Present test/verification results and the final review sign-off.
+- Present verification results using ✅/❌/⚠️ labels per `instructions/verification-honesty.md` (✅ = executed + passed, ❌ = executed + failed, ⚠️ = not run + reason). List actual commands executed.
+- Present the final review sign-off.

@@ -41,6 +41,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 - [Part II: Core Capabilities & Daily Use](#part-ii-core-capabilities--daily-use)
   - [Daily Use & Modes](#daily-use--modes)
     - [Code mode (default driver)](#code-mode-default)
+    - [Co-worker mode (collaborative pair-programming)](#co-worker-mode-collaborative)
     - [Build mode (cross-cutting orchestration)](#build-mode-orchestration)
     - [Plan mode (read-only analysis)](#plan-mode-read-only)
     - [Calling specialists directly](#calling-specialists-directly)
@@ -94,10 +95,10 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 | Feature | What it means for you |
 |---|---|
 | **Specialist Agents** | 21 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, `@fast-coder`, etc.) tuned with domain-specific prompts, routed automatically |
-| **Three working modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
+| **Four working modes** | `@code` (direct development, default), `@coworker` (collaborative pair-programming with real-customer framing), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
 | **Code intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
-| **Workflow slash commands** | `/review-fix-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
+| **Workflow slash commands** | `/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` dev loops, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
 | **Optional guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
 | **One-command installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Token savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install |
@@ -113,11 +114,11 @@ Two kinds of batteries, two kinds of rides. omp builds and ships its own native 
 | :--- | :--- | :--- |
 | **Relationship to Runtime** | Standalone harness — replaces your agent runtime | ⚡ **Zero-migration discipline layer — keep your OpenCode runtime, plugins & config** |
 | **What's in the Box** | 🔧 Native tooling firepower: ~80k-line Rust core, hashline edits, built-in LSP/DAP, memory, browser, collab | 🧰 Discipline firepower: 21 specialist agents, MCP code intelligence, `/profile` presets, guardrails, workflow commands |
-| **Delivery Pacing** | Magic keywords (`ultrathink` / `orchestrate`), single-track autonomy | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` — explicit human-selected tiers, SOP-friendly** |
+| **Delivery Pacing** | Magic keywords (`ultrathink` / `orchestrate`), single-track autonomy | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` — explicit human-selected tiers, SOP-friendly** |
 | **Scheduling & Orchestration** | 🟢 `task` fan-out into isolated worktrees, typed results, live subagent hub | 🏆 **`@build` orchestrator + predefined role pipelines (plan visible before execution) + tiered scheduling (Flash codes, Flagship reviews) + dynamic domain-persona injection + auto-retry with task resume** |
 | **Review Gates** | `/review` post-hoc P0–P3 verdict, single reviewer | 🏆 **`/deep-dev` dual flagship review + `@advisor` safety arbitration — fixes converge inside the loop** |
 | **Spec-Driven Lifecycle** | None built-in (requires external tools) | 🏆 **`/prd` → `/plan` (auto-links PRD & ADRs) → `/impl` → `/sdd handoff` — full SDD lifecycle** |
-| **Workflow Command Suite** | `ultrathink` / `orchestrate` / `workflowz` keywords | 🏆 **`/grill-me` Socratic plan interrogation + `/review-fix-loop` auto-fix until zero P0/P1 + `/goal` mechanically-checkable stop conditions + `/handoff` git-safe session bundles** |
+| **Workflow Command Suite** | `ultrathink` / `orchestrate` / `workflowz` keywords | 🏆 **`/grill-me` Socratic plan interrogation + `/review-fix-loop` auto-fix until zero P0/P1 + `/grill-improve-loop` score-driven improvement loop + `/goal` mechanically-checkable stop conditions + `/handoff` git-safe session bundles** |
 | **Token & Cost Governance** | hashline edit savings + efficient in-process tools | 🏆 **Five-tier agent-to-model routing (`tiers.json`) + RTK proxy-layer output compression (60–90%) auto-provisioned at install** |
 | **Guardrails** | Stream rules course-correct model behavior mid-stream | 🏆 **Auditable policy gates: ADR/MADR enforcement + secret-file gate + E2E gate + commit discipline** |
 | **Code Intelligence** | 🟢 Built-in LSP/DAP/AST (14 LSP + 28 DAP ops) | Serena LSP + CodeGraph call graphs + GitNexus + DBHub database gateway |
@@ -216,6 +217,19 @@ cd opencode-prime
 
 You can still manually delegate auxiliary subagents (`@advisor`, `@explorer`, `@code-review`, `@vision`) when needed. If a task is cross-cutting, `@code` will recommend switching to `@build`.
 
+### Co-worker mode (collaborative)
+
+Switch to `@coworker` for a pair-programming partner that frames every task as a real customer requirement — high-stakes accountability ("the customer is watching, don't let them question our competence") with a "we're in this together" partnership dynamic. If anything is unclear, the co-worker relays your question to the customer for you:
+
+```
+> @coworker The customer needs a paginated user search API with fuzzy matching
+  → frames the stakes, plans the attack, co-implements with you
+  → asks you (not guesses) when a requirement is ambiguous
+  → verifies build + tests before reporting done
+```
+
+Use `@coworker` when you want the extra motivation and collaborative back-and-forth — a senior partner who treats your task as a real deliverable, not a toy.
+
 ### Build mode (orchestration)
 
 Switch to `@build` for cross-cutting tasks — it routes work to the right specialist:
@@ -243,7 +257,7 @@ Switch to `@plan` for analysis-only tasks (no code modifications):
   → Aggregates findings into a prioritized report
 ```
 
-Switch between modes via Tab or `@code` / `@build` / `@plan`.
+Switch between modes via Tab or `@code` / `@coworker` / `@build` / `@plan`.
 
 ### Calling specialists directly
 
@@ -569,10 +583,12 @@ Troubleshooting: auth prompt on start → run `qoder login` and restart; `qoderc
 | **`/sdd [status\|handoff\|help]`** | SDD Lifecycle | Specification-Driven Development lifecycle navigator & session handoff (`/sdd handoff`) |
 | **`/grill-me <topic>`** | Brainstorming | Socratic interview that rigorously pressure-tests a plan or design |
 | **`/grill-with-docs <topic>`** | Brainstorming | Same as `/grill-me`, plus automatically creates `CONTEXT.md` glossary and ADRs |
-| **`/quick-dev <task>`** | Dev Loop | **Quick-Dev Zero-Review Fast Track**: Flash model coding + dynamic domain persona injection (zero review overhead, instant delivery, alias `/flash-dev`, see [Three-Tier Dev Loops](docs/workflows/dev-loops.md)) |
-| **`/fast-dev <task> [--max-rounds=N]`** | Dev Loop | **Fast-Dev Agile Single-Review Loop**: High-velocity Flash model coding (with dynamic domain persona injection) + flagship single-review PUA audit until approval (default max 10 rounds) |
+| **`/quick-dev <task>`** | Dev Loop | **Quick-Dev Zero-Review Fast Track**: Flash model coding + dynamic domain persona injection (zero review overhead, instant delivery, alias `/flash-dev`, see [Four-Tier Dev Loops](docs/workflows/dev-loops.md)) |
+| **`/fast-dev <task> [--max-rounds=N]`** | Dev Loop | **Fast-Dev Agile Single-Review Loop**: High-velocity Flash model coding (with dynamic domain persona injection) + flagship single-review evidence-driven audit until approval (default max 10 rounds) |
 | **`/deep-dev <task> [--max-rounds=N]`** | Dev Loop | **Deep-Dev Mission-Critical Dual-Review Loop**: Flash model coding + dual flagship review (100% requirement alignment + quality/security defense) + Advisor consensus arbitration with full-stack multi-stage decomposition (default max 10 rounds) |
+| **`/ultra-dev <objective> [--max-rounds=N] [--max-phases=N]`** | Dev Loop | **Ultra-Dev Autonomous Multi-Phase Track**: End-to-end autonomous execution — decomposes large objectives into phases, each with its own `/deep-dev` cycle, context compaction, git-commit isolation, and `--resume` support (default max 6 phases, see [Four-Tier Dev Loops](docs/workflows/dev-loops.md)) |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | Quality Loop | Automated review-verify-fix-re-review loop until zero P0/P1 issues. Scope: `last commit`, `HEAD~N`, `branch`, `PR`, or uncommitted changes |
+| **`/grill-improve-loop [subject] [--max-rounds=N] [--target=N]`** | Score Loop | Score-driven improvement loop: score → analyze → fix/refactor → verify → re-score until structural ceiling, stall, or max rounds. Triggers verification-honesty scoring (Rules 5–7) every round |
 | **`/goal [text]`** | Goal Execution | Structured goal execution protocol with audit-friendly checklists and mechanically checkable stop conditions |
 | **`/handoff [focus]`** | Session State | Compacts current session state into a git-safe handoff bundle (`.opencode/handoffs/`) and outputs a paste-ready opener for a fresh session |
 | **`/adr-guard [on\|off\|status]`** | Quality Gate | Project-level ADR commit gate: enforces architecture decision records on `feat:` and `refactor:` commits |
@@ -684,6 +700,8 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `fast-dev.ts` | `/fast-dev` command & protocol — Agile single-review loop: Flash coding (dynamic domain persona) + Flagship review |
 | `deep-dev.ts` | `/deep-dev` command & protocol — Mission-critical dual-review consensus loop: Flash coding + Dual flagship review + Advisor arbitration |
 | `review-fix-loop.ts` | `/review-fix-loop` command and protocol |
+| `grill-improve-loop.ts` | `/grill-improve-loop` command and protocol — score-driven improvement loop |
+| `ultra-dev.ts` | `/ultra-dev` command and protocol — autonomous multi-phase execution track |
 | `goal.ts` | `/goal` command and protocol |
 | `handoff.ts` | `/handoff` command and protocol |
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |
@@ -872,7 +890,7 @@ If you want to toggle optional features (such as enabling `opencode-qoder-bridge
    {
      // rtk output compression (60-90% token savings)
      "rtk": true,
-     // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
+     // Primary agent on start: code (direct dev) / coworker (collaborative pair-programming) / build (orchestrator) / plan (read-only)
      "default_agent": "code",
      // MCP server switches (missing CLIs auto-provisioned on install)
      "mcp": {

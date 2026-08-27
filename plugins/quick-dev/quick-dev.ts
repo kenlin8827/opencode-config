@@ -4,9 +4,9 @@
  * the protocol into the system prompt.
  *
  * Quick-Dev Workflow:
- *   1. Zero-loss passthrough dispatch to Flash Coder (@fast-coder)
- *   2. Inject dynamic domain persona (Frontend / Go / Python / Java / Rust, etc.)
- *   3. Zero review overhead — fast-track direct delivery
+ *   1. Zero-loss dispatch to @fast-coder (same as /fast-dev)
+ *   2. Skip review entirely — zero review overhead
+ *   3. Verify syntax and deliver instantly
  *
  * See: plugins/quick-dev/quick-dev.md
  */
@@ -35,14 +35,14 @@ export const QuickDevPlugin: Plugin = async () => ({
     cfg.command[COMMAND_NAME] = {
       template: "/quick-dev $ARGUMENTS",
       description:
-        "Quick-Dev — zero-delegation fast track with direct in-session coding and instant delivery (no review). Usage: /quick-dev <requirements>",
-      agent: "code",
+        "Quick-Dev — zero-review fast track: @fast-coder coding + instant delivery (no review). Usage: /quick-dev <requirements>",
+      agent: "build",
     }
     cfg.command[ALIAS_COMMAND_NAME] = {
       template: "/quick-dev $ARGUMENTS",
       description:
-        "Quick-Dev (alias) — zero-delegation fast track with direct in-session coding. Usage: /flash-dev <requirements>",
-      agent: "code",
+        "Quick-Dev (alias) — zero-review fast track: @fast-coder coding + instant delivery. Usage: /flash-dev <requirements>",
+      agent: "build",
     }
   },
 

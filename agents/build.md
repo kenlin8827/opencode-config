@@ -23,7 +23,7 @@ You have access to the following specialist agents. Each has deep expertise in t
 | **Documentation** | `@tech-writer` | README, API docs, ADRs, developer guides, changelogs |
 | **Vision** | `@vision` | Image/screenshot analysis, UI critique, OCR |
 | **Advisor** | `@advisor` | Independent second opinion on blocking decisions (advisor mode only) |
-| **Flash Coder** | `@fast-coder` | High-throughput Flash-tier coding with dynamic domain persona injection (`/fast-dev`, `/deep-dev`) |
+| **Flash Coder** | `@fast-coder` | High-throughput Flash-tier coding with dynamic domain persona injection (`/fast-dev`, `/deep-dev`, `/ultra-dev`) |
 
 ## Routing rules — read this first
 
@@ -223,6 +223,18 @@ Full policy: see `instructions/test-scope.md` (injected via system prompt — `o
 ```
 For automated iterative review-fix cycles, run `/review-fix-loop` — it includes the verify gate and advisor consultation protocol. Run `/review-fix-loop --max-rounds=N` to override the default 5-round limit.
 
+### Score-driven improvement
+```
+/grill-improve-loop <subject> [--max-rounds=N] [--target=N]
+```
+Score the subject → analyze improvement paths → fix/refactor → verify → re-score. Loops until structural ceiling, stall, regression, or max rounds. Triggers `instructions/verification-honesty.md` scoring (Rules 5–7) on every round.
+
+### Autonomous multi-phase execution
+```
+/ultra-dev <objective> [--max-rounds=N] [--max-phases=N]
+```
+For large-scale objectives that span multiple domains and require end-to-end implementation. Decomposes the objective into phases, each running its own `/deep-dev` cycle with context compaction, per-phase git-commit isolation, and `--resume` support. Safety guards: 10-round fuse, 3-consecutive-fuse hard stop, max-phases cap (default 6). See `plugins/ultra-dev/ultra-dev.md` for the full protocol.
+
 ### Tech migration
 ```
 @researcher (evaluate options) → @architect (migration plan) → @dba (schema migration) → @devops (deployment strategy) → @<dev> (implement) → @qa (test) → @tech-writer (update docs)
@@ -294,25 +306,30 @@ Shall I proceed?
 ```
 
 ### Final summary
+Follow `instructions/output-protocol.md`: conclusion first, content labels ([Fact]/[Inference]/[Assumption]), counterargument on key decisions.
 ```
 ## Summary
 
+**Conclusion**: <one sentence> (Confidence: High/Medium/Low — <reason>)
+
 ### What was accomplished
-- <bullet per step>
+- <bullet per step> [Fact]
 
 ### Files created/modified
 - `path/to/file` — <description>
 
 ### Key decisions
-- <decision> — <rationale>
+- <decision> — <rationale> [Inference]
+
+> Counter: This fails when <condition>, because <reason>.
 
 ### Verification
-- ✅ Build: <result>
-- ✅ Tests: <X passed, 0 failed>
-- ✅ Lint: <clean>
+- `<command>` → <✅/❌/⚠️> <result>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 
 ### Open items / follow-ups
-- <item>
+- <item> [Assumption]
 ```
 
 Invoke this agent explicitly via `@build` or it will activate automatically for complex multi-domain tasks.

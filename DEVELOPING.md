@@ -241,7 +241,7 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 3. **Add to `plan.md` team table** — if analysis-capable.
 4. **Add to `opencode.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — add to `$allFiles` array and relevant content checks.
-6. **Generate manifest** — bump `install/VERSION`, then `pwsh install/install.ps1 generate`.
+6. **Generate manifest** — bump `install/VERSION`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
 7. **Test** — run `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 
 ### Checklist for new agent
@@ -292,6 +292,8 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `e2e-guard.ts` (+ `plugins/e2e-guard/`) | `config` + `command.execute.before` + `system.transform` | `/e2e-guard on|off|status` command; system prompt E2E protocol injection; guides LLM to evaluate E2E impact on `feat`/`fix` tasks, flag test gaps, and interactively confirm with the user via `ask` before running (scoped to primary agents). |
 | `project-manager.ts` (+ `plugins/project-manager/`) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | `/project init|index|sync` commands; init tops up an existing project config with new template switches (append-only); file-as-switch commit discipline; one-time `/project init` suggestion. |
 | `review-fix-loop.ts` (+ `plugins/review-fix-loop/`) | `config` + `command.execute.before` + `system.transform` | `/review-fix-loop` command; arms session and injects protocol from markdown into system prompt. |
+| `grill-improve-loop.ts` (+ `plugins/grill-improve-loop/`) | `config` + `command.execute.before` + `system.transform` | `/grill-improve-loop` command; score-driven improvement loop; injects protocol from markdown into system prompt. |
+| `ultra-dev.ts` (+ `plugins/ultra-dev/`) | `config` + `command.execute.before` + `system.transform` | `/ultra-dev` command; autonomous multi-phase execution track; injects protocol from markdown into system prompt. |
 | `grill-me.ts` / `grill-with-docs.ts` (+ `plugins/grill/`) | `config` + `command.execute.before` + `system.transform` | `/grill-me` and `/grill-with-docs` commands; inject grilling protocols. |
 | `goal.ts` (+ `plugins/goal/`) | `config` + `system.transform` | `/goal` command; injects goal execution protocol. |
 | `handoff.ts` (+ `plugins/handoff/`) | `config` + `system.transform` | `/handoff` command; injects handoff protocol. |
@@ -474,6 +476,10 @@ plugins/
 ├── deepseek-anchor/               # Command, config, announce, index
 ├── review-fix-loop.ts             # Barrel: /review-fix-loop
 ├── review-fix-loop/               # Implementation + protocol markdown
+├── grill-improve-loop.ts          # Barrel: /grill-improve-loop
+├── grill-improve-loop/            # Implementation + protocol markdown
+├── ultra-dev.ts                   # Barrel: /ultra-dev
+├── ultra-dev/                     # Implementation + protocol markdown
 ├── grill-me.ts / grill-with-docs.ts  # Barrels
 ├── grill/                         # Implementations + protocol markdowns
 ├── goal.ts                        # Barrel: /goal
@@ -506,12 +512,12 @@ tests/
 
 ## Release workflow
 
-1. Bump `install/VERSION` (e.g. `0.1.9`).
-2. Regenerate the manifest: `pwsh install/install.ps1 generate` — note: the manifest is **not** auto-regenerated when it already exists; new files must appear in it or they won't ship.
+1. Bump `install/VERSION` (e.g. `0.7.0`) and sync `package.json` `version` + `install/README.md` title to match.
+2. Regenerate the manifest: `bun run install/src/index.ts generate` (or `ocp generate`) — the manifest is **always overwritten**, so ensure `SHIPPED_DIRS` / `SHIPPED_FILES` in `install/src/manifest.ts` include every new file (see `AGENTS.md` §4). **Never hand-edit a generated manifest.**
 3. Run structural tests: `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 4. Type-check plugins: `bun install && bunx tsc --noEmit`.
 5. Commit and push to `main`.
-6. Tag and push: `git tag v0.1.9 && git push origin v0.1.9`.
+6. Tag and push: `git tag v0.7.0 && git push origin v0.7.0`.
 7. The [Release workflow](.github/workflows/release.yml) builds `opencode-config-<ver>.tar.gz` + `.zip` and creates a GitHub Release automatically — no manual artifact upload needed.
 
 Runtime behavior (hooks, LLM compliance) cannot be fully covered by the structural suite — verify in a real `opencode` environment against the pre-release flow before tagging.

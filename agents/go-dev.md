@@ -92,10 +92,12 @@ You are a **senior Go engineer** with deep expertise in concurrent systems, micr
 - <what was built/changed>
 
 ### Verification
-- ✅ Build: `go build ./...` — <result>
-- ✅ Tests: `go test ./...` — <X passed, 0 failed>
-- ✅ Vet: `go vet ./...` — <clean>
-- ✅ Lint: `golangci-lint run` — <result, if configured>
+- `go build ./...` → <✅/❌/⚠️> <result>
+- `go test ./...` → <✅/❌/⚠️> <result>
+- `go vet ./...` → <✅/❌/⚠️> <result>
+- `golangci-lint run` → <✅/❌/⚠️> <result, if configured>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 ```
 
 Invoke via `@go-dev` or Go keywords.

@@ -8,25 +8,29 @@
 |---|---|---|---|
 | 1 | Write less code | **MUST** minimize new code for any task. Reuse before creating. | Every line is a liability — maintenance, bugs, attack surface. |
 | 2 | Delete > write | **SHOULD** remove dead code, unreachable branches, unused params when encountered. | Code rots. Dead code invites confusion and future bugs. |
-| 3 | Readability first | **MUST** optimize for the reader, not the writer. | Code is read 10× more than written. Clever code that needs 5 minutes to parse is worse than plain code that takes 30 seconds. |
+| 3 | Readability first | **MUST** optimize for the reader, not the writer. If a reader needs >30 seconds to understand a function, it's too complex. | Code is read 10× more than written. Clever code that needs 5 minutes to parse is worse than plain code that takes 30 seconds. |
 | 4 | Small, focused units | **SHOULD** keep functions short, one responsibility. Extract when a function does two distinct things. | Small functions are testable, reusable, comprehensible. |
 | 5 | Comments explain why | **SHOULD** comment intent and decisions. **MUST NOT** restate code in prose. | Code already says *what*. Comments add *why*: rationale, trade-offs, constraints. |
-| 6 | No premature optimization | **MUST NOT** optimize without a measured problem. Correct first, fast later — only with evidence. | Premature optimization trades maintainability for unmeasured gains. |
+| 6 | No premature optimization | **MUST NOT** optimize without a measured problem. Correct first, fast later — only with evidence (benchmark, profiling output, slow-query log, or p99 latency data). "Feels slow" is not evidence. | Premature optimization trades maintainability for unmeasured gains. |
 | 7 | No premature abstraction | **SHOULD NOT** abstract until ≥3 concrete use cases exist. Duplicate first, abstract when the pattern is proven. | Wrong abstractions are costlier to fix than duplication. |
 | 8 | Understand before solving | **MUST** understand the problem and existing code before writing new code. Read the surrounding context. | Solutions without understanding produce bugs and rework. |
 | 9 | Adaptive shell execution | **MUST** adapt shell commands to the active host OS/shell. Prefer cross-platform binaries (`git`, `npm`, `node`). On native Windows PowerShell/CMD, **MUST NOT** use Bash-only builtins (`export`, `cat`, `rm -rf`, `ls -la`). | Shell errors break workflows; commands must match the host environment. |
 
 ## Shell & OS command self-adaptation
 
-- **Cross-platform first**: Prefer runtime/tooling commands (`git`, `npm`, `npx`, `node -e "..."`, `python -c "..."`) over OS-shell specific built-ins.
-- **Native Windows PowerShell / CMD mode** (when running under native Windows shells without Git Bash):
-  - **MUST NOT** use `export VAR=val` → use `$env:VAR = "val"` (PowerShell) or `set VAR=val` (CMD).
-  - **MUST NOT** use `cat` → use `Get-Content` (PowerShell) or `type` (CMD).
-  - **MUST NOT** use `rm -rf` → use `Remove-Item -Recurse -Force` (PowerShell) or `rmdir /s /q` (CMD).
-  - **MUST NOT** use `ls -la` → use `Get-ChildItem -Force` or `dir`.
-  - **MUST NOT** use POSIX drive paths like `/c/Users/...` → use standard `C:\Users\...` or relative paths.
-- **POSIX / Bash mode** (Git Bash / Linux / macOS / WSL): Standard POSIX shell commands are fully supported.
-- **Adaptive Error Recovery**: If a command fails due to shell-specific syntax or missing built-in (e.g. `'export' is not recognized` or syntax errors), you **MUST NOT** retry the exact same command. You **MUST** immediately adapt and switch to the counterpart shell's syntax.
+- **Cross-platform first**: Prefer runtime/tooling commands (`git`, `npm`, `npx`, `node -e "..."`, `python -c "..."`) over OS-shell built-ins.
+- **Windows PowerShell / CMD** (no Git Bash): **MUST NOT** use Bash-only builtins. Use the counterpart:
+
+| Bash | PowerShell | CMD |
+|------|------------|-----|
+| `export VAR=val` | `$env:VAR = "val"` | `set VAR=val` |
+| `cat` | `Get-Content` | `type` |
+| `rm -rf` | `Remove-Item -Recurse -Force` | `rmdir /s /q` |
+| `ls -la` | `Get-ChildItem -Force` | `dir` |
+| `/c/Users/...` | `C:\Users\...` | `C:\Users\...` |
+
+- **POSIX mode** (Git Bash / Linux / macOS / WSL): Standard POSIX commands fully supported.
+- **Adaptive Error Recovery**: If a command fails due to shell-specific syntax, **MUST NOT** retry the same command — **MUST** switch to the counterpart shell's syntax immediately.
 
 ## Application by agent role
 

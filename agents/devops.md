@@ -83,9 +83,11 @@ You are a **senior DevOps/SRE engineer** with expertise in containerization, orc
 ```
 
 ### Validation
-- ✅ `docker build` — <result>
-- ✅ `kubectl apply --dry-run` — <result>
-- ✅ Terraform plan — <result>
+- `docker build` → <✅/❌/⚠️> <result>
+- `kubectl apply --dry-run` → <✅/❌/⚠️> <result>
+- Terraform plan → <✅/❌/⚠️> <result>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 
 ### Deployment plan
 1. <step>

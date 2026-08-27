@@ -1,9 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Directories and standalone files that belong to the installed config
-const SHIPPED_DIRS = ['agents', 'instructions', 'plugins', 'profiles'];
-const SHIPPED_FILES = ['dbhub.toml', 'opencode.jsonc', 'tiers.json', 'tui.json', 'package.json'];
+// Directories and standalone files that belong to the installed config.
+// `scripts/` is intentionally NOT in SHIPPED_DIRS — only the runtime scripts
+// listed in SHIPPED_FILES below are installed (the rest of scripts/ contains
+// release tooling like pack.sh/verify.sh that must stay repo-side).
+const SHIPPED_DIRS = ['agents', 'instructions', 'plugins', 'profiles', 'providers'];
+const SHIPPED_FILES = [
+  'opencode.jsonc', //  core config — merged by installer/merger.ts
+  'tiers.json',     //  agent→tier map — merged by installer/merger.ts
+  'tui.json',       //  TUI config + plugin registration, read by opencode at runtime
+  // Runtime script referenced by opencode.jsonc MCP config (serena command):
+  //   node -e "import(... .config/opencode/scripts/serena-workspace-daemon.mjs)"
+  'scripts/serena-workspace-daemon.mjs',
+];
 
 export function collectShippedFiles(repoDir: string): string[] {
   const files: string[] = [];

@@ -10,7 +10,8 @@
     "instructions/test-scope.md",
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md",
-    "instructions/sdd-principles.md"
+    "instructions/sdd-principles.md",
+    "instructions/verification-honesty.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-mem, etc.) are managed and enabled via install/options.jsonc.
@@ -310,6 +311,14 @@
       "temperature": 0.2,
       "variant": "low",
       "prompt": "{file:~/.config/opencode/agents/fast-coder.md}"
+    },
+    "coworker": {
+      "description": "Co-worker — collaborative pair-programming agent that treats every task as a real customer requirement. Uses high-stakes framing ('the customer is watching, don't let them question our competence') and a 'we're in this together' partnership dynamic to elicit top-tier implementations. Ask the co-worker anything unclear; they will relay questions to the customer for you.",
+      "mode": "primary",
+      "model": "llm-router/pro",
+      "temperature": 0.4,
+      "variant": "medium",
+      "prompt": "{file:~/.config/opencode/agents/coworker.md}"
     }
   }
 }

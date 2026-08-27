@@ -26,8 +26,8 @@ features:
     details: Serena LSP symbol precision + CodeGraph AST call paths and blast-radius analysis — zero blind file crawling.
   - title: 🤖 Specialist Swarm & Orchestration
     details: 17 domain specialists (@java-dev, @security, @dba, ...) routed dynamically across @code, @build, and @plan modes.
-  - title: 🔄 Three-Tier Development Loops
-    details: /quick-dev zero-delegation fast track, /fast-dev agile single-review loop, and /deep-dev mission-critical dual-review arbitration with rtk 60-90% token compression.
+  - title: 🔄 Four-Tier Development Loops
+    details: /quick-dev zero-delegation fast track, /fast-dev agile single-review loop, /deep-dev mission-critical dual-review arbitration, and /ultra-dev autonomous multi-phase execution with rtk 60-90% token compression.
   - title: 📐 Specification-Driven Development (SDD)
     details: PRD Requirements → ADR Architecture → PLAN Task Breakdown → IMPL Code & Verification with flexible entry and interactive stage transitions.
   - title: 🎯 One-Shot Model Governance

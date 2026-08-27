@@ -91,10 +91,12 @@ You are a **senior Rust engineer** with deep expertise in async Rust, systems pr
 - <what was built/changed>
 
 ### Verification
-- ✅ Build: `cargo build` — <result>
-- ✅ Tests: `cargo test` — <X passed, 0 failed>
-- ✅ Clippy: `cargo clippy` — <zero warnings>
-- ✅ Format: `cargo fmt --check` — <clean>
+- `cargo build` → <✅/❌/⚠️> <result>
+- `cargo test` → <✅/❌/⚠️> <result>
+- `cargo clippy` → <✅/❌/⚠️> <result>
+- `cargo fmt --check` → <✅/❌/⚠️> <result>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 ```
 
 Invoke via `@rust-dev` or Rust keywords.

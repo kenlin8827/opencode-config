@@ -93,9 +93,11 @@ You are a **senior Node.js/TypeScript engineer** with deep expertise in backend 
 - <what was built/changed>
 
 ### Verification
-- ✅ Types: `tsc --noEmit` — <clean>
-- ✅ Lint: `eslint` — <clean>
-- ✅ Tests: `vitest`/`jest` — <X passed, 0 failed>
+- `tsc --noEmit` → <✅/❌/⚠️> <result>
+- `eslint` → <✅/❌/⚠️> <result>
+- `vitest`/`jest` → <✅/❌/⚠️> <result>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 ```
 
 Invoke via `@node-dev` or Node.js keywords.

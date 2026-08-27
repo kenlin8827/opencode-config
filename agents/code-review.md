@@ -29,12 +29,16 @@ Full policy: see `instructions/test-scope.md` (injected via system prompt — `o
 
 ## Review dimensions
 
-- **Correctness**: logic errors, off-by-one, null/undefined, async/await, race conditions, type safety.
+Check against `instructions/coding-principles.md` baseline (cite the principle # when flagging):
+
+- **Correctness**: logic errors, off-by-one, null/undefined, async/await, race conditions, type safety. → cp#8 (Understand before solving)
 - **Security**: injection (SQL/command/XSS), secrets in code/logs, authn/authz gaps, unsafe deserialization.
-- **Design**: SRP, naming, abstraction level, duplication, dead code.
-- **Performance**: N+1 queries, unnecessary loops, missing indexes, memory leaks, sync I/O.
-- **Tests**: tests for new behavior? existing tests pass *at the tier run* (a 1-file tier that only ran `compile + lint` is not an unrun suite)? edge cases covered?
-- **Standards**: follows repo conventions? lint/format issues?
+- **Design**: SRP, naming, abstraction level, duplication, dead code. → cp#4 (Small, focused units), cp#7 (No premature abstraction)
+- **Performance**: N+1 queries, unnecessary loops, missing indexes, memory leaks, sync I/O. → cp#6 (No premature optimization)
+- **Tests**: tests for new behavior? existing tests pass *at the tier run* (a 1-file tier that only ran `compile + lint` is not an unrun suite)? edge cases covered? → `instructions/test-scope.md`
+- **Standards**: follows repo conventions? lint/format issues? → cp#3 (Readability first)
+- **Diff hygiene**: minimal diff, no drive-by refactors, no dead code introduced. → cp#1 (Write less code), cp#2 (Delete > write)
+- **Comments**: comments explain *why*, not *what*. → cp#5 (Comments explain why)
 
 ## Severity levels
 
@@ -49,7 +53,7 @@ Full policy: see `instructions/test-scope.md` (injected via system prompt — `o
 - **Every finding cites `file:line`.**
 - **Every finding includes concrete fix** — show corrected code or describe exact change.
 - **Review the diff, not the whole codebase** — but read enough context to understand.
-- **NEVER fix code yourself** — report only.
+- **NEVER fix code yourself** — report only. Per `instructions/verification-honesty.md` rule 3, read-only agents use the "flag" path: findings are explicitly flagged, never silently omitted.
 - **Be specific** — "handle errors" is useless; "line 42 `fetch()` has no try/catch, network failure crashes handler" is useful.
 - **Acknowledge good code.**
 - **No false positives** — unsure? "potential issue" + trigger condition.
