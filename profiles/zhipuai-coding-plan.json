@@ -1,10 +1,10 @@
 {
-  "description": "Zhipu AI Coding Plan — glm-5.1 carries the high-traffic standard tier (previous-gen flagship, cost-efficient), glm-5.2 codes on pro and judges on max, glm-5.2-highspeed explores on flash. glm-5v-turbo handles vision (image input). Requires ZHIPU_API_KEY environment variable.",
+  "description": "Zhipu AI Coding Plan — glm-5.1 carries the high-traffic standard tier (previous-gen flagship, cost-efficient), glm-5.2 codes on pro, glm-5.3 judges on max, glm-5.3-flash explores on flash. glm-5v-turbo handles vision (image input). Requires ZHIPU_API_KEY environment variable.",
   "tiers": {
-    "flash": "zhipuai-coding-plan/glm-5.2-highspeed",
+    "flash": "zhipuai-coding-plan/glm-5.3-flash",
     "standard": "zhipuai-coding-plan/glm-5.1",
     "pro": "zhipuai-coding-plan/glm-5.2",
-    "max": "zhipuai-coding-plan/glm-5.2",
+    "max": "zhipuai-coding-plan/glm-5.3",
     "vision": "zhipuai-coding-plan/glm-5v-turbo"
   }
 }
