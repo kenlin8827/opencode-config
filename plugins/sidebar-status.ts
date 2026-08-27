@@ -229,7 +229,7 @@ function buildBadges(projectDir: string): Badge[] {
  *
  * Mirrors the sidebar section style used by MCP/LSP groups.
  */
-function renderStatusPanel(badges: Badge[], theme: ThemeColors): unknown {
+function renderStatusPanel(badges: Badge[], theme: ThemeColors, version: string): unknown {
   if (badges.length === 0) return null
 
   // Build one row per badge — each row is a <box> containing a status dot
@@ -267,13 +267,14 @@ function renderStatusPanel(badges: Badge[], theme: ThemeColors): unknown {
     })
   })
 
-  // Section header row: "OCP"
+  // Section header row: "─ OCP v0.7.3 ─"
+  // Version comes from ~/.config/opencode/installed.version (written by installer).
   const header = jsx("box", {
     style: { paddingLeft: 1, height: 1 },
     children: jsx("text", {
       style: { color: theme.borderSubtle },
       children: [
-        jsx("span", { children: "─ OCP " }),
+        jsx("span", { children: `─ OCP v${version} ─` }),
       ],
     }),
   })
@@ -304,6 +305,17 @@ const tui: TuiPlugin = async (api: TuiPluginApi) => {
     }
   }
 
+  // Read OCP version from installed.version (written by the installer to
+  // the config directory, e.g. ~/.config/opencode/installed.version).
+  const configDir = api.state.path.config
+  const versionFile = join(configDir, "installed.version")
+  let ocpVersion = "unknown"
+  try {
+    if (existsSync(versionFile)) {
+      ocpVersion = readFileSync(versionFile, "utf-8").trim()
+    }
+  } catch { /* ignore */ }
+
   refresh()
   const timer = setInterval(refresh, POLL_INTERVAL_MS)
 
@@ -323,7 +335,7 @@ const tui: TuiPlugin = async (api: TuiPluginApi) => {
       text: ctx.theme.current.text,
       backgroundPanel: ctx.theme.current.backgroundPanel,
       border: ctx.theme.current.border,
-    })
+    }, ocpVersion)
   }
 
   api.slots.register({
