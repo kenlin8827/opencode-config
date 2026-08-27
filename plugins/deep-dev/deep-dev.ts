@@ -4,10 +4,10 @@
  * into the system prompt.
  *
  * Deep-Dev Workflow:
- *   1. Dispatch user requirements to Flash Coder (@<lang>-dev / @code)
- *   2. Dual Flagship Reviewers concurrently audit:
+ *   1. Zero-loss dispatch to @<lang>-dev (domain-routed, pro tier) for professional implementation
+ *   2. Dual Reviewers concurrently audit:
  *      - Reviewer A (@architect): Deep requirement alignment & architectural integrity
- *      - Reviewer B (@code-review): Rigorous PUA-grade code quality & boundary checks
+ *      - Reviewer B (@code-review): Evidence-driven code quality & boundary checks
  *   3. Consensus & Arbitration (@advisor) if reviewers disagree
  *   4. Iterate in a feedback loop (default max 10 rounds) until Double Approve or Fuse
  *
@@ -37,7 +37,7 @@ export const DeepDevPlugin: Plugin = async () => ({
     cfg.command[COMMAND_NAME] = {
       template: "/deep-dev $ARGUMENTS",
       description:
-        "Deep-Dev — mission-critical dual-review consensus loop: Flash coding + dual flagship review + Advisor arbitration (default max 10 rounds). Usage: /deep-dev <task> [--max-rounds=N]",
+        "Deep-Dev — mission-critical dual-review consensus loop: domain-routed coding + dual review + Advisor arbitration (default max 10 rounds). Usage: /deep-dev <task> [--max-rounds=N]",
       agent: "build",
     }
   },

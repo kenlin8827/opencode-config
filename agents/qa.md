@@ -113,8 +113,8 @@ One flat threshold incentivizes shallow tests on unimportant code. Tier by **wha
 - **Type check**: 0 errors
 
 ### Visual verification
-- ✅ E2E: <@vision analysis or "N/A">
-- ✅ Responsive: <@vision analysis or "N/A">
+- E2E → <✅/❌/⚠️> <@vision analysis or "N/A">
+- Responsive → <✅/❌/⚠️> <@vision analysis or "N/A">
 
 ### Test files
 - `path/to/test.ts` — <what it covers>

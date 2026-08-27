@@ -43,6 +43,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 - [二、核心能力与日常使用](#二核心能力与日常使用)
   - [日常使用与工作模式](#日常使用与工作模式)
     - [Code 模式（默认主力）](#code-模式默认)
+    - [Co-worker 模式（共创结对编程）](#co-worker-模式共创)
     - [Build 模式（跨领域编排）](#build-模式编排)
     - [Plan 模式（只读分析）](#plan-模式只读)
     - [直接调用专家](#直接调用专家)
@@ -96,10 +97,10 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 | 特性 | 对你的意义 |
 |---|---|
 | **专家智能体团队** | 21 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等），提示词按领域调优，自动路由 |
-| **三种工作模式** | `@code`（直接开发，默认）、`@build`（编排执行）、`@plan`（只读分析）—— 可在 `install/options.jsonc` 中切换 |
+| **四种工作模式** | `@code`（直接开发，默认）、`@coworker`（共创结对编程，真实客户需求框定）、`@build`（编排执行）、`@plan`（只读分析）—— 可在 `install/options.jsonc` 中切换 |
 | **代码智能与数据库（MCP）** | 预配置 MCP 服务（Serena LSP、CodeGraph 图谱、GitNexus、DBHub 数据库网关），开箱按需自动装 CLI |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
-| **工作流斜杠命令** | `/review-fix-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
+| **工作流斜杠命令** | `/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` 开发闭环、`/review-fix-loop`、`/grill-improve-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
 | **可选护栏** | 按项目启用的 ADR 强制（`/adr-guard`）、密钥文件门控（`env-guard`）、E2E 门控（`/e2e-guard`）、提交纪律（`/project`）—— 全部默认关闭 |
 | **一键安装器** | PowerShell + Bash 双平台，基于清单升级；凭证和模型选择在每次重装后完好保留 |
 | **Token 节省** | 安装时自动配置 [rtk](https://github.com/rtk-ai/rtk) 输出压缩（60–90%） |
@@ -115,11 +116,11 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 | :--- | :--- | :--- |
 | **与运行时的关系** | 独立智能体外壳——替换你的 Agent 运行时 | ⚡ **零迁移的纪律层——保留 OpenCode 运行时、插件与全部配置** |
 | **开箱能力侧重** | 🔧 原生工具火力：~8 万行 Rust 核心、hashline 编辑、内置 LSP/DAP、记忆、浏览器、协作 | 🧰 工程纪律火力：21 位专家智能体、MCP 代码智能、`/profile` 预设、护栏、工作流命令 |
-| **交付分档** | 魔法关键词（`ultrathink` / `orchestrate`），单轨自主推进 | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` 显式人选档位，可写入团队 SOP** |
+| **交付分档** | 魔法关键词（`ultrathink` / `orchestrate`），单轨自主推进 | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` 显式人选档位，可写入团队 SOP** |
 | **调度与编排** | 🟢 `task` 子智能体扇出至隔离工作树，类型化结果，实时监督面板 | 🏆 **`@build` 编排器 + 预定义角色流水线（执行计划先公示再执行）+ 分级模型调度（Flash 写码、旗舰审查）+ 动态领域人格注入 + 失败自动重试并原任务续跑** |
 | **审查门控** | `/review` 事后判级 P0–P3，单一审查者 | 🏆 **`/deep-dev` 旗舰双审 + `@advisor` 安全仲裁，修复在闭环内收敛** |
 | **规范驱动生命周期** | 无内置（需外接工具） | 🏆 **`/prd` → `/plan`（自动链接 PRD 与 ADR）→ `/impl` → `/sdd handoff` 完整 SDD 生命周期** |
-| **工作流命令套件** | `ultrathink` / `orchestrate` / `workflowz` 关键词 | 🏆 **`/grill-me` 苏格拉底式方案拷问 + `/review-fix-loop` 自动修复至零 P0/P1 + `/goal` 机械可校验的停止条件 + `/handoff` git-safe 会话交接包** |
+| **工作流命令套件** | `ultrathink` / `orchestrate` / `workflowz` 关键词 | 🏆 **`/grill-me` 苏格拉底式方案拷问 + `/review-fix-loop` 自动修复至零 P0/P1 + `/grill-improve-loop` 评分驱动改进闭环 + `/goal` 机械可校验的停止条件 + `/handoff` git-safe 会话交接包** |
 | **Token 与成本治理** | hashline 编辑省 token + 进程内高效工具 | 🏆 **五级智能体—模型路由（`tiers.json`）+ RTK 代理层输出压缩 60–90%，安装时自动配置** |
 | **工程护栏** | 流式规则实时纠偏模型行为 | 🏆 **可审计的策略级门控：ADR/MADR 强制 + 密钥文件拦截 + E2E 门控 + 提交纪律** |
 | **代码情报** | 🟢 内置 LSP/DAP/AST（14 LSP + 28 DAP 操作） | Serena LSP + CodeGraph 调用图 + GitNexus + DBHub 数据库网关 |
@@ -220,6 +221,19 @@ cd opencode-prime
 
 仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）。如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
 
+### Co-worker 模式（共创）
+
+切换到 `@coworker` 获取一位共创结对编程搭档 —— 它将每个任务框定为真实客户的需求：高利害责任（“客户在看着我们交付，不要让他们质疑我们的能力”）加上“你不是一个人在战斗”的战友协作动态。如果有任何需求不清楚，共创者会替你把问题传达给客户（用户）并带回明确答案，而不是猜测：
+
+```
+> @coworker 客户需要一个带模糊匹配的分页用户搜索 API
+  → 框定利害关系，规划攻击路线，与你共同实现
+  → 需求模糊时问你（而不是猜）
+  → 报告完成前验证构建 + 测试
+```
+
+当你想要额外的动力和协作式的来回讨论时，使用 `@coworker` —— 一位把你任务当作真实交付物而非玩具的高级搭档。
+
 ### Build 模式（编排）
 
 跨领域任务切换到 `@build` — 它会自动将你的任务路由给专家团里合适的成员：
@@ -247,7 +261,7 @@ cd opencode-prime
   → 汇总报告，按优先级给出建议
 ```
 
-通过 Tab 或 `@code` / `@build` / `@plan` 在三种模式之间切换。
+通过 Tab 或 `@code` / `@coworker` / `@build` / `@plan` 在四种模式之间切换。
 
 ### 直接调用专家
 
@@ -570,10 +584,12 @@ bridge 附带的额外能力：
 | **`/sdd [status\|handoff\|help]`** | SDD 规范驱动 | 规范驱动开发全链路导航、制品状态检查与跨会话暂存交接（`/sdd handoff`） |
 | **`/grill-me <topic>`** | 架构与构思 | 逐题逼问式苏格拉底访谈，全方位磨砺需求与技术设计 |
 | **`/grill-with-docs <topic>`** | 架构与构思 | 同 `/grill-me`，同时自动沉淀 `CONTEXT.md` 领域术语表与对应 ADR |
-| **`/quick-dev <task>`** | 闭环开发 | **Quick-Dev 极速免审直通**：Flash 极速编码 + 动态领域灵魂注入（零审查开销，出码即交付，别名 `/flash-dev`，详见 [三阶闭环开发](docs/zh/workflows/dev-loops.md)） |
-| **`/fast-dev <task> [--max-rounds=N]`** | 闭环开发 | **Fast-Dev 敏捷单审闭环**：Flash 模型极速编码（动态注入领域灵魂） + 旗舰单审 PUA 级严苛把关，多轮迭代直至通过（默认上限 10 轮） |
+| **`/quick-dev <task>`** | 闭环开发 | **Quick-Dev 极速免审直通**：Flash 极速编码 + 动态领域灵魂注入（零审查开销，出码即交付，别名 `/flash-dev`，详见 [四阶闭环开发](docs/zh/workflows/dev-loops.md)） |
+| **`/fast-dev <task> [--max-rounds=N]`** | 闭环开发 | **Fast-Dev 敏捷单审闭环**：Flash 模型极速编码（动态注入领域灵魂） + 旗舰单审证据驱动严苛把关，多轮迭代直至通过（默认上限 10 轮） |
 | **`/deep-dev <task> [--max-rounds=N]`** | 闭环开发 | **Deep-Dev 深度双审共识闭环**：Flash 模型编码 + 双旗舰顶级会审（需求 100% 对齐 + 质量与安全防线） + Advisor 争议仲裁共识，支持全栈多阶段拆解汇总（默认上限 10 轮） |
+| **`/ultra-dev <objective> [--max-rounds=N] [--max-phases=N]`** | 闭环开发 | **Ultra-Dev 自主多阶段闭环**：端到端自主执行 —— 将大型目标分解为多阶段，每阶段独立 `/deep-dev` 循环 + 上下文压缩 + 逐阶段 Git 提交隔离 + 支持 `--resume` 断点续跑（默认上限 6 阶段，详见 [四阶闭环开发](docs/zh/workflows/dev-loops.md)） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
+| **`/grill-improve-loop [subject] [--max-rounds=N] [--target=N]`** | 评分驱动闭环 | 评分驱动改进闭环：评分→分析改进路径→修复/重构→验证→重新评分，直到结构性天花板、停滞或最大轮次。每轮触发 verification-honesty 评分机制（规则 5–7） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
 | **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至 Git 忽略的 `.opencode/handoffs/`），生成新会话一键恢复开场白 |
 | **`/adr-guard [on\|off\|status]`** | 质量硬门禁 | 项目级 ADR 提交铁律门禁：拦截缺少架构决策记录的 `feat:` 与 `refactor:` 提交 |
@@ -682,9 +698,11 @@ bridge 附带的额外能力：
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制（见 [Auto-advisor 模式](#auto-advisor-模式)） |
 | `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：Flash 极速编码 + 动态领域灵魂注入（零审查开销，出码即交付） |
-| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审 PUA 把关 |
+| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审证据驱动把关 |
 | `deep-dev.ts` | `/deep-dev` 命令与协议 —— 深度双审共识闭环：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁 |
 | `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
+| `grill-improve-loop.ts` | `/grill-improve-loop` 命令与协议 —— 评分驱动改进闭环 |
+| `ultra-dev.ts` | `/ultra-dev` 命令与协议 —— 自主多阶段执行闭环 |
 | `goal.ts` | `/goal` 命令与协议 |
 | `handoff.ts` | `/handoff` 命令与协议 |
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |
@@ -872,7 +890,7 @@ echo on > <project>/.opencode/.env-guard
    {
      // 是否启用 rtk 输出压缩（60-90% token 节省）
      "rtk": true,
-     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
+     // 默认主控智能体（code: 直接开发 / coworker: 共创结对编程 / build: 编排派发 / plan: 只读分析）
      "default_agent": "code",
      // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
      "mcp": {

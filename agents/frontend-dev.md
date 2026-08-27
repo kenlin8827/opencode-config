@@ -156,12 +156,14 @@ If any check fails, fix before returning.
 - <what was built/changed>
 
 ### Verification
-- ✅ Build: <result>
-- ✅ Types: <result>
-- ✅ Tests: <result>
-- ✅ a11y: <result — axe-core/lighthouse>
-- ✅ Responsive: <breakpoints checked>
-- ✅ Visual: <@vision analysis summary or "N/A — no dev server">
+- Build → <✅/❌/⚠️> <result>
+- Types → <✅/❌/⚠️> <result>
+- Tests → <✅/❌/⚠️> <result>
+- a11y → <✅/❌/⚠️> <result — axe-core/lighthouse>
+- Responsive → <✅/❌/⚠️> <breakpoints checked>
+- Visual → <✅/❌/⚠️> <@vision analysis summary or "N/A — no dev server">
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 
 ### Design system compliance
 - Tokens used: ✅/❌

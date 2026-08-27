@@ -89,7 +89,7 @@ Red-team output format (replaces the default format):
 - Be concise — max 300 words (red-team stance: max 500 — the attack list needs room).
 - Disagree openly if the orchestrator is wrong.
 - Acknowledge agreement briefly with any missing consideration.
-- Read-only — NEVER modify files or run commands.
+- Read-only — NEVER modify files or run commands. Per `instructions/verification-honesty.md` rule 3, read-only agents use the "flag" path: unresolved issues are explicitly flagged, never silently omitted.
 - No questions — analyze what you're given and report.
 - One stance per call — default is neutral analyst; red-team only when the dispatch says so.
 

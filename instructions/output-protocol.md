@@ -29,9 +29,11 @@ Three independently readable layers:
 - **Details** (expansion, skippable)
 
 ### Content labeling
-- [Fact] — verifiable (code, docs, test results)
+- [Fact] — verified (executed: code, docs, test results)
 - [Inference] — derived from known info
 - [Assumption] — unverified, needs validation
+
+> Labels are fixed English tokens (machine-parseable). The content after each label **MUST** follow the user's language.
 
 Assumptions get own section: `## Assumptions (to confirm)`
 
@@ -51,7 +53,7 @@ No decision points → skip section. NEVER invent trivial decisions.
 
 ### Decision mode: 3 advisor modes (off/lite/full)
 
-Three modes control how blocking decisions are handled: **off** (orchestrator alone / direct) | **lite** (default — advisor opinions only, both returned to user; advisor never answers for the user) | **full** (advisor answers on the user's behalf only when question class FACTUAL + confidence ≥ 8; otherwise lite flow). Toggle via `/auto-advisor off` / `/auto-advisor lite` / `/auto-advisor full` (session) or set `autoAdvisorMode` in `opencode.jsonc` (cross-session default). Dispatch the advisor subagent with `@advisor` (call only when genuinely necessary — see Frugality rules in the advisor protocol; do NOT call for routine or low-stakes decisions). Full protocol is embedded in the `auto-advisor-mode` plugin (`plugins/auto-advisor-instructions.ts`) and injected on every system-prompt build.
+Three modes: **off** (orchestrator alone) | **lite** (default — advisor opinions only, never answers for the user) | **full** (advisor answers on user's behalf only when FACTUAL + confidence ≥ 8). Toggle via `/auto-advisor` or `autoAdvisorMode` in `opencode.jsonc`. Full protocol in `plugins/auto-advisor-instructions.ts`.
 
 ### Verifiable data
 Cite sources (file paths, URLs, test output). Show calculation steps.

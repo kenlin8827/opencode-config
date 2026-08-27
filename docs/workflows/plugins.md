@@ -18,7 +18,9 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `quick-dev.ts` | `/quick-dev` (and `/flash-dev`) command & protocol — Zero-review fast track: Direct in-session coding without delegation overhead |
 | `fast-dev.ts` | `/fast-dev` command & protocol — Agile single-review loop: Flash coding (dynamic domain persona) + Flagship review |
 | `deep-dev.ts` | `/deep-dev` command & protocol — Mission-critical dual-review consensus loop: Flash coding + Dual flagship review + Advisor arbitration |
+| `ultra-dev.ts` | `/ultra-dev` command & protocol — Autonomous multi-phase execution track: decomposes large objectives into phases, each running its own `/deep-dev` cycle |
 | `review-fix-loop.ts` | `/review-fix-loop` command and protocol |
+| `grill-improve-loop.ts` | `/grill-improve-loop` command and protocol — score-driven improvement loop |
 | `goal.ts` | `/goal` command and protocol |
 | `handoff.ts` | `/handoff` command and protocol |
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |

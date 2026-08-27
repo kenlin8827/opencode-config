@@ -183,7 +183,7 @@ If any dispatched agent fails (timeout, error, incomplete output) during a round
 
 Once the loop exits (cleared or max rounds reached):
 
-1. **@qa dispatch (conditional):** dispatch `@qa` for regression test recommendations IF the diff touched critical paths (auth, payment, data-mutation, schema migration) OR the total fix count ≥ 3. Otherwise skip `@qa` — the re-review already validated correctness.
+1. **@qa dispatch (conditional):** dispatch `@qa` for regression test recommendations IF the diff touched critical paths (auth, payment, data-mutation, schema migration) OR the total fix count ≥ 3. Test tier per `instructions/test-scope.md` based on change size. Otherwise skip `@qa` — the re-review already validated correctness.
 2. Summarize the full loop (see Output format below).
 
 ## Dispatching guidelines

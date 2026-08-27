@@ -72,10 +72,12 @@ You are a **senior technical writer**. Translate complex systems into clear, acc
 <the actual documentation>
 
 ### Verification
-- ✅ Code examples: <tested? run?>
-- ✅ File paths: <all exist?>
-- ✅ Commands: <all work?>
-- ✅ Accuracy: <verified against codebase?>
+- Code examples → <✅/❌/⚠️> <tested? run?>
+- File paths → <✅/❌/⚠️> <all exist?>
+- Commands → <✅/❌/⚠️> <all work?>
+- Accuracy → <✅/❌/⚠️> <verified against codebase?>
+
+> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
 ```
 
 Invoke via `@tech-writer` or documentation keywords.
