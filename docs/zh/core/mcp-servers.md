@@ -43,6 +43,7 @@
 | **CodeGraph** | 代码知识图谱（默认） | MIT | `codegraph_explore` | 架构全貌、“X 是如何工作的”、完整调用链路、修改影响面（Blast radius） | 项目首次运行 `codegraph init`（或 `/project init`），之后由内置文件监控器**自动增量热同步** |
 | **GitNexus** | 深度代码图谱（可选） | PolyForm Noncommercial | Cypher 查询、聚类分析工具 | 复杂多仓库关系、执行任意 Cypher 图查询、流程可视化 | 大规模改动后手动执行 `gitnexus analyze`（或 `/project index`） |
 | **DBHub** | 通用数据库网关 | MIT (Bytebase) | `search_objects`, `execute_sql` | 连接 PostgreSQL / MySQL / SQLite / SQL Server / MariaDB，高效查询与元数据探测 | 按项目放置 `dbhub.toml`，支持 `${ENV_VAR}` 环境变量 |
+| **IDE** | JetBrains IDE 桥接 | — | IDE 原生工具 | 实时接入运行中的 IntelliJ / WebStorm 等 —— 文件编辑、代码导航、重构、运行配置 | 需在 IDE 中启用 MCP 服务器（Settings → Tools → MCP Server）；IDE 关闭后端点即失效 |
 
 ---
 
@@ -61,7 +62,8 @@
     "serena": true,     // LSP 语义检索（启用且本地缺失时，安装器自动通过 uv 安装）
     "codegraph": true,  // 代码图谱（启用且本地缺失时，安装器自动通过 npm 全局安装）
     "gitnexus": false,  // 深度 Cypher 图谱（商业使用需注意 PolyForm 许可证）
-    "dbhub": true       // 数据库网关（启用且本地缺失时，安装器自动通过 npm 全局安装）
+    "dbhub": true,      // 数据库网关（启用且本地缺失时，安装器自动通过 npm 全局安装）
+    "idea": true        // JetBrains IDE 桥接（需先在 IDE 中启用 MCP 服务器）
   }
 }
 ```

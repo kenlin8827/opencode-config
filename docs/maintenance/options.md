@@ -45,7 +45,9 @@ Learn about installer commands, configuration options, token savings, and preser
        // GitNexus code graph (PolyForm Noncommercial license; requires indexing)
        "gitnexus": false,
        // DBHub universal database gateway (PostgreSQL / MySQL / SQLite; needs npm)
-       "dbhub": true
+       "dbhub": true,
+       // JetBrains IDE bridge (enable MCP Server in IDE: Settings → Tools → MCP Server)
+       "idea": true
      },
      // External npm plugin switches (true: enabled; false: disabled)
      "plugin": {

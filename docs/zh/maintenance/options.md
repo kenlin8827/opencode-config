@@ -45,7 +45,9 @@
        // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）
        "gitnexus": false,
        // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
-       "dbhub": true
+       "dbhub": true,
+       // JetBrains IDE 桥接（需先在 IDE 中启用 MCP 服务器：Settings → Tools → MCP Server）
+       "idea": true
      },
      // 外部 npm 插件开关（true: 启用; false: 关闭）
      "plugin": {

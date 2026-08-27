@@ -113,6 +113,24 @@
       "command": ["dbhub", "--transport", "stdio", "--config", "./dbhub.toml"],
       "install": "npm install -g @bytebase/dbhub",
       "enabled": false
+    },
+    // JetBrains IDE MCP bridge — remote server exposed by the running IDE
+    // (IntelliJ / WebStorm / etc.) on the local stream endpoint. No CLI to
+    // install; the IDE must be running with its MCP server enabled.
+    //
+    // IDE-side setup (one-time per project):
+    //   1. Install the "MCP Server" plugin (JetBrains Marketplace) if not
+    //      already bundled by your IDE version.
+    //   2. Open: Settings (Preferences) → Tools → MCP Server.
+    //   3. Toggle the server ON and apply. The IDE starts listening on
+    //      127.0.0.1:64342/stream — verify the port matches.
+    //   4. Keep the IDE running; this endpoint dies when the IDE closes.
+    //
+    // Then flip "enabled" here (or via install/options.jsonc) to connect.
+    "idea": {
+      "type": "remote",
+      "url": "http://127.0.0.1:64342/stream",
+      "enabled": true
     }
   },
   "provider": {

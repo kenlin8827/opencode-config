@@ -51,7 +51,12 @@
     // Universal DB gateway (MIT, ~1.4k tokens); CLI auto-provisioned.
     // Still needs per-project dbhub.toml + DSN (see opencode.jsonc) —
     // without one, dbhub just fails to connect at session start
-    "dbhub": true
+    "dbhub": true,
+    // JetBrains IDE MCP bridge — remote server exposed by the running IDE
+    // (IntelliJ / WebStorm / etc.) on 127.0.0.1:64342. No CLI to install;
+    // enable the MCP server in the IDE first (Settings → Tools → MCP Server),
+    // then flip this switch to connect.
+    "idea": true
   },
   // true = in opencode.jsonc's `plugin` array; false = dropped
   "plugin": {

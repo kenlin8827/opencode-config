@@ -43,6 +43,7 @@ To eliminate these bottlenecks, this configuration integrates a **tiered Code In
 | **CodeGraph** | Code Knowledge Graph (Default) | MIT | `codegraph_explore` | High-level architecture, "How X works", complete call paths, blast radius / impact analysis | Run `codegraph init` (or `/project init`) once per repo; background watcher **auto-syncs on every save** |
 | **GitNexus** | Deep Graph Analysis (Optional) | PolyForm Noncommercial | Cypher queries, clustering | Multi-repo groups, arbitrary Cypher graph queries, cluster/process visualization | Re-index with `gitnexus analyze` (or `/project index`) after big changes |
 | **DBHub** | Universal DB Gateway | MIT (Bytebase) | `search_objects`, `execute_sql` | Unified gateway for PostgreSQL / MySQL / SQLite / SQL Server / MariaDB | Per-project `dbhub.toml` config supporting `${ENV_VAR}` interpolation |
+| **IDE** | JetBrains IDE Bridge | — | IDE-native tools | Live access to the running IntelliJ / WebStorm / etc. — file editing, navigation, refactoring, run configs | IDE must be running with MCP server enabled (Settings → Tools → MCP Server); endpoint dies when IDE closes |
 
 ---
 
@@ -61,7 +62,8 @@ Manage active MCP servers in `install/options.jsonc`:
     "serena": true,     // LSP semantic queries (auto-installed via uv if missing)
     "codegraph": true,  // Code knowledge graph (auto-installed via npm if missing)
     "gitnexus": false,  // Deep Cypher graph (check PolyForm license for commercial use)
-    "dbhub": true       // Universal DB gateway (auto-installed via npm if missing)
+    "dbhub": true,      // Universal DB gateway (auto-installed via npm if missing)
+    "idea": true        // JetBrains IDE bridge (enable MCP Server in IDE first)
   }
 }
 ```
