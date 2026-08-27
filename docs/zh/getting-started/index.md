@@ -10,12 +10,12 @@
 
 ### macOS / Linux / WSL
 ```bash
-curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh
+rm -f /tmp/ocp.tar.gz && rm -rf /tmp/opencode-prime-* && curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh; rm -f /tmp/ocp.tar.gz; rm -rf /tmp/opencode-prime-*
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName
+$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 > 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 **API 密钥、自定义模型和模型梯队选择均会完整保留**，不会丢失。

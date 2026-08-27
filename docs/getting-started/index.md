@@ -10,12 +10,12 @@ Install directly to `~/.config/opencode` with a single command (no Git clone req
 
 ### macOS / Linux / WSL
 ```bash
-curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh
+rm -f /tmp/ocp.tar.gz && rm -rf /tmp/opencode-prime-* && curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh; rm -f /tmp/ocp.tar.gz; rm -rf /tmp/opencode-prime-*
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName
+$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 > 💡 **Zero-Risk Upgrades**: Re-running the command above smoothly upgrades to the latest release while **preserving** all your API keys, custom models, and tier assignments.
