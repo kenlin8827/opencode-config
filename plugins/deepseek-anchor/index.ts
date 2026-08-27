@@ -49,7 +49,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { HttpServerResponse } from "effect/unstable/http"
 import { isEnabled, COMMAND_NAME } from "./deepseek-anchor-config"
 import { makeCommandHook } from "./deepseek-anchor-command"
-import { makeAnnounceHook } from "./deepseek-anchor-announce"
+import { announceToUI, enabledMessage } from "./deepseek-anchor-announce"
 
 // -- System prompt helpers (same pattern as auto-advisor) ----------------
 
@@ -88,6 +88,11 @@ function appendAnchor(system: string[]): boolean {
 // the provider's prompt-cache stays warm).
 const injectedSessions = new Set<string>()
 
+// Sessions where the announce has already been shown (one announce per session,
+// triggered when a target model is first detected rather than on session.created
+// to avoid announcing for non-DeepSeek models).
+const announcedSessions = new Set<string>()
+
 // Sessions currently in the anchored generation: tool.execute.before blocks
 // tool calls until the next system.transform runs (i.e. the next generation
 // step), at which point the block is lifted.
@@ -106,7 +111,6 @@ const handled = (): never => {
 }
 
 export const DeepSeekAnchorPlugin: Plugin = async ({ client }) => {
-  const announceHook = makeAnnounceHook(client)
   return {
     config: async (cfg) => {
       cfg.command ??= {}
@@ -117,8 +121,6 @@ export const DeepSeekAnchorPlugin: Plugin = async ({ client }) => {
     },
     "command.execute.before": makeCommandHook(client, handled),
     event: async (input: { event: any }) => {
-      await announceHook(input as any)
-
       // The system.transform input carries no parent info, so learn which
       // sessions are subagents from session.created events.
       const event = input.event as any
@@ -131,6 +133,7 @@ export const DeepSeekAnchorPlugin: Plugin = async ({ client }) => {
         injectedSessions.delete(info.id)
         anchoredSessions.delete(info.id)
         subagentSessions.delete(info.id)
+        announcedSessions.delete(info.id)
       }
     },
     "experimental.chat.system.transform": async (
@@ -187,6 +190,15 @@ export const DeepSeekAnchorPlugin: Plugin = async ({ client }) => {
       appendAnchor(output.system)
       injectedSessions.add(sessionID)
       anchoredSessions.add(sessionID)
+
+      // Announce the active anchor mode to the user — only once per session,
+      // only when the target model is first detected (not on session.created
+      // where the model is unknown).
+      if (!announcedSessions.has(sessionID)) {
+        announcedSessions.add(sessionID)
+        // Fire-and-forget: announce failure must never break the anchor injection.
+        announceToUI(client, enabledMessage(), sessionID).catch(() => {})
+      }
     },
 
     "tool.execute.before": async (input: unknown) => {

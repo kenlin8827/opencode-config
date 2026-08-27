@@ -461,24 +461,37 @@ A profile is a named preset that maps all model tiers to a specific provider's m
 
 #### Using profiles
 
-Apply a profile with the `/profile` slash command inside an opencode session (see [Workflow Slash Commands](#workflow-slash-commands)) — no arguments, opens the native picker dialog:
+The `/profile` slash command is a single entry point for two orthogonal operations — no arguments, opens the native picker dialog:
 
 ```
 /profile
-  → dialog: "( Show current tier mapping )" + one entry per profile
-  → pick a profile: opens the tier review dialog — tweak models per tier:
-    pick provider then pick model (lists come from opencode's service
-    catalog: built-in providers like anthropic/openai + configured custom
-    providers; typing '<provider>/<model_id>' manually is also supported as
-    a fallback), then "( Apply profile )":
-    prefers server-side global config API for hot application (invalidates
-    cached config, recreates instances, no restart needed); if unavailable
-    (older opencode versions), falls back to direct opencode.jsonc +
-    .active-profile writes which require a restart
-  → Esc cancels
+  ┌─ Level 1: Main menu
+  │
+  ├─ "( Edit agent→tier mapping )"  ── reassign which tier (flash/standard/pro/max/vision) each agent uses
+  ├─ "( Show current tier mapping )"  ── inspect active profile + per-tier model refs
+  └─ <profile list>  ─────────────────── pick a profile to apply
+       │
+       ▼
+  ┌─ Level 2 (pick profile): Tier review — override models per tier
+  │
+  │  Pick a tier → pick provider → pick model (from opencode's service
+  │  catalog: built-in + configured providers; manual '<provider>/<model_id>'
+  │  entry as fallback), then "( Apply profile )":
+  │    prefers server-side global config API for hot application (no restart);
+  │    falls back to direct opencode.jsonc write (backup .bak) on older builds
+  │
+  ┌─ Level 2 (pick Edit): Agent→tier editor — reassign agent tiers
+  │
+  │  Lists all agents with current tier + model. Pick an agent → pick a new
+  │  tier (flash/standard/pro/max/vision). "( Apply changes )" writes
+  │  tiers.json atomically + live-applies agent models to the new tier's ref
+  │
+  → Esc cancels at any level
 ```
 
 All agents in covered tiers are rewritten to the profile's `provider/model_id` reference; the root `model` follows the `standard` tier. Tiers not listed in the profile remain unchanged. Everything is validated before write; hot-apply path is patched server-side preserving JSONC comments, while fallback path creates a backup `opencode.jsonc.bak` before rewriting and requires a restart. Note: hot-apply recreates the server instance, which can interrupt an ongoing reply stream (session history is preserved).
+
+> **Tip:** The two sub-menus are complementary. Use the **agent→tier editor** to decide *which tier* an agent belongs to (writes `tiers.json`), then pick a **profile** to decide *which model* each tier uses (writes `opencode.jsonc`). See [Configuration & Profiles](docs/core/profiles.md) for the full operation guide.
 
 ### Model Routing & Tier Architecture
 

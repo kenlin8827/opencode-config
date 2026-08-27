@@ -70,22 +70,149 @@ A profile is a named preset that maps all model tiers to a specific provider's m
 
 ### Using profiles
 
-Apply a profile with the `/profile` slash command inside an opencode session — no arguments, opens the native picker dialog:
+The `/profile` slash command opens a wizard with three entry points:
+
+1. **Edit: Agent→Tier** — reassign which tier (flash/standard/pro/max/vision) an agent belongs to (writes `tiers.json`)
+2. **Manage: Profile→Models** — edit a profile's tier→model mapping, or add/delete profile files
+3. **Select: Profile** — pick a profile and apply immediately (writes `opencode.jsonc`)
+
+No arguments — opens the native picker dialog:
 
 ```
 /profile
-  → dialog: "( Show current tier mapping )" + one entry per profile
-  → pick a profile: opens the tier review dialog — tweak models per tier:
-    pick provider then pick model (lists come from opencode's service
-    catalog: built-in providers like anthropic/openai + configured custom
-    providers; typing '<provider>/<model_id>' manually is also supported as
-    a fallback), then "( Apply profile )":
-    prefers server-side global config API for hot application (invalidates
-    cached config, recreates instances, no restart needed); if unavailable
-    (older opencode versions), falls back to direct opencode.jsonc +
-    .active-profile writes which require a restart
-  → Esc cancels
+  ┌─ Level 1: Main menu
+  │
+  ├─ "Edit: Agent→Tier"  ─────────────── see § Edit: Agent→Tier below
+  ├─ "Manage: Profile→Models"  ────────── see § Manage: Profile→Models below
+  └─ "Select: Profile"  ────────────────── see § Select: Profile below
+  │
+  → Esc at the main menu closes the wizard
 ```
+
+#### Edit: Agent→Tier
+
+Reassign which tier an agent belongs to — without touching the tier→model side:
+
+```
+/profile → "Edit: Agent→Tier"
+  ┌─ Level 2: Agent list
+  │
+  │  Lists all agents with their current tier and model:
+  │    advisor    (max)   — model: anthropic/claude-opus
+  │    code       (pro)   — model: anthropic/claude-sonnet
+  │    explorer   (flash) — model: anthropic/claude-haiku
+  │    ...
+  │
+  │  Changed agents show the pending transition:
+  │    coworker   (pro → max)  ← pending
+  │
+  │  ├─ "( Apply changes )"  → write tiers.json + live-apply models
+  │  ├─ Pick any agent  ────→ Level 3: tier picker
+  │  └─ "( Back )"  ─────────→ return to main menu
+  │
+  └─ Level 3: Tier picker (per agent)
+     │
+     ├─ flash     "Fast / lightweight — exploration, high-throughput"
+     ├─ standard  "General workhorse — orchestrator (root model)"
+     ├─ pro        "Professional — strongest coding models"
+     ├─ max        "Flagship reasoning — deep analysis, review, design"
+     ├─ vision     "Multimodal — image/screenshot analysis"
+     └─ "( Back )"  ──→ return to agent list (keep pending changes)
+```
+
+**What happens on Apply:**
+
+1. `tiers.json` is rewritten atomically (backup `.bak` → write tmp → rename); the `$comment` field is preserved.
+2. For each changed agent, its `model` in `opencode.jsonc` is updated to the new tier's current ref — sourced from the active profile's `tiers[newTier]`, or from the first agent already using that tier.
+3. Live-apply is attempted first via the server's global config API (no restart). On older builds, falls back to direct `opencode.jsonc` write (backup `.bak`, restart needed).
+
+**Example workflow:**
+
+```
+> /profile
+  → pick "Edit: Agent→Tier"
+  → pick "code" (currently pro)
+  → pick "pro"
+  → toast: "code: pro → pro (no change)"
+  → pick "coworker" (currently pro)
+  → pick "max"
+  → toast: "coworker: pro → max (pending)"
+  → "( Apply changes )"
+  → toast: "1 tier change applied — coworker → max (anthropic/claude-opus). Live, no restart needed."
+```
+
+#### Manage: Profile→Models
+
+Edit a profile's tier→model mapping, or add/delete profiles:
+
+```
+/profile → "Manage: Profile→Models"
+  ┌─ Level 2: Profile list
+  │
+  │  ├─ opencode-go-glm  ← active  — desc...
+  │  ├─ opencode-go-kimi          — desc...
+  │  ├─ ...
+  │  ├─ "( Add profile )"  ────→ prompt for name, creates blank JSON
+  │  ├─ "( Delete profile )"  ──→ pick a profile to remove (.bak kept)
+  │  └─ "( Back )"  ─────────→ return to main menu
+  │
+  └─ Level 3: Tier review (per profile)
+     │
+     │  Lists the picked profile's tiers with their provider/model refs:
+     │    flash     glm-4-flash
+     │    standard  glm-4-plus
+     │    pro       glm-4-plus
+     │    max       glm-4-long
+     │    vision    glm-4v
+     │
+     │  ├─ "( Apply changes )"  → write profile JSON + apply to opencode.jsonc
+     │  ├─ Pick any tier  ─────→ Level 4: provider picker
+     │  ├─ "( Back )"  ───────→ return to profile list (keep overrides)
+     │  └─ "( Cancel )"  ─────→ discard overrides, return to profile list
+     │
+     └─ Level 4: Provider picker
+        │
+        ├─ anthropic  — 5 model(s) · built-in · connected
+        ├─ openai     — 3 model(s) · built-in
+        ├─ ...
+        ├─ "( Type a custom ref )"  ──→ manual '<provider>/<model_id>' entry
+        └─ "( Back )"  ───────────→ return to tier review
+        │
+        └─ Level 5: Model picker (per provider)
+           │
+           ├─ claude-sonnet  — Claude 3.7 Sonnet
+           ├─ claude-opus    — Claude 3.7 Opus
+           ├─ ...
+           └─ "( Back )"  ──→ return to provider list
+```
+
+**What happens on Apply:**
+
+1. The profile JSON file (`~/.config/opencode/profiles/<name>.json`) is rewritten atomically (backup `.bak` → write tmp → rename) with the overridden tier→model refs.
+2. The updated profile is applied to `opencode.jsonc` — every agent's `model` is rewritten to match its tier's new ref.
+3. `.active-profile` is updated. Live-apply is attempted first via the server's global config API (no restart).
+
+#### Select: Profile
+
+Pick a profile and apply it immediately — no intermediate review:
+
+```
+/profile → "Select: Profile"
+  ┌─ Level 2: Profile list
+  │
+  │  ├─ opencode-go-glm  ← active  — desc...
+  │  ├─ opencode-go-kimi          — desc...
+  │  ├─ ...
+  │  └─ "( Back )"  ─────────→ return to main menu
+  │
+  └─ Picking a profile → applies immediately (same as the old behavior)
+```
+
+> **Tip:** The three branches are complementary. Use **Edit: Agent→Tier** to decide *which tier* an agent belongs to (writes `tiers.json`), use **Manage: Profile→Models** to decide *which model* each tier uses within a specific profile (writes profile JSON + `opencode.jsonc`), and use **Select: Profile** for quick switching. The agent→tier mapping survives reinstalls (preserved in the `PreserveBag`).
+
+> **Esc behavior:** At every dialog level, pressing Esc returns to the previous level (not closes the entire wizard). Only Esc at the main menu (Level 1) closes the wizard.
+
+> **i18n:** All TUI wizard plugins (`/profile`, `/provider`, `/project`, `/queued`) support internationalization. The language is auto-detected from system locale/environment variables on first use, then stored in `api.kv`. Each wizard's main menu includes a `🌐 English → 中文` (or reverse) option to switch languages on the fly — the menu re-renders in the new language immediately. Translations are centralized in `plugins/i18n.ts`.
 
 ---
 

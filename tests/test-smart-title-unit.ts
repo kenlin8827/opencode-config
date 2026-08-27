@@ -112,6 +112,11 @@ const ocConfig = {
   provider: {
     "llm-router": {
       options: { baseURL: "https://router.example.cn/v1", apiKey: "sk-test" },
+      models: {
+        flash: { id: "flash" },
+        standard: { id: "standard" },
+        pro: { id: "pro" },
+      },
     },
     anthropic: {},
   },
@@ -169,6 +174,44 @@ const withSession = resolveTargets(ocConfig, "", "explorer", "llm-router/pro")
 assertEq(withSession.map((t) => t.model).join(","), "flash,pro,standard", "session model slotted after flash tier")
 const dupSession = resolveTargets(ocConfig, "", "explorer", "llm-router/flash")
 assertEq(dupSession.map((t) => t.model).join(","), "flash,standard", "session model equal to flash tier deduped")
+
+// Model "id" field remapping: when a provider defines models with a
+// namespaced id (e.g. codex-router maps "gpt-5.6-luna" → "cx/gpt-5.6-luna"),
+// that id must be sent to the router instead of the dictionary key.
+// Without this, the router cannot dispatch and returns model_not_found.
+const codexConfig = {
+  model: "llm-router/standard",
+  agent: {
+    explorer: { model: "codex-router/gpt-5.6-luna" },
+  },
+  provider: {
+    "codex-router": {
+      options: { baseURL: "https://router.example.cn/v1", apiKey: "sk-cx" },
+      models: {
+        "gpt-5.6-luna": { id: "cx/gpt-5.6-luna" },
+        "gpt-5.6-terra": { id: "cx/gpt-5.6-terra" },
+      },
+    },
+    "llm-router": ocConfig.provider["llm-router"],
+  },
+}
+const cxTargets = resolveTargets(codexConfig, "")
+assertEq(cxTargets[0]?.model, "cx/gpt-5.6-luna", "codex-router model id remapped to cx/gpt-5.6-luna")
+assertEq(cxTargets[1]?.model, "standard", "llm-router global model keeps plain id")
+
+// Provider without model id field: fall back to the dictionary key.
+const noIdConfig = {
+  model: "llm-router/standard",
+  agent: { explorer: { model: "llm-router/flash" } },
+  provider: {
+    "llm-router": {
+      options: { baseURL: "https://router.example.cn/v1", apiKey: "sk-test" },
+      models: { flash: { name: "Flash" } },  // no "id" field
+    },
+  },
+}
+const noIdTargets = resolveTargets(noIdConfig, "")
+assertEq(noIdTargets[0]?.model, "flash", "missing model id field → fall back to dictionary key")
 
 // ── 3: endpoint normalization ──────────────────────────────────────────
 console.log("\n== 3: resolveEndpoint ==")

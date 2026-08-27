@@ -50,6 +50,7 @@ import {
 } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
+import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, withBookends } from "./i18n"
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
@@ -57,6 +58,7 @@ const PROVIDERS_DIR = join(CONFIG_DIR, "providers")
 const PLUGIN_ID = "opencode-config.provider"
 const MANAGE_MODELS = "__manage_models__"
 const ADD_MODEL = "__add_model__"
+const BACK = "__back__"
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -187,7 +189,7 @@ function toast(
   message: string,
   variant: "info" | "success" | "warning" | "error" = "info",
 ) {
-  api.ui.toast({ title: "Provider wizard", message, variant })
+  api.ui.toast({ title: tr("provider.toastTitle"), message, variant })
 }
 
 function promptBaseURL(
@@ -202,8 +204,8 @@ function promptBaseURL(
 
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: `${id} — baseURL`,
-      placeholder: `https://api.example.com/v1 or {env:VAR} (${currentHint}; empty keeps)`,
+      title: tr("provider.baseURLTitle", { id }),
+      placeholder: tr("provider.baseURLPlaceholder", { hint: currentHint }),
       value: current !== undefined && !isEnvToken(current) ? String(current) : "",
       onConfirm: (value) => {
         const v = value.trim()
@@ -215,7 +217,7 @@ function promptBaseURL(
       },
       onCancel: () => {
         api.ui.dialog.clear()
-        toast(api, `Cancelled — ${added ? `'${id}' was activated but ` : ""}no credentials changed.`, "warning")
+        toast(api, added ? tr("provider.cancelledAdded", { id }) : tr("provider.cancelled"), "warning")
       },
     }),
   )
@@ -237,9 +239,9 @@ function promptApiKey(
 
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: `${id} — apiKey`,
+      title: tr("provider.apiKeyTitle", { id }),
       // Never pre-fill a literal secret; env tokens are safe to show.
-      placeholder: `sk-... or {env:VAR} (${currentHint}; empty keeps)`,
+      placeholder: tr("provider.apiKeyPlaceholder", { hint: currentHint }),
       value: "",
       onConfirm: (value) => {
         const v = value.trim()
@@ -252,17 +254,17 @@ function promptApiKey(
           api.ui.dialog.clear()
           toast(
             api,
-            `${added ? `'${id}' activated + ` : ""}credentials saved — restart opencode to take effect.`,
+            added ? tr("provider.configSavedAdded", { id }) : tr("provider.configSaved", { id }),
             "success",
           )
         } catch (err) {
           api.ui.dialog.clear()
-          toast(api, `Failed to write config: ${(err as Error).message}`, "error")
+          toast(api, tr("provider.writeFailed", { err: (err as Error).message }), "error")
         }
       },
       onCancel: () => {
         api.ui.dialog.clear()
-        toast(api, `Cancelled — ${added ? `'${id}' was activated but ` : ""}no credentials changed.`, "warning")
+        toast(api, added ? tr("provider.cancelledAdded", { id }) : tr("provider.cancelled"), "warning")
       },
     }),
   )
@@ -273,7 +275,7 @@ function startWizard(api: TuiPluginApi): void {
   try {
     config = readConfig(CONFIG_FILE)
   } catch (err) {
-    toast(api, `Cannot read ${CONFIG_FILE}: ${(err as Error).message}`, "error")
+    toast(api, tr("provider.cannotReadConfig", { path: CONFIG_FILE, err: (err as Error).message }), "error")
     return
   }
 
@@ -285,7 +287,7 @@ function startWizard(api: TuiPluginApi): void {
   if (ids.length === 0) {
     toast(
       api,
-      `No providers configured and no definitions in ${PROVIDERS_DIR}.`,
+      tr("provider.noProvidersAvailable", { dir: PROVIDERS_DIR }),
       "warning",
     )
     return
@@ -293,13 +295,13 @@ function startWizard(api: TuiPluginApi): void {
 
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
-      title: "Provider setup — select provider",
-      placeholder: "Pick a provider to configure credentials for",
+      title: tr("provider.setupTitle"),
+      placeholder: tr("provider.setupPlaceholder"),
       options: [
         {
-          title: "( Manage provider models )",
+          title: tr("provider.manageModels"),
           value: MANAGE_MODELS,
-          description: "Add or remove models on an active provider",
+          description: tr("provider.manageModelsDesc"),
         },
         ...ids.map((id) => {
           const active = config.provider?.[id]
@@ -307,12 +309,19 @@ function startWizard(api: TuiPluginApi): void {
             title: id,
             value: id,
             description: active
-              ? "active in opencode.jsonc"
-              : `available (${defs.get(id)?.source}) — will be activated`,
+              ? tr("provider.activeInConfig")
+              : tr("provider.availableFromDef", { source: defs.get(id)?.source ?? "" }),
           }
         }),
+        languageOption(api),
       ],
       onSelect: (option) => {
+        if (option.value === SWITCH_LANG) {
+          const next = toggleLocale(api)
+          toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
+          startWizard(api)
+          return
+        }
         if (option.value === MANAGE_MODELS) {
           manageModelsPicker(api)
           return
@@ -325,7 +334,7 @@ function startWizard(api: TuiPluginApi): void {
           const entry = defs.get(id)
           if (!entry) {
             api.ui.dialog.clear()
-            toast(api, `No definition for '${id}'.`, "error")
+            toast(api, tr("provider.noDefinition", { id }), "error")
             return
           }
           config.provider ??= {}
@@ -346,7 +355,7 @@ function manageModelsPicker(api: TuiPluginApi): void {
   try {
     config = readConfig(CONFIG_FILE)
   } catch (err) {
-    toast(api, `Cannot read ${CONFIG_FILE}: ${(err as Error).message}`, "error")
+    toast(api, tr("provider.cannotReadConfig", { path: CONFIG_FILE, err: (err as Error).message }), "error")
     return
   }
 
@@ -355,21 +364,41 @@ function manageModelsPicker(api: TuiPluginApi): void {
     .sort()
   if (ids.length === 0) {
     api.ui.dialog.clear()
-    toast(api, "No active provider has a models section.", "warning")
+    toast(api, tr("provider.noActiveModels"), "warning")
     return
   }
 
+  let navigated = false
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
-      title: "Manage models — select provider",
-      placeholder: "Pick a provider to add/remove models (Esc closes)",
-      options: ids.map((pid) => ({
-        title: pid,
-        value: pid,
-        description: `${Object.keys(config.provider![pid].models!).length} model(s)`,
-      })),
-      onSelect: (option) => modelList(api, option.value),
+      title: tr("provider.manageTitle"),
+      placeholder: tr("provider.managePlaceholder"),
+      options: withBookends(
+        ids.map((pid) => ({
+          title: pid,
+          value: pid,
+          description: tr("common.modelCount", { count: Object.keys(config.provider![pid].models!).length }),
+        })),
+        [
+          {
+            title: tr("common.back"),
+            value: BACK,
+            description: tr("provider.backToMain"),
+          },
+        ],
+      ),
+      onSelect: (option) => {
+        navigated = true
+        if (option.value === BACK) {
+          startWizard(api)
+          return
+        }
+        modelList(api, option.value)
+      },
     }),
+    () => {
+      if (!navigated) setTimeout(() => startWizard(api), 0)
+    },
   )
 }
 
@@ -379,41 +408,57 @@ function modelList(api: TuiPluginApi, id: string): void {
     config = readConfig(CONFIG_FILE)
   } catch (err) {
     api.ui.dialog.clear()
-    toast(api, `Cannot read config: ${(err as Error).message}`, "error")
+    toast(api, tr("provider.cannotReadConfig", { path: "config", err: (err as Error).message }), "error")
     return
   }
   const def = config.provider?.[id]
   const models = def?.models
   if (!models) {
     api.ui.dialog.clear()
-    toast(api, `Provider '${id}' has no models section.`, "error")
+    toast(api, tr("provider.noModelsSection", { id }), "error")
     return
   }
 
+  let navigated = false
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
-      title: `${id} — models`,
-      placeholder: "Pick a model to remove, or add a new one (Esc closes)",
-      options: [
-        {
-          title: "( Add model… )",
-          value: ADD_MODEL,
-          description: "Enter key, upstream id and display name",
-        },
-        ...Object.entries(models).map(([key, m]) => ({
+      title: tr("provider.modelsTitle", { id }),
+      placeholder: tr("provider.modelsPlaceholder"),
+      options: withBookends(
+        Object.entries(models).map(([key, m]) => ({
           title: key,
           value: key,
           description: m.name ? `${m.name} — upstream id: ${m.id ?? key}` : `upstream id: ${m.id ?? key}`,
         })),
-      ],
+        [
+          {
+            title: tr("provider.addModel"),
+            value: ADD_MODEL,
+            description: tr("provider.addModelDesc"),
+          },
+          {
+            title: tr("common.back"),
+            value: BACK,
+            description: tr("provider.backToMain"),
+          },
+        ],
+      ),
       onSelect: (option) => {
+        navigated = true
         if (option.value === ADD_MODEL) {
           promptModelKey(api, id)
+          return
+        }
+        if (option.value === BACK) {
+          manageModelsPicker(api)
           return
         }
         confirmRemoveModel(api, config, id, option.value)
       },
     }),
+    () => {
+      if (!navigated) setTimeout(() => manageModelsPicker(api), 0)
+    },
   )
 }
 
@@ -425,19 +470,19 @@ function confirmRemoveModel(
 ): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogConfirm({
-      title: `${id} — remove model`,
-      message: `Remove model '${key}' from '${id}'? Profiles referencing '${id}/${key}' will break.`,
+      title: tr("provider.removeModelTitle", { id }),
+      message: tr("provider.removeModelConfirm", { id, key }),
       onConfirm: () => {
         delete config.provider![id].models![key]
         try {
           writeConfigAtomic(CONFIG_FILE, config)
-          toast(api, `Removed '${id}/${key}' — restart opencode to take effect.`, "success")
+          toast(api, tr("provider.modelRemoved", { id, key }), "success")
         } catch (err) {
-          toast(api, `Failed to write config: ${(err as Error).message}`, "error")
+          toast(api, tr("provider.writeFailed", { err: (err as Error).message }), "error")
         }
         modelList(api, id)
       },
-      onCancel: () => modelList(api, id),
+      onCancel: () => setTimeout(() => modelList(api, id), 0),
     }),
   )
 }
@@ -445,8 +490,8 @@ function confirmRemoveModel(
 function promptModelKey(api: TuiPluginApi, id: string): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: `${id} — new model key`,
-      placeholder: "Key used in refs '<provider>/<key>', e.g. gpt-5.6-low or vendor/gpt-5.6",
+      title: tr("provider.modelKeyTitle", { id }),
+      placeholder: tr("provider.modelKeyPlaceholder"),
       value: "",
       onConfirm: (value) => {
         const key = value.trim()
@@ -460,7 +505,7 @@ function promptModelKey(api: TuiPluginApi, id: string): void {
           key.endsWith("/") ||
           key.includes("//")
         ) {
-          toast(api, "Invalid key — no spaces; '/' allowed inside, not at edges or doubled.", "error")
+          toast(api, tr("provider.invalidKey"), "error")
           promptModelKey(api, id)
           return
         }
@@ -469,17 +514,17 @@ function promptModelKey(api: TuiPluginApi, id: string): void {
           config = readConfig(CONFIG_FILE)
         } catch (err) {
           api.ui.dialog.clear()
-          toast(api, `Cannot read config: ${(err as Error).message}`, "error")
+          toast(api, tr("provider.cannotReadConfig", { path: "config", err: (err as Error).message }), "error")
           return
         }
         if (config.provider?.[id]?.models?.[key]) {
-          toast(api, `Model '${key}' already exists on '${id}'.`, "error")
+          toast(api, tr("provider.modelExists", { id, key }), "error")
           promptModelKey(api, id)
           return
         }
         promptModelId(api, id, key)
       },
-      onCancel: () => modelList(api, id),
+      onCancel: () => setTimeout(() => modelList(api, id), 0),
     }),
   )
 }
@@ -487,14 +532,14 @@ function promptModelKey(api: TuiPluginApi, id: string): void {
 function promptModelId(api: TuiPluginApi, id: string, key: string): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: `${id}/${key} — upstream model id`,
-      placeholder: "Id sent to the API (empty keeps the key)",
+      title: tr("provider.modelIdTitle", { id, key }),
+      placeholder: tr("provider.modelIdPlaceholder"),
       value: key,
       onConfirm: (value) => {
         const modelId = value.trim() || key
         promptModelName(api, id, key, modelId)
       },
-      onCancel: () => modelList(api, id),
+      onCancel: () => setTimeout(() => modelList(api, id), 0),
     }),
   )
 }
@@ -507,8 +552,8 @@ function promptModelName(
 ): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: `${id}/${key} — display name`,
-      placeholder: "Shown in pickers (empty keeps the key)",
+      title: tr("provider.modelNameTitle", { id, key }),
+      placeholder: tr("provider.modelNamePlaceholder"),
       value: key,
       onConfirm: (value) => {
         const name = value.trim() || key
@@ -521,15 +566,15 @@ function promptModelName(
           writeConfigAtomic(CONFIG_FILE, config)
           toast(
             api,
-            `Added '${id}/${key}' — restart opencode to take effect.`,
+            tr("provider.modelAdded", { id, key }),
             "success",
           )
         } catch (err) {
-          toast(api, `Failed to add model: ${(err as Error).message}`, "error")
+          toast(api, tr("provider.addModelFailed", { err: (err as Error).message }), "error")
         }
         modelList(api, id)
       },
-      onCancel: () => modelList(api, id),
+      onCancel: () => setTimeout(() => modelList(api, id), 0),
     }),
   )
 }
@@ -537,12 +582,13 @@ function promptModelName(
 // ─── Plugin entry ────────────────────────────────────────────────────
 
 const tui: TuiPlugin = async (api) => {
+  initI18n(api)
   api.keymap.registerLayer({
     commands: [
       {
         name: "provider.wizard",
-        title: "Provider setup wizard",
-        desc: "Guided provider configuration (credentials + model list) via dialogs",
+        title: tr("provider.wizardTitle"),
+        desc: tr("provider.cmdDesc"),
         category: "Provider",
         namespace: "palette",
         slashName: "provider",

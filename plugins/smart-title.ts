@@ -55,6 +55,48 @@ const CONTEXT_MAX_CHARS = 4000
 const REQUEST_TIMEOUT_MS = 30_000
 const LOG_PREFIX = "[smart-title]"
 
+// -- Global safety net --------------------------------------------------------
+// Last-resort: if a promise rejection somehow slips past every try/catch
+// and .catch() above, this prevents it from crashing the opencode server
+// process. It only logs — never re-throws, never shows a UI error.
+//
+// We do NOT register an uncaughtException handler: doing so changes Node's
+// default process-crash behavior for the ENTIRE process (not just this
+// plugin), which is unacceptable for a plugin running inside opencode.
+// Synchronous exceptions from this plugin's callbacks are already wrapped
+// in try/catch at every entry point (event handler, handleIdle).
+//
+// The unhandledRejection handler is conservative: it only suppresses
+// rejections whose string form contains our [smart-title] prefix. This
+// catches errors thrown from this plugin (which all carry the prefix via
+// SmartTitleError or the LOG_PREFIX-wrapped catch logs) without affecting
+// rejections from other plugins or opencode itself.
+//
+// We guard against double-registration so hot-reload doesn't stack handlers.
+const g = globalThis as Record<string, unknown>
+
+/** Tagged Error subclass — all throws from this plugin use it so the
+ *  global unhandledRejection handler can reliably identify them. */
+class SmartTitleError extends Error {
+  constructor(message: string) {
+    super(`${LOG_PREFIX} ${message}`)
+    this.name = "SmartTitleError"
+  }
+}
+
+if (!g.__smartTitleRejectionGuard) {
+  g.__smartTitleRejectionGuard = true
+  process.on("unhandledRejection", (reason) => {
+    const msg = (reason as Error)?.message ?? String(reason ?? "")
+    if (reason instanceof SmartTitleError || msg.includes(LOG_PREFIX)) {
+      console.warn(`${LOG_PREFIX} suppressed unhandledRejection: ${msg.slice(0, 500)}`)
+      // Do NOT re-throw — swallow it. opencode stays alive, UI stays quiet.
+      return
+    }
+    // Rejections not from this plugin are left to other handlers / default.
+  })
+}
+
 // -- Plugin config (smart-title.jsonc) ------------------------------------------
 
 export interface SmartTitleConfig {
@@ -154,7 +196,15 @@ export function parseConfig(raw: string | null): SmartTitleConfig {
 let cachedConfig: SmartTitleConfig | null = null
 export function getConfig(): SmartTitleConfig {
   if (cachedConfig) return cachedConfig
-  const raw = existsSync(CONFIG_FILE) ? readFileSync(CONFIG_FILE, "utf-8") : null
+  let raw: string | null = null
+  try {
+    raw = existsSync(CONFIG_FILE) ? readFileSync(CONFIG_FILE, "utf-8") : null
+  } catch (err) {
+    // File read errors (permissions, locks, EBUSY on Windows) must never
+    // crash the plugin — fall back to defaults and log.
+    console.warn(`${LOG_PREFIX} config read failed (${CONFIG_FILE}): ${(err as Error)?.message ?? err}; using defaults`)
+    raw = null
+  }
   cachedConfig = parseConfig(raw)
   return cachedConfig
 }
@@ -172,11 +222,14 @@ export interface Target {
  *
  * Priority: `overrideModel` (smart-title.jsonc) → flash-tier agent model
  * (agent.explorer.model) → `sessionModel` (the model this session actually
- * runs on) → global default model. Each "providerID/modelID" reference is
+ * runs on) → global default model. Each "providerID/modelKey" reference is
  * kept only if its provider exposes an OpenAI-compatible baseURL (our
- * llm-router does; built-in/subscription providers do not). The caller
- * tries them in order; the deterministic last resort (first user question
- * as title) lives outside this function.
+ * llm-router does; built-in/subscription providers do not). The model "id"
+ * field from the provider config (e.g. "cx/gpt-5.6-luna") is sent to the
+ * router instead of the dictionary key (e.g. "gpt-5.6-luna"); without this
+ * remapping the router cannot dispatch the request to the right backend.
+ * The caller tries candidates in order; the deterministic last resort
+ * (first user question as title) lives outside this function.
  */
 export function resolveTargets(
   config: any,
@@ -195,17 +248,25 @@ export function resolveTargets(
   for (const ref of refs) {
     if (typeof ref !== "string" || !ref.includes("/")) continue
     const [providerID, ...rest] = ref.split("/")
-    const modelID = rest.join("/")
-    if (!providerID || !modelID) continue
-    const key = `${providerID}/${modelID}`
+    const modelKey = rest.join("/")
+    if (!providerID || !modelKey) continue
+    const key = `${providerID}/${modelKey}`
     if (seen.has(key)) continue
     seen.add(key)
-    const options = config?.provider?.[providerID]?.options
+    const provider = config?.provider?.[providerID]
+    const options = provider?.options
     const baseUrl = typeof options?.baseURL === "string" ? options.baseURL : ""
     const apiKey = typeof options?.apiKey === "string" ? options.apiKey : ""
     // {env:...} placeholders are interpolated by opencode before the config
     // is served; a literal placeholder here means the variable is unset.
     if (!baseUrl || !apiKey || baseUrl.includes("{env:") || apiKey.includes("{env:")) continue
+    // The model "id" field in the provider config is what the router backend
+    // actually expects (e.g. "cx/gpt-5.6-luna" for codex-router).  If absent,
+    // fall back to the model key (the dictionary entry name, e.g. "flash").
+    const modelID =
+      typeof provider?.models?.[modelKey]?.id === "string" && provider.models[modelKey].id
+        ? provider.models[modelKey].id
+        : modelKey
     targets.push({ baseUrl, apiKey, model: modelID })
   }
   return targets
@@ -358,7 +419,13 @@ export function buildTurns(messages: any[]): Turn[] {
 function extractText(parts: any[]): string {
   if (!Array.isArray(parts)) return ""
   return parts
-    .filter((p) => p?.type === "text" && !p.synthetic && typeof p.text === "string")
+    .filter(
+      (p) =>
+        p?.type === "text" &&
+        !p.synthetic &&
+        !p.ignored &&
+        typeof p.text === "string",
+    )
     .map((p) => p.text)
     .join("\n")
     .trim()
@@ -505,28 +572,67 @@ export const SmartTitlePlugin: Plugin = async (input) => {
   // visible as "failed to load plugin" errors).
   console.info(`${LOG_PREFIX} registered (cwd: ${cwd || "unknown"})`)
 
+  // If the opencode runtime does not pass a client, the plugin cannot do
+  // anything useful — bail early instead of crashing on every idle event.
+  // The plugin still loads (so opencode doesn't show a load error), but
+  // every idle event becomes a no-op.
+  if (!client || typeof client.session?.messages !== "function") {
+    console.warn(`${LOG_PREFIX} no opencode client available — plugin disabled (idle events will be no-ops)`)
+    return {}
+  }
+
   // Subagent sessions (task-dispatched, carry parentID) never get titles.
   const subagentSessions = new Set<string>()
-  // Per-session idle counter (updateThreshold) and last-titled message count
-  // (skip regeneration when nothing new happened since the last title).
+  // Per-session idle counter (updateThreshold) — gates how many idle events
+  // pass before we attempt title generation.
   const idleCount = new Map<string, number>()
-  const lastTitledCount = new Map<string, number>()
+  // Sessions that already have a smart-title — we generate ONCE per session
+  // (mainstream behavior: VS Code Copilot, ChatGPT, Claude Code all do this).
+  // If LLM fails, the session is NOT marked, so the next idle retries.
+  // This replaces the old lastTitledCount approach which regenerated on
+  // every new message (overwriting a good title with a worse one on failure).
+  const titledSessions = new Set<string>()
   let warnedNoTarget = false
+  // Cached opencode config snapshot — provider/model definitions rarely
+  // change mid-session, so we fetch once and reuse.  Set to null on failure
+  // so the next idle event retries.
+  let cachedConfigSnapshot: any = null
 
   const handleIdle = async (sessionID: string) => {
-    const config = getConfig()
-    if (!config.enabled) return
-    if (subagentSessions.has(sessionID)) return
-
-    const count = (idleCount.get(sessionID) ?? 0) + 1
-    idleCount.set(sessionID, count)
-    if (count % config.updateThreshold !== 0) return
-
+    // The entire function is wrapped in try/catch so no exception — whether
+    // from getConfig, client calls, or the title pipeline — can escape as an
+    // unhandledRejection and crash the opencode server process.
     try {
+      let config: SmartTitleConfig
+      try {
+        config = getConfig()
+      } catch (err) {
+        // getConfig should never throw after its own try/catch, but if it
+        // does (e.g. parseConfig throws on truly bizarre input), we still
+        // must not crash — use hardcoded defaults.
+        console.warn(`${LOG_PREFIX} getConfig threw unexpectedly: ${(err as Error)?.message ?? err}; using hardcoded defaults`)
+        config = {
+          enabled: true,
+          model: "",
+          prompt: DEFAULT_PROMPT,
+          titleFormat: "{title}",
+          updateThreshold: 1,
+        }
+      }
+      if (!config.enabled) return
+      if (subagentSessions.has(sessionID)) return
+
+      const count = (idleCount.get(sessionID) ?? 0) + 1
+      idleCount.set(sessionID, count)
+      if (count % config.updateThreshold !== 0) return
+
+      // Already titled this session?  Generate once, then leave it alone —
+      // mainstream behavior (VS Code Copilot, ChatGPT, Claude Code).
+      if (titledSessions.has(sessionID)) return
+
       const res = await client.session.messages({ path: { id: sessionID } })
       const messages: any[] = (res as any)?.data ?? []
       if (messages.length === 0) return
-      if (lastTitledCount.get(sessionID) === messages.length) return
 
       const turns = buildTurns(messages)
       if (turns.length === 0) return
@@ -536,9 +642,13 @@ export const SmartTitlePlugin: Plugin = async (input) => {
       // own model comes from its latest assistant message.
       let targets: Target[] = []
       try {
-        const cfgRes: any = await client.config.get()
-        targets = resolveTargets(cfgRes?.data, config.model, FLASH_TIER_AGENT, sessionModelRef(messages))
+        if (!cachedConfigSnapshot) {
+          const cfgRes: any = await client.config.get()
+          cachedConfigSnapshot = cfgRes?.data
+        }
+        targets = resolveTargets(cachedConfigSnapshot, config.model, FLASH_TIER_AGENT, sessionModelRef(messages))
       } catch (err) {
+        cachedConfigSnapshot = null  // retry next idle
         console.warn(`${LOG_PREFIX} config.get failed: ${(err as Error)?.message ?? err}`)
       }
 
@@ -560,54 +670,95 @@ export const SmartTitlePlugin: Plugin = async (input) => {
 
       // Last resort: the first user question as the title — deterministic,
       // free, and guarantees a title even when every model call fails.
+      // Fallback does NOT mark the session as titled — the next idle event
+      // will retry the LLM and potentially upgrade to a high-quality title.
+      // Only an LLM success (title !== fallback source) marks the session.
+      let usedFallback = false
       if (!title) {
         title = userQuestionTitle(turns)
         if (title) {
-          console.warn(`${LOG_PREFIX} all ${targets.length} candidate(s) failed — using first user question as title`)
+          usedFallback = true
+          console.warn(`${LOG_PREFIX} all ${targets.length} candidate(s) failed — using first user question as title (will retry LLM next idle)`)
         } else {
-          // Nothing usable at all: step back, opencode built-in titling applies.
-          throw new Error(`all ${targets.length} candidate(s) failed and no user question available — built-in titling applies`)
+          // No usable user text at all (e.g. the only "user" messages were
+          // plugin announce injections that we filtered out).  opencode may
+          // have set the session title to one of those announce texts —
+          // overwrite it with a neutral placeholder so the user doesn't see
+          // "[adr-guard] ON — ..." as the session title in the sidebar.
+          let currentTitle = ""
+          try {
+            const sessRes: any = await client.session.get({ path: { id: sessionID } })
+            currentTitle = (sessRes as any)?.data?.title ?? ""
+          } catch {
+            // can't check — leave it alone
+          }
+          if (currentTitle) {
+            try {
+              await client.session.update({ path: { id: sessionID }, body: { title: "New Session" } })
+            } catch {
+              // best-effort — don't crash
+            }
+          }
+          console.warn(`${LOG_PREFIX} all ${targets.length} candidate(s) failed and no user question available — built-in titling applies`)
+          return
         }
       }
       const finalTitle = applyTitleFormat(config.titleFormat, title, cwd)
 
       await client.session.update({ path: { id: sessionID }, body: { title: finalTitle } })
-      lastTitledCount.set(sessionID, messages.length)
+      // Only mark as titled when the LLM produced the title — fallback
+      // titles are temporary and will be upgraded on a future idle event.
+      if (!usedFallback) titledSessions.add(sessionID)
     } catch (err) {
-      // Never silent: surface failures in the opencode server log.
+      // Never silent: surface failures in the opencode server log. This is
+      // the outermost catch — nothing should ever escape to become an
+      // unhandledRejection.
       console.warn(`${LOG_PREFIX} title update failed for ${sessionID}: ${(err as Error)?.message ?? err}`)
     }
   }
 
   return {
     event: async (input: { event: any }) => {
-      const event = input.event
-      const type = event?.type as string | undefined
-      const info = event?.properties?.info
+      try {
+        const event = input?.event
+        if (!event) return
+        const type = event?.type as string | undefined
+        const info = event?.properties?.info
 
-      if (type === "session.created" && info?.id && info?.parentID) {
-        subagentSessions.add(info.id)
-        return
+        if (type === "session.created" && info?.id && info?.parentID) {
+          subagentSessions.add(info.id)
+          return
+        }
+        if (type === "session.deleted" && info?.id) {
+          subagentSessions.delete(info.id)
+          idleCount.delete(info.id)
+          titledSessions.delete(info.id)
+          return
+        }
+
+        // session.status(idle) is what current opencode emits; session.idle is
+        // accepted too so a future event-shape change cannot silently disable
+        // the plugin again.
+        const statusIdle =
+          type === "session.status" && event?.properties?.status?.type === "idle"
+        const legacyIdle = type === "session.idle"
+        if (!statusIdle && !legacyIdle) return
+
+        const sessionID = event?.properties?.sessionID as string | undefined
+        if (!sessionID) return
+        // Fire-and-forget: never block the event loop on title generation.
+        // The .catch() is a belt-and-suspenders safety net: handleIdle has
+        // its own outermost try/catch, but if a bug ever lets an exception
+        // slip through, this prevents an unhandledRejection from crashing
+        // the opencode server process.
+        handleIdle(sessionID).catch((err) =>
+          console.warn(`${LOG_PREFIX} unexpected unhandled error in handleIdle: ${(err as Error)?.message ?? err}`),
+        )
+      } catch (err) {
+        // Even the event handler itself must not throw — opencode may kill
+        // plugins that throw synchronously from event callbacks.
+        console.warn(`${LOG_PREFIX} event handler error: ${(err as Error)?.message ?? err}`)
       }
-      if (type === "session.deleted" && info?.id) {
-        subagentSessions.delete(info.id)
-        idleCount.delete(info.id)
-        lastTitledCount.delete(info.id)
-        return
-      }
-
-      // session.status(idle) is what current opencode emits; session.idle is
-      // accepted too so a future event-shape change cannot silently disable
-      // the plugin again.
-      const statusIdle =
-        type === "session.status" && event?.properties?.status?.type === "idle"
-      const legacyIdle = type === "session.idle"
-      if (!statusIdle && !legacyIdle) return
-
-      const sessionID = event?.properties?.sessionID as string | undefined
-      if (!sessionID) return
-      // Fire-and-forget: never block the event loop on title generation.
-      void handleIdle(sessionID)
     },
   }
 }

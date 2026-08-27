@@ -5,6 +5,7 @@ import type {
   TuiPluginModule,
 } from "@opencode-ai/plugin/tui"
 import type { Message, Part } from "@opencode-ai/sdk/v2"
+import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, withBookends } from "./i18n"
 
 /**
  * Queue Manager — TUI dialog-based management of queued user messages.
@@ -93,7 +94,7 @@ export function visibleText(parts: Part[]): string {
 /** Single-line truncated preview for dialog options. */
 export function preview(text: string, max = PREVIEW_MAX): string {
   const flat = text.replace(/\s+/g, " ").trim()
-  if (!flat) return "[attachment only — no text]"
+  if (!flat) return tr("queue.attachmentOnly")
   return flat.length > max ? flat.slice(0, max - 1) + "…" : flat
 }
 
@@ -159,12 +160,12 @@ async function fetchMessages(api: TuiPluginApi, sessionID: string): Promise<With
   try {
     const res = (await api.client.session.messages({ sessionID })) as SdkResult
     if (!res.response.ok) {
-      toast(api, `Failed to load messages (HTTP ${res.response.status}).`, "error")
+      toast(api, tr("queue.loadMessagesFailed", { status: res.response.status }), "error")
       return undefined
     }
     return res.data as WithParts[]
   } catch (err) {
-    toast(api, `Failed to load messages: ${(err as Error).message}`, "error")
+    toast(api, tr("queue.loadMessagesError", { err: (err as Error).message }), "error")
     return undefined
   }
 }
@@ -179,7 +180,7 @@ function toast(
   message: string,
   variant: "info" | "success" | "warning" | "error" = "info",
 ) {
-  api.ui.toast({ title: "Queue manager", message, variant })
+  api.ui.toast({ title: tr("queue.toastTitle"), message, variant })
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────
@@ -193,11 +194,11 @@ async function cancelEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEn
     })) as SdkResult
     if (res.response.ok) return true
     if (res.response.status !== 409) {
-      toast(api, `Delete failed (HTTP ${res.response.status}).`, "error")
+      toast(api, tr("queue.deleteFailedHttp", { status: res.response.status }), "error")
       return false
     }
   } catch (err) {
-    toast(api, `Delete failed: ${(err as Error).message}`, "error")
+    toast(api, tr("queue.deleteFailed", { err: (err as Error).message }), "error")
     return false
   }
 
@@ -209,7 +210,7 @@ async function cancelEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEn
   if (entry.textParts.length === 0) {
     toast(
       api,
-      "Session busy — attachment-only messages can't be stripped safely. Wait for idle, then cancel again.",
+      tr("queue.busyStripWarning"),
       "warning",
     )
     return false
@@ -233,37 +234,37 @@ async function cancelEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEn
     }
     toast(
       api,
-      "Session busy — message content stripped (tombstone kept). It will not send instructions.",
+      tr("queue.busyStripResult"),
       "warning",
     )
     return true
   } catch (err) {
-    toast(api, `Busy-strip failed: ${(err as Error).message}`, "error")
+    toast(api, tr("queue.busyStripFailed", { err: (err as Error).message }), "error")
     return false
   }
 }
 
 function editEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEntry): void {
   if (entry.textParts.length === 0) {
-    toast(api, "This message has no editable text parts.", "warning")
+    toast(api, tr("queue.noTextParts"), "warning")
     openEntryMenu(api, sessionID)
     return
   }
 
   api.ui.dialog.replace(() =>
     api.ui.DialogPrompt({
-      title: "Edit queued message",
-      placeholder: "New text for this queued message (replaces all text parts)",
+      title: tr("queue.editTitle"),
+      placeholder: tr("queue.editPlaceholder"),
       value: entry.text,
       onConfirm: async (value) => {
         const text = value.trim()
         if (!text) {
-          toast(api, "Empty text — use Cancel instead.", "error")
+          toast(api, tr("queue.emptyText"), "error")
           editEntry(api, sessionID, entry)
           return
         }
         if (text === entry.text) {
-          toast(api, "Unchanged.", "info")
+          toast(api, tr("queue.unchanged"), "info")
           openQueueList(api, sessionID)
           return
         }
@@ -284,15 +285,15 @@ function editEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEntry): vo
           }
           toast(
             api,
-            "Edit saved — takes effect when this message's turn arrives.",
+            tr("queue.editSaved"),
             "success",
           )
         } catch (err) {
-          toast(api, `Edit failed: ${(err as Error).message}`, "error")
+          toast(api, tr("queue.editFailed", { err: (err as Error).message }), "error")
         }
         openQueueList(api, sessionID)
       },
-      onCancel: () => openEntryMenu(api, sessionID),
+      onCancel: () => setTimeout(() => openEntryMenu(api, sessionID), 0),
     }),
   )
 }
@@ -301,15 +302,15 @@ function confirmCancel(api: TuiPluginApi, sessionID: string, entry: QueuedEntry)
   const busy = isBusy(api, sessionID)
   api.ui.dialog.replace(() =>
     api.ui.DialogConfirm({
-      title: "Cancel queued message",
+      title: tr("queue.cancelTitle"),
       message: busy
-        ? `Cancel this queued message?\n\n"${entry.preview}"\n\nThe session is BUSY: the message cannot be deleted right now — its content will be stripped (tombstone kept) instead.`
-        : `Cancel this queued message?\n\n"${entry.preview}"\n\nThe session is idle: the message will be deleted permanently.`,
+        ? tr("queue.confirmCancelBusy", { preview: entry.preview })
+        : tr("queue.confirmCancelIdle", { preview: entry.preview }),
       onConfirm: async () => {
         await cancelEntry(api, sessionID, entry)
         openQueueList(api, sessionID)
       },
-      onCancel: () => openEntryMenu(api, sessionID),
+      onCancel: () => setTimeout(() => openEntryMenu(api, sessionID), 0),
     }),
   )
 }
@@ -317,9 +318,9 @@ function confirmCancel(api: TuiPluginApi, sessionID: string, entry: QueuedEntry)
 function viewEntry(api: TuiPluginApi, sessionID: string, entry: QueuedEntry): void {
   api.ui.dialog.replace(() =>
     api.ui.DialogAlert({
-      title: "Queued message — full text",
-      message: entry.text || "(no text — attachments only)",
-      onConfirm: () => openEntryMenu(api, sessionID),
+      title: tr("queue.fullTextTitle"),
+      message: entry.text || tr("queue.noTextAttachmentsOnly"),
+      onConfirm: () => setTimeout(() => openEntryMenu(api, sessionID), 0),
     }),
   )
 }
@@ -334,39 +335,41 @@ function openEntryMenu(api: TuiPluginApi, sessionID: string): void {
     openQueueList(api, sessionID)
     return
   }
+  let navigated = false
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
-      title: `Queued message (${age(entry.created)})`,
+      title: tr("queue.entryTitle", { age: age(entry.created) }),
       placeholder: entry.preview,
       options: [
         ...(entry.textParts.length > 0
           ? [
               {
-                title: "( Edit text… )",
+                title: tr("queue.editAction"),
                 value: "edit",
-                description: "Rewrite this message before it is processed",
+                description: tr("queue.editActionDesc"),
               },
             ]
           : []),
         {
-          title: "( Cancel message )",
+          title: tr("queue.cancelAction"),
           value: "cancel",
           description: isBusy(api, sessionID)
-            ? "Busy: strip content, keep tombstone"
-            : "Idle: delete the message permanently",
+            ? tr("queue.sessionBusy")
+            : tr("queue.sessionIdle"),
         },
         {
-          title: "( View full text )",
+          title: tr("queue.viewAction"),
           value: "view",
-          description: "Show the complete message text",
+          description: tr("queue.viewActionDesc"),
         },
         {
-          title: "( ← Back to queue )",
+          title: tr("queue.backToQueue"),
           value: "back",
           description: undefined,
         },
       ],
       onSelect: (option) => {
+        navigated = true
         switch (option.value) {
           case "edit":
             editEntry(api, sessionID, entry)
@@ -382,6 +385,9 @@ function openEntryMenu(api: TuiPluginApi, sessionID: string): void {
         }
       },
     }),
+    () => {
+      if (!navigated) setTimeout(() => void openQueueList(api, sessionID), 0)
+    },
   )
 }
 
@@ -396,34 +402,45 @@ async function openQueueList(api: TuiPluginApi, sessionID: string): Promise<void
   const entries = computeQueued(messages)
   if (entries.length === 0) {
     api.ui.dialog.clear()
-    toast(api, "No queued messages in this session.", "info")
+    toast(api, tr("queue.noQueuedMessages"), "info")
     return
   }
 
   const busy = isBusy(api, sessionID)
+  let navigated = false
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
-      title: `Message queue — ${entries.length} queued${busy ? " (session busy)" : " (session idle)"}`,
-      placeholder: "Pick a queued message to edit or cancel (Esc closes)",
+      title: tr("queue.listTitle", { count: entries.length, busy: busy ? tr("queue.sessionBusy") : tr("queue.sessionIdle") }),
+      placeholder: tr("queue.listPlaceholder"),
       options: [
-        ...(entries.length > 1
-          ? [
-              {
-                title: "( Cancel ALL queued messages )",
-                value: "__cancel_all__",
-                description: `Strip/delete all ${entries.length} queued messages`,
-              },
-            ]
-          : []),
-        ...entries.map((entry, i) => ({
-          title: `#${i + 1} ${entry.preview}`,
-          value: entry.messageID,
-          description: `${age(entry.created)} · ${entry.textParts.length} text part(s)${
-            entry.nonTextParts.length ? ` · ${entry.nonTextParts.length} attachment(s)` : ""
-          }`,
-        })),
+        ...withBookends(
+          entries.map((entry, i) => ({
+            title: `#${i + 1} ${entry.preview}`,
+            value: entry.messageID,
+            description: `${age(entry.created)} · ${tr("queue.textPartCount", { count: entry.textParts.length })}${
+              entry.nonTextParts.length ? ` · ${tr("queue.attachmentCount", { count: entry.nonTextParts.length })}` : ""
+            }`,
+          })),
+          entries.length > 1
+            ? [
+                {
+                  title: tr("queue.cancelAll"),
+                  value: "__cancel_all__",
+                  description: tr("queue.stripAllCount", { count: entries.length }),
+                },
+              ]
+            : [],
+        ),
+        languageOption(api),
       ],
       onSelect: async (option) => {
+        navigated = true
+        if (option.value === SWITCH_LANG) {
+          const next = toggleLocale(api)
+          toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
+          void openQueueList(api, sessionID)
+          return
+        }
         if (option.value === "__cancel_all__") {
           confirmCancelAll(api, sessionID, entries)
           return
@@ -432,6 +449,10 @@ async function openQueueList(api: TuiPluginApi, sessionID: string): Promise<void
         openEntryMenu(api, sessionID)
       },
     }),
+    () => {
+      // Esc on queue list = close
+      if (!navigated) api.ui.dialog.clear()
+    },
   )
 }
 
@@ -439,20 +460,20 @@ function confirmCancelAll(api: TuiPluginApi, sessionID: string, entries: QueuedE
   const busy = isBusy(api, sessionID)
   api.ui.dialog.replace(() =>
     api.ui.DialogConfirm({
-      title: "Cancel ALL queued messages",
+      title: tr("queue.cancelAllTitle"),
       message: busy
-        ? `Strip all ${entries.length} queued messages? The session is BUSY — contents are replaced with tombstones (messages stay visible but send no instructions).`
-        : `Delete all ${entries.length} queued messages permanently?`,
+        ? tr("queue.confirmCancelAllBusy", { count: entries.length })
+        : tr("queue.confirmCancelAllIdle", { count: entries.length }),
       onConfirm: async () => {
         let ok = 0
         for (const entry of entries) {
           if (await cancelEntry(api, sessionID, entry)) ok++
         }
-        toast(api, `Cancelled ${ok}/${entries.length} queued messages.`, ok === entries.length ? "success" : "warning")
+        toast(api, tr("queue.cancelResult", { ok, total: entries.length }), ok === entries.length ? "success" : "warning")
         api.ui.dialog.clear()
       },
       onCancel: () => {
-        void openQueueList(api, sessionID)
+        setTimeout(() => void openQueueList(api, sessionID), 0)
       },
     }),
   )
@@ -461,24 +482,25 @@ function confirmCancelAll(api: TuiPluginApi, sessionID: string, entries: QueuedE
 // ─── Plugin entry ────────────────────────────────────────────────────
 
 const tui: TuiPlugin = async (api) => {
+  initI18n(api)
   api.keymap.registerLayer({
     commands: [
       {
         name: "queue.manager",
-        title: "Manage queued messages",
-        desc: "List, edit or cancel user messages queued while the session is busy",
+        title: tr("queue.cmdTitle"),
+        desc: tr("queue.cmdDesc"),
         category: "Session",
         namespace: "palette",
         slashName: SLASH_NAME,
         run() {
           const route = api.route.current
           if (route.name !== "session") {
-            toast(api, "Open a session first — the queue is per-session.", "warning")
+            toast(api, tr("queue.openSessionFirst"), "warning")
             return
           }
           const sessionID = (route.params as { sessionID?: string } | undefined)?.sessionID
           if (!sessionID) {
-            toast(api, "No current session.", "error")
+            toast(api, tr("queue.noCurrentSession"), "error")
             return
           }
           void openQueueList(api, sessionID)

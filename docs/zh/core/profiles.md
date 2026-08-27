@@ -70,20 +70,149 @@
 
 ### 使用预设
 
-通过在 opencode 会话内的 `/profile` 斜杠命令应用预设 —— 无需参数，直接打开原生弹窗选择器：
+`/profile` 斜杠命令打开一个向导，包含三个入口：
+
+1. **Edit: Agent→Tier** — 重新分配 agent 所属层级（flash/standard/pro/max/vision），写 `tiers.json`
+2. **Manage: Profile→Models** — 编辑预设的 tier→model 映射，或添加/删除预设文件
+3. **Select: Profile** — 选一个预设并立即应用（写 `opencode.jsonc`）
+
+无需参数，直接打开原生弹窗选择器：
 
 ```
 /profile
-  → 弹窗："( Show current tier mapping )" 条目 + 每个预设一个条目
-  → 选中预设：进入层级审阅弹窗 — 可逐个 tier 修改模型：先选 provider，
-    再选 model（列表来自 opencode 服务目录：内置 provider 如
-    anthropic/openai + 已配置的自定义 provider；也可手动输入
-    '<provider>/<model_id>' 作为兜底），然后 "( Apply profile )" 应用：
-    优先走服务端全局配置 API 热生效（失效配置缓存、重建
-    instance，无需重启）；若该端点不可用（旧版 opencode）则
-    降级为直写 opencode.jsonc + .active-profile，需重启生效
-  → Esc 取消
+  ┌─ 第一层：主菜单
+  │
+  ├─ "Edit: Agent→Tier"  ────────── 见下方 § Edit: Agent→Tier
+  ├─ "Manage: Profile→Models"  ──── 见下方 § Manage: Profile→Models
+  └─ "Select: Profile"  ─────────── 见下方 § Select: Profile
+  │
+  → 在主菜单按 Esc 关闭向导
 ```
+
+#### Edit: Agent→Tier
+
+重新分配 agent 所属层级 — 不触及 tier→model 侧：
+
+```
+/profile → "Edit: Agent→Tier"
+  ┌─ 第二层：Agent 列表
+  │
+  │  列出全部 agent 及其当前层级和模型：
+  │    advisor    (max)   — model: anthropic/claude-opus
+  │    code       (pro)   — model: anthropic/claude-sonnet
+  │    explorer   (flash) — model: anthropic/claude-haiku
+  │    ...
+  │
+  │  有变更的 agent 显示 pending 状态：
+  │    coworker   (pro → max)  ← pending
+  │
+  │  ├─ "( Apply changes )"  → 写入 tiers.json + 热生效模型
+  │  ├─ 选中任意 agent  ────→ 第三层：层级选择器
+  │  └─ "( Back )"  ─────────→ 返回主菜单
+  │
+  └─ 第三层：层级选择器（按 agent）
+     │
+     ├─ flash     "快速 / 轻量 — 代码粗筛，高吞吐"
+     ├─ standard  "通用主力 — 编排中枢（根模型）"
+     ├─ pro        "专业级 — 最强编码模型"
+     ├─ max        "旗舰推理 — 深度分析，审查，设计"
+     ├─ vision     "多模态 — 图像/截图分析"
+     └─ "( Back )"  ──→ 返回 agent 列表（保留 pending 变更）
+```
+
+**Apply 时发生什么：**
+
+1. `tiers.json` 原子重写（备份 `.bak` → 写 tmp → rename）；`$comment` 字段保留。
+2. 对每个变更的 agent，将其在 `opencode.jsonc` 中的 `model` 更新为新层级的当前引用 — 来源为当前活跃预设的 `tiers[newTier]`，或已使用该层级的第一个 agent 的 model。
+3. 优先通过服务端全局配置 API 热生效（无需重启）。旧版降级为直写 `opencode.jsonc`（备份 `.bak`，需重启）。
+
+**操作示例：**
+
+```
+> /profile
+  → 选 "Edit: Agent→Tier"
+  → 选 "code"（当前 pro）
+  → 选 "pro"
+  → toast: "code: pro → pro (no change)"
+  → 选 "coworker"（当前 pro）
+  → 选 "max"
+  → toast: "coworker: pro → max (pending)"
+  → "( Apply changes )"
+  → toast: "1 tier change applied — coworker → max (anthropic/claude-opus). Live, no restart needed."
+```
+
+#### Manage: Profile→Models
+
+编辑预设的 tier→model 映射，或添加/删除预设：
+
+```
+/profile → "Manage: Profile→Models"
+  ┌─ 第二层：预设列表
+  │
+  │  ├─ opencode-go-glm  ← active  — 描述...
+  │  ├─ opencode-go-kimi          — 描述...
+  │  ├─ ...
+  │  ├─ "( Add profile )"  ────→ 输入名称，创建空白 JSON
+  │  ├─ "( Delete profile )"  ──→ 选中预设删除（保留 .bak 备份）
+  │  └─ "( Back )"  ─────────→ 返回主菜单
+  │
+  └─ 第三层：层级审阅（按预设）
+     │
+     │  列出选中预设的各层级及其 provider/model 引用：
+     │    flash     glm-4-flash
+     │    standard  glm-4-plus
+     │    pro       glm-4-plus
+     │    max       glm-4-long
+     │    vision    glm-4v
+     │
+     │  ├─ "( Apply changes )"  → 写入预设 JSON + 应用到 opencode.jsonc
+     │  ├─ 选中任意层级  ─────→ 第四层：provider 选择器
+     │  ├─ "( Back )"  ──────→ 返回预设列表（保留覆写）
+     │  └─ "( Cancel )"  ────→ 丢弃覆写，返回预设列表
+     │
+     └─ 第四层：Provider 选择器
+        │
+        ├─ anthropic  — 5 model(s) · built-in · connected
+        ├─ openai     — 3 model(s) · built-in
+        ├─ ...
+        ├─ "( Type a custom ref )"  ──→ 手动输入 '<provider>/<model_id>'
+        └─ "( Back )"  ───────────→ 返回层级审阅
+        │
+        └─ 第五层：Model 选择器（按 provider）
+           │
+           ├─ claude-sonnet  — Claude 3.7 Sonnet
+           ├─ claude-opus    — Claude 3.7 Opus
+           ├─ ...
+           └─ "( Back )"  ──→ 返回 provider 列表
+```
+
+**Apply 时发生什么：**
+
+1. 预设 JSON 文件（`~/.config/opencode/profiles/<name>.json`）原子重写（备份 `.bak` → 写 tmp → rename），写入覆写后的 tier→model 引用。
+2. 更新后的预设应用到 `opencode.jsonc` — 每个 agent 的 `model` 按其层级重写为新的引用。
+3. 更新 `.active-profile`。优先通过服务端全局配置 API 热生效（无需重启）。
+
+#### Select: Profile
+
+选一个预设并立即应用 — 无中间审阅：
+
+```
+/profile → "Select: Profile"
+  ┌─ 第二层：预设列表
+  │
+  │  ├─ opencode-go-glm  ← active  — 描述...
+  │  ├─ opencode-go-kimi          — 描述...
+  │  ├─ ...
+  │  └─ "( Back )"  ─────────→ 返回主菜单
+  │
+  └─ 选中预设 → 立即应用（与旧行为一致）
+```
+
+> **提示：** 三个分支互补使用。用 **Edit: Agent→Tier** 决定 *哪个 agent 属于哪个 tier*（写 `tiers.json`），用 **Manage: Profile→Models** 决定 *某个预设里每个 tier 用哪个 model*（写预设 JSON + `opencode.jsonc`），用 **Select: Profile** 快速切换预设。agent→tier 映射在重装时保留（`PreserveBag` 机制）。
+
+> **Esc 行为：** 在任意弹窗层级，按 Esc 都会返回上一级（而非关闭整个向导）。只有在主菜单（第一层）按 Esc 才会关闭向导。
+
+> **国际化 (i18n)：** 所有 TUI 向导插件（`/profile`、`/provider`、`/project`、`/queued`）均支持国际化。首次使用时自动从系统区域设置/环境变量检测语言，之后存储在 `api.kv` 中。每个向导的主菜单底部都有 `🌐 中文 → English`（或反向）选项，可即时切换语言 — 菜单会立即以新语言重新渲染。翻译集中维护在 `plugins/i18n.ts`。
 
 ---
 

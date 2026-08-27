@@ -6,6 +6,7 @@ import type {
 } from "@opencode-ai/plugin/tui"
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG } from "./i18n"
 import {
   CONFIG_REL,
   getProjectDir,
@@ -48,7 +49,7 @@ function toast(
   variant: "info" | "success" | "warning" | "error" = "info",
 ): void {
   try {
-    api.ui.toast({ title: "Project wizard", message, variant })
+    api.ui.toast({ title: tr("project.toastTitle"), message, variant })
   } catch {
     // safe fallback if ui.toast is unsupported
   }
@@ -203,7 +204,14 @@ export function startProjectWizard(
   })
 }
 
-/** Renders authentic DialogAlert popup modal and safely returns to wizard upon confirmation */
+/**
+ * Renders authentic DialogAlert popup modal and safely returns to wizard
+ * upon confirmation or Esc.
+ *
+ * DialogAlert only has onConfirm (no onCancel), so we use dialog.replace's
+ * second argument (onClose) to catch the Esc key.  A navigated flag
+ * prevents double-firing when onConfirm runs first.
+ */
 function showAlertModal(
   api: TuiPluginApi,
   params: {
@@ -212,21 +220,22 @@ function showAlertModal(
     onDismiss: () => void
   },
 ): void {
-  api.ui.dialog.replace(() =>
-    api.ui.DialogAlert({
-      title: params.title,
-      message: params.message,
-      onConfirm: () => {
-        setTimeout(() => {
-          params.onDismiss()
-        }, 20)
-      },
-      onCancel: () => {
-        setTimeout(() => {
-          params.onDismiss()
-        }, 20)
-      },
-    }),
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogAlert({
+        title: params.title,
+        message: params.message,
+        onConfirm: () => {
+          navigated = true
+          setTimeout(() => {
+            params.onDismiss()
+          }, 20)
+        },
+      }),
+    () => {
+      if (!navigated) params.onDismiss()
+    },
   )
 }
 
@@ -237,23 +246,25 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
   const activeSelection = state.currentSelection ?? "__action_init__"
 
   const dialogTitle = isExisting
-    ? `Project Setup — ${configRel ?? ".opencode/opencode.jsonc"}`
-    : "Project Setup — New Project"
+    ? tr("project.setupExisting", { config: configRel ?? ".opencode/opencode.jsonc" })
+    : tr("project.newProject")
 
   const mainActionTitle = isExisting
-    ? "🚀 Apply & Update Configuration"
-    : "🚀 Apply & Initialize Scaffolding"
+    ? tr("project.applyUpdate")
+    : tr("project.applyInit")
 
   const mainActionDesc = isExisting
-    ? "Save switches & update baseline files"
-    : "Create config, AGENTS.md & git-commits.md"
+    ? tr("project.applyUpdateDesc")
+    : tr("project.applyInitDesc")
 
   const switchesSummary = `adv:${current.autoAdvisorMode ?? "def"} · adr:${current.adrGuard ?? "def"} · env:${current.envGuard ?? "def"} · e2e:${current.e2eGuard ?? "def"}`
 
-  api.ui.dialog.replace(() =>
-    api.ui.DialogSelect<string>({
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<string>({
       title: dialogTitle,
-      placeholder: "Select action (Esc to exit)",
+      placeholder: tr("project.mainPlaceholder"),
       skipFilter: true,
       current: activeSelection,
       options: [
@@ -263,28 +274,36 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
           description: mainActionDesc,
         },
         {
-          title: "⚙️ Configure Project Switches",
+          title: tr("project.configureSwitches"),
           value: "__action_switches__",
           description: switchesSummary,
         },
         {
-          title: "🔄 Sync Template Switches",
+          title: tr("project.syncTemplates"),
           value: "__action_sync__",
-          description: "Append missing switch lines to config",
+          description: tr("project.syncTemplatesDesc"),
         },
         {
-          title: "⚡ Refresh Code Index",
+          title: tr("project.refreshIndex"),
           value: "__action_index__",
-          description: "Catch up codegraph & gitnexus indexes",
+          description: tr("project.refreshIndexDesc"),
         },
+        languageOption(api),
         {
-          title: "❌ Exit Wizard",
+          title: tr("project.exitWizard"),
           value: "__action_exit__",
-          description: "Close setup dialog (or Esc)",
+          description: tr("project.exitWizardDesc"),
         },
       ],
       onSelect: async (option) => {
+        navigated = true
         switch (option.value) {
+          case SWITCH_LANG: {
+            const next = toggleLocale(api)
+            toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
+            showMainMenu(api, state)
+            return
+          }
           case "__action_exit__": {
             api.ui.dialog.clear()
             break
@@ -301,11 +320,11 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               const report = initReport(results, backends)
               toast(
                 api,
-                isExisting ? "Project configuration updated!" : "Project initialized successfully!",
+                isExisting ? tr("project.configUpdated") : tr("project.initSuccess"),
                 "success",
               )
               showAlertModal(api, {
-                title: isExisting ? "Project Update Result" : "Project Initialization Result",
+                title: isExisting ? tr("project.updateResult") : tr("project.initResult"),
                 message: report,
                 onDismiss: () =>
                   showMainMenu(api, {
@@ -316,8 +335,8 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               })
             } catch (err) {
               showAlertModal(api, {
-                title: "Init / Update Failed",
-                message: `Operation failed: ${(err as Error).message}`,
+                title: tr("project.initFailed"),
+                message: tr("project.operationFailed", { err: (err as Error).message }),
                 onDismiss: () =>
                   showMainMenu(api, {
                     ...state,
@@ -350,7 +369,7 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
                 syncMsg = "❌ Configuration file is malformed (missing proper closing brace).\nPlease fix the file manually."
               }
               showAlertModal(api, {
-                title: "Template Switches Sync Result",
+                title: tr("project.syncResult"),
                 message: syncMsg,
                 onDismiss: () =>
                   showMainMenu(api, {
@@ -360,7 +379,7 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               })
             } catch (err) {
               showAlertModal(api, {
-                title: "Sync Error",
+                title: tr("project.syncError"),
                 message: `Sync operation failed: ${(err as Error).message}`,
                 onDismiss: () =>
                   showMainMenu(api, {
@@ -379,7 +398,7 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               const msg =
                 results.map(backendLine).join("\n") || "ℹ️ No backends needed index refresh."
               showAlertModal(api, {
-                title: "Code Index Refresh Results",
+                title: tr("project.indexResult"),
                 message: msg,
                 onDismiss: () =>
                   showMainMenu(api, {
@@ -389,8 +408,8 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               })
             } catch (err) {
               showAlertModal(api, {
-                title: "Index Error",
-                message: `Index refresh failed: ${(err as Error).message}`,
+                title: tr("project.indexError"),
+                message: tr("project.indexFailed", { err: (err as Error).message }),
                 onDismiss: () =>
                   showMainMenu(api, {
                     ...state,
@@ -403,6 +422,10 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
         }
       },
     }),
+    () => {
+      // Esc on main menu = close wizard entirely
+      if (!navigated) api.ui.dialog.clear()
+    },
   )
 }
 
@@ -412,10 +435,12 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
   const { switches: current, exists: isExisting, configRelPath: configRel } = state
   const activeSelection = state.currentSelection ?? "__switch_advisor__"
 
-  api.ui.dialog.replace(() =>
-    api.ui.DialogSelect<string>({
-      title: `Configure Switches — ${configRel ?? ".opencode/opencode.jsonc"}`,
-      placeholder: "Select switch to edit (Esc cancels)",
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<string>({
+      title: tr("project.configureSwitchesTitle", { config: configRel ?? ".opencode/opencode.jsonc" }),
+      placeholder: tr("project.configureSwitchesPlaceholder"),
       skipFilter: true,
       current: activeSelection,
       options: [
@@ -450,17 +475,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
           description: "Assess E2E before test execution",
         },
         {
-          title: "💾 Save & Apply Changes",
+          title: tr("project.saveApply"),
           value: "__save_switches__",
-          description: "Write switches to config file",
+          description: tr("project.saveApplyDesc"),
         },
         {
-          title: "🔙 Back to Main Menu",
+          title: tr("project.backToMain"),
           value: "__back_main__",
-          description: "Return to Level 1 action menu",
+          description: tr("project.backToMainDesc"),
         },
       ],
       onSelect: async (option) => {
+        navigated = true
         const nextState = { switches: current, exists: isExisting, configRelPath: configRel }
         switch (option.value) {
           case "__save_switches__": {
@@ -475,11 +501,11 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
               const report = initReport(results, backends)
               toast(
                 api,
-                isExisting ? "Project configuration saved!" : "Project initialized successfully!",
+                isExisting ? tr("project.configSavedToast") : tr("project.initSuccess"),
                 "success",
               )
               showAlertModal(api, {
-                title: isExisting ? "Project Save Result" : "Project Initialization Result",
+                title: isExisting ? tr("project.saveResult") : tr("project.initResult"),
                 message: report,
                 onDismiss: () =>
                   showSwitchesMenu(api, {
@@ -490,8 +516,8 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
               })
             } catch (err) {
               showAlertModal(api, {
-                title: "Save Failed",
-                message: `Save failed: ${(err as Error).message}`,
+                title: tr("project.saveFailed"),
+                message: tr("project.saveFailedMsg", { err: (err as Error).message }),
                 onDismiss: () =>
                   showSwitchesMenu(api, {
                     ...nextState,
@@ -511,8 +537,10 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
           }
 
           case "__switch_advisor__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navAdvisor = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select autoAdvisorMode",
                 placeholder: `Current: ${current.autoAdvisorMode ?? "default"}`,
                 skipFilter: true,
@@ -545,6 +573,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (sel) => {
+                  navAdvisor = true
                   if (sel.value !== "__cancel__") {
                     current.autoAdvisorMode = sel.value as ProjectSwitches["autoAdvisorMode"]
                     toast(api, `autoAdvisorMode -> ${formatAdvisorBadge(current.autoAdvisorMode)}`, "success")
@@ -555,12 +584,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   })
                 },
               }),
+              () => {
+                // Esc on advisor picker = back to switches menu
+                if (!navAdvisor) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_advisor__" }), 0)
+              },
             )
             break
           }
           case "__switch_adr__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navAdr = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select adrGuard",
                 placeholder: `Current: ${current.adrGuard ?? "default"}`,
                 skipFilter: true,
@@ -588,6 +623,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (sel) => {
+                  navAdr = true
                   if (sel.value !== "__cancel__") {
                     current.adrGuard = sel.value as ProjectSwitches["adrGuard"]
                     toast(api, `adrGuard -> ${formatGuardBadge(current.adrGuard)}`, "success")
@@ -598,12 +634,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   })
                 },
               }),
+              () => {
+                // Esc on adrGuard picker = back to switches menu
+                if (!navAdr) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_adr__" }), 0)
+              },
             )
             break
           }
           case "__switch_adr_dir__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navAdrDir = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select ADR Directory (adrGuardDir)",
                 placeholder: `Current: ${current.adrGuardDir ?? "docs/adr"}`,
                 skipFilter: true,
@@ -636,26 +678,41 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (dirOpt) => {
+                  navAdrDir = true
                   if (dirOpt.value === "__cancel__") {
                     showSwitchesMenu(api, {
                       ...nextState,
                       currentSelection: "__switch_adr_dir__",
                     })
                   } else if (dirOpt.value === "__custom__") {
-                    api.ui.dialog.replace(() =>
-                      api.ui.DialogPrompt({
-                        title: "Custom ADR Directory",
-                        placeholder: "e.g. docs/adr",
-                        value: current.adrGuardDir ?? "docs/adr",
-                        onConfirm: (val) => {
-                          current.adrGuardDir = val.trim() || "docs/adr"
-                          toast(api, `adrGuardDir -> ${current.adrGuardDir}`, "success")
-                          showSwitchesMenu(api, {
-                            ...nextState,
-                            currentSelection: "__switch_adr_dir__",
-                          })
-                        },
-                      }),
+                    let navPrompt = false
+                    api.ui.dialog.replace(
+                      () =>
+                        api.ui.DialogPrompt({
+                          title: "Custom ADR Directory",
+                          placeholder: "e.g. docs/adr",
+                          value: current.adrGuardDir ?? "docs/adr",
+                          onConfirm: (val) => {
+                            navPrompt = true
+                            current.adrGuardDir = val.trim() || "docs/adr"
+                            toast(api, `adrGuardDir -> ${current.adrGuardDir}`, "success")
+                            showSwitchesMenu(api, {
+                              ...nextState,
+                              currentSelection: "__switch_adr_dir__",
+                            })
+                          },
+                          onCancel: () => {
+                            navPrompt = true
+                            setTimeout(() => showSwitchesMenu(api, {
+                              ...nextState,
+                              currentSelection: "__switch_adr_dir__",
+                            }), 0)
+                          },
+                        }),
+                      () => {
+                        // Esc on custom path prompt = back to switches menu
+                        if (!navPrompt) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_adr_dir__" }), 0)
+                      },
                     )
                   } else {
                     current.adrGuardDir = dirOpt.value
@@ -667,12 +724,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   }
                 },
               }),
+              () => {
+                // Esc on ADR directory picker = back to switches menu
+                if (!navAdrDir) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_adr_dir__" }), 0)
+              },
             )
             break
           }
           case "__switch_adr_mode__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navAdrMode = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select ADR Mode (adrMode)",
                 placeholder: `Current: ${current.adrMode ?? "default"}`,
                 skipFilter: true,
@@ -705,6 +768,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (sel) => {
+                  navAdrMode = true
                   if (sel.value !== "__cancel__") {
                     current.adrMode = sel.value as ProjectSwitches["adrMode"]
                     toast(api, `adrMode -> ${formatAdrModeBadge(current.adrMode)}`, "success")
@@ -715,12 +779,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   })
                 },
               }),
+              () => {
+                // Esc on adrMode picker = back to switches menu
+                if (!navAdrMode) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_adr_mode__" }), 0)
+              },
             )
             break
           }
           case "__switch_env__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navEnv = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select envGuard",
                 placeholder: `Current: ${current.envGuard ?? "default"}`,
                 skipFilter: true,
@@ -748,6 +818,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (sel) => {
+                  navEnv = true
                   if (sel.value !== "__cancel__") {
                     current.envGuard = sel.value as ProjectSwitches["envGuard"]
                     toast(api, `envGuard -> ${formatGuardBadge(current.envGuard)}`, "success")
@@ -758,12 +829,18 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   })
                 },
               }),
+              () => {
+                // Esc on envGuard picker = back to switches menu
+                if (!navEnv) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_env__" }), 0)
+              },
             )
             break
           }
           case "__switch_e2e__": {
-            api.ui.dialog.replace(() =>
-              api.ui.DialogSelect<string>({
+            let navE2e = false
+            api.ui.dialog.replace(
+              () =>
+                api.ui.DialogSelect<string>({
                 title: "Select e2eGuard",
                 placeholder: `Current: ${current.e2eGuard ?? "default"}`,
                 skipFilter: true,
@@ -791,6 +868,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   },
                 ],
                 onSelect: (sel) => {
+                  navE2e = true
                   if (sel.value !== "__cancel__") {
                     current.e2eGuard = sel.value as ProjectSwitches["e2eGuard"]
                     toast(api, `e2eGuard -> ${formatGuardBadge(current.e2eGuard)}`, "success")
@@ -801,24 +879,33 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
                   })
                 },
               }),
+              () => {
+                // Esc on e2eGuard picker = back to switches menu
+                if (!navE2e) setTimeout(() => showSwitchesMenu(api, { ...nextState, currentSelection: "__switch_e2e__" }), 0)
+              },
             )
             break
           }
         }
       },
     }),
+    () => {
+      // Esc on switches menu = back to main menu
+      if (!navigated) setTimeout(() => showMainMenu(api, { ...state, currentSelection: "__action_switches__" }), 0)
+    },
   )
 }
 
 // ─── Plugin entry ────────────────────────────────────────────────────
 
 const tui: TuiPlugin = async (api) => {
+  initI18n(api)
   api.keymap.registerLayer({
     commands: [
       {
         name: "project.wizard",
-        title: "Project: Setup Wizard",
-        desc: "Open interactive two-tier project setup wizard",
+        title: tr("project.cmdTitle"),
+        desc: tr("project.cmdDesc"),
         category: "Project",
         namespace: "palette",
         slashName: "project-wizard",

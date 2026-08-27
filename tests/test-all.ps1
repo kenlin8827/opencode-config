@@ -425,6 +425,22 @@ Check "project-wizard.ts: registers palette command with slashName project-wizar
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
 Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/project-wizard.ts")
 
+# Profile wizard plugin checks (plugins/profile-wizard.ts — TUI-only, registered via tui.json)
+$pfPlugin = Get-Content "$PSScriptRoot\..\plugins\profile-wizard.ts" -Raw
+Check "profile-wizard.ts: imports TuiPlugin from plugin/tui" ($pfPlugin -match "@opencode-ai/plugin/tui")
+Check "profile-wizard.ts: slash command name is profile" ($pfPlugin -match 'slashName: "profile"')
+Check "profile-wizard.ts: registers palette command" ($pfPlugin -match 'namespace: "palette"')
+Check "profile-wizard.ts: has Edit agent→tier mapping sub-menu" ($pfPlugin -match "EDIT_TIERS")
+Check "profile-wizard.ts: has editTierMapping function" ($pfPlugin -match "function editTierMapping")
+Check "profile-wizard.ts: has pickAgentTier function" ($pfPlugin -match "function pickAgentTier")
+Check "profile-wizard.ts: has applyTierChanges function" ($pfPlugin -match "async function applyTierChanges")
+Check "profile-wizard.ts: has writeTiersFileAtomic function" ($pfPlugin -match "function writeTiersFileAtomic")
+Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIERS")
+Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
+Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
+Check "profile-wizard.ts: tier editor has Back button to return to profile picker" ($pfPlugin -match '"__back__"')
+Check "tui.json: profile-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/profile-wizard.ts")
+
 # SDD plugin checks (plugins/sdd/ — registered programmatically)
 $sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw
 $sddProtocol = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-protocol.md" -Raw

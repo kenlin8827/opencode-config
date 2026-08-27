@@ -13,12 +13,10 @@
  *   - /adr-guard <state|status> → the command hook reuses the announce
  *     helpers for switch confirmation and status reports.
  *
- * Two-layer strategy (same as auto-advisor):
- *   1. session.prompt({ ignored: true, noReply: true }) — injects the message
- *      into the chat transcript, visible in the main UI, but OpenCode natively
- *      skips `ignored` parts so the LLM never sees them (no context pollution).
- *   2. Fallback: tui.showToast — for environments where session.prompt fails
- *      (headless run, older server). Degrades to a log line. Never fatal.
+ * Toast-only strategy:
+ *   tui.showToast is the sole surface — non-intrusive, no chat-transcript
+ *   pollution, and degrades to a log line in headless/older-server
+ *   environments. Never fatal.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
@@ -72,35 +70,16 @@ async function showToast(client: Client, message: string, variant: "warning" | "
 }
 
 /**
- * Inject the message into the chat transcript via session.prompt with
- * ignored: true + noReply: true — visible in the main UI, no LLM call,
- * no context pollution (OpenCode natively skips ignored parts).
- *
- * Falls back to toast if session.prompt is unavailable or fails.
+ * Show the message as a toast notification — non-intrusive, no
+ * chat-transcript pollution. Degrades to a log line if the TUI is
+ * unavailable. Never fatal.
  */
 export async function announce(
   client: Client,
   message: string,
   variant: "warning" | "info" = "info",
-  sessionID?: string,
+  _sessionID?: string,
 ): Promise<void> {
-  const log = makeLogger(client, "adr-guard")
-  if (sessionID) {
-    try {
-      await client.session.prompt({
-        path: { id: sessionID },
-        body: {
-          parts: [{ type: "text", text: message, ignored: true }],
-          noReply: true,
-        },
-        throwOnError: true,
-      })
-      await log("info", `announce: chat reply — ${message}`)
-      return
-    } catch (err) {
-      await log("warn", `announce: session.prompt failed (${String(err)}) — falling back to toast`)
-    }
-  }
   await showToast(client, message, variant)
 }
 

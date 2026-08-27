@@ -344,24 +344,36 @@ async function test09_ConfigHook() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//  10. Event hook — session.created notification + subagent tracking
+//  10. Event hook — session.created subagent tracking + announce on target model
 // ═════════════════════════════════════════════════════════════════════════
 
 async function test10_EventHook() {
-  section("10: Event hook — session.created + subagent tracking")
-  const plugin = await loadPlugin()
+  section("10: Event hook — session.created + subagent tracking + announce on target model")
+  // Use a mock client to track announce calls
+  let announceCalls: string[] = []
+  const mockClient: any = {
+    session: {
+      prompt: async (req: any) => {
+        const text = req.body.parts.map((p: any) => p.text).join("")
+        announceCalls.push(text)
+      },
+    },
+    tui: { showToast: async () => {} },
+  }
+  const plugin = (await DeepSeekAnchorPlugin({ client: mockClient } as any)) as any
   const eventHook = plugin["event"]
   const sysHook = plugin["experimental.chat.system.transform"]
   const toolHook = plugin["tool.execute.before"]
   setMode("on")
 
-  // Top-level session — should not throw
+  // Top-level session — should not throw, should NOT announce (model unknown yet)
   try {
     await eventHook({
       event: { type: "session.created", properties: { info: { id: "s1" } } },
     })
   } catch {}
   assert(true, "Top-level session.created handled")
+  assert(announceCalls.length === 0, "session.created does NOT announce (model unknown)")
 
   // Subagent session.created → tracked as subagent
   try {
@@ -392,6 +404,39 @@ async function test10_EventHook() {
   } catch {
     assert(false, "Non-target event should not throw")
   }
+
+  // ── Announce fires on system.transform for target model only ──────────
+  announceCalls = []
+
+  // Non-DeepSeek model → NO announce
+  const outNonTarget = { system: ["base"] }
+  await sysHook({ sessionID: "announce-1", model: makeModel({ providerID: "openai", modelID: "gpt-4o" }) }, outNonTarget)
+  assert(announceCalls.length === 0, "Non-DeepSeek model → no announce")
+
+  // DeepSeek V4 Pro → announce fires once
+  const outTarget = { system: ["base"] }
+  await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget)
+  // announceToUI is fire-and-forget (async), give it a tick to resolve
+  await new Promise((r) => setTimeout(r, 50))
+  assert(announceCalls.length === 1, "DeepSeek V4 Pro → announce fires once")
+  assert(announceCalls[0]?.includes("[deepseek-anchor]"), "Announce message includes '[deepseek-anchor]'")
+
+  // Second system.transform for same session → no re-announce (dedup)
+  const outTarget2 = { system: ["base"] }
+  await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget2)
+  await new Promise((r) => setTimeout(r, 50))
+  assert(announceCalls.length === 1, "Same session second step → no re-announce (dedup)")
+
+  // session.deleted cleans up announcedSessions
+  await eventHook({
+    event: { type: "session.deleted", properties: { info: { id: "announce-2" } } },
+  })
+
+  // After cleanup, a new target-model session with same ID → announce fires again
+  const outTarget3 = { system: ["base"] }
+  await sysHook({ sessionID: "announce-2", model: makeModel({ providerID: "deepseek", modelID: "deepseek-v4-pro" }) }, outTarget3)
+  await new Promise((r) => setTimeout(r, 50))
+  assert(announceCalls.length === 2, "After session.deleted cleanup → announce fires again for same ID")
 }
 
 // ─── Main entry ───────────────────────────────────────────────────────────

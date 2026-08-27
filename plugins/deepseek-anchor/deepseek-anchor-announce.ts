@@ -1,5 +1,5 @@
 /**
- * Hook: event — announce the active deepseek-anchor mode to the user.
+ * Announce helpers for the deepseek-anchor plugin.
  *
  * The mode is persisted in ~/.config/opencode/.deepseek-anchor-enabled and silently
  * survives across sessions; without a visible signal the user can forget
@@ -7,8 +7,12 @@
  * are behaving differently (forced reasoning before tool use).
  *
  * Surface:
- *   - session.created → top-level sessions only (subagent sessions carry
- *     parentID), mode=off stays silent, mode=on shows a brief notice.
+ *   - system.transform (first target-model detection) → top-level sessions
+ *     only, mode=off stays silent, mode=on shows a brief notice.
+ *   - Unlike auto-advisor/adr-guard, the announce is NOT triggered by
+ *     session.created because at that point we don't know the model yet.
+ *     Triggering on session.created would announce even for non-DeepSeek
+ *     models, which is confusing noise.
  *
  * Two-layer strategy (same as auto-advisor):
  *   1. session.prompt({ ignored: true, noReply: true }) — injects the message
@@ -83,14 +87,10 @@ export async function announceToUI(
   await showToast(client, message)
 }
 
-export function makeAnnounceHook(client: Client) {
-  return async ({ event }: { event: SessionCreatedEvent }) => {
-    if (event.type !== "session.created") return
-    // Subagent sessions (task-dispatched) carry parentID — only announce on
-    // the top-level session the user actually opened.
-    if (event.properties?.info?.parentID) return
-    if (!isEnabled()) return
-    const sessionID = event.properties?.info?.id
-    await announceToUI(client, enabledMessage(), sessionID)
-  }
-}
+// NOTE: The announce hook used to fire on session.created, but at that point
+// the model is not yet known — it would announce even for non-DeepSeek models.
+// The announce is now triggered from system.transform in index.ts when a
+// target model is first detected for a session.
+//
+// This file exports the announce helpers; the caller (index.ts) manages
+// per-session deduplication.
