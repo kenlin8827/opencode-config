@@ -7,13 +7,12 @@
  * suggestion — a project can legitimately opt out of them; they only refine
  * the message (e.g. "codegraph CLI installed but not indexed").
  *
- * Two surfaces, same pattern as adr-guard-announce:
+ * Toast-only strategy (same as adr-guard-announce):
  *   - session.created → top-level sessions only (subagent sessions carry
  *     parentID); fires ONCE per plugin instance (in-memory flag) so opening
  *     several sessions in one server run never nags repeatedly.
- *   - session.prompt({ ignored: true, noReply: true }) — visible in the main
- *     chat UI, invisible to the LLM (no context pollution); falls back to
- *     tui.showToast, then to silence. Never fatal.
+ *   - tui.showToast — non-intrusive, no chat-transcript pollution; degrades
+ *     to silence in headless/older-server environments. Never fatal.
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
@@ -51,20 +50,7 @@ export function detectUninitialized(): { missing: string[]; probe: BackendProbe 
   return { missing, probe: probeBackends(getProjectDir()) }
 }
 
-async function suggest(client: Client, message: string, sessionID?: string): Promise<void> {
-  if (sessionID) {
-    try {
-      await client.session.prompt({
-        path: { id: sessionID },
-        body: {
-          parts: [{ type: "text", text: message, ignored: true }],
-          noReply: true,
-        },
-        throwOnError: true,
-      })
-      return
-    } catch { /* fall through to toast */ }
-  }
+async function suggest(client: Client, message: string, _sessionID?: string): Promise<void> {
   try {
     await client.tui.showToast({ body: { message, variant: "info" } })
   } catch { /* headless / older server — degrade to silence, never fatal */ }
