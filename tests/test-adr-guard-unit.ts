@@ -448,9 +448,10 @@ async function main() {
   console.log("╚══════════════════════════════════════════════════════════╝")
 
   // Pin the project dir to the repo root so config writes + git queries run
-  // against a real git repo. The switch now lives in the repo's opencode.jsonc,
-  // so snapshot it up front and restore it afterwards — the tests flip the
-  // guard on/off and must not pollute the committed config.
+  // against a real git repo. The switch lives in the project's runtime
+  // opencode.jsonc (the repo ships opencode.template.jsonc, so this file is
+  // usually absent here) — snapshot it up front and restore it afterwards;
+  // the tests flip the guard on/off and must not pollute any existing config.
   const origDir = getProjectDir()
   setProjectDir(REPO_ROOT)
   const cfgFile = join(REPO_ROOT, "opencode.jsonc")

@@ -183,7 +183,8 @@ export function mergeTiersJson(
 }
 
 /**
- * Merges repo templates, preserve bag, options.jsonc, and writes to target opencode.jsonc
+ * Merges the repo's opencode.template.jsonc, preserve bag, and options.jsonc,
+ * then writes the result to the target opencode.jsonc
  */
 export function mergeConfig(
   repoDir: string,
@@ -191,10 +192,16 @@ export function mergeConfig(
   options: InstallOptions,
   bag?: PreserveBag
 ): void {
-  const templatePath = path.join(repoDir, 'opencode.jsonc');
+  const templatePath = path.join(repoDir, 'opencode.template.jsonc');
   const targetConfigPath = path.join(targetDir, 'opencode.jsonc');
 
-  const config = readJsoncFile<Record<string, any>>(templatePath) || {};
+  // Hard-fail on a missing or unparseable template: readJsoncFile returns
+  // null on read/parse errors, and a `|| {}` fallback here would silently
+  // overwrite the user's installed config with an empty merge.
+  const config = readJsoncFile<Record<string, any>>(templatePath);
+  if (!config || Object.keys(config).length === 0) {
+    throw new Error(`Config template missing or unreadable: ${templatePath} — refusing to overwrite the target config with an empty merge`);
+  }
 
   // 0. Merge tiers.json
   mergeTiersJson(repoDir, targetDir, options.tiers, bag?.userTiers);

@@ -64,7 +64,7 @@ If the field does not exist, mode is `off` (default). Run `/auto-advisor lite` t
 
 ### `/profile` does not preserve JSONC comments
 
-The `/profile` plugin strips comments when rewriting `opencode.jsonc`. If comments are important to you, maintain them in your repository template (`opencode.jsonc`) — each reinstall copies the original (comments restored), but the next `/profile` mutation will strip them again.
+The `/profile` plugin strips comments when rewriting `opencode.jsonc`. If comments are important to you, maintain them in your repository template (`opencode.template.jsonc`) — each reinstall copies the original (comments restored), but the next `/profile` mutation will strip them again.
 
 ### Bash command execution on Windows (Adaptive Support)
 

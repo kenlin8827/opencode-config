@@ -109,6 +109,11 @@ export function pruneOldBackups(targetDir: string, keep: number = getMaxBackups(
 export function copyRepoFiles(repoDir: string, targetDir: string, files: string[]): number {
   let count = 0;
   for (const relFile of files) {
+    // The config template ships in the package but never lands in the target:
+    // mergeConfig renders it (plus options + preserved fields) into the
+    // target's opencode.jsonc. Copying it verbatim would leave a stray
+    // opencode.template.jsonc beside the merged config.
+    if (relFile === 'opencode.template.jsonc') continue;
     const src = path.join(repoDir, relFile);
     const dest = path.join(targetDir, relFile);
     const destDir = path.dirname(dest);

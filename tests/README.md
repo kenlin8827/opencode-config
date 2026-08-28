@@ -1,6 +1,6 @@
 # Multi-Agent System Tests
 
-Tests for verifying that `instructions` in `opencode.jsonc` correctly injects shared protocols (Output Protocol + Ponytail) into all agent contexts.
+Tests for verifying that `instructions` in `opencode.template.jsonc` correctly injects shared protocols (Output Protocol + Ponytail) into all agent contexts.
 
 ## Prerequisites
 
@@ -61,7 +61,7 @@ pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1 -Quick
 ## What test-all.ps1 checks
 
 ### Structural (no API calls)
-- `opencode.jsonc` instructions array contains both protocols
+- `opencode.template.jsonc` instructions array contains both protocols
 - `ponytail.md` content: frontmatter, advisory checklist, lazier alternative, rules, off switch
 - `ponytail.md` is language-agnostic (no Java/Node-specific content)
 - `ponytail.md` has no Output/Intensity sections (orthogonality with output-protocol)

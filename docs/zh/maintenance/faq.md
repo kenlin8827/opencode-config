@@ -64,7 +64,7 @@ Select-String -Path "opencode.jsonc" -Pattern "autoAdvisorMode"
 
 ### `/profile` 不保留 JSONC 注释
 
-`/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.jsonc`）中维护 —— 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。
+`/profile` 插件在重写 `opencode.jsonc` 时会去除注释。如果注释对你很重要，请在仓库模板（`opencode.template.jsonc`）中维护 —— 每次重装会复制原始文件（注释恢复），但下次 `/profile` 修改时会再次去除。
 
 ### Windows 下模型频繁使用 Bash 命令报错（自适应支持）
 

@@ -7,7 +7,7 @@ import path from 'node:path';
 // release tooling like pack.sh/verify.sh that must stay repo-side).
 const SHIPPED_DIRS = ['agents', 'instructions', 'plugins', 'profiles', 'providers'];
 const SHIPPED_FILES = [
-  'opencode.jsonc', //  core config — merged by installer/merger.ts
+  'opencode.template.jsonc', //  core config template — merged into the target opencode.jsonc by installer/merger.ts (never copied verbatim)
   'tiers.json',     //  agent→tier map — merged by installer/merger.ts
   'tui.json',       //  TUI config + plugin registration, read by opencode at runtime
   // Runtime script referenced by opencode.jsonc MCP config (serena command):

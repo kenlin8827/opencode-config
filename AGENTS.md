@@ -65,6 +65,6 @@ After version bump, manifest regeneration, and pre-release gate pass:
 ### What Ships
 
 - **Auto-discovered** (`SHIPPED_DIRS`): `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` — all files in these dirs ship automatically.
-- **Explicit** (`SHIPPED_FILES` in `manifest.ts`): `opencode.jsonc`, `tiers.json`, `tui.json`, `scripts/serena-workspace-daemon.mjs`.
+- **Explicit** (`SHIPPED_FILES` in `manifest.ts`): `opencode.template.jsonc`, `tiers.json`, `tui.json`, `scripts/serena-workspace-daemon.mjs`.
 - `scripts/` is NOT in `SHIPPED_DIRS` — only the one runtime script above is installed; the rest (`pack.*`, `verify.*`, `capture-*.ts`) stays repo-side. New standalone ship files must be added to `SHIPPED_FILES`.
 - `install/` and `bin/` are auto-mirrored during packaging.

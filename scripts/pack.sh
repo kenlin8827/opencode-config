@@ -49,7 +49,7 @@ read_manifest() {
 
 # --- generate manifest if missing (inline, no dependency on install.sh) --
 
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.jsonc" "tui.json" "tiers.json" "profiles/" "providers/" "scripts/")
+INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.template.jsonc" "tui.json" "tiers.json" "profiles/" "providers/" "scripts/")
 EXCLUDE_PATTERNS=('^scripts/pack\.' '^scripts/verify\.')
 
 generate_manifest() {

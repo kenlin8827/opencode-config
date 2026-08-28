@@ -28,8 +28,8 @@
 // ~/.config/opencode — the switches apply straight onto opencode.jsonc
 // (mcp.*.enabled + the plugin array), so nothing in the target looks like
 // an editable options file. Entries this file doesn't list keep the shipped
-// opencode.jsonc value. Bundled plugins/*.ts files are NOT options — they
-// ship wholesale and are always active.
+// template value (opencode.template.jsonc). Bundled plugins/*.ts files are
+// NOT options — they ship wholesale and are always active.
 //
 // global_commands → register global CLI shims (ocp / opencode-prime)
 // into ~/.local/bin and append that directory to the
@@ -62,10 +62,10 @@
     // Code-graph exploration; needs one-time manual `codegraph init` per repo
     "codegraph": true,
     // PolyForm Noncommercial license — enable only if licensed + indexed
-    // (see the gitnexus comment in opencode.jsonc)
+    // (see the gitnexus comment in opencode.template.jsonc)
     "gitnexus": false,
     // Universal DB gateway (MIT, ~1.4k tokens); CLI auto-provisioned.
-    // Still needs per-project dbhub.toml + DSN (see opencode.jsonc) —
+    // Still needs per-project dbhub.toml + DSN (see opencode.template.jsonc) —
     // without one, dbhub just fails to connect at session start
     "dbhub": true,
     // JetBrains IDE MCP bridge — remote server exposed by the running IDE

@@ -15,12 +15,13 @@
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$template = Join-Path $root 'opencode.jsonc'
+$template = Join-Path $root 'opencode.template.jsonc'
 $profilesDir = Join-Path $root 'profiles'
 $tiersFile = Join-Path $root 'tiers.json'
 
-# Agent → tier mapping from tiers.json (kept out of opencode.jsonc because
-# opencode forwards unknown agent fields to the provider as model options).
+# Agent → tier mapping from tiers.json (kept out of opencode.template.jsonc
+# because opencode forwards unknown agent fields to the provider as model
+# options).
 if (-not (Test-Path $tiersFile)) { throw "tiers.json missing at repo root: $tiersFile" }
 $agentTier = @{}
 $tiersObj = Get-Content -Raw $tiersFile | ConvertFrom-Json

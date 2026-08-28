@@ -1,4 +1,4 @@
-# install (v0.9.0)
+# install (v0.9.1)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -284,13 +284,13 @@ When a file is removed or renamed:
 
 The manifest whitelists exactly the paths opencode reads at runtime:
 
-| Path             | Why                                           |
-| ---------------- | --------------------------------------------- |
-| `agents/`        | Agent definitions (20 files)                  |
-| `commands/`      | Slash commands (4 files)                      |
-| `plugins/`       | TypeScript plugins (12 files)                 |
-| `instructions/`  | Shared protocols injected into all agents     |
-| `opencode.jsonc` | Main config                                   |
+| Path                     | Why                                           |
+| ------------------------ | --------------------------------------------- |
+| `agents/`                | Agent definitions (20 files)                  |
+| `commands/`              | Slash commands (4 files)                      |
+| `plugins/`               | TypeScript plugins (12 files)                 |
+| `instructions/`          | Shared protocols injected into all agents     |
+| `opencode.template.jsonc` | Main config template (merged into `opencode.jsonc`, never copied verbatim) |
 
 Everything else stays in the repo and never reaches the target:
 
@@ -329,6 +329,11 @@ manifest listed it) — it is always rewritten at the end of each install.
 manifest (files you added yourself survive), then removes the
 installer-owned extras (`.CONFIG_VERSION`, any stale `.CONFIG_VERSION.bak`,
 and a legacy `options.jsonc` copy left behind by older installers).
+
+The merged `opencode.jsonc` is not a manifest entry — the repo ships
+`opencode.template.jsonc` (never copied verbatim), so the rendered config
+survives uninstall. It carries your credentials and model picks; delete it
+manually, or use `init` (backup + clear) for a total wipe.
 
 ```pwsh
 pwsh install/install.ps1 uninstall        # confirmation prompt
@@ -372,8 +377,8 @@ credentials and model picks inside opencode (`/connect` + `/profile`).
 
 ## Preserved fields
 
-When the manifest contains `opencode.jsonc`, both scripts snapshot the user's
-state from the target file **before** overwriting it with the repo template,
+When the manifest contains `opencode.template.jsonc`, both scripts snapshot the user's
+state from the target file **before** rewriting it with the merged config,
 then write it back afterwards:
 
 | Field                      | Why preserved                         |
@@ -439,7 +444,7 @@ on install).
 - `mcp.<name>` drives `opencode.jsonc`'s `mcp.<name>.enabled`; enabling an
   entry that declares an `install` field also provisions its CLI on the
   next install (disabled entries are never provisioned). Entries the options
-  file doesn't list keep the shipped `opencode.jsonc` value.
+  file doesn't list keep the shipped `opencode.template.jsonc` value.
 - `plugin.<name>` drives membership in `opencode.jsonc`'s `plugin` array;
   plugins the target carries but the options file doesn't list survive as-is.
 - Edit this file and re-run `install` (`-Force`/`-f` when the version is
@@ -449,7 +454,7 @@ on install).
   are always active. The one exception is the vendored openrtk plugin, which
   follows the `rtk` switch.
 
-**Note on the shipped template.** The repo's `opencode.jsonc` ships with
+**Note on the shipped template.** The repo's `opencode.template.jsonc` ships with
 `{env:LLM_ROUTER_BASE_URL}` / `{env:LLM_ROUTER_API_KEY}` as
 [opencode-style env-var substitution tokens](https://opencode.ai/docs/providers#environment-variables).
 This is the **recommended** setup: keep the token in the config, set the

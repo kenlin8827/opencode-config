@@ -20,7 +20,7 @@ install/         # Self-installing engine (TypeScript), manifests, VERSION, opti
 bin/             # OCP CLI dispatchers (opencode-prime, ocp) — installer wrapper + runtime launcher
 tests/           # Structural + prompt test suites (see tests/README.md)
 scripts/         # Packaging scripts for releases
-opencode.jsonc   # Root config template installed to ~/.config/opencode
+opencode.template.jsonc  # Root config template merged into ~/.config/opencode/opencode.jsonc
 tui.json         # TUI config template (registers TUI plugins)
 tiers.json       # Tier definitions sidecar (consumed by profile-wizard)
 ```
@@ -149,7 +149,7 @@ You are a **senior <role>**. <one-line scope>.
 Invoke via `@<agent-name>` or <keywords>.
 ```
 
-Note: the `tier` field some agent blocks carry in `opencode.jsonc` is a **custom, non-standard** configuration field consumed by this repo's tooling (profile-wizard, tiers.json) — upstream OpenCode schemas do not know it.
+Note: the `tier` field some agent blocks carry in `opencode.template.jsonc` is a **custom, non-standard** configuration field consumed by this repo's tooling (profile-wizard, tiers.json) — upstream OpenCode schemas do not know it.
 
 ### 4. Output protocol (shared)
 
@@ -240,7 +240,7 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 1. **Create `agents/<name>.md`** — follow the structural template above.
 2. **Add to `build.md` routing table** — add row to `## Your team` and trigger words table.
 3. **Add to `plan.md` team table** — if analysis-capable.
-4. **Add to `opencode.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
+4. **Add to `opencode.template.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — add to `$allFiles` array and relevant content checks.
 6. **Generate manifest** — bump `install/VERSION`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
 7. **Test** — run `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
@@ -255,7 +255,7 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 - [ ] Output format (structured markdown template)
 - [ ] `Invoke via @<name>` closing line
 - [ ] Added to build.md routing table
-- [ ] Added to opencode.jsonc agent block
+- [ ] Added to opencode.template.jsonc agent block
 - [ ] Added to test-all.ps1 file integrity list
 - [ ] Structural tests pass
 
@@ -271,7 +271,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
-- **npm plugins**: default active plugins are listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
+- **npm plugins**: default active plugins are listed in `opencode.template.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
 - **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
 ### Hook inventory

@@ -36,7 +36,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Structural: config & protocols" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-$config = Get-Content "$PSScriptRoot\..\opencode.jsonc" -Raw | ConvertFrom-Json
+$config = Get-Content "$PSScriptRoot\..\opencode.template.jsonc" -Raw | ConvertFrom-Json
 Check "instructions contains output-protocol.md" `
     ($config.instructions -contains "~/.config/opencode/instructions/output-protocol.md")
 Check "plugin includes @dietrichgebert/ponytail" `
@@ -94,9 +94,9 @@ Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notma
 # Coding agent contract (direct developer: codes itself, no proactive
 # delegation, never delegated to; vision is a three-tier cascade)
 $codeContent = Get-Content "$PSScriptRoot\..\agents\code.md" -Raw
-Check "opencode.jsonc: code agent registered" ($null -ne $config.agent.code)
-Check "opencode.jsonc: code mode is primary" ($config.agent.code.mode -eq "primary")
-Check "opencode.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "agents/code\.md")
+Check "opencode.template.jsonc: code agent registered" ($null -ne $config.agent.code)
+Check "opencode.template.jsonc: code mode is primary" ($config.agent.code.mode -eq "primary")
+Check "opencode.template.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "agents/code\.md")
 Check "code.md: no proactive delegation rule" ($codeContent -match "No proactive delegation")
 Check "code.md: never delegated rule" ($codeContent -match "Never delegated")
 Check "code.md: core coding stays in-house" ($codeContent -match "NEVER hand the core coding task")
@@ -473,8 +473,8 @@ Check "auto-advisor: mentions auto-execute or direct" ($advisorCmd -match "auto-
 # Advisor agent checks
 $advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
 Check "advisor.md: has frontmatter mode subagent" ($advisorAgent -match "mode: subagent")
-# Model binding lives in opencode.jsonc (agent registry), not in the markdown prompt.
-Check "opencode.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/advisor")
+# Model binding lives in opencode.template.jsonc (agent registry), not in the markdown prompt.
+Check "opencode.template.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/advisor")
 Check "advisor.md: read-only (edit deny)" ($advisorAgent -match "edit: deny")
 Check "advisor.md: no ask-user language" (-not ($advisorAgent -match "ask the user" -or $advisorAgent -match "ask a focused question"))
 Check "advisor.md: has output format" ($advisorAgent -match "Output format")

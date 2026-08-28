@@ -274,7 +274,7 @@ export LLM_ROUTER_API_KEY="sk-xxxx"
 
 ## Qoder provider (`opencode-qoder-bridge`)
 
-The [opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) plugin is included in the shipped `opencode.jsonc`'s `plugin` array and injects the `qoder` provider and its full model catalog at startup — no provider block or API keys needed. It communicates with Qoder through the official `@qoder-ai/qoder-agent-sdk` using your Qoder CLI credentials.
+The [opencode-qoder-bridge](https://github.com/naoufalelbani/opencode-qoder-bridge) plugin is included in the `plugin` array of the shipped config template (`opencode.template.jsonc`) and injects the `qoder` provider and its full model catalog at startup — no provider block or API keys needed. It communicates with Qoder through the official `@qoder-ai/qoder-agent-sdk` using your Qoder CLI credentials.
 
 Prerequisites:
 - Node.js `^22.18 || >=24.11`
