@@ -22,7 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { ensureOpencodeGitignore } from "../shared/opencode-config"
+import { ensureOpencodeGitignore } from "../shared/opencode-prime"
 import { CONFIG_REL, getProjectDir, resolveTarget, type ScaffoldTarget } from "./project-manager-config"
 
 // ─── Templates ───────────────────────────────────────────────────────

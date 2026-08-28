@@ -13,8 +13,11 @@
 | 查看状态 | `pwsh install/install.ps1 status` | `./install/install.sh status` | 显示已安装版本与仓库版本 |
 | 生成清单 | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | 扫描仓库，写入清单（不安装） |
 | 初始化（全新开始） | `pwsh install/install.ps1 init` | `./install/install.sh init` | 备份并清空整个目标目录 |
-| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-prime`、`ocp` 与 `opencode-config` shim 安装到 `~/.local/bin` |
+| 注册全局命令 | `pwsh install/install.ps1 register` | `./install/install.sh register` | 将 `opencode-prime` 与 `ocp` shim 安装到 `~/.local/bin` |
 | 注销全局命令 | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | 移除全局 shims |
+| 启动 TUI | `pwsh install/install.ps1 tui` | `./install/install.sh tui` | 启动 OpenCode 终端界面（`exec opencode`） |
+| 启动桌面端 | `pwsh install/install.ps1 desktop` | `./install/install.sh desktop` | 启动 OpenChamber 原生桌面应用（别名 `ui`） |
+| 启动 Web 界面 | `pwsh install/install.ps1 web` | `./install/install.sh web` | 启动 OpenChamber Web 界面（`openchamber --ui-password <自动生成>`） |
 
 ---
 
@@ -32,8 +35,14 @@
    ```jsonc
    // install/options.jsonc
    {
+     // 安装时将全局命令 shim（ocp / opencode-prime）注册到
+     // ~/.local/bin，并把该目录追加进用户 PATH
+     "global_commands": true,
      // 是否启用 rtk 输出压缩（60-90% token 节省）
      "rtk": true,
+     // OpenChamber 网页版 CLI（缺失时自动安装 `openchamber` CLI；
+     // 提供 `ocp web` —— `ocp desktop` / `ocp ui` 的原生桌面应用需另行下载）
+     "openchamber": true,
      // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
      "default_agent": "code",
      // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
@@ -102,6 +111,22 @@
 
 ---
 
+## OpenChamber（`ocp desktop` / `ocp web`）
+
+安装时自动供应 [OpenChamber](https://openchamber.dev) —— 运行在本地 OpenCode 引擎之上的桌面 / 网页图形界面（双栏 Diff 审查、多模型对比、会话时间线）。
+
+当 `"openchamber": true`（默认）且本地缺少 `openchamber` 命令时，安装器会通过检测到的第一个包管理器（pnpm > bun > yarn > npm）全局安装 `@openchamber/web` 包——该 CLI 支撑**网页版**。`ocp desktop` / `ocp ui` 背后的**原生桌面应用**需从 <https://openchamber.dev/download> 另行下载。安装完成后即可启动：
+
+```bash
+ocp desktop      # 原生桌面应用（别名：ocp ui）
+ocp web          # OpenChamber Web 界面（自动生成 --ui-password）
+ocp tui          # OpenCode 终端界面
+```
+
+若不需要：在 `install/options.jsonc` 中设 `"openchamber": false` 后重新安装即可（已安装的命令不受影响）。安装器不会触碰 [openchamber.dev/download](https://openchamber.dev/download) 提供的原生桌面应用。
+
+---
+
 ## 重装时保留的字段
 
 当 `opencode.jsonc` 被新模板覆盖时，以下字段会从你的现有配置中快照并在覆盖后恢复：
@@ -118,7 +143,7 @@
 
 ## 全局命令 (`ocp` / `opencode-prime`)
 
-首次安装后，可将仓库注册为全局快捷命令（`ocp`、`opencode-prime` 与 `opencode-config`）：
+首次安装后，可将仓库注册为全局快捷命令（`ocp`、`opencode-prime`）：
 
 ```powershell
 pwsh install/install.ps1 register
@@ -127,3 +152,9 @@ pwsh install/install.ps1 register
 ```bash
 ./install/install.sh register
 ```
+
+注册完成后，`ocp` 同时也是运行时启动器：`ocp`（或 `ocp tui`）启动 OpenCode 终端界面，`ocp desktop`（别名 `ocp ui`）启动 OpenChamber 原生桌面应用，`ocp web` 则在 localhost 上提供带自动生成 `--ui-password` 的 OpenChamber Web 界面。
+
+若不想在安装时自动注册 shim，可在 `install/options.jsonc` 中设置 `"global_commands": false` —— 上方的 `register` / `unregister` 独立操作仍然随时可用。
+
+👉 完整命令清单、启动器语义（`ocp web` 的端口与密码策略）以及会话内 `/ocp` 斜杠命令，见独立章节 [OCP 命令行参考](/zh/maintenance/ocp-cli)。

@@ -239,4 +239,4 @@ sequenceDiagram
 4. **Max-Phases Cap** (`/ultra-dev` only): `--max-phases` (default 6, max 20) prevents infinite decomposition. Recommended 3–6; beyond 6 requires context compaction;
 5. **Context Compaction** (`/ultra-dev` only): Every 2 completed phases, write a checkpoint to `.opencode/ultra-dev-state.md` and drop detailed results from active context. Enables `--resume` for interrupted sessions.
 6. **Per-Phase Diff Isolation** (`/ultra-dev` only): Each phase gets its own git commit. Reviewers see only the current phase's diff (`HEAD~1`), not cumulative history.
-7. **Zero Configuration Pollution**: [tiers.json](file:///d:/OpenHub/opencode-config/tiers.json) seamlessly connects with `/profile` across all model providers.
+7. **Zero Configuration Pollution**: `tiers.json` seamlessly connects with `/profile` across all model providers.

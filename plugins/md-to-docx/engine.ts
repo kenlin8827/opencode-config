@@ -19,7 +19,7 @@ export interface DocxConversionResult {
   fileSizeBytes: number
 }
 
-import { getProjectLogDir } from "../shared/opencode-config"
+import { getProjectLogDir } from "../shared/opencode-prime"
 
 export { getProjectLogDir }
 

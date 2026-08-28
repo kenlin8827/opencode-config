@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verify release artifacts against the version manifest.
 #
-# Cross-checks dist/opencode-prime-<version> and opencode-config-<version>
+# Cross-checks dist/opencode-prime-<version>
 # archives against install/versions/<version>.manifest.txt:
 #
 #   1. File-list completeness — every manifest entry plus the bundled

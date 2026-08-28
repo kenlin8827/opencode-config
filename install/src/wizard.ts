@@ -10,10 +10,11 @@ import {
   getDefaultTargetDir,
   getCurrentRepoVersion,
 } from './installer';
-import { registerShim } from './shim';
+import { getDefaultBinDir, runGlobalRegistration, isShimRegistered, unregisterShim } from './shim';
 import { readJsoncFile } from './merger';
 import { runTuiDashboard } from './dashboard';
-import { loadLocale, getAvailableLocales, detectDefaultLocaleCode } from './i18n';
+import { ensureOpenChamber } from './openchamber';
+import { loadLocale, getAvailableLocales, detectDefaultLocaleCode, I18nText } from './i18n';
 
 export interface DynamicOptionItem {
   key: string;
@@ -31,6 +32,8 @@ export interface DynamicSchema {
     value: boolean;
     hint: string;
   };
+  globalCommandsDefault: boolean;
+  openChamberDefault: boolean;
   mcpItems: DynamicOptionItem[];
   pluginItems: DynamicOptionItem[];
 }
@@ -39,6 +42,8 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
   const schema: DynamicSchema = {
     defaultAgent: { value: 'code', hint: 'Default active agent', choices: [] },
     rtk: { value: true, hint: 'Rust Token Killer proxy & plugin' },
+    globalCommandsDefault: true,
+    openChamberDefault: true,
     mcpItems: [],
     pluginItems: [],
   };
@@ -108,6 +113,20 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
       continue;
     }
 
+    const globalCommandsMatch = trimmed.match(/"global_commands"\s*:\s*(true|false)/);
+    if (globalCommandsMatch) {
+      schema.globalCommandsDefault = globalCommandsMatch[1] === 'true';
+      pendingComments = [];
+      continue;
+    }
+
+    const openChamberMatch = trimmed.match(/"openchamber"\s*:\s*(true|false)/);
+    if (openChamberMatch) {
+      schema.openChamberDefault = openChamberMatch[1] === 'true';
+      pendingComments = [];
+      continue;
+    }
+
     const boolMatch = trimmed.match(/"([^"]+)"\s*:\s*(true|false)/);
     if (boolMatch) {
       const key = boolMatch[1];
@@ -132,6 +151,8 @@ export function updateOptionsJsoncInPlace(
   updates: {
     defaultAgent?: string;
     rtk?: boolean;
+    globalCommands?: boolean;
+    openChamber?: boolean;
     mcps?: Record<string, boolean>;
     plugins?: Record<string, boolean>;
   }
@@ -150,6 +171,20 @@ export function updateOptionsJsoncInPlace(
     content = content.replace(
       /("rtk"\s*:\s*)(true|false)/,
       `$1${updates.rtk}`
+    );
+  }
+
+  if (updates.globalCommands !== undefined) {
+    content = content.replace(
+      /("global_commands"\s*:\s*)(true|false)/,
+      `$1${updates.globalCommands}`
+    );
+  }
+
+  if (updates.openChamber !== undefined) {
+    content = content.replace(
+      /("openchamber"\s*:\s*)(true|false)/,
+      `$1${updates.openChamber}`
     );
   }
 
@@ -172,155 +207,24 @@ export function updateOptionsJsoncInPlace(
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-async function runCustomSetupFlow(repoDir: string, optionsPath: string, localeCode: string): Promise<void> {
-  const t = loadLocale(repoDir, localeCode);
-  const optionsContent = fs.existsSync(optionsPath) ? fs.readFileSync(optionsPath, 'utf8') : '{}';
-  const schema = parseDynamicOptionsSchema(optionsContent, repoDir);
-  const defaultTarget = getDefaultTargetDir();
+/**
+ * Register global command shims (ocp / opencode-prime) into
+ * the default bin directory and make sure that directory is on the user's
+ * PATH environment variable.
+ */
+function applyGlobalRegistration(repoDir: string, t: I18nText): void {
+  const reg = runGlobalRegistration(repoDir);
+  p.log.success(t.globalRegDoneMsg.replace('{binDir}', reg.binDir));
 
-  p.log.step(t.customInstallHint);
-
-  // 1. Choose Default Primary Agent
-  const agentChoices = schema.defaultAgent.choices.map((name) => ({
-    value: name,
-    label: name,
-    hint: name === 'code' ? 'Direct developer' : name === 'build' ? 'Orchestrator' : 'Specialist',
-  }));
-
-  const pickedAgent = await p.select({
-    message: t.stepAgentPrompt,
-    initialValue: schema.defaultAgent.value,
-    options: agentChoices,
-  });
-  if (p.isCancel(pickedAgent)) {
-    p.cancel(t.customSetupCancelled);
+  if (!reg.pathSuccess) {
+    p.log.warn(t.pathFailedMsg.replace('{binDir}', reg.binDir));
     return;
   }
-
-  // 2. Select MCP Servers
-  const activeMcps = schema.mcpItems.filter((i) => i.value).map((i) => i.key);
-  const mcpOptions = schema.mcpItems.map((item) => ({
-    value: item.key,
-    label: item.key,
-    hint: item.hint,
-  }));
-
-  const selectedMcps = await p.multiselect({
-    message: t.stepMcpPrompt,
-    initialValues: activeMcps,
-    options: mcpOptions,
-  });
-  if (p.isCancel(selectedMcps)) {
-    p.cancel(t.customSetupCancelled);
+  if (!reg.pathChanged) {
+    p.log.info(t.pathPresentMsg.replace('{binDir}', reg.binDir));
     return;
   }
-
-  // 3. Select Plugins
-  const activePlugins = schema.pluginItems.filter((i) => i.value).map((i) => i.key);
-  const pluginOptions = schema.pluginItems.map((item) => ({
-    value: item.key,
-    label: item.key,
-    hint: item.hint,
-  }));
-
-  const selectedPlugins = await p.multiselect({
-    message: t.stepPluginPrompt,
-    initialValues: activePlugins,
-    options: pluginOptions,
-  });
-  if (p.isCancel(selectedPlugins)) {
-    p.cancel(t.customSetupCancelled);
-    return;
-  }
-
-  // 4. Toggle RTK
-  const enableRtk = await p.confirm({
-    message: `${t.stepRtkPrompt}\n  (${schema.rtk.hint})`,
-    initialValue: schema.rtk.value,
-  });
-  if (p.isCancel(enableRtk)) {
-    p.cancel(t.customSetupCancelled);
-    return;
-  }
-
-  // 5. Target Directory
-  const targetInput = await p.text({
-    message: t.stepTargetPrompt,
-    initialValue: defaultTarget,
-    placeholder: defaultTarget,
-  });
-  if (p.isCancel(targetInput)) {
-    p.cancel(t.customSetupCancelled);
-    return;
-  }
-  const targetDir = targetInput ? targetInput.trim() : defaultTarget;
-
-  const newMcpRecord: Record<string, boolean> = {};
-  for (const item of schema.mcpItems) {
-    newMcpRecord[item.key] = (selectedMcps as string[]).includes(item.key);
-  }
-
-  const newPluginRecord: Record<string, boolean> = {};
-  for (const item of schema.pluginItems) {
-    newPluginRecord[item.key] = (selectedPlugins as string[]).includes(item.key);
-  }
-
-  const finalOptions: InstallOptions = {
-    default_agent: pickedAgent as string,
-    rtk: Boolean(enableRtk),
-    mcp: newMcpRecord,
-    plugin: newPluginRecord,
-  };
-
-  p.log.message(
-    `\n${t.reviewTitle}\n` +
-    `  • ${t.reviewPrimaryAgent}: ${finalOptions.default_agent}\n` +
-    `  • ${t.reviewActiveMcps}   : ${(selectedMcps as string[]).join(', ') || 'None'}\n` +
-    `  • ${t.reviewActivePlugins}: ${(selectedPlugins as string[]).join(', ') || 'None'}\n` +
-    `  • ${t.reviewRtk}          : ${finalOptions.rtk ? t.enabled : t.disabled}\n` +
-    `  • ${t.reviewTargetPath}   : ${targetDir}\n`
-  );
-
-  const confirmInstall = await p.confirm({
-    message: t.readyToInstallPrompt,
-    initialValue: true,
-  });
-  if (p.isCancel(confirmInstall) || !confirmInstall) {
-    p.cancel(t.installCancelledNoChanges);
-    return;
-  }
-
-  updateOptionsJsoncInPlace(optionsPath, {
-    defaultAgent: finalOptions.default_agent,
-    rtk: finalOptions.rtk,
-    mcps: newMcpRecord,
-    plugins: newPluginRecord,
-  });
-  p.log.success(t.saveOptionsSuccess);
-
-  const s = p.spinner();
-  s.start(t.installingSpinner);
-
-  const args: CliArgs = {
-    action: 'install',
-    target: targetDir,
-    force: true,
-    noBackup: false,
-    yes: true,
-    isInteractive: true,
-  };
-
-  const res = executeInstall(repoDir, args, finalOptions);
-  s.stop(t.installSuccessNote);
-
-  p.note(
-    `Target: ${res.targetDir}\nVersion: ${res.version}\nPrimary Agent: ${finalOptions.default_agent}\nRTK: ${
-      finalOptions.rtk ? 'Enabled' : 'Disabled'
-    }\nFiles Installed: ${res.filesInstalled}\nFiles Cleaned: ${res.filesRemoved}${
-      res.backupPath ? `\nBackup: ${res.backupPath}` : ''
-    }`,
-    t.installSummaryTitle
-  );
+  p.log.success(t.pathAddedMsg.replace('{binDir}', reg.binDir));
 }
 
 export async function runInteractiveWizard(repoDir: string): Promise<void> {
@@ -360,63 +264,70 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
   while (true) {
     t = loadLocale(repoDir, currentLocaleCode);
 
+    // Adaptive menu order: on a fresh (not yet installed) machine lead with
+    // the fastest path to a working setup; once installed, the dashboard is
+    // the high-frequency entry and keeps the top spot.
+    const installedNow = !!executeStatus(repoDir).installedVersion;
+    const registeredNow = isShimRegistered();
+    const defaultTarget = getDefaultTargetDir();
+
+    const menuOptions = [
+      {
+        value: 'dashboard',
+        label: t.dashboardLabel,
+        hint: t.dashboardHint,
+      },
+      {
+        value: 'quick_install',
+        label: t.quickInstallLabel,
+        hint: t.quickInstallHint,
+      },
+      {
+        value: 'status',
+        label: t.statusLabel,
+        hint: t.statusHint,
+      },
+      {
+        value: 'register',
+        label: registeredNow ? t.unregisterLabel : t.registerLabel,
+        hint: registeredNow ? t.unregisterHint : t.registerHint,
+      },
+      {
+        value: 'init',
+        label: t.initLabel.replace('{target}', defaultTarget),
+        hint: t.initHint.replace('{target}', defaultTarget),
+      },
+      {
+        value: 'uninstall',
+        label: t.uninstallLabel,
+        hint: t.uninstallHint,
+      },
+      {
+        value: 'switch_lang',
+        label: t.switchLanguageLabel,
+        hint: t.switchLanguageHint,
+      },
+      {
+        value: 'exit',
+        label: t.exitLabel,
+        hint: t.exitHint,
+      },
+    ];
+    if (!installedNow) {
+      const [first, second] = menuOptions;
+      menuOptions[0] = second;
+      menuOptions[1] = first;
+    }
+
     const action = await p.select({
       message: t.menuPrompt,
-      options: [
-        {
-          value: 'dashboard',
-          label: t.dashboardLabel,
-          hint: t.dashboardHint,
-        },
-        {
-          value: 'quick_install',
-          label: t.quickInstallLabel,
-          hint: t.quickInstallHint,
-        },
-        {
-          value: 'custom_install',
-          label: t.customInstallLabel,
-          hint: t.customInstallHint,
-        },
-        {
-          value: 'status',
-          label: t.statusLabel,
-          hint: t.statusHint,
-        },
-        {
-          value: 'register',
-          label: t.registerLabel,
-          hint: t.registerHint,
-        },
-        {
-          value: 'init',
-          label: t.initLabel,
-          hint: t.initHint,
-        },
-        {
-          value: 'uninstall',
-          label: t.uninstallLabel,
-          hint: t.uninstallHint,
-        },
-        {
-          value: 'switch_lang',
-          label: t.switchLanguageLabel,
-          hint: t.switchLanguageHint,
-        },
-        {
-          value: 'exit',
-          label: t.exitLabel,
-          hint: t.exitHint,
-        },
-      ],
+      options: menuOptions,
     });
 
     if (p.isCancel(action) || action === 'exit') {
       p.outro(t.thankYouOutro);
       process.exit(0);
     }
-
-    const defaultTarget = getDefaultTargetDir();
 
     if (action === 'switch_lang') {
       const curIdx = availableLocales.findIndex((l) => l.code === currentLocaleCode);
@@ -425,7 +336,12 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
       p.log.success(loadLocale(repoDir, currentLocaleCode).switchLangHint);
       continue;
     } else if (action === 'dashboard') {
-      await runTuiDashboard(repoDir, currentLocaleCode);
+      const result = await runTuiDashboard(repoDir, currentLocaleCode);
+      if (result.action === 'back') {
+        // Stay in sync with language switches made inside the dashboard
+        currentLocaleCode = result.locale;
+        continue;
+      }
       break;
     } else if (action === 'quick_install') {
       const options = readJsoncFile<InstallOptions>(optionsPath) || {};
@@ -437,6 +353,22 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
 
       if (p.isCancel(targetInput)) {
         continue;
+      }
+
+      // Global Command Registration (ocp / opencode-prime) — default from options.jsonc
+      const defaultBinDir = getDefaultBinDir();
+      const globalCmdsDefault = options.global_commands !== false;
+      const registerGlobalCmds = await p.confirm({
+        message: `${t.stepRegisterPrompt.replace('{binDir}', defaultBinDir)}\n  (${t.stepRegisterNote})`,
+        initialValue: globalCmdsDefault,
+      });
+      if (p.isCancel(registerGlobalCmds)) {
+        continue;
+      }
+
+      // Persist the choice back so subsequent installs / --yes respect it.
+      if (registerGlobalCmds !== globalCmdsDefault) {
+        updateOptionsJsoncInPlace(optionsPath, { globalCommands: registerGlobalCmds });
       }
 
       const s = p.spinner();
@@ -454,15 +386,20 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
       const res = executeInstall(repoDir, args, options);
       s.stop(t.installSuccessNote);
 
+      if (registerGlobalCmds) {
+        applyGlobalRegistration(repoDir, t);
+      }
+
+      if (options.openchamber !== false) {
+        p.log.step(ensureOpenChamber().message);
+      }
+
       p.note(
         `Target: ${res.targetDir}\nVersion: ${res.version}\nFiles Installed: ${res.filesInstalled}\nFiles Cleaned: ${res.filesRemoved}${
           res.backupPath ? `\nBackup saved at: ${res.backupPath}` : ''
-        }`,
+        }${registerGlobalCmds ? `\nGlobal Commands: Registered at ${defaultBinDir}` : ''}`,
         t.installSummaryTitle
       );
-      break;
-    } else if (action === 'custom_install') {
-      await runCustomSetupFlow(repoDir, optionsPath, currentLocaleCode);
       break;
     } else if (action === 'status') {
       const st = executeStatus(repoDir);
@@ -475,8 +412,15 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
         t.configStatusDetail
       );
     } else if (action === 'register') {
-      const res = registerShim(repoDir);
-      p.note(res.message, t.globalRegTitle);
+      if (registeredNow) {
+        const res = unregisterShim();
+        const detail = res.removed.length > 0
+          ? `${t.unregisterDoneMsg.replace('{binDir}', getDefaultBinDir())}\n${res.removed.map((f) => `- ${f}`).join('\n')}`
+          : t.unregisterNothingMsg.replace('{binDir}', getDefaultBinDir());
+        p.note(detail, t.globalUnregTitle);
+      } else {
+        applyGlobalRegistration(repoDir, t);
+      }
     } else if (action === 'init') {
       const confirmInit = await p.confirm({
         message: t.confirmResetPrompt.replace('{target}', defaultTarget),

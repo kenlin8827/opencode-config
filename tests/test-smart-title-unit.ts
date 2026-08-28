@@ -280,7 +280,7 @@ assertEq(cleanTitle(""), "", "empty stays empty")
 
 // ── 6: titleFormat placeholders ────────────────────────────────────────
 console.log("\n== 6: applyTitleFormat ==")
-const winCwd = "D:\\OpenHub\\opencode-config\\plugins"
+const winCwd = "D:\\OpenHub\\opencode-prime\\plugins"
 assertEq(
   applyTitleFormat("{title}", "My Title", winCwd),
   "My Title",
@@ -293,7 +293,7 @@ assertEq(
 )
 assertEq(
   applyTitleFormat("{cwdTip:2}", "t", winCwd),
-  "opencode-config/plugins",
+  "opencode-prime/plugins",
   "{cwdTip:2} two segments",
 )
 assertEq(

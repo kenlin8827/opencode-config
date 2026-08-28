@@ -1,6 +1,24 @@
-# install (v0.7.3)
+# install (v0.8.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
+
+## ⚡ Remote One-Line Install
+
+The repository root contains pipe-friendly remote installers (`install.sh` and `install.ps1`) that download the latest release and launch the in-repo installer automatically:
+
+### macOS / Linux / WSL
+```bash
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+```powershell
+irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1 | iex
+```
+
+> These remote scripts download the latest release archive, extract it to a temporary directory, and forward all arguments to the in-repo `install/install.sh` or `install/install.ps1` described below.
+
+---
 
 ## 🌟 Interactive TUI Wizard (Recommended)
 
@@ -69,7 +87,7 @@ pwsh install/install.ps1 uninstall -Yes
 ## Global commands (`ocp` / `opencode-prime`)
 
 After installing the files, register the repo to provision global command shortcuts
-(`ocp`, `opencode-prime`, and `opencode-config`) so you can run it from any directory.
+(`ocp`, `opencode-prime`) so you can run it from any directory.
 
 PowerShell:
 
@@ -107,7 +125,16 @@ ocp install -Force
 export PATH="$HOME/.local/bin:$PATH"
 # then:
 ocp status
-ocp update
+ocp upgrade
+```
+
+Once registered, `ocp` doubles as a runtime launcher (running it with no
+arguments launches the OpenCode terminal UI):
+
+```pwsh
+ocp tui          # launch the OpenCode terminal UI (exec opencode)
+ocp desktop      # launch the OpenChamber native desktop app (alias: ocp ui)
+ocp web          # launch the OpenChamber web UI (openchamber --ui-password <generated>)
 ```
 
 ## Configuring credentials
@@ -368,6 +395,7 @@ on install).
 ```jsonc
 {
   "rtk": true,
+  "openchamber": true,
   "default_agent": "code",
   "mcp":    { "serena": true, "codegraph": true, "gitnexus": false, "dbhub": true },
   "plugin": {
@@ -387,6 +415,13 @@ on install).
   and keeps the vendored `plugins/openrtk*`; `false` skips the download AND
   removes `plugins/openrtk.ts` + `plugins/openrtk/` from the target (an
   already-installed `rtk` binary on PATH stays put).
+- `openchamber` drives OpenChamber web UI CLI provisioning: `true` (default)
+  installs the `@openchamber/web` CLI globally via the first detected
+  package manager (pnpm > bun > yarn > npm) when the `openchamber` binary is
+  missing — it powers `ocp web` and needs Node.js 22+; the native desktop app
+  behind `ocp desktop` / `ocp ui` is a separate download from
+  https://openchamber.dev/download. `false` skips provisioning (an
+  already-installed binary stays put).
 - `mcp.<name>` drives `opencode.jsonc`'s `mcp.<name>.enabled`; enabling an
   entry that declares an `install` field also provisions its CLI on the
   next install (disabled entries are never provisioned). Entries the options

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { CliArgs, CommandAction } from './types';
+import { CliArgs, CommandAction, InstallOptions } from './types';
+import { readJsoncFile } from './merger';
 import {
   executeInstall,
   executeStatus,
@@ -9,15 +10,19 @@ import {
   getCurrentRepoVersion,
 } from './installer';
 import { generateManifest } from './manifest';
-import { registerShim, unregisterShim } from './shim';
+import { unregisterShim, runGlobalRegistration } from './shim';
 import { runInteractiveWizard } from './wizard';
 import { runTuiDashboard } from './dashboard';
+import { launchTui, launchServe, launchWeb, launchDesktop } from './launcher';
+import { ensureOpenChamber } from './openchamber';
+import { executeUpdate, executeUpgrade } from './updater';
 
 function parseCliArgs(rawArgs: string[]): CliArgs {
   const args: CliArgs = {
     action: 'install',
     force: false,
     noBackup: false,
+    keepBackups: undefined,
     yes: false,
     isInteractive: process.stdout.isTTY && process.stdin.isTTY,
   };
@@ -48,18 +53,51 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
     } else if (arg === 'unregister') {
       args.action = 'unregister';
       hasExplicitAction = true;
-    } else if (arg === 'wizard' || arg === 'ui' || arg === 'menu') {
+    } else if (arg === 'wizard' || arg === 'menu') {
       args.action = 'wizard';
       hasExplicitAction = true;
     } else if (arg === 'dashboard' || arg === 'matrix' || arg === 'cc') {
       args.action = 'dashboard';
       hasExplicitAction = true;
+    } else if (arg === 'tui') {
+      args.action = 'tui';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'serve') {
+      args.action = 'serve';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'update') {
+      args.action = 'update';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'upgrade') {
+      args.action = 'upgrade';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'desktop' || arg === 'ui') {
+      args.action = 'desktop';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'web') {
+      args.action = 'web';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
     } else if (arg === '-Target' || arg === '--target' || arg === '-t') {
       args.target = rawArgs[++i];
     } else if (arg === '-Force' || arg === '--force' || arg === '-f') {
       args.force = true;
     } else if (arg === '-NoBackup' || arg === '--no-backup') {
       args.noBackup = true;
+    } else if (arg === '-KeepBackups' || arg === '--keep-backups') {
+      const n = parseInt(rawArgs[++i], 10);
+      if (!Number.isNaN(n) && n >= 0) args.keepBackups = n;
     } else if (arg === '-Yes' || arg === '--yes' || arg === '-y') {
       args.yes = true;
     } else if (arg === '-BinDir' || arg === '--bin-dir') {
@@ -92,7 +130,17 @@ Usage:
 Actions:
   (default)    Interactive setup wizard (in TTY) or install (in non-interactive)
   wizard       Launch the interactive TUI setup wizard
+  tui          Launch the OpenCode terminal UI (exec opencode)
+  serve        Launch the headless opencode server (opencode serve; all args pass through)
+  web          Launch the OpenChamber web UI (auto-picks a free port unless --port is given)
+  desktop      Launch the OpenChamber native desktop app (alias: ui)
   install      Install or update OpenCode Prime configuration files
+  update       Check the suite + companion tools (opencode, openchamber) for updates;
+               apply the selected ones in an interactive TTY (Enter = keep, n = skip);
+               -y applies ALL pending updates without prompting; --check-only
+               probes versions and applies nothing (default without -y when non-interactive)
+  upgrade      Pull the latest release (git pull for clones, release download
+               otherwise) and re-apply the installer
   status       Check installed version and comparison with current repo
   generate     Generate manifest for current repo VERSION
   init         Backup and reset the target configuration directory
@@ -104,7 +152,9 @@ Options:
   -t, --target <path>      Custom target directory (default: ~/.config/opencode)
   -f, --force              Force install even if version is unchanged
   --no-backup              Skip automatic backup of existing configuration
-  -y, --yes                Skip confirmation prompts
+  --keep-backups <n>       Max backups kept after each run (default: 5, env: OCP_MAX_BACKUPS)
+  -y, --yes                Skip confirmation prompts (update: apply all pending)
+  --check-only             update: check versions only, apply nothing
   --bin-dir <path>         Target directory for global command shim (default: ~/.local/bin)
   -h, --help               Show this help message
 `);
@@ -118,7 +168,7 @@ Options:
  *
  * However, when run from the bundled dist/index.js (produced by `bun build`),
  * Bun hard-codes __dirname to the build machine's absolute path (e.g.
- * "D:\\OpenHub\\opencode-config\\install\\src"), which does not exist on
+ * "D:\\OpenHub\\opencode-prime\\install\\src"), which does not exist on
  * end-user machines. This causes ENOTSUP errors when trying to mkdir
  * manifest paths under a non-existent directory tree.
  *
@@ -162,6 +212,30 @@ async function main() {
   const rawArgs = process.argv.slice(2);
   const args = parseCliArgs(rawArgs);
 
+  if (args.action === 'tui') {
+    process.exit(launchTui(args.passthrough ?? []));
+  }
+
+  if (args.action === 'serve') {
+    process.exit(launchServe(args.passthrough ?? []));
+  }
+
+  if (args.action === 'update') {
+    process.exit(await executeUpdate(repoDir, args.passthrough ?? []));
+  }
+
+  if (args.action === 'upgrade') {
+    process.exit(await executeUpgrade(repoDir, args.passthrough ?? []));
+  }
+
+  if (args.action === 'web') {
+    process.exit(launchWeb(args.passthrough ?? []));
+  }
+
+  if (args.action === 'desktop') {
+    process.exit(launchDesktop(args.passthrough ?? []));
+  }
+
   if (args.action === 'dashboard') {
     await runTuiDashboard(repoDir);
     return;
@@ -201,8 +275,9 @@ async function main() {
       break;
     }
     case 'register': {
-      const res = registerShim(repoDir, args.binDir);
-      console.log(res.message);
+      const reg = runGlobalRegistration(repoDir, args.binDir);
+      console.log(reg.shimMessage);
+      console.log(reg.pathMessage);
       break;
     }
     case 'unregister': {
@@ -212,10 +287,24 @@ async function main() {
     }
     case 'install':
     default: {
+      const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
+      const fileOptions = readJsoncFile<InstallOptions>(optionsPath) || {};
+      const wantGlobal = fileOptions.global_commands !== false;
+
       const res = executeInstall(repoDir, args);
       console.log(`Installed v${res.version} to ${res.targetDir} (${res.filesInstalled} files applied)`);
       if (res.filesRemoved > 0) console.log(`Cleaned ${res.filesRemoved} deprecated files`);
       if (res.backupPath) console.log(`Backup saved to ${res.backupPath}`);
+
+      if (wantGlobal) {
+        const reg = runGlobalRegistration(repoDir, args.binDir);
+        console.log(reg.shimMessage);
+        console.log(reg.pathMessage);
+      }
+
+      if (fileOptions.openchamber !== false) {
+        console.log(ensureOpenChamber().message);
+      }
       break;
     }
   }

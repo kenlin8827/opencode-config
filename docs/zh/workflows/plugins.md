@@ -32,6 +32,7 @@
 | `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project-wizard` TUI 弹窗向导 |
 | `md-to-pdf.ts` | `/md-to-pdf` 命令与 `md_to_pdf` 工具 —— 将 Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 | `md-to-docx.ts` | `/md-to-docx` 命令与 `md_to_docx` 工具 —— 将 Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
+| `ocp/` | `/ocp` 命令 —— OpenCode Prime 会话内自管理：`/ocp update`（检查新版本）、`/ocp upgrade`（拉取最新包+重装）、`/ocp status`、`/ocp version`；全程进程内处理，不唤起 LLM |
 
 ---
 

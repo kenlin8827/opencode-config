@@ -7,7 +7,6 @@
     PowerShell equivalent of scripts/pack.sh. Produces release archives in dist/:
       opencode-prime-<version>.tar.gz   (for macOS / Linux / WSL)
       opencode-prime-<version>.zip       (for Windows)
-      opencode-config-<version>.*        (compatibility aliases)
 
     Each archive contains:
       install/VERSION
@@ -15,7 +14,7 @@
       install/install.sh
       install/install.ps1
       install/versions/<ver>.manifest.txt   (auto-generated if missing)
-      bin/*                                 (dispatchers: opencode-prime, ocp, opencode-config)
+      bin/*                                 (dispatchers: opencode-prime, ocp)
       <every file listed in the manifest>    (agents/, plugins/, etc.)
 
 .PARAMETER OutDir

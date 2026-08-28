@@ -14,6 +14,32 @@ OpenCode 拥有开放的前端生态。无论你习惯纯键盘流的终端环�
 
 ---
 
+## 各端界面预览
+
+### 终端 TUI
+
+在任意项目目录下运行 `opencode`（或 `ocp tui`）即可启动终端界面 —— 默认日常主力界面，支持 21 位专家智能体、四种工作模式与工作流斜杠命令：
+
+![OpenCode 终端界面](/images/opencode-zh.webp)
+
+---
+
+### OpenChamber 桌面端
+
+运行 `ocp desktop`（别名 `ocp ui`）启动基于 Tauri 的原生桌面应用，提供并列差异对比与多模型比较：
+
+![OpenChamber 桌面应用](/images/openchamber-desktop-zh.png)
+
+---
+
+### OpenChamber Web 端
+
+运行 `ocp web` 启动浏览器版界面 —— 自动生成密码保护的会话，自动选取空闲端口，无需安装桌面程序：
+
+![OpenChamber 网页界面](/images/openchamber-web-zh.png)
+
+---
+
 ## 配置无缝共享机制
 
 无论你选择哪种客户端形态，本项目安装在 `~/.config/opencode` 的全部工程能力均会自动生效并完全共享：

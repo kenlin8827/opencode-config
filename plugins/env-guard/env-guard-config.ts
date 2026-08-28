@@ -17,7 +17,7 @@
  *
  * Config-file plumbing (project dir resolution, JSONC parsing, field
  * upsert/remove, never-throw write) is shared with adr-guard and auto-advisor
- * via ../shared/opencode-config; this file keeps only the env-guard-specific
+ * via ../shared/opencode-prime; this file keeps only the env-guard-specific
  * switch semantics.
  */
 
@@ -26,7 +26,7 @@ import {
   readProjectConfig,
   setConfigField,
   setProjectDir,
-} from "../shared/opencode-config"
+} from "../shared/opencode-prime"
 
 // Re-export the shared plumbing so the plugin entry keeps its import path.
 export { setProjectDir }

@@ -17,6 +17,7 @@ export const EMBEDDED_LOCALES: Record<string, I18nText> = {
 export interface I18nText {
   _meta?: I18nMeta;
   wizardTitle: string;
+  versionFreshPrompt: string;
   installedNote: string;
   notInstalledNote: string;
   menuPrompt: string;
@@ -24,12 +25,15 @@ export interface I18nText {
   dashboardHint: string;
   quickInstallLabel: string;
   quickInstallHint: string;
-  customInstallLabel: string;
-  customInstallHint: string;
   statusLabel: string;
   statusHint: string;
   registerLabel: string;
   registerHint: string;
+  unregisterLabel: string;
+  unregisterHint: string;
+  unregisterDoneMsg: string;
+  unregisterNothingMsg: string;
+  globalUnregTitle: string;
   initLabel: string;
   initHint: string;
   uninstallLabel: string;
@@ -45,6 +49,10 @@ export interface I18nText {
   primaryAgentHint: string;
   rtkLabel: string;
   rtkHint: string;
+  globalCommandsLabel: string;
+  globalCommandsHint: string;
+  openChamberLabel: string;
+  openChamberHint: string;
   mcpSectionHeader: string;
   pluginSectionHeader: string;
   targetSectionHeader: string;
@@ -58,21 +66,24 @@ export interface I18nText {
   saveOnlyHint: string;
   exitBtn: string;
   exitBtnHint: string;
+  backBtn: string;
+  backBtnHint: string;
   footerHelp: string;
   switchLangHint: string;
   enabled: string;
   disabled: string;
+  onCmdRegAdded: string;
+  onCmdRegSkipped: string;
+  onChamberAdded: string;
+  onChamberSkipped: string;
   on: string;
   off: string;
-  stepAgentPrompt: string;
-  stepMcpPrompt: string;
-  stepPluginPrompt: string;
-  stepRtkPrompt: string;
-  stepTargetPrompt: string;
-  reviewTitle: string;
-  readyToInstallPrompt: string;
-  customSetupCancelled: string;
-  installCancelledNoChanges: string;
+  stepRegisterPrompt: string;
+  stepRegisterNote: string;
+  globalRegDoneMsg: string;
+  pathAddedMsg: string;
+  pathPresentMsg: string;
+  pathFailedMsg: string;
   selectLanguagePrompt: string;
   switchLanguageLabel: string;
   switchLanguageHint: string;
@@ -81,7 +92,6 @@ export interface I18nText {
   globalRegTitle: string;
   confirmResetPrompt: string;
   confirmUninstallPrompt: string;
-  itemDetailsTitle: string;
   exitedDashboard: string;
   targetDirectoryPrompt: string;
   targetModified: string;
@@ -97,15 +107,11 @@ export interface I18nText {
   summaryInstalled: string;
   summaryCleaned: string;
   summaryBackup: string;
-  reviewPrimaryAgent: string;
-  reviewActiveMcps: string;
-  reviewActivePlugins: string;
-  reviewRtk: string;
-  reviewTargetPath: string;
 }
 
 export const FALLBACK_EN: I18nText = {
   wizardTitle: '⚡ OpenCode Prime (OCP) — Interactive Setup Wizard',
+  versionFreshPrompt: 'Fresh Installation',
   installedNote: 'Installed version: v{version} (Target: {target})',
   notInstalledNote: 'Target not yet initialized (Target: {target})',
   menuPrompt: 'Select an action to proceed:',
@@ -113,14 +119,17 @@ export const FALLBACK_EN: I18nText = {
   dashboardHint: 'Full overview of default agent, RTK, and all MCP/Plugin switches',
   quickInstallLabel: '⚡ Quick Install (Recommended defaults)',
   quickInstallHint: 'Apply options.jsonc directly to your config directory',
-  customInstallLabel: '⚙️ Step-by-Step Custom Setup Flow',
-  customInstallHint: 'Interactive step-by-step picker for agents, MCPs, and plugins',
   statusLabel: '📊 Check Status & Tracked Files',
   statusHint: 'Compare local repo with installed target version',
-  registerLabel: '🌐 Register Global Command (ocp / opencode-prime)',
-  registerHint: 'Add global CLI wrapper to ~/.local/bin',
-  initLabel: '🧹 Reset Target Directory (Backup + Fresh Start)',
-  initHint: 'Wipe target directory and prepare fresh environment',
+  registerLabel: '➕ Register Global Commands (ocp / opencode-prime → ~/.local/bin)',
+  registerHint: 'Write CLI wrapper scripts into ~/.local/bin and add it to PATH',
+  unregisterLabel: '➖ Unregister Global Commands (remove from ~/.local/bin)',
+  unregisterHint: 'Remove CLI wrapper scripts from ~/.local/bin (PATH untouched)',
+  unregisterDoneMsg: 'Unregistered global commands from {binDir}',
+  unregisterNothingMsg: 'No global command shims found in {binDir}',
+  globalUnregTitle: '🌐 Global Command Unregistration',
+  initLabel: '🧹 Reset OpenCode Config Directory {target} (Auto Backup)',
+  initHint: 'Back up and wipe the installed config directory for a fresh start',
   uninstallLabel: '❌ Uninstall Managed Configs (Preserve user data)',
   uninstallHint: 'Safely remove only tracked open-code files',
   exitLabel: '🚪 Exit',
@@ -134,6 +143,10 @@ export const FALLBACK_EN: I18nText = {
   primaryAgentHint: 'Default agent loaded on session start (default_agent)',
   rtkLabel: 'RTK Tokenizer',
   rtkHint: 'Rust Token Killer proxy & plugin',
+  globalCommandsLabel: 'Global Commands',
+  globalCommandsHint: 'Register ocp / opencode-prime shims into ~/.local/bin and add it to PATH',
+  openChamberLabel: 'OpenChamber Web UI',
+  openChamberHint: 'Install the OpenChamber web UI CLI powering `ocp web` (desktop app for `ocp desktop` / `ocp ui` is a separate download)',
   mcpSectionHeader: '── 🔌 MCP Servers (Space to toggle) ──',
   pluginSectionHeader: '── 🧩 External Plugins (Space to toggle) ──',
   targetSectionHeader: '── 📁 Installation Target ──',
@@ -147,21 +160,24 @@ export const FALLBACK_EN: I18nText = {
   saveOnlyHint: 'Persist settings to options.jsonc without copying files',
   exitBtn: '🚪 EXIT',
   exitBtnHint: 'Close control center without saving',
-  footerHelp: '[ ↑/↓/j/k: Move ]  [ Space: Toggle/Cycle ]  [ L: Switch Lang ]  [ Enter: Apply ]  [ Q: Exit ]',
+  backBtn: '↩ BACK TO MAIN MENU',
+  backBtnHint: 'Return to the wizard main menu',
+  footerHelp: '[ ↑/↓/j/k: Move ]  [ Space: Toggle/Cycle ]  [ L: Switch Lang ]  [ Enter: Apply ]  [ Esc: Back ]  [ Q: Exit ]',
   switchLangHint: 'Language switched to English',
   enabled: 'ENABLED',
   disabled: 'DISABLED',
+  onCmdRegAdded: 'Global commands registered',
+  onCmdRegSkipped: 'Global commands skipped',
+  onChamberAdded: 'OpenChamber provisioning enabled',
+  onChamberSkipped: 'OpenChamber provisioning skipped',
   on: 'ON',
   off: 'OFF',
-  stepAgentPrompt: '1/5. Select default primary agent (default_agent):',
-  stepMcpPrompt: '2/5. Toggle MCP servers (Space to toggle, Enter to confirm):',
-  stepPluginPrompt: '3/5. Toggle External Plugins (Space to toggle, Enter to confirm):',
-  stepRtkPrompt: '4/5. Enable RTK (Rust Token Killer proxy & plugin)?',
-  stepTargetPrompt: '5/5. Target installation directory:',
-  reviewTitle: '📋 Configuration Review:',
-  readyToInstallPrompt: 'Ready to save options to install/options.jsonc and install now?',
-  customSetupCancelled: 'Custom setup cancelled.',
-  installCancelledNoChanges: 'Installation cancelled. No changes were applied.',
+  stepRegisterPrompt: 'Register global commands (ocp / opencode-prime) into {binDir} and add it to your PATH?',
+  stepRegisterNote: 'Shims are written into the bin directory and the directory is appended to your user PATH environment variable so the commands resolve in new terminals.',
+  globalRegDoneMsg: 'Registered global commands into {binDir}',
+  pathAddedMsg: 'Added {binDir} to your user PATH (takes effect in new terminals)',
+  pathPresentMsg: '{binDir} is already on PATH — no changes needed',
+  pathFailedMsg: 'Failed to update PATH automatically — please add {binDir} manually',
   selectLanguagePrompt: '🌐 Select Language:',
   switchLanguageLabel: '🌐 Switch Language',
   switchLanguageHint: 'Change UI display language',
@@ -170,7 +186,6 @@ export const FALLBACK_EN: I18nText = {
   globalRegTitle: '🌐 Global Command Registration',
   confirmResetPrompt: 'Are you sure you want to reset and clear {target}? (Backup created)',
   confirmUninstallPrompt: 'Safely uninstall all managed files from {target}?',
-  itemDetailsTitle: '💡 Item Details',
   exitedDashboard: 'Exited OpenCode Setup Control Center.',
   targetDirectoryPrompt: 'Enter new target directory [{target}]: ',
   targetModified: 'Target directory changed to: {target}',
@@ -186,11 +201,6 @@ export const FALLBACK_EN: I18nText = {
   summaryInstalled: 'Files Installed',
   summaryCleaned: 'Files Cleaned',
   summaryBackup: 'Backup Saved',
-  reviewPrimaryAgent: 'Primary Agent',
-  reviewActiveMcps: 'Active MCPs',
-  reviewActivePlugins: 'Active Plugins',
-  reviewRtk: 'RTK Tokenizer',
-  reviewTargetPath: 'Target Path',
 };
 
 const localeCache: Record<string, I18nText> = {};

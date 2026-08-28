@@ -49,7 +49,7 @@ import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, wi
  * no /queued equivalent.
  */
 
-const PLUGIN_ID = "opencode-config.queue-manager"
+const PLUGIN_ID = "opencode-prime.queue-manager"
 const SLASH_NAME = "queued"
 const PREVIEW_MAX = 90
 // Shown to both the user (transcript) and the model when the processing

@@ -58,6 +58,7 @@ export default withMermaid(
               text: 'Part IV: Maintenance & Reference',
               items: [
                 { text: 'Installation & Options', link: '/maintenance/options' },
+                { text: 'OCP CLI Reference', link: '/maintenance/ocp-cli' },
                 { text: 'Troubleshooting & FAQ', link: '/maintenance/faq' },
               ]
             }
@@ -117,6 +118,7 @@ export default withMermaid(
                 text: '第四部分：安装进阶与运维',
                 items: [
                   { text: '安装器进阶与选项', link: '/zh/maintenance/options' },
+                  { text: 'OCP 命令行参考', link: '/zh/maintenance/ocp-cli' },
                   { text: '常见问题与排查 FAQ', link: '/zh/maintenance/faq' },
                 ]
               }

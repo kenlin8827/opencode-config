@@ -13,8 +13,11 @@ Learn about installer commands, configuration options, token savings, and preser
 | Status | `pwsh install/install.ps1 status` | `./install/install.sh status` | Show installed vs repo version |
 | Generate manifest | `pwsh install/install.ps1 generate` | `./install/install.sh generate` | Scan repo, write manifest (no install) |
 | Init (fresh start) | `pwsh install/install.ps1 init` | `./install/install.sh init` | Backup + clear entire target directory |
-| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-prime`, `ocp`, and `opencode-config` shims to `~/.local/bin` |
+| Register global cmd | `pwsh install/install.ps1 register` | `./install/install.sh register` | Install `opencode-prime` and `ocp` shims to `~/.local/bin` |
 | Unregister global cmd | `pwsh install/install.ps1 unregister` | `./install/install.sh unregister` | Remove global shims |
+| Launch TUI | `pwsh install/install.ps1 tui` | `./install/install.sh tui` | Launch the OpenCode terminal UI (`exec opencode`) |
+| Launch desktop | `pwsh install/install.ps1 desktop` | `./install/install.sh desktop` | Launch the OpenChamber native desktop app (alias `ui`) |
+| Launch web UI | `pwsh install/install.ps1 web` | `./install/install.sh web` | Launch the OpenChamber web UI (`openchamber --ui-password <generated>`) |
 
 ---
 
@@ -32,8 +35,14 @@ Learn about installer commands, configuration options, token savings, and preser
    ```jsonc
    // install/options.jsonc
    {
+     // register global command shims (ocp / opencode-prime)
+     // into ~/.local/bin and add that directory to the user PATH during install
+     "global_commands": true,
      // rtk output compression (60-90% token savings)
      "rtk": true,
+     // OpenChamber web UI CLI (auto-installs the `openchamber` CLI when missing;
+     // powers `ocp web` — the native desktop app for `ocp desktop` / `ocp ui` is a separate download)
+     "openchamber": true,
      // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
      "default_agent": "code",
      // MCP server switches (missing CLIs auto-provisioned on install)
@@ -102,6 +111,22 @@ To opt out: set `"rtk": false` in `install/options.jsonc` and re-run install.
 
 ---
 
+## OpenChamber (`ocp desktop` / `ocp web`)
+
+Install auto-provisions [OpenChamber](https://openchamber.dev) — the desktop / web GUI that runs on top of the local OpenCode engine (side-by-side diffs, multi-model comparison, session timeline).
+
+With `"openchamber": true` (default), the installer installs the `@openchamber/web` package globally via the first package manager found (pnpm > bun > yarn > npm) when the `openchamber` binary is missing — this CLI powers the **web UI**. The **native desktop app** behind `ocp desktop` / `ocp ui` is a separate download from <https://openchamber.dev/download>. Launch afterwards with:
+
+```bash
+ocp desktop      # native desktop app (alias: ocp ui)
+ocp web          # OpenChamber web UI (auto-generates a --ui-password)
+ocp tui          # the OpenCode terminal UI
+```
+
+To opt out: set `"openchamber": false` in `install/options.jsonc` and re-run install (an already-installed binary stays put). The native desktop app from [openchamber.dev/download](https://openchamber.dev/download) is never touched by the installer.
+
+---
+
 ## Preserved fields across reinstalls
 
 When `opencode.jsonc` is overwritten by a new template, these fields are snapshotted from your existing config and restored afterwards:
@@ -118,7 +143,7 @@ When `opencode.jsonc` is overwritten by a new template, these fields are snapsho
 
 ## Global commands (`ocp` / `opencode-prime`)
 
-After initial install, register the repo to provision global command shortcuts (`ocp`, `opencode-prime`, and `opencode-config`):
+After initial install, register the repo to provision global command shortcuts (`ocp`, `opencode-prime`):
 
 ```powershell
 pwsh install/install.ps1 register
@@ -127,3 +152,9 @@ pwsh install/install.ps1 register
 ```bash
 ./install/install.sh register
 ```
+
+Once registered, `ocp` also acts as the runtime launcher: `ocp` (or `ocp tui`) starts the OpenCode terminal UI, `ocp desktop` (alias `ocp ui`) starts the OpenChamber desktop GUI, and `ocp web` serves the OpenChamber web UI on localhost with a generated `--ui-password`.
+
+To opt out of automatic shim registration during install, set `"global_commands": false` in `install/options.jsonc` — the standalone `register` / `unregister` actions above remain available regardless.
+
+👉 The complete command list, launcher semantics (port & password policy for `ocp web`), and the in-session `/ocp` slash command are documented in the dedicated [OCP CLI Reference](/maintenance/ocp-cli).

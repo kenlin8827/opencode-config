@@ -14,6 +14,31 @@ OpenCode features an open, modular frontend ecosystem. Whether you prefer a ligh
 
 ---
 
+## Interface Preview
+
+### Terminal TUI
+
+Run `opencode` (or `ocp tui`) in any project directory to launch the terminal UI — the default daily-driver interface with 21 specialist agents, four working modes, and workflow slash commands:\n
+![OpenCode Terminal UI](/images/opencode-en.webp)
+
+---
+
+### OpenChamber Desktop
+
+Run `ocp desktop` (alias `ocp ui`) to launch the native Tauri-based desktop app with side-by-side diff views and multi-model comparison:
+
+![OpenChamber Desktop App](/images/openchamber-desktop-en.png)
+
+---
+
+### OpenChamber Web UI
+
+Run `ocp web` to launch the browser-based UI — auto-generates a password-protected session, picks a free port, no desktop install needed:
+
+![OpenChamber Web UI](/images/openchamber-web-en.png)
+
+---
+
 ## Seamless Configuration Sharing
 
 No matter which client interface you choose, all engineering capabilities installed in `~/.config/opencode` are automatically active and 100% shared:

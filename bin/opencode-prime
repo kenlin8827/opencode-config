@@ -9,16 +9,28 @@
 #
 # Subcommands:
 #   install         Apply the current version's manifest to the default target
-#   update          Same as install, but forces reapply (-f)
+#   update          Check the suite + companion tools (opencode, openchamber) for
+#                   updates and apply the selected ones in an interactive TTY
+#                   (-y = apply all without prompting; --check-only = read-only)
+#   upgrade         Pull the latest release (git pull for clones, release
+#                   download otherwise) and re-apply the installer
 #   init            Backup + clear the target for a fresh start
 #   uninstall       Remove the installed version's manifest files from the target
 #   status          Show installed vs repo version
 #   generate        Regenerate install/versions/<ver>.manifest.txt
-#   register        Install global shims (opencode-prime, ocp, opencode-config) into ~/.local/bin
+#   register        Install global shims (opencode-prime, ocp) into ~/.local/bin
 #   unregister      Remove global shims from ~/.local/bin
+#   tui             Launch the OpenCode terminal UI (exec opencode)
+#   serve           Launch the headless opencode server (opencode serve;
+#                   all args pass through)
+#   web             Launch the OpenChamber web UI (openchamber serve; all extra
+#                   args pass through, auto-picks a free port starting at 3000
+#                   unless --port is given)
+#   desktop | ui    Launch the OpenChamber native desktop app
 #   version         Print the repo's install/VERSION
 #   help            Print this help
 #
+# No arguments = launch the OpenCode terminal UI (same as `tui`).
 # Anything else falls through to `install.sh` (so unknown flags + future
 # subcommands still work after an upgrade).
 
@@ -28,12 +40,33 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL="$REPO_ROOT/install/install.sh"
 
+# Locate the OpenChamber native desktop app (Tauri). It is usually not on
+# PATH, so probe the binary name first, then common install locations.
+find_openchamber_desktop() {
+    command -v openchamber-desktop >/dev/null 2>&1 && { command -v openchamber-desktop; return; }
+    local candidates=(
+        "$HOME/Applications/openchamber-desktop"
+        "$HOME/Applications/OpenChamber/OpenChamber"
+        "/usr/local/bin/openchamber-desktop"
+        "/opt/openchamber-desktop/openchamber-desktop"
+    )
+    local c
+    for c in "${candidates[@]}"; do
+        [[ -x "$c" ]] && { printf '%s\n' "$c"; return; }
+    done
+    if command -v open >/dev/null 2>&1; then
+        # macOS: .app bundles are not on PATH — let LaunchServices open it.
+        printf '%s\n' 'open:-a OpenChamber'
+    fi
+    return 1
+}
+
 print_help() {
     awk 'NR>=2 && /^$/{exit} NR>=2' "$0"
 }
 
 if [[ $# -eq 0 ]]; then
-    set -- install
+    set -- tui
 fi
 
 sub="$1"
@@ -47,7 +80,10 @@ case "$sub" in
         exec "$INSTALL" install "$@"
         ;;
     update)
-        exec "$INSTALL" install -f "$@"
+        exec "$INSTALL" update "$@"
+        ;;
+    upgrade)
+        exec "$INSTALL" upgrade "$@"
         ;;
     init)
         exec "$INSTALL" init "$@"
@@ -66,6 +102,154 @@ case "$sub" in
         ;;
     unregister)
         exec "$INSTALL" unregister "$@"
+        ;;
+    tui)
+        if ! command -v opencode >/dev/null 2>&1; then
+            echo "✗ opencode was not found on PATH." >&2
+            echo "  Install OpenCode first: https://opencode.ai (or re-run 'ocp install')." >&2
+            exit 1
+        fi
+        exec opencode "$@"
+        ;;
+    serve)
+        if ! command -v opencode >/dev/null 2>&1; then
+            echo "✗ opencode was not found on PATH." >&2
+            echo "  Install OpenCode first: https://opencode.ai (or re-run 'ocp install')." >&2
+            exit 1
+        fi
+        # Headless opencode server — pure passthrough; opencode's own
+        # --port defaults to 0 (auto-assigned random port).
+        exec opencode serve "$@"
+        ;;
+    web)
+        if ! command -v openchamber >/dev/null 2>&1; then
+            echo "✗ openchamber was not found on PATH." >&2
+            echo "  Install OpenChamber first: npm install -g @openchamber/web" >&2
+            echo "  or download the native app from https://openchamber.dev/download" >&2
+            exit 1
+        fi
+        # Target port: explicit --port / -p value (or --port=N) passes
+        # through as-is; no port (or --port 0) means auto-pick a free one.
+        port=""
+        prev=""
+        for a in "$@"; do
+            case "$prev" in
+                --port|-p) [[ "$a" =~ ^[0-9]+$ ]] && port="$a" ;;
+            esac
+            case "$a" in
+                --port=*) port="${a#--port=}" ;;
+            esac
+            prev="$a"
+        done
+        # True when something listens on 127.0.0.1:$1 (bash /dev/tcp probe;
+        # degrades to "free" on shells built without net redirections).
+        port_busy() { (echo -n >"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+        # First free port at or above the base — the `--port 0` (random)
+        # resolver and the fallback for ports that could not be reclaimed.
+        find_free_port() {
+            local base="$1" p
+            for ((p = base; p < base + 200; p++)); do
+                port_busy "$p" || { printf '%s\n' "$p"; return 0; }
+            done
+            return 1
+        }
+        wait_port_free() {
+            local i
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                port_busy "$1" || return 0
+                sleep 0.5 2>/dev/null || sleep 1
+            done
+            ! port_busy "$1"
+        }
+        # A zombie daemon can keep its listen socket even after `openchamber
+        # stop` (pid file gone, HTTP shutdown unresponsive). Force-kill the
+        # listener — but ONLY when its command line proves it is OpenChamber.
+        stop_orphan() {
+            local p="$1" pid=""
+            if command -v lsof >/dev/null 2>&1; then
+                pid="$(lsof -t -iTCP:"$p" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)"
+            elif command -v ss >/dev/null 2>&1; then
+                pid="$(ss -ltnp 2>/dev/null | grep -E ":[0-9]+$p[[:space:]]" | grep -oE 'pid=[0-9]+' | head -n 1 | cut -d= -f2 || true)"
+            fi
+            [[ -n "$pid" ]] || return 1
+            local cmd=""
+            if [[ -r "/proc/$pid/cmdline" ]]; then
+                cmd="$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)"
+            elif command -v ps >/dev/null 2>&1; then
+                cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+            fi
+            printf '%s' "$cmd" | grep -qi openchamber || return 1
+            kill -9 "$pid" 2>/dev/null || true
+            wait_port_free "$p"
+        }
+        # `openchamber status --quiet` prints a `port <n> ...` line per
+        # running instance and the single word `stopped` when idle. If
+        # anything is up, stop it first — a fresh --ui-password launch
+        # would fail on the occupied port and leak a useless password.
+        status_out="$(openchamber status --quiet 2>&1 || true)"
+        if printf '%s' "$status_out" | grep -qiE '^port [0-9]+'; then
+            echo "  OpenChamber instance(s) already running — stopping for a fresh web session:"
+            printf '%s\n' "$status_out" | sed 's/^/    /'
+            openchamber stop >/dev/null 2>&1 || true
+        fi
+        # Port policy: an explicit --port passes through as-is (we only try
+        # to reclaim it from zombie daemons); without one, pick the first
+        # free port starting at 3000 so stale listeners never block startup.
+        if [[ -z "$port" || "$port" == "0" ]]; then
+            if ! port="$(find_free_port 3000)"; then
+                echo "✗ No free port found in range 3000-3199." >&2
+                exit 1
+            fi
+            echo "  Using free port $port"
+            new_args=()
+            skip_next=0
+            for a in "$@"; do
+                if [[ "$skip_next" == 1 ]]; then skip_next=0; continue; fi
+                case "$a" in
+                    --port|-p) skip_next=1; continue ;;
+                    --port=*) continue ;;
+                esac
+                new_args+=("$a")
+            done
+            set -- "${new_args[@]}" --port "$port"
+        elif port_busy "$port"; then
+            # Zombie / orphan daemons keep holding the port even after stop
+            # (pid file gone, HTTP shutdown unresponsive) — reclaim it
+            # before launching, or the fresh daemon dies with EADDRINUSE.
+            echo "  Port $port is still occupied — reclaiming it for the new session..."
+            openchamber stop --port "$port" >/dev/null 2>&1 || true
+            if ! wait_port_free "$port" && ! stop_orphan "$port"; then
+                echo "✗ Port $port is still occupied and could not be reclaimed." >&2
+                echo "  Kill the listener manually or let OCP pick a free port: ocp web (no --port)" >&2
+                exit 1
+            fi
+        fi
+        # Web mode: protect browser access with a UI password unless the
+        # caller already supplied one (official quick-start pattern).
+        # All remaining args pass straight through to openchamber serve.
+        for a in "$@"; do
+            if [[ "$a" == "--ui-password" ]]; then
+                exec openchamber serve "$@"
+            fi
+        done
+        # `|| true`: with pipefail, head closing the pipe early sends tr a
+        # SIGPIPE (exit 141) which would otherwise abort the script silently.
+        pw="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 24 || true)"
+        [[ -n "$pw" ]] || pw="ocp-$(date +%s)-$$"
+        echo "🔑 OpenChamber web UI password: $pw"
+        exec openchamber serve --ui-password "$pw" "$@"
+        ;;
+    desktop|ui)
+        if ! target="$(find_openchamber_desktop)"; then
+            echo "✗ The OpenChamber desktop app was not found." >&2
+            echo "  Download the native app from https://openchamber.dev/download" >&2
+            echo "  (the 'openchamber' CLI serves the browser UI instead — use 'ocp web')" >&2
+            exit 1
+        fi
+        if [[ "$target" == open:* ]]; then
+            exec open "${target#open:}" "$@"
+        fi
+        exec "$target" "$@"
         ;;
     version|--version|-v)
         cat "$REPO_ROOT/install/VERSION"

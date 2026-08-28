@@ -4,7 +4,7 @@
  *
  * State is PROJECT-LEVEL and lives in the `e2eGuard` field of the project's
  * opencode.json/opencode.jsonc. The `/e2e-guard on|off` command flips it by
- * writing that field (targeted upsert via ../shared/opencode-config —
+ * writing that field (targeted upsert via ../shared/opencode-prime —
  * comments and unrelated fields survive); it can also be flipped by hand.
  *   - absent or "off" → off (default — no enforcement, complete no-op)
  *   - "on"            → on (E2E runs are gated behind a user confirmation)
@@ -17,7 +17,7 @@
  * (PluginInput.directory); until then it falls back to process.cwd().
  *
  * Config-file plumbing (project dir resolution, JSONC parsing) is shared
- * with adr-guard, env-guard and auto-advisor via ../shared/opencode-config;
+ * with adr-guard, env-guard and auto-advisor via ../shared/opencode-prime;
  * this file keeps only the e2e-guard-specific switch semantics.
  */
 
@@ -27,7 +27,7 @@ import {
   setConfigField,
   setProjectDir,
   writableProjectConfigFile,
-} from "../shared/opencode-config"
+} from "../shared/opencode-prime"
 
 // Re-export the shared plumbing so importers (plugin entry, tool guard,
 // command, tests) keep one import path.

@@ -176,7 +176,7 @@ $allFiles = @(
     "plugins/e2e-guard/e2e-guard-command.ts",
     "plugins/e2e-guard/e2e-guard-config.ts",
     "plugins/e2e-guard/README.md",
-    "plugins/shared/opencode-config.ts",
+    "plugins/shared/opencode-prime.ts",
     "plugins/project-manager.ts",
     "plugins/project-manager/project-manager.ts",
     "plugins/project-manager/project-manager-config.ts",
@@ -297,12 +297,12 @@ Check "handoff.md: ends with paste-ready opener" ($handoffProtocol -match "and c
 $handoffBarrel = Get-Content "$PSScriptRoot\..\plugins\handoff.ts" -Raw
 Check "handoff.ts: barrel re-exports HandoffPlugin" ($handoffBarrel -match "export.*HandoffPlugin")
 
-# Shared project-config plumbing (plugins/shared/opencode-config.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
-$sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-config.ts" -Raw
-Check "shared/opencode-config.ts: exports never-throw field writer" ($sharedConfig -match 'export function setConfigField')
-Check "shared/opencode-config.ts: exports field remover" ($sharedConfig -match 'export function clearConfigField')
-Check "shared/opencode-config.ts: exports quote-aware stripJsonc" ($sharedConfig -match 'export function stripJsonc')
-Check "shared/opencode-config.ts: exports project config file resolution" ($sharedConfig -match 'export function projectConfigFiles')
+# Shared project-config plumbing (plugins/shared/opencode-prime.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
+$sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-prime.ts" -Raw
+Check "shared/opencode-prime.ts: exports never-throw field writer" ($sharedConfig -match 'export function setConfigField')
+Check "shared/opencode-prime.ts: exports field remover" ($sharedConfig -match 'export function clearConfigField')
+Check "shared/opencode-prime.ts: exports quote-aware stripJsonc" ($sharedConfig -match 'export function stripJsonc')
+Check "shared/opencode-prime.ts: exports project config file resolution" ($sharedConfig -match 'export function projectConfigFiles')
 
 # ADR iron-law plugin checks (plugins/adr-guard/ — project-level switch, hard commit gate)
 $adrPlugin = Get-Content "$PSScriptRoot\..\plugins\adr-guard\adr-guard.ts" -Raw
@@ -315,7 +315,7 @@ Check "adr-guard.ts: has command.execute.before hook" ($adrPlugin -match '"comma
 Check "adr-guard.ts: has system.transform hook" ($adrPlugin -match "experimental.chat.system.transform")
 Check "adr-guard.ts: has tool.execute.before hook" ($adrPlugin -match '"tool\.execute\.before"')
 Check "adr-guard.ts: injects project directory" ($adrPlugin -match "setProjectDir\(directory\)")
-Check "adr-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($adrConfig -match 'shared/opencode-config' -and $adrConfig -match 'adrGuard')
+Check "adr-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($adrConfig -match 'shared/opencode-prime' -and $adrConfig -match 'adrGuard')
 Check "adr-guard-config.ts: default state is off" ($adrConfig -match 'DEFAULT_STATE: GuardState = "off"')
 Check "adr-guard-config.ts: default ADR dir docs/adr" ($adrConfig -match 'DEFAULT_ADR_DIR = "docs/adr"')
 Check "adr-guard-tool-guard.ts: gates feat/refactor only" ($adrGuard -match "requiresAdr")
@@ -336,7 +336,7 @@ $egGuard = Get-Content "$PSScriptRoot\..\plugins\env-guard\env-guard-tool-guard.
 Check "env-guard.ts: imports Plugin type" ($egPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
 Check "env-guard.ts: has tool.execute.before hook" ($egPlugin -match '"tool\.execute\.before"')
 Check "env-guard.ts: injects project directory" ($egPlugin -match "setProjectDir\(directory\)")
-Check "env-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($egConfig -match 'shared/opencode-config' -and $egConfig -match 'envGuard')
+Check "env-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($egConfig -match 'shared/opencode-prime' -and $egConfig -match 'envGuard')
 Check "env-guard-config.ts: default state is off" ($egConfig -match 'DEFAULT_STATE: GuardState = "off"')
 Check "env-guard-config.ts: config field envGuard" ($egConfig -match "envGuard")
 Check "env-guard-runtime.ts: exempts .env.example" ($egRuntime -match '\.env\.example')
@@ -359,7 +359,7 @@ Check "e2e-guard.ts: imports Plugin type" ($e2ePlugin -match "import type.*Plugi
 Check "e2e-guard.ts: registers the command via config hook" ($e2ePlugin -match "config:" -and $e2ePlugin -match "COMMAND_NAME" -and $e2ePlugin -match '"command\.execute\.before"')
 Check "e2e-guard.ts: has system.transform hook" ($e2ePlugin -match "experimental\.chat\.system\.transform")
 Check "e2e-guard.ts: injects project directory" ($e2ePlugin -match "setProjectDir\(directory\)")
-Check "e2e-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($e2eConfig -match 'shared/opencode-config' -and $e2eConfig -match 'e2eGuard')
+Check "e2e-guard-config.ts: switch stored in project opencode.jsonc (no state file)" ($e2eConfig -match 'shared/opencode-prime' -and $e2eConfig -match 'e2eGuard')
 Check "e2e-guard-config.ts: default state is off" ($e2eConfig -match 'DEFAULT_STATE: GuardState = "off"')
 Check "e2e-guard-protocol.md: specifies feat and fix triggers" ($e2eProtocol -match "feat" -and $e2eProtocol -match "fix")
 Check "e2e-guard-protocol.md: includes test gap / case supplement check" ($e2eProtocol -match "Test Gap" -or $e2eProtocol -match "Supplement")

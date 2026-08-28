@@ -95,9 +95,11 @@ if (!fs.existsSync(path.join(testTargetDir, 'opencode.jsonc'))) throw new Error(
 if (!fs.existsSync(path.join(testTargetDir, 'installed.version'))) throw new Error('installed.version missing');
 if (!fs.existsSync(path.join(testTargetDir, 'tiers.json'))) throw new Error('tiers.json missing from target');
 
-// Verify custom tiers were written
+// Verify custom tiers were written. Legacy tier names are migrated to the
+// current vocabulary by normalizeTier (explorer -> flash, advisor -> max),
+// and `code` keeps the shipped template value (pro).
 const targetTiers = readTierMap(testTargetDir);
-if (targetTiers.qa !== 'explorer' || targetTiers.devops !== 'advisor' || targetTiers.code !== 'code') {
+if (targetTiers.qa !== 'flash' || targetTiers.devops !== 'max' || targetTiers.code !== 'pro') {
   throw new Error('Custom tiers merging failed');
 }
 console.log(`✓ Install passed (${installRes.filesInstalled} files written, custom tiers merged)`);

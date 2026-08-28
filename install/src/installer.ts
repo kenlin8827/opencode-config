@@ -12,6 +12,23 @@ import {
 } from './manifest';
 import { extractPreserveBag, mergeConfig, readJsoncFile } from './merger';
 
+/**
+ * Maximum number of backup directories ("<targetDir>.bak.<timestamp>") kept
+ * beside the target. Older ones are pruned after each backup is created.
+ * Override with the OCP_MAX_BACKUPS environment variable (0 disables backups
+ * retention pruning — use with care).
+ */
+const DEFAULT_MAX_BACKUPS = 5;
+
+export function getMaxBackups(): number {
+  const raw = process.env.OCP_MAX_BACKUPS;
+  if (raw !== undefined && raw !== '') {
+    const parsed = parseInt(raw, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) return parsed;
+  }
+  return DEFAULT_MAX_BACKUPS;
+}
+
 export function getDefaultTargetDir(): string {
   if (process.env.OPENCODE_CONFIG_DIR) {
     return path.resolve(process.env.OPENCODE_CONFIG_DIR);
@@ -58,6 +75,38 @@ export function backupTargetDir(targetDir: string): string | null {
   }
 }
 
+/**
+ * Prune old backup directories ("<targetDir>.bak.<timestamp>" siblings of the
+ * target), keeping only the newest `keep` ones. Timestamps in backup names are
+ * ISO-like and sort lexicographically, so a plain name sort is enough.
+ * Returns the number of pruned backups.
+ */
+export function pruneOldBackups(targetDir: string, keep: number = getMaxBackups()): number {
+  const parent = path.dirname(targetDir);
+  const prefix = `${path.basename(targetDir)}.bak.`;
+  let entries: string[];
+  try {
+    entries = fs
+      .readdirSync(parent)
+      .filter((e) => e.startsWith(prefix) && fs.statSync(path.join(parent, e)).isDirectory());
+  } catch {
+    return 0;
+  }
+
+  // Newest first (lexicographic order matches chronological order here).
+  entries.sort().reverse();
+  let pruned = 0;
+  for (const stale of entries.slice(keep)) {
+    try {
+      fs.rmSync(path.join(parent, stale), { recursive: true, force: true });
+      pruned++;
+    } catch {
+      // Unremovable backup — leave it for the next run.
+    }
+  }
+  return pruned;
+}
+
 export function copyRepoFiles(repoDir: string, targetDir: string, files: string[]): number {
   let count = 0;
   for (const relFile of files) {
@@ -94,6 +143,15 @@ export function checkExternalTools(options: InstallOptions): void {
       console.log('✓ [rtk] binary is present on PATH');
     } else {
       console.log('ℹ [rtk] binary not found on PATH (can be installed via cargo or downloaded)');
+    }
+  }
+
+  // Check OpenChamber web UI CLI
+  if (options.openchamber !== false) {
+    if (isBinaryOnPath('openchamber')) {
+      console.log('✓ [openchamber] web UI CLI is present on PATH');
+    } else {
+      console.log('ℹ [openchamber] web UI CLI not found on PATH (provisioned after the config install)');
     }
   }
 
@@ -146,6 +204,9 @@ export function executeInstall(
   let backupPath: string | null = null;
   if (!args.noBackup && fs.existsSync(targetDir)) {
     backupPath = backupTargetDir(targetDir);
+    const keep = args.keepBackups ?? getMaxBackups();
+    const pruned = pruneOldBackups(targetDir, keep);
+    if (pruned > 0) console.log(`Pruned ${pruned} old backup(s) (keeping at most ${keep}).`);
   }
 
   // 3. Extract user modifications to preserve
@@ -220,6 +281,9 @@ export function executeInit(
 
   if (!args.noBackup && fs.existsSync(targetDir)) {
     backupPath = backupTargetDir(targetDir);
+    const keep = args.keepBackups ?? getMaxBackups();
+    const pruned = pruneOldBackups(targetDir, keep);
+    if (pruned > 0) console.log(`Pruned ${pruned} old backup(s) (keeping at most ${keep}).`);
   }
 
   if (fs.existsSync(targetDir)) {

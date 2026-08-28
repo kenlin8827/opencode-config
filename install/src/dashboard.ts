@@ -12,6 +12,8 @@ import {
   parseDynamicOptionsSchema,
   updateOptionsJsoncInPlace,
 } from './wizard';
+import { runGlobalRegistration } from './shim';
+import { ensureOpenChamber } from './openchamber';
 import { readTierMap } from './merger';
 import { CliArgs, InstallOptions } from './types';
 import { loadLocale, getAvailableLocales, detectDefaultLocaleCode } from './i18n';
@@ -48,7 +50,7 @@ const LEGACY_TIER_MIGRATION: Record<string, string> = {
 
 interface RowItem {
   id: string;
-  type: 'lang' | 'agent' | 'rtk' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_exit';
+  type: 'lang' | 'agent' | 'rtk' | 'global_commands' | 'openchamber' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
   key?: string;
   label: string;
   hint?: string;
@@ -64,7 +66,13 @@ function truncateText(str: string, maxLen: number): string {
   return single.length > maxLen ? single.slice(0, maxLen - 3) + '...' : single;
 }
 
-export async function runTuiDashboard(repoDir: string, initialLocale?: string): Promise<void> {
+export interface DashboardResult {
+  action: 'exit' | 'back';
+  /** Final locale code selected inside the dashboard, so callers can stay in sync. */
+  locale: string;
+}
+
+export async function runTuiDashboard(repoDir: string, initialLocale?: string): Promise<DashboardResult> {
   const version = getCurrentRepoVersion(repoDir);
   const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
   const availableLocales = getAvailableLocales(repoDir);
@@ -78,6 +86,8 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
   // Mutable state
   let currentAgent = schema.defaultAgent.value;
   let currentRtk = schema.rtk.value;
+  let currentGlobalCommands = schema.globalCommandsDefault;
+  let currentOpenChamber = schema.openChamberDefault;
   const mcpState: Record<string, boolean> = {};
   for (const item of schema.mcpItems) {
     mcpState[item.key] = item.value;
@@ -139,6 +149,22 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       hint: t.rtkHint,
     });
 
+    // 2b. Global Commands (ocp / opencode-prime)
+    r.push({
+      id: 'global_commands',
+      type: 'global_commands',
+      label: t.globalCommandsLabel,
+      hint: t.globalCommandsHint,
+    });
+
+    // 2c. OpenChamber web UI CLI (powers `ocp web`)
+    r.push({
+      id: 'openchamber',
+      type: 'openchamber',
+      label: t.openChamberLabel || 'OpenChamber Web UI',
+      hint: t.openChamberHint || 'Install the OpenChamber web UI CLI powering `ocp web`',
+    });
+
     // 3. MCP Servers
     for (const item of schema.mcpItems) {
       r.push({
@@ -194,6 +220,12 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       type: 'action_save',
       label: t.saveOnlyBtn,
       hint: t.saveOnlyHint,
+    });
+    r.push({
+      id: 'action_back',
+      type: 'action_back',
+      label: t.backBtn,
+      hint: t.backBtnHint,
     });
     r.push({
       id: 'action_exit',
@@ -271,6 +303,16 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
           : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
         buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+      } else if (row.type === 'global_commands') {
+        valueDisplay = currentGlobalCommands
+          ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
+          : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
+        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+      } else if (row.type === 'openchamber') {
+        valueDisplay = currentOpenChamber
+          ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
+          : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
+        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
       } else if (row.type === 'mcp' && row.key) {
         const active = mcpState[row.key];
         const switchBadge = active
@@ -304,6 +346,9 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       } else if (row.type === 'action_save') {
         const btn = isSelected ? `${C.bgBlue}${C.bold}  ${row.label}  ${C.reset}` : `${C.cyan}  ${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
+      } else if (row.type === 'action_back') {
+        const btn = isSelected ? `${C.bgDark}${C.bold}  ${row.label}  ${C.reset}` : `${C.bold}${C.yellow}  ${row.label}${C.reset}`;
+        buf += `  ${cursor}${btn}\n`;
       } else if (row.type === 'action_exit') {
         const btn = isSelected ? `${C.red}${C.bold}  ▶ ${row.label}${C.reset}` : `${C.dim}  ${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
@@ -315,20 +360,12 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       buf += `\n  ${C.bold}${C.yellow}ℹ ${statusMessage}${C.reset}\n`;
     }
 
-    // Selected Row Active Card
-    const selectedRow = rows[selectedIndex];
-    buf += `${C.cyan}┌${line}┐${C.reset}\n`;
-    const hintTitle = t.itemDetailsTitle;
-    const activeHint = selectedRow?.hint || 'Use arrows to navigate, Space to toggle switch';
-    const safeActiveHint = truncateText(activeHint, width - 20);
-    buf += `${C.cyan}│${C.reset}  ${C.bold}${hintTitle}${C.reset}: ${C.yellow}${safeActiveHint}${C.reset}${' '.repeat(Math.max(0, width - hintTitle.length - safeActiveHint.length - 8))}${C.cyan}│${C.reset}\n`;
-    buf += `${C.cyan}└${line}┘${C.reset}\n`;
     buf += `  ${C.dim}${t.footerHelp}${C.reset}\n`;
 
     process.stdout.write(buf);
   };
 
-  return new Promise<void>((resolve) => {
+  return new Promise<DashboardResult>((resolve) => {
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
@@ -336,7 +373,10 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
     process.stdin.resume();
 
     const cleanup = () => {
-      process.stdout.write(C.showCursor);
+      process.stdout.write(C.clear + C.showCursor);
+      // Detach our own keypress handler; otherwise a "ghost" dashboard keeps
+      // consuming keys behind the wizard/clack menu after returning.
+      process.stdin.removeListener('keypress', handleKey);
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
       }
@@ -347,15 +387,23 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       updateOptionsJsoncInPlace(optionsPath, {
         defaultAgent: currentAgent,
         rtk: currentRtk,
+        globalCommands: currentGlobalCommands,
+        openChamber: currentOpenChamber,
         mcps: mcpState,
         plugins: pluginState,
       });
     };
 
+    let settled = false;
+    const settle = (result: DashboardResult) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
     const executeAndExit = (doInstall: boolean) => {
       const t = loadLocale(repoDir, currentLocaleCode);
       cleanup();
-      process.stdout.write(C.clear);
 
       saveOptions();
       console.log(`${C.green}✓ ${t.saveOptionsSuccess}${C.reset}\n`);
@@ -365,6 +413,8 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         const latestOptions: InstallOptions = {
           default_agent: currentAgent,
           rtk: currentRtk,
+          global_commands: currentGlobalCommands,
+          openchamber: currentOpenChamber,
           mcp: mcpState,
           plugin: pluginState,
           tiers: tiersState,
@@ -388,13 +438,24 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         if (res.backupPath) {
           console.log(`  • ${t.summaryBackup.padEnd(16)}: ${res.backupPath}`);
         }
+
+        if (currentGlobalCommands) {
+          const reg = runGlobalRegistration(repoDir);
+          console.log(`  • ${t.globalCommandsLabel.padEnd(16)}: ${reg.shimMessage}`);
+          console.log(`    ${reg.pathMessage}`);
+        }
+
+        if (currentOpenChamber) {
+          const oc = ensureOpenChamber();
+          console.log(`  • ${(t.openChamberLabel || 'OpenChamber').padEnd(16)}: ${oc.message}`);
+        }
       }
 
-      resolve();
+      settle({ action: 'exit', locale: currentLocaleCode });
     };
 
     const handleKey = (str: string, key: readline.Key) => {
-      if (!key) return;
+      if (!key || settled) return;
 
       // Toggle Language: cycle available locales
       if ((str === 'l' || str === 'L') && rows[selectedIndex].type !== 'target') {
@@ -407,13 +468,19 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         return;
       }
 
+      // Back shortcut: Esc returns to previous level (wizard main menu)
+      if (key.name === 'escape') {
+        cleanup();
+        settle({ action: 'back', locale: currentLocaleCode });
+        return;
+      }
+
       // Exit shortcuts
-      if ((key.ctrl && key.name === 'c') || key.name === 'escape' || (str === 'q' && rows[selectedIndex].type !== 'target')) {
+      if ((key.ctrl && key.name === 'c') || (str === 'q' && rows[selectedIndex].type !== 'target')) {
         const t = loadLocale(repoDir, currentLocaleCode);
         cleanup();
-        process.stdout.write(C.clear);
         console.log(t.exitedDashboard);
-        resolve();
+        settle({ action: 'exit', locale: currentLocaleCode });
         return;
       }
 
@@ -453,6 +520,14 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         } else if (currentRow.type === 'rtk') {
           currentRtk = !currentRtk;
           statusMessage = currentRtk ? t.rtkEnabledMsg : t.rtkDisabledMsg;
+        } else if (currentRow.type === 'global_commands') {
+          currentGlobalCommands = !currentGlobalCommands;
+          statusMessage = currentGlobalCommands ? t.onCmdRegAdded : t.onCmdRegSkipped;
+        } else if (currentRow.type === 'openchamber') {
+          currentOpenChamber = !currentOpenChamber;
+          statusMessage = currentOpenChamber
+            ? (t.onChamberAdded || 'OpenChamber provisioning enabled')
+            : (t.onChamberSkipped || 'OpenChamber provisioning skipped');
         } else if (currentRow.type === 'mcp' && currentRow.key) {
           mcpState[currentRow.key] = !mcpState[currentRow.key];
           statusMessage = `MCP "${currentRow.key}" ${mcpState[currentRow.key] ? t.enabled : t.disabled}`;
@@ -491,11 +566,14 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         } else if (currentRow.type === 'action_save') {
           executeAndExit(false);
           return;
+        } else if (currentRow.type === 'action_back') {
+          cleanup();
+          settle({ action: 'back', locale: currentLocaleCode });
+          return;
         } else if (currentRow.type === 'action_exit') {
           cleanup();
-          process.stdout.write(C.clear);
           console.log(t.exitedDashboard);
-          resolve();
+          settle({ action: 'exit', locale: currentLocaleCode });
           return;
         }
 

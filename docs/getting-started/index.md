@@ -10,12 +10,12 @@ Install directly to `~/.config/opencode` with a single command (no Git clone req
 
 ### macOS / Linux / WSL
 ```bash
-rm -f /tmp/ocp.tar.gz && rm -rf /tmp/opencode-prime-* && curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh; rm -f /tmp/ocp.tar.gz; rm -rf /tmp/opencode-prime-*
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue
+irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1 | iex
 ```
 
 > 💡 **Zero-Risk Upgrades**: Re-running the command above smoothly upgrades to the latest release while **preserving** all your API keys, custom models, and tier assignments.
@@ -24,7 +24,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ## Single-Screen TUI Control Center
 
-Running the install command (or running the global command `ocp` / `opencode-prime` anytime later) directly opens the **Single-Screen TUI Control Center**:
+Running the install command (or `ocp wizard` / `ocp dashboard` anytime later) opens the **Single-Screen TUI Control Center**:
 
 ![OpenCode TUI Panoramic Dashboard](/images/tui-dashboard-en.webp)
 
@@ -40,17 +40,46 @@ Running the install command (or running the global command `ocp` / `opencode-pri
 
 ---
 
-## Open Dashboard Anytime (`ocp` / `opencode-prime`)
+## Global Commands Anytime (`ocp` / `opencode-prime`)
 
 After installation, the global shortcuts are automatically registered. You can run any of them from **any terminal directory**:
 
 ```bash
-ocp              # 3-letter quick direct access (recommended)
-opencode-prime   # Official full suite command
-opencode-config  # Backward-compatible alias
+ocp              # no arguments = launch the OpenCode terminal UI (same as ocp tui)
+ocp dashboard    # open the TUI control center (aliases: ocp cc / ocp matrix)
+ocp web          # OpenChamber web UI (auto-generated password)
+ocp update       # check suite + opencode + openchamber, interactively apply the selected updates
+ocp upgrade      # pull the latest release and reinstall (one-click upgrade)
+opencode-prime   # official full suite command (same dispatcher)
 ```
 
-You can now adjust settings or perform one-click seamless upgrades anytime without worrying about install paths!
+No more memorizing install paths — launch the TUI, reconfigure, or perform one-click seamless upgrades anytime! For the complete command list, see the [OCP CLI Reference](/maintenance/ocp-cli).
+
+---
+
+## Client Surfaces
+
+OCP supports three interfaces — all sharing the same `~/.config/opencode` config, zero re-setup:
+
+### Terminal TUI (Default)
+
+Launch with `ocp` or `ocp tui` — the daily driver with 21 specialist agents, four working modes, and workflow slash commands:
+
+![OpenCode Terminal UI](/images/opencode-en.webp)
+
+### OpenChamber Web UI
+
+Launch with `ocp web` — browser-based side-by-side diff and multi-model comparison, auto-generated password:
+
+![OpenChamber Web UI](/images/openchamber-web-en.png)
+
+### OpenChamber Desktop
+
+Launch with `ocp desktop` (alias `ocp ui`) — native Tauri app with full keyboard navigation:
+
+![OpenChamber Desktop App](/images/openchamber-desktop-en.png)
+
+> 📖 See **[Clients & UI Options](/getting-started/clients)** for the full comparison.
 
 ---
 

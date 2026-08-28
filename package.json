@@ -1,5 +1,5 @@
 {
-  "version": "0.7.3",
+  "version": "0.8.0",
   "scripts": {
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
@@ -7,7 +7,8 @@
     "install:cli": "bun run install/src/index.ts",
     "capture:dashboard": "tsx scripts/capture-dashboard-screenshot.ts",
     "capture:wizard": "tsx scripts/capture-wizard-screenshot.ts",
-    "capture:all": "tsx scripts/capture-dashboard-screenshot.ts && tsx scripts/capture-wizard-screenshot.ts"
+    "capture:all": "tsx scripts/capture-dashboard-screenshot.ts && tsx scripts/capture-wizard-screenshot.ts",
+    "png:webp": "bun run scripts/png-to-webp.ts"
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
@@ -24,6 +25,7 @@
     "@types/adm-zip": "^0.5.8",
     "@types/bun": "latest",
     "mermaid": "^11.17.2",
+    "sharp": "^0.35.4",
     "tsx": "^4.19.3",
     "typescript": "^7.0.2",
     "vitepress": "^1.6.4",

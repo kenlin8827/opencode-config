@@ -10,3 +10,4 @@ param(
 )
 $ScriptDir = $PSScriptRoot
 & (Join-Path $ScriptDir 'opencode-prime.ps1') $Subcommand @Rest
+exit $LASTEXITCODE

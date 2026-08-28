@@ -100,7 +100,7 @@ jobs:
             echo ''
             echo '- **Platform**: Windows (PowerShell) / macOS / Linux / WSL (Bash)'
             echo '- **Archives**: `opencode-prime-<version>.tar.gz` (Unix) + `opencode-prime-<version>.zip` (Windows) + `latest` aliases'
-            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers (opencode-prime, ocp, opencode-config)'
+            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers (opencode-prime, ocp)'
             echo ''
             echo '## Install & Quick Start'
             echo ''

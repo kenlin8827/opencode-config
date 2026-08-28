@@ -41,7 +41,7 @@ import {
  * Registered via `tui.json` → `plugin` array.
  */
 
-const PLUGIN_ID = "opencode-config.project-wizard"
+const PLUGIN_ID = "opencode-prime.project-wizard"
 
 function toast(
   api: TuiPluginApi,

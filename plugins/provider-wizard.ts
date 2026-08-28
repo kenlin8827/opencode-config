@@ -55,7 +55,7 @@ import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, wi
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
 const PROVIDERS_DIR = join(CONFIG_DIR, "providers")
-const PLUGIN_ID = "opencode-config.provider"
+const PLUGIN_ID = "opencode-prime.provider"
 const MANAGE_MODELS = "__manage_models__"
 const ADD_MODEL = "__add_model__"
 const BACK = "__back__"

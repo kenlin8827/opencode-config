@@ -223,7 +223,7 @@ section("05: Plugin module structure")
 
 {
   assert(typeof projectWizardPlugin === "object", "plugin is exported as object")
-  assert(projectWizardPlugin.id === "opencode-config.project-wizard", "plugin ID is set")
+  assert(projectWizardPlugin.id === "opencode-prime.project-wizard", "plugin ID is set")
   assert(typeof projectWizardPlugin.tui === "function", "plugin exports tui function")
 }
 

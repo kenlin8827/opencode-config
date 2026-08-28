@@ -10,12 +10,12 @@
 
 ### macOS / Linux / WSL
 ```bash
-rm -f /tmp/ocp.tar.gz && rm -rf /tmp/opencode-prime-* && curl -fsSL https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.tar.gz -o /tmp/ocp.tar.gz && tar xzf /tmp/ocp.tar.gz -C /tmp && bash /tmp/opencode-prime-*/install/install.sh; rm -f /tmp/ocp.tar.gz; rm -rf /tmp/opencode-prime-*
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 ```powershell
-$url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/opencode-prime-latest.zip"; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue; Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ocp.zip"; Expand-Archive -Path "$env:TEMP\ocp.zip" -DestinationPath "$env:TEMP\ocp" -Force; & (Get-ChildItem "$env:TEMP\ocp\opencode-prime-*\install\install.ps1").FullName; Remove-Item -Path "$env:TEMP\ocp.zip","$env:TEMP\ocp" -Recurse -Force -ErrorAction SilentlyContinue
+irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1 | iex
 ```
 
 > 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 **API 密钥、自定义模型和模型梯队选择均会完整保留**，不会丢失。
@@ -24,7 +24,7 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ## 单屏 TUI 全景控制台
 
-执行安装命令后（或后续随时在终端运行全局命令 `ocp` / `opencode-prime`），终端将直接唤出 **单屏 TUI 全景控制台**：
+执行安装命令后（或后续随时运行 `ocp wizard` / `ocp dashboard`），终端将唤出 **单屏 TUI 全景控制台**：
 
 ![OpenCode TUI 全景控制台](/images/tui-dashboard-zh.webp)
 
@@ -42,15 +42,44 @@ $url = "https://github.com/kenlin8827/opencode-prime/releases/latest/download/op
 
 ## 全局快捷命令 (`ocp` / `opencode-prime`)
 
-安装完成后，系统已自动注册全局快捷命令。你可以在**任意终端路径下**直接输入以下任一命令：
+安装完成后，系统已自动注册全局快捷命令。你可以在**任意终端路径下**直接输入：
 
 ```bash
-ocp              # 极简 3 字母直达（推荐）
-opencode-prime   # 完整品牌命令
-opencode-config  # 兼容命令
+ocp              # 不带参数 = 启动 OpenCode 终端 TUI（等同 ocp tui）
+ocp dashboard    # 打开 TUI 全景控制台（别名：ocp cc / ocp matrix）
+ocp web          # OpenChamber Web 界面（自动生成密码）
+ocp update       # 检查套件 + opencode + openchamber，交互式升级勾选项
+ocp upgrade      # 拉取最新发布包并重装（一键升级）
+opencode-prime   # 完整品牌命令（同一分发器）
 ```
 
-后续无需记住复杂的安装路径，即可随时秒级唤出全景控制台进行配置微调或一键平滑升级！
+后续无需记住复杂的安装路径，即可随时启动 TUI、微调配置或一键平滑升级！完整命令清单见 [OCP 命令行参考](/zh/maintenance/ocp-cli)。
+
+---
+
+## 客户端界面
+
+OCP 支持三种界面 —— 均共享同一套 `~/.config/opencode` 配置，零重复配置：
+
+### 终端 TUI（默认）
+
+运行 `ocp` 或 `ocp tui` 启动 —— 日常主力界面，支持 21 位专家智能体、四种工作模式与工作流斜杠命令：
+
+![OpenCode 终端界面](/images/opencode-zh.webp)
+
+### OpenChamber Web 端
+
+运行 `ocp web` 启动浏览器界面 —— 提供并列差异对比与多模型比较，自动生成密码：
+
+![OpenChamber 网页界面](/images/openchamber-web-zh.png)
+
+### OpenChamber 桌面端
+
+运行 `ocp desktop`（别名 `ocp ui`）启动原生桌面应用，支持全键盘导航：
+
+![OpenChamber 桌面应用](/images/openchamber-desktop-zh.png)
+
+> 📖 完整对比见 **[客户端与交互界面](/zh/getting-started/clients)**。
 
 ---
 

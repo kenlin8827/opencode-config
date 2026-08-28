@@ -30,7 +30,7 @@
   // full file reads) — shared by all agents, avoids duplicate file reads.
   // CLI provisioning: the install script runs the `install` field automatically
   // when `serena` is missing from PATH (requires uv; then `uv tool update-shell`
-  // once so ~/.local/bin is on PATH — see the opencode-config install output).
+  // once so ~/.local/bin is on PATH — see the opencode-prime install output).
   // Uses the `ide` context: basic file ops (read_file, list_dir, find_file,
   // create_text_file) and the shell are excluded — those stay with the agents'
   // native tools. Serena's symbolic EDITING/refactoring tools remain exposed;

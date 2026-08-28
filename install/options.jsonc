@@ -19,6 +19,10 @@
 //   rtk            → rtk binary provisioning + the vendored openrtk plugin
 //                    (false skips the download AND removes plugins/openrtk*
 //                    from the target)
+//   openchamber    → OpenChamber web UI CLI provisioning; true installs the
+//                    `openchamber` CLI globally when missing (powers
+//                    `ocp web`; the native desktop app behind `ocp desktop` /
+//                    `ocp ui` is a separate download), false skips it
 //
 // Your choices persist in this file (git). No copy is installed under
 // ~/.config/opencode — the switches apply straight onto opencode.jsonc
@@ -26,7 +30,19 @@
 // an editable options file. Entries this file doesn't list keep the shipped
 // opencode.jsonc value. Bundled plugins/*.ts files are NOT options — they
 // ship wholesale and are always active.
+//
+// global_commands → register global CLI shims (ocp / opencode-prime)
+// into ~/.local/bin and append that directory to the
+// user's PATH environment variable. Set false to skip; the standalone
+// `register` / `unregister` actions remain available regardless.
 {
+  "global_commands": true,
+  // true = install/update the OpenChamber web UI CLI (`openchamber`,
+  // https://openchamber.dev) via the global package manager when missing —
+  // it powers `ocp web`; the native desktop app behind `ocp desktop` /
+  // `ocp ui` is a separate download. Requires Node.js 22+. false = skip
+  // provisioning (an already-installed `openchamber` binary stays put).
+  "openchamber": true,
   // true = provision the rtk binary + keep the vendored openrtk plugin;
   // false = skip the download and remove plugins/openrtk.ts + plugins/openrtk/
   // from the target (an already-installed rtk binary on PATH stays put)

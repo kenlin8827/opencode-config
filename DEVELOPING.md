@@ -16,7 +16,8 @@ instructions/    # Shared instruction files injected into all agents
 plugins/         # TypeScript plugins (barrel entries at root, logic in subdirs)
 profiles/        # Model profiles: provider + per-tier model picks
 providers/       # Custom provider definitions (merged via /provider add)
-install/         # Installer (PowerShell + Bash), manifests, VERSION, options
+install/         # Self-installing engine (TypeScript), manifests, VERSION, options
+bin/             # OCP CLI dispatchers (opencode-prime, ocp) — installer wrapper + runtime launcher
 tests/           # Structural + prompt test suites (see tests/README.md)
 scripts/         # Packaging scripts for releases
 opencode.jsonc   # Root config template installed to ~/.config/opencode
@@ -271,7 +272,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
 - **npm plugins**: default active plugins are listed in `opencode.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
-- **Shared plumbing**: `plugins/shared/opencode-config.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
+- **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
 ### Hook inventory
 
@@ -303,6 +304,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `project-wizard.ts` | TUI plugin | `/project-wizard` dialog wizard: two-tier interactive wizard (scaffolding init, switch configuration, template sync, index catch-up) with re-entrant echo. |
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
+| `ocp.ts` (+ `plugins/ocp/`) | `config` + `command.execute.before` | `/ocp update\|upgrade\|status\|version` command — in-session self-management wrapping the repo's `ocp` CLI (`update` runs the read-only `ocp update` version check). Handled fully in-process; posts results via `session.prompt({ noReply })` and throws a synthetic empty HTTP response so the LLM is never invoked. |
 
 All slash commands are registered programmatically via the `config` hook — no `commands/*.md` files are needed. Protocol bodies live as markdown next to their plugin and are loaded at runtime, injected via `experimental.chat.system.transform` (LLM-only, not visible in chat UI).
 
@@ -339,6 +341,24 @@ bunx tsc --noEmit    # type-check only — opencode compiles plugins at runtime
 ```
 
 Opencode compiles plugins at runtime, but type errors indicate logic issues — run the check after any plugin change.
+
+---
+
+## Installer engine & OCP CLI
+
+`install/` is a self-contained TypeScript engine (`install/src/`, run via Bun through `install/install.ps1` / `install/install.sh`). Modules:
+
+- `index.ts` — CLI entry: action parsing (`install` / `update` / `status` / `generate` / `register` / `unregister` / `wizard` / `dashboard` / `tui` / `serve` / `web` / `desktop`), and the launcher dispatch below;
+- `installer.ts` — manifest-driven install/update/uninstall/status;
+- `manifest.ts` — `SHIPPED_DIRS` / `SHIPPED_FILES` → manifest generation;
+- `wizard.ts` / `dashboard.ts` — interactive TUI setup wizard and single-screen control center (rows include `global_commands` and `openchamber` switches);
+- `shim.ts` — global shims (`registerShim`) + PATH provisioning (`ensureBinDirOnPath`: Windows user-PATH registry via `[Environment]::SetEnvironmentVariable` — never `setx`; POSIX guarded profile block) wrapped by `runGlobalRegistration`;
+- `launcher.ts` — runtime launchers behind `ocp tui` / `serve` / `web` / `desktop`, including the OpenChamber port-reclaim and auto-password logic;
+- `openchamber.ts` — provision the `openchamber` CLI via the first detected package manager (pnpm > bun > yarn > npm) when missing (needs Node.js 22+).
+
+`bin/opencode-prime` (bash) and `bin/opencode-prime.ps1` (PowerShell 7+) are standalone dispatchers that mirror the same subcommands without requiring Bun — installer subcommands exec `install.sh` / `install.ps1`, launcher subcommands (`tui`, `serve`, `web`, `desktop|ui`) are implemented natively per platform. `bin/ocp` / `bin/ocp.ps1` are thin forwarders. The full user-facing command list lives in the docs (`docs/maintenance/ocp-cli.md`).
+
+Option switches in `install/options.jsonc` that gate engine behavior: `global_commands` (register shims + PATH during install) and `openchamber` (provision the `openchamber` CLI); both default `true`.
 
 ---
 
@@ -460,7 +480,7 @@ providers/
 └── qoder-router.json         # Custom provider definition (merged via /provider add)
 
 plugins/
-├── shared/opencode-config.ts      # Shared JSONC plumbing (project dir, field upsert)
+├── shared/opencode-prime.ts      # Shared JSONC plumbing (project dir, field upsert)
 ├── auto-advisor-mode.ts           # Barrel: advisor mode guard (5 hooks)
 ├── auto-advisor/                  # Mode config, runtime, protocol, per-hook helpers
 ├── adr-guard.ts                   # Barrel: ADR iron-law plugin
@@ -493,6 +513,8 @@ plugins/
 ├── metrics.ts                     # Hook: auto-collect tool metrics
 ├── auto-format.ts                 # Hook: auto-run formatters
 ├── browser-screenshot.ts          # Custom tool: Playwright screenshots
+├── ocp.ts                         # Barrel: /ocp in-session self-management command
+├── ocp/                           # Command hook, arg parsing, CLI runtime helpers
 ├── profile-wizard.ts              # TUI plugin: /profile dialog wizard
 ├── provider-wizard.ts             # TUI plugin: /provider dialog wizard
 └── queue-manager.ts               # TUI plugin: /queued dialog manager
@@ -518,6 +540,6 @@ tests/
 4. Type-check plugins: `bun install && bunx tsc --noEmit`.
 5. Commit and push to `main`.
 6. Tag and push: `git tag v0.7.0 && git push origin v0.7.0`.
-7. The [Release workflow](.github/workflows/release.yml) builds `opencode-config-<ver>.tar.gz` + `.zip` and creates a GitHub Release automatically — no manual artifact upload needed.
+7. The [Release workflow](.github/workflows/release.yml) builds `opencode-prime-<ver>.tar.gz` + `.zip` and creates a GitHub Release automatically — no manual artifact upload needed.
 
 Runtime behavior (hooks, LLM compliance) cannot be fully covered by the structural suite — verify in a real `opencode` environment against the pre-release flow before tagging.
