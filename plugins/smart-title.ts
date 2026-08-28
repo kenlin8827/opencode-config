@@ -54,48 +54,29 @@ const DEFAULT_PROMPT =
 const CONTEXT_MAX_CHARS = 4000
 const REQUEST_TIMEOUT_MS = 30_000
 const LOG_PREFIX = "[smart-title]"
+// Upper bound on per-session tracking Maps.  If a user creates and closes
+// hundreds of sessions without session.deleted events firing (or if the
+// events have a different shape that our handler misses), the Maps would
+// grow without limit.  This is a safety valve, not a normal code path.
+const MAX_TRACKED_SESSIONS = 500
 
 // -- Global safety net --------------------------------------------------------
-// Last-resort: if a promise rejection somehow slips past every try/catch
-// and .catch() above, this prevents it from crashing the opencode server
-// process. It only logs — never re-throws, never shows a UI error.
+// IMPORTANT: We do NOT register a process-level unhandledRejection handler.
 //
-// We do NOT register an uncaughtException handler: doing so changes Node's
-// default process-crash behavior for the ENTIRE process (not just this
-// plugin), which is unacceptable for a plugin running inside opencode.
-// Synchronous exceptions from this plugin's callbacks are already wrapped
-// in try/catch at every entry point (event handler, handleIdle).
+// A previous version of this plugin registered one that checked whether the
+// rejection string contained our [smart-title] prefix and swallowed it if
+// so.  The intent was to be conservative (only suppress our own errors),
+// but the side-effect was catastrophic: merely registering an
+// unhandledRejection handler changes Node/Bun's default process-crash
+// behavior for the ENTIRE process — not just this plugin.  Rejections from
+// opencode itself (e.g. AI_APICallError when the main model returns 502 Bad
+// Gateway) were silently swallowed, preventing opencode's own error
+// recovery logic from seeing them.  This caused the server process to die
+// in an unrecoverable state.
 //
-// The unhandledRejection handler is conservative: it only suppresses
-// rejections whose string form contains our [smart-title] prefix. This
-// catches errors thrown from this plugin (which all carry the prefix via
-// SmartTitleError or the LOG_PREFIX-wrapped catch logs) without affecting
-// rejections from other plugins or opencode itself.
-//
-// We guard against double-registration so hot-reload doesn't stack handlers.
-const g = globalThis as Record<string, unknown>
-
-/** Tagged Error subclass — all throws from this plugin use it so the
- *  global unhandledRejection handler can reliably identify them. */
-class SmartTitleError extends Error {
-  constructor(message: string) {
-    super(`${LOG_PREFIX} ${message}`)
-    this.name = "SmartTitleError"
-  }
-}
-
-if (!g.__smartTitleRejectionGuard) {
-  g.__smartTitleRejectionGuard = true
-  process.on("unhandledRejection", (reason) => {
-    const msg = (reason as Error)?.message ?? String(reason ?? "")
-    if (reason instanceof SmartTitleError || msg.includes(LOG_PREFIX)) {
-      console.warn(`${LOG_PREFIX} suppressed unhandledRejection: ${msg.slice(0, 500)}`)
-      // Do NOT re-throw — swallow it. opencode stays alive, UI stays quiet.
-      return
-    }
-    // Rejections not from this plugin are left to other handlers / default.
-  })
-}
+// Instead, every entry point in this plugin (handleIdle, event handler) is
+// wrapped in try/catch, and the fire-and-forget call in the event handler
+// has a .catch() safety net.  This is sufficient — no global handler needed.
 
 // -- Plugin config (smart-title.jsonc) ------------------------------------------
 
@@ -108,8 +89,12 @@ export interface SmartTitleConfig {
   updateThreshold: number
 }
 
-/** Strip // and /* ... *\/ comments outside string literals (JSONC subset). */
+/** Strip // and /* ... *\/ comments outside string literals (JSONC subset).
+ *  Defensive: non-string input returns "" — parseConfig already guards
+ *  with its own try/catch, but this prevents a raw TypeError if the
+ *  function is called directly (e.g. from tests or future callers). */
 export function stripJsonComments(text: string): string {
+  if (typeof text !== "string") return ""
   let out = ""
   let inString = false
   let inLine = false
@@ -274,8 +259,10 @@ export function resolveTargets(
 
 // -- Endpoint & response parsing (pure, unit-tested) ----------------------------
 
-/** Normalize a router baseURL to the chat-completions endpoint. */
+/** Normalize a router baseURL to the chat-completions endpoint.
+ *  Defensive: non-string input returns the default endpoint shape. */
 export function resolveEndpoint(baseUrl: string): string {
+  if (typeof baseUrl !== "string" || !baseUrl) return "/v1/chat/completions"
   let url = baseUrl.replace(/\/+$/, "")
   if (!/\/v\d+$/i.test(url)) url += "/v1"
   return url + "/chat/completions"
@@ -291,6 +278,7 @@ export function resolveEndpoint(baseUrl: string): string {
 const TRUNCATED_FINISH_REASONS = ["length", "max_tokens"]
 
 export function parseCompletionBody(body: string): { text: string; truncated: boolean } {
+  if (typeof body !== "string") return { text: "", truncated: false }
   const trimmed = body.trim()
   if (!trimmed.startsWith("data:")) {
     try {
@@ -326,8 +314,10 @@ export function parseCompletionBody(body: string): { text: string; truncated: bo
   return { text, truncated }
 }
 
-/** Clean an AI-generated title: drop think tags, wrappers, excess length. */
+/** Clean an AI-generated title: drop think tags, wrappers, excess length.
+ *  Defensive: non-string input returns "". */
 export function cleanTitle(raw: string): string {
+  if (typeof raw !== "string") return ""
   let cleaned = raw.replace(/<think>[\s\S]*?<\/think>\s*/gi, "")
   const lines = cleaned.split("\n").map((l) => l.trim())
   cleaned = lines.find((l) => l.length > 0) || ""
@@ -336,8 +326,10 @@ export function cleanTitle(raw: string): string {
   return cleaned
 }
 
-/** Remove matched wrapping markers (**x**, "x", `x`, heading/list markers). */
+/** Remove matched wrapping markers (**x**, "x", `x`, heading/list markers).
+ *  Defensive: non-string input returns "". */
 export function stripWrappers(text: string): string {
+  if (typeof text !== "string") return ""
   let result = text.trim().replace(/^\s*(?:#{1,6}|[-*+>])\s+/, "").trim()
   const pairs: Array<[string, string]> = [
     ["**", "**"],
@@ -364,9 +356,15 @@ export function stripWrappers(text: string): string {
   return result
 }
 
-/** Apply titleFormat placeholders: {title}, {cwd}, {cwdTip}, {cwdTip:N}. */
+/** Apply titleFormat placeholders: {title}, {cwd}, {cwdTip}, {cwdTip:N}.
+ *  Defensive: if `format` is not a string (e.g. undefined from a malformed
+ *  config object), returns `title` unchanged so the session still gets a
+ *  title instead of crashing the plugin. */
 export function applyTitleFormat(format: string, title: string, cwd: string): string {
-  const segments = (cwd || "").split(/[\\/]/).filter((s) => s.length > 0)
+  if (typeof format !== "string" || !format) return title
+  if (typeof title !== "string") title = String(title ?? "")
+  if (typeof cwd !== "string") cwd = String(cwd ?? "")
+  const segments = cwd.split(/[\\/]/).filter((s) => s.length > 0)
   let result = format
     .replace(/\{title\}/g, title)
     .replace(/\{cwd\}/g, cwd)
@@ -386,8 +384,10 @@ interface Turn {
   assistantLast?: string
 }
 
-/** Group raw session messages into compact turns (first+last assistant text). */
+/** Group raw session messages into compact turns (first+last assistant text).
+ *  Defensive: non-array input returns []. */
 export function buildTurns(messages: any[]): Turn[] {
+  if (!Array.isArray(messages)) return []
   const turns: Turn[] = []
   let current: Turn | null = null
   let assistantTexts: string[] = []
@@ -400,7 +400,7 @@ export function buildTurns(messages: any[]): Turn[] {
       turns.push(current)
     }
   }
-  for (const msg of messages ?? []) {
+  for (const msg of messages) {
     const role = msg?.info?.role
     if (role === "user") {
       flush()
@@ -431,11 +431,14 @@ function extractText(parts: any[]): string {
     .trim()
 }
 
-/** Format turns into a bounded context string for the title model. */
+/** Format turns into a bounded context string for the title model.
+ *  Defensive: non-array input returns "". */
 export function formatContext(turns: Turn[]): string {
+  if (!Array.isArray(turns)) return ""
   const lines: string[] = []
   for (const turn of turns) {
-    lines.push(`User: ${turn.user}`)
+    const user = typeof turn?.user === "string" ? turn.user : String(turn?.user ?? "")
+    lines.push(`User: ${user}`)
     if (turn.assistantFirst && turn.assistantFirst === turn.assistantLast) {
       lines.push(`Assistant: ${turn.assistantFirst}`)
     } else {
@@ -458,17 +461,30 @@ export async function generateTitle(opts: {
   prompt: string
   context: string
 }): Promise<string> {
+  // Validate opts: all fields must be strings (the caller resolves them
+  // from the opencode config, but a missing/null field should not crash).
+  if (!opts || typeof opts !== "object") {
+    throw new Error("generateTitle: opts is not an object")
+  }
+  const baseUrl = typeof opts.baseUrl === "string" ? opts.baseUrl : ""
+  const apiKey = typeof opts.apiKey === "string" ? opts.apiKey : ""
+  const model = typeof opts.model === "string" ? opts.model : ""
+  const prompt = typeof opts.prompt === "string" ? opts.prompt : DEFAULT_PROMPT
+  const context = typeof opts.context === "string" ? opts.context : ""
+  if (!baseUrl || !apiKey || !model) {
+    throw new Error(`generateTitle: missing required field (baseUrl=${!!baseUrl}, apiKey=${!!apiKey}, model=${!!model})`)
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    const res = await fetch(resolveEndpoint(opts.baseUrl), {
+    const res = await fetch(resolveEndpoint(baseUrl), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${opts.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: opts.model,
+        model: model,
         stream: false,
         temperature: 0.2,
         // Reasoning backends can burn the whole budget on thinking tokens;
@@ -478,8 +494,8 @@ export async function generateTitle(opts: {
         // generous — the title prompt already bounds output length.
         max_tokens: 512,
         messages: [
-          { role: "system", content: opts.prompt },
-          { role: "user", content: `<conversation>\n${opts.context}\n</conversation>` },
+          { role: "system", content: prompt },
+          { role: "user", content: `<conversation>\n${context}\n</conversation>` },
         ],
       }),
       signal: controller.signal,
@@ -507,7 +523,8 @@ export async function generateTitle(opts: {
  */
 export function userQuestionTitle(turns: Turn[], maxLen: number = 60): string {
   const raw = turns?.[0]?.user ?? ""
-  let text = raw.replace(/\s+/g, " ").trim()
+  const text0 = typeof raw === "string" ? raw : String(raw ?? "")
+  let text = text0.replace(/\s+/g, " ").trim()
   if (!text) return ""
   if (text.length > maxLen) {
     const cut = text.slice(0, maxLen + 1)
@@ -542,6 +559,7 @@ export async function generateWithFallback(
   fetcher: (t: Target) => Promise<string> = (t) =>
     generateTitle({ ...t, prompt: opts.prompt, context: opts.context }),
 ): Promise<string | null> {
+  if (!Array.isArray(targets) || targets.length === 0) return null
   for (const target of targets) {
     try {
       const title = await fetcher(target)
@@ -592,6 +610,12 @@ export const SmartTitlePlugin: Plugin = async (input) => {
   // This replaces the old lastTitledCount approach which regenerated on
   // every new message (overwriting a good title with a worse one on failure).
   const titledSessions = new Set<string>()
+  // In-flight session IDs — prevents concurrent handleIdle calls for the
+  // same session from racing (two idle events can fire before the first
+  // LLM call resolves).  The second call sees the session is busy and
+  // returns immediately; the first call completes and (if it produced a
+  // title) marks the session so future calls skip it.
+  const inflightSessions = new Set<string>()
   let warnedNoTarget = false
   // Cached opencode config snapshot — provider/model definitions rarely
   // change mid-session, so we fetch once and reuse.  Set to null on failure
@@ -621,8 +645,18 @@ export const SmartTitlePlugin: Plugin = async (input) => {
       }
       if (!config.enabled) return
       if (subagentSessions.has(sessionID)) return
+      // Concurrency guard: if a previous handleIdle for this session is
+      // still in flight (waiting on the LLM), skip — the first call will
+      // either set a title or fail, and the next idle event will retry.
+      if (inflightSessions.has(sessionID)) return
+      inflightSessions.add(sessionID)
 
       const count = (idleCount.get(sessionID) ?? 0) + 1
+      // Memory cap: if the Map has grown beyond the safety limit (sessions
+      // were never deleted via session.deleted events), clear it and start
+      // fresh — the counters are just for the updateThreshold gate, losing
+      // old counts is harmless.
+      if (idleCount.size > MAX_TRACKED_SESSIONS) idleCount.clear()
       idleCount.set(sessionID, count)
       if (count % config.updateThreshold !== 0) return
 
@@ -703,9 +737,22 @@ export const SmartTitlePlugin: Plugin = async (input) => {
           return
         }
       }
-      const finalTitle = applyTitleFormat(config.titleFormat, title, cwd)
+      // Defensive: ensure titleFormat is a string before passing it to
+      // applyTitleFormat.  getConfig()/parseConfig() guarantee this, but
+      // a runtime edge case (e.g. hot-reload clearing the module cache,
+      // or an object prototype pollution) could theoretically produce a
+      // non-string value.  This guard prevents a TypeError that would be
+      // logged as a plugin load failure in the opencode server log.
+      const fmt = typeof config?.titleFormat === "string" && config.titleFormat
+        ? config.titleFormat
+        : "{title}"
+      const finalTitle = applyTitleFormat(fmt, title, cwd)
+      // Guard against writing an empty title — would blank the sidebar.
+      // If applyTitleFormat somehow produced empty (e.g. format="{title}"
+      // and title=""), fall back to the raw title or a neutral placeholder.
+      const safeTitle = finalTitle || title || "New Session"
 
-      await client.session.update({ path: { id: sessionID }, body: { title: finalTitle } })
+      await client.session.update({ path: { id: sessionID }, body: { title: safeTitle } })
       // Only mark as titled when the LLM produced the title — fallback
       // titles are temporary and will be upgraded on a future idle event.
       if (!usedFallback) titledSessions.add(sessionID)
@@ -714,6 +761,10 @@ export const SmartTitlePlugin: Plugin = async (input) => {
       // the outermost catch — nothing should ever escape to become an
       // unhandledRejection.
       console.warn(`${LOG_PREFIX} title update failed for ${sessionID}: ${(err as Error)?.message ?? err}`)
+    } finally {
+      // Always clear the in-flight flag — even on error — so the next
+      // idle event can retry.
+      inflightSessions.delete(sessionID)
     }
   }
 
@@ -744,8 +795,8 @@ export const SmartTitlePlugin: Plugin = async (input) => {
         const legacyIdle = type === "session.idle"
         if (!statusIdle && !legacyIdle) return
 
-        const sessionID = event?.properties?.sessionID as string | undefined
-        if (!sessionID) return
+        const sessionID = event?.properties?.sessionID
+        if (typeof sessionID !== "string" || !sessionID) return
         // Fire-and-forget: never block the event loop on title generation.
         // The .catch() is a belt-and-suspenders safety net: handleIdle has
         // its own outermost try/catch, but if a bug ever lets an exception

@@ -301,6 +301,15 @@ assertEq(
   "/home/user/proj",
   "{cwd} full path (posix)",
 )
+// Defensive guards: non-string format must not throw, returns title as-is
+assertEq(applyTitleFormat(undefined as any, "My Title", "/path"), "My Title", "undefined format → title returned")
+assertEq(applyTitleFormat(null as any, "My Title", "/path"), "My Title", "null format → title returned")
+assertEq(applyTitleFormat("" as any, "My Title", "/path"), "My Title", "empty format → title returned")
+assertEq(applyTitleFormat(123 as any, "My Title", "/path"), "My Title", "non-string format → title returned")
+// Non-string title/cwd: String() coercion happens before replace; replace
+// then converts undefined/null to "" per JS spec (replace with undefined → "")
+assertEq(applyTitleFormat("{title}", 42 as any, "/path"), "42", "number title → stringified")
+assertEq(applyTitleFormat("{cwd}", "t", 42 as any), "42", "number cwd → stringified")
 
 // ── 7: turn building & context formatting ──────────────────────────────
 console.log("\n== 7: buildTurns + formatContext ==")
