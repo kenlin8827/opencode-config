@@ -4,6 +4,15 @@ This repo is **OpenCode Prime (OCP)** — a multi-agent configuration suite for 
 
 ---
 
+## Ships vs. Dev-Only
+
+- **Ships** (injected into OpenCode agent system prompts): `instructions/*.md`, `agents/*.md`, plus all files under `plugins/`, `profiles/`, `providers/`. These are the actual prompts users consume — every line costs tokens on every session, forever.
+- **Dev-only** (repo tooling, never shipped): `AGENTS.md`, `DEVELOPING.md`, `scripts/`, `docs/`, `install/`, `bin/`. These guide contributors working on this repository and are never injected into a user's OpenCode session.
+
+All rules in this document (token budget, cross-references, release flow) exist to serve the shipped prompts. When you edit `instructions/` or `agents/`, you are editing what every OpenCode session will load.
+
+---
+
 ## 1. Language Standards
 
 All source code, agent prompts, instructions, plugin protocols, and contributor guidelines (`AGENTS.md`, `DEVELOPING.md`) must be **100% English**.
@@ -12,7 +21,24 @@ User docs are strictly bilingual: `README.md` + `docs/**` (outside `docs/zh/`) =
 
 ---
 
-## 2. Release, Manifest & Packaging
+## 2. Token Budget — Prompt Compression
+
+Every file under `instructions/` and `agents/` is injected into agent system prompts at session start. A single session opens with all instructions + agent prompt + context — often tens of thousands of tokens before the user's first message. **Token cost is real money.** Bloated prompts violate the project's core philosophy of efficiency.
+
+### Rules
+
+1. **Instruction files** (`instructions/*.md`) — **MUST** stay under **60 lines**. If a rule needs more, split it into a separate file or compress. Tables over prose, rules over explanations.
+2. **Agent prompts** (`agents/*.md`) — **SHOULD** stay under **120 lines**. Competency lists, hard rules, output format. Cut prose, keep structure.
+3. **No redundant explanations** — if a rule says "prefer X over Y", don't follow with 3 sentences explaining why Y is bad. The rule itself is the explanation. RFC 2119 keywords carry weight; trust them.
+4. **Examples** — max 1 concise example per rule. If the rule is clear without an example, omit it.
+5. **Cross-reference, don't duplicate** — in shipped prompt files (`instructions/*.md`, `agents/*.md`), if a rule exists in another shipped file, reference it by shorthand (`cp#3` = `coding-principles.md` row 3) instead of restating it. The LLM resolves these at runtime because all instruction/agent files are injected into the system prompt together. Never use such shorthand in dev-only files (`AGENTS.md`, `DEVELOPING.md`) — token economy only matters for shipped prompts.
+6. **Review before merge** — any new instruction or agent file **SHOULD** be reviewed for token economy. If a section can be cut without losing normative power, cut it.
+
+> **Principle**: Every line in a prompt file costs money on every single session, forever. A 200-line instruction file that could be 50 lines wastes 150 tokens × every session × every user. Compress ruthlessly.
+
+---
+
+## 3. Release, Manifest & Packaging
 
 The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.**
 

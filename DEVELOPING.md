@@ -281,7 +281,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `design-token-guard.ts` | `tool.execute.before` | Blocks writes with hardcoded colors/spacing/radius. Throws error. |
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, …). Logs warnings. |
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary in `~/.config/opencode/.metrics/`. |
-| `smart-title.ts` | `event: session.status(idle)` + `session.idle` | Auto-generates session titles: candidate chain (override → flash tier → session model → global model) resolved from opencode config, called over OpenAI-compatible HTTP; first success wins, total failure falls back to the first user question as title, then to opencode's built-in titling. Skips subagents; never silent on failure. |
+| `smart-title.ts` | `event: session.status(idle)` | Auto-generates session titles: candidate chain (override → flash tier → session model → global model) resolved from opencode config, called over OpenAI-compatible HTTP; first success wins, total failure falls back to the first user question as title, then to opencode's built-in titling. Skips subagents; never silent on failure. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `browser-screenshot.ts` | custom tool | Registers `browser_screenshot` tool (Playwright headless) for `@vision` / `@frontend-dev`. |
 | `project-profiler.ts` (+ `plugins/project-profiler/`) | `session.created` + `system.transform` | Detects project nature at session start (config-driven, zero CLI probing) and injects a compact profile + code-intelligence backend recommendation (Serena vs CodeGraph, GitNexus optional) into the system prompt. |
@@ -298,7 +298,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `grill-me.ts` / `grill-with-docs.ts` (+ `plugins/grill/`) | `config` + `command.execute.before` + `system.transform` | `/grill-me` and `/grill-with-docs` commands; inject grilling protocols. |
 | `goal.ts` (+ `plugins/goal/`) | `config` + `system.transform` | `/goal` command; injects goal execution protocol. |
 | `handoff.ts` (+ `plugins/handoff/`) | `config` + `system.transform` | `/handoff` command; injects handoff protocol. |
-| `profile-wizard.ts` | TUI plugin | `/profile` dialog wizard: tier review, per-tier model override, live apply via server config API with file-rewrite fallback. Announces active profile on session creation. |
+| `profile-wizard.ts` | TUI plugin | `/profile` dialog wizard: tier review, per-tier model override, live apply via server config API with file rewrite on request failure. Announces active profile on session creation. |
 | `provider-wizard.ts` | TUI plugin | `/provider` dialog wizard: baseURL/apiKey prompts, atomic write, model add/remove management. |
 | `queue-manager.ts` | TUI plugin | `/queued` command: list/edit/cancel queued user messages. |
 | `project-wizard.ts` | TUI plugin | `/project-wizard` dialog wizard: two-tier interactive wizard (scaffolding init, switch configuration, template sync, index catch-up) with re-entrant echo. |
@@ -310,7 +310,7 @@ All slash commands are registered programmatically via the `config` hook — no 
 
 ### Auto-advisor internals
 
-**Storage**: the `autoAdvisorMode` field in the project `opencode.jsonc` — no hidden state file, no env var. Resolution: project config → `off` (default); purely project-level, no global fallback. `/auto-advisor` always writes to the project-level config only (comments and other fields preserved). Legacy field `advisorMode` / values `advisory` / `decisive` are auto-normalized.
+**Storage**: the `autoAdvisorMode` field in the project `opencode.jsonc` — no hidden state file, no env var. Resolution: project config → `off` (default); purely project-level, no global fallback. `/auto-advisor` always writes to the project-level config only (comments and other fields preserved).
 
 **Five-hook enforcement** (`plugins/auto-advisor-mode.ts` + helpers in `plugins/auto-advisor/`):
 

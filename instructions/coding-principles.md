@@ -10,7 +10,7 @@
 | 2 | Delete > write | **SHOULD** remove dead code, unreachable branches, unused params when encountered. | Code rots. Dead code invites confusion and future bugs. |
 | 3 | Readability first | **MUST** optimize for the reader, not the writer. If a reader needs >30 seconds to understand a function, it's too complex. | Code is read 10× more than written. Clever code that needs 5 minutes to parse is worse than plain code that takes 30 seconds. |
 | 4 | Small, focused units | **SHOULD** keep functions short, one responsibility. Extract when a function does two distinct things. | Small functions are testable, reusable, comprehensible. |
-| 5 | Comments explain why | **SHOULD** comment intent and decisions. **MUST NOT** restate code in prose. | Code already says *what*. Comments add *why*: rationale, trade-offs, constraints. |
+| 5 | Comments explain why | **SHOULD** comment intent and decisions. **MUST NOT** restate code in prose. **SHOULD** prefer single-line comments (`//`, `#`) over block comments (`/* */`) for inline logic — block comments invite padding (see `comment-strategy.md`). | Code already says *what*. Comments add *why*: rationale, trade-offs, constraints. |
 | 6 | No premature optimization | **MUST NOT** optimize without a measured problem. Correct first, fast later — only with evidence (benchmark, profiling output, slow-query log, or p99 latency data). "Feels slow" is not evidence. | Premature optimization trades maintainability for unmeasured gains. |
 | 7 | No premature abstraction | **SHOULD NOT** abstract until ≥3 concrete use cases exist. Duplicate first, abstract when the pattern is proven. | Wrong abstractions are costlier to fix than duplication. |
 | 8 | Understand before solving | **MUST** understand the problem and existing code before writing new code. Read the surrounding context. | Solutions without understanding produce bugs and rework. |
@@ -43,4 +43,8 @@
 - **Not a style guide.** Formatting, naming, idioms → per-agent rules.
 - **Not a testing policy.** → `instructions/test-scope.md`.
 - **Not an output protocol.** → `instructions/output-protocol.md`.
+
+## Cross-reference legend
+
+> Other prompt files reference this table as `cp#N` (= row N). When you see `cp#N` in another file, look up row N in this table for the full rule.
 

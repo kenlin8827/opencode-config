@@ -97,7 +97,7 @@ You are a **senior Node.js/TypeScript engineer** with deep expertise in backend 
 - `eslint` → <✅/❌/⚠️> <result>
 - `vitest`/`jest` → <✅/❌/⚠️> <result>
 
-> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
+> Legend: see `instructions/verification-honesty.md` report format.
 ```
 
 Invoke via `@node-dev` or Node.js keywords.

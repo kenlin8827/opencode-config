@@ -45,7 +45,7 @@ This repository follows [Conventional Commits](https://www.conventionalcommits.o
 ```
 feat(auth): add refresh-token rotation
 fix(api): guard against nil session in logout handler
-refactor!: drop legacy v1 endpoints
+refactor!: drop v1 endpoints
 
 BREAKING CHANGE: /v1/* routes removed; migrate to /v2/*.
 ```

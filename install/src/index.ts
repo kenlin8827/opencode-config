@@ -16,6 +16,7 @@ import { runTuiDashboard } from './dashboard';
 import { launchTui, launchServe, launchWeb, launchDesktop } from './launcher';
 import { ensureOpenChamber } from './openchamber';
 import { executeUpdate, executeUpgrade } from './updater';
+import { executeClean } from './session-clean';
 
 function parseCliArgs(rawArgs: string[]): CliArgs {
   const args: CliArgs = {
@@ -89,6 +90,31 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
       args.passthrough = rawArgs.slice(i + 1);
       hasExplicitAction = true;
       break;
+    } else if (arg === 'session') {
+      // `session` namespace — look ahead for the subcommand.
+      const next = rawArgs[i + 1];
+      if (next === 'clean') {
+        args.action = 'clean';
+        i++; // consume 'clean'
+        hasExplicitAction = true;
+      } else if (next === 'list' || next === 'delete') {
+        // Passthrough to `opencode session <subcommand>`.
+        args.action = 'session';
+        args.passthrough = rawArgs.slice(i + 1);
+        hasExplicitAction = true;
+        break;
+      } else {
+        // Unknown `session` subcommand — fall through to help.
+        printHelp();
+        process.exit(0);
+      }
+    } else if (arg === '--days' || arg === '-d') {
+      const n = parseInt(rawArgs[++i], 10);
+      if (!Number.isNaN(n) && n > 0) args.cleanDays = n;
+    } else if (arg === '--dry-run') {
+      args.cleanDryRun = true;
+    } else if (arg === '--include-subagents') {
+      args.cleanIncludeSubagents = true;
     } else if (arg === '-Target' || arg === '--target' || arg === '-t') {
       args.target = rawArgs[++i];
     } else if (arg === '-Force' || arg === '--force' || arg === '-f') {
@@ -141,7 +167,8 @@ Actions:
                probes versions and applies nothing (default without -y when non-interactive)
   upgrade      Pull the latest release (git pull for clones, release download
                otherwise) and re-apply the installer
-  status       Check installed version and comparison with current repo
+  session        Manage sessions: list, delete (passthrough), clean
+  status         Check installed version and comparison with current repo
   generate     Generate manifest for current repo VERSION
   init         Backup and reset the target configuration directory
   uninstall    Safely remove installed managed configuration files
@@ -157,6 +184,15 @@ Options:
   --check-only             update: check versions only, apply nothing
   --bin-dir <path>         Target directory for global command shim (default: ~/.local/bin)
   -h, --help               Show this help message
+
+Session subcommands:
+  session list [args...]    List sessions (passthrough to opencode)
+  session delete <id>       Delete a session (passthrough to opencode)
+  session clean [--days <n>]  Delete old sessions (default: 7 days)
+    --days, -d <n>           Delete sessions older than N days (default: 7)
+    --dry-run                Preview what would be deleted without actually deleting
+    --include-subagents      Also delete subagent (child) sessions
+    -y, --yes                Skip the confirmation prompt
 `);
 }
 
@@ -241,6 +277,30 @@ async function main() {
     return;
   }
 
+  if (args.action === 'session') {
+    // Passthrough to `opencode session <subcommand> <args>`.
+    const { execFileSync } = require('node:child_process');
+    try {
+      execFileSync('opencode', ['session', ...(args.passthrough ?? [])], {
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+      });
+    } catch {
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (args.action === 'clean') {
+    await executeClean({
+      days: args.cleanDays ?? 7,
+      dryRun: args.cleanDryRun ?? false,
+      yes: args.yes,
+      includeSubagents: args.cleanIncludeSubagents ?? false,
+    });
+    return;
+  }
+
   if (args.action === 'wizard') {
     await runInteractiveWizard(repoDir);
     return;
@@ -293,7 +353,6 @@ async function main() {
 
       const res = executeInstall(repoDir, args);
       console.log(`Installed v${res.version} to ${res.targetDir} (${res.filesInstalled} files applied)`);
-      if (res.filesRemoved > 0) console.log(`Cleaned ${res.filesRemoved} deprecated files`);
       if (res.backupPath) console.log(`Backup saved to ${res.backupPath}`);
 
       if (wantGlobal) {

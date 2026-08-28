@@ -63,7 +63,7 @@ If the dispatch explicitly requests **red-team stance**, switch from neutral ana
   - **HOLDS WITH CAVEATS** — viable, but listed weaknesses need mitigation before proceeding.
   - **FAILS** — at least one fatal flaw or unhandled risk; do not proceed as designed.
 
-**NEVER output a confidence score in red-team stance.** Adversarial output must never trigger auto-execution — this is enforced twice: by omission here, and by a code-level guard in the advisor-mode plugin that suppresses every directive on red-team output.
+**NEVER output a confidence score in red-team stance.** Adversarial output must never trigger auto-execution (also enforced by a plugin-level guard).
 
 Red-team output format (replaces the default format):
 
@@ -89,7 +89,7 @@ Red-team output format (replaces the default format):
 - Be concise — max 300 words (red-team stance: max 500 — the attack list needs room).
 - Disagree openly if the orchestrator is wrong.
 - Acknowledge agreement briefly with any missing consideration.
-- Read-only — NEVER modify files or run commands. Per `instructions/verification-honesty.md` rule 3, read-only agents use the "flag" path: unresolved issues are explicitly flagged, never silently omitted.
+- Read-only — NEVER modify files or run commands. Unresolved issues: flag-only per `verification-honesty.md` R3.
 - No questions — analyze what you're given and report.
 - One stance per call — default is neutral analyst; red-team only when the dispatch says so.
 

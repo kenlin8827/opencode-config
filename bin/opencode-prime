@@ -27,6 +27,7 @@
 #                   args pass through, auto-picks a free port starting at 3000
 #                   unless --port is given)
 #   desktop | ui    Launch the OpenChamber native desktop app
+#   session clean   Delete old sessions via `opencode session delete`
 #   version         Print the repo's install/VERSION
 #   help            Print this help
 #
@@ -250,6 +251,9 @@ case "$sub" in
             exec open "${target#open:}" "$@"
         fi
         exec "$target" "$@"
+        ;;
+    session)
+        exec "$INSTALL" session "$@"
         ;;
     version|--version|-v)
         cat "$REPO_ROOT/install/VERSION"

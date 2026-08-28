@@ -15,6 +15,9 @@
 | `ocp serve` | | 启动无头 OpenCode 服务（`opencode serve`）；额外参数透传（如 `ocp serve --port 4096`） |
 | `ocp web` | | 启动 **OpenChamber Web 界面**（`openchamber serve`）；自动生成 `--ui-password`，未指定端口时自动从 3000 起挑选空闲端口（详见[端口与密码策略](#web-端口与密码策略)） |
 | `ocp desktop` | `ocp ui` | 启动 **OpenChamber 原生桌面应用**（需从 [openchamber.dev/download](https://openchamber.dev/download) 单独下载） |
+| `ocp session list` | | 列出会话（透传 `opencode session list`） |
+| `ocp session delete` | | 按 ID 删除会话（透传 `opencode session delete`） |
+| `ocp session clean` | | 按日期批量清理旧会话。用法：`ocp session clean --days 7 [--dry-run] [-y]` |
 | `ocp install` | | 将当前版本的清单应用到目标目录（默认 `~/.config/opencode`） |
 | `ocp update` | | 检查套件本体（`main` 分支最新 `install/VERSION` 对比 `~/.config/opencode` 已安装版本）**和**配套工具（`opencode`、`openchamber`）。所有可用更新默认全部勾选——交互终端中按回车应用、输 `n` 跳过；加 `-y` 可不经确认自动应用全部待更新项（适合脚本/定时任务）；加 `--check-only` 则只探测版本、不做任何修改（非交互运行且未加 `-y` 时默认如此） |
 | `ocp upgrade` | | 拉取最新发布包并重新应用安装器：git 克隆走 `git pull --ff-only`，否则从 GitHub Releases 下载 `opencode-prime-latest.{tar.gz,zip}`（与一键安装同源；官方源失败时可用 `OCP_RELEASE_MIRROR` 设置 ghproxy 类镜像前缀回退）。加 `--force` 可在版本相同时强制重放 |
@@ -78,6 +81,38 @@ ocp web --ui-password s3cret # 自带密码
 ### `ocp desktop`（别名 `ocp ui`）— 原生桌面应用
 
 基于 Tauri 的桌面应用通常不在 `PATH` 上，启动器会探测常见安装位置（Windows：`%LOCALAPPDATA%\Programs`、`%LOCALAPPDATA%`、`Program Files*`；Linux：`~/.Applications`、`/usr/local/bin`、`/opt`；macOS：经 LaunchServices 执行 `open -a OpenChamber`）。找不到时会提示前往 <https://openchamber.dev/download> 下载 —— 安装器从不下载桌面应用，只会拉取支撑 `ocp web` 的 `openchamber` **CLI**。
+
+### `ocp session` — 会话管理
+
+统一的会话管理入口。`list` 和 `delete` 原样透传给 `opencode` CLI；`clean` 提供按日期批量清理功能。
+
+#### 透传命令
+
+```bash
+ocp session list                        # 列出近期会话
+ocp session list --format json -n 20    # JSON 输出，最近 20 条
+ocp session delete <sessionID>          # 删除指定会话
+```
+
+#### `ocp session clean` — 批量清理
+
+通过官方 `opencode session delete` CLI 删除旧会话 —— 不直接操作数据库，所有存储操作均经由引擎。需要 `opencode` 在 PATH 上。
+
+| 参数 | 别名 | 说明 |
+| :--- | :--- | :--- |
+| `--days <n>` | `-d <n>` | 删除超过 *n* 天的会话（默认 7） |
+| `--dry-run` | | 预览将被删除的内容，不实际执行 |
+| `--include-subagents` | | 同时删除子代理（子）会话（默认排除） |
+| `-y`、`--yes` | | 跳过确认提示 |
+
+```bash
+ocp session clean --dry-run             # 预览 —— 哪些会话会被删除？
+ocp session clean --days 3              # 删除超过 3 天的会话
+ocp session clean --days 30 -y          # 删除超过 30 天的会话，不提示
+ocp session clean -d 7 --include-subagents  # 包含子代理会话
+```
+
+命令在删除前会打印摘要：会话数量、时间分布、Token 用量，以及最多 10 条示例会话标题。删除操作通过 `opencode session delete`（官方 CLI）执行，所有存储操作均经由引擎 —— 不直接操作数据库。
 
 ---
 

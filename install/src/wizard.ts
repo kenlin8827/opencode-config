@@ -395,7 +395,7 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
       }
 
       p.note(
-        `Target: ${res.targetDir}\nVersion: ${res.version}\nFiles Installed: ${res.filesInstalled}\nFiles Cleaned: ${res.filesRemoved}${
+        `Target: ${res.targetDir}\nVersion: ${res.version}\nFiles Installed: ${res.filesInstalled}${
           res.backupPath ? `\nBackup saved at: ${res.backupPath}` : ''
         }${registerGlobalCmds ? `\nGlobal Commands: Registered at ${defaultBinDir}` : ''}`,
         t.installSummaryTitle

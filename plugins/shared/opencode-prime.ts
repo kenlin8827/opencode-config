@@ -1,5 +1,5 @@
 /**
- * Shared project-level opencode.json/opencode.jsonc field IO.
+ * Shared project-level opencode.jsonc field IO.
  *
  * Several plugins (adr-guard, env-guard, auto-advisor) store a per-project
  * switch as a top-level field of the project's opencode.jsonc. They all need
@@ -51,9 +51,7 @@ export function getProjectDir(): string {
 export function projectConfigFiles(): string[] {
   return [
     join(projectDir, ".opencode", "opencode.jsonc"),
-    join(projectDir, ".opencode", "opencode.json"),
     join(projectDir, "opencode.jsonc"),
-    join(projectDir, "opencode.json"),
   ]
 }
 
@@ -156,12 +154,8 @@ export function readProjectConfig(): Record<string, unknown> | null {
 // Targeted upsert/remove: comments and every other field stay untouched
 // (never a full reserialize).
 
-function fieldNames(field: string, aliases?: string[]): string {
-  return aliases && aliases.length > 0 ? [field, ...aliases].join("|") : field
-}
-
-function fieldRe(field: string, aliases?: string[]): RegExp {
-  return new RegExp(`"(?:${fieldNames(field, aliases)})"(\\s*:\\s*)"[^"]*"`)
+function fieldRe(field: string): RegExp {
+  return new RegExp(`"${field}"(\\s*:\\s*)"[^"]*"`)
 }
 
 /**
@@ -187,9 +181,7 @@ function isInsideLineComment(raw: string, index: number): boolean {
 
 /**
  * Upsert `"field": "value"` into a config's raw text, in precedence order:
- *   1. an active (non-commented) occurrence — replace its value in place
- *      (always written back under the canonical field name, upgrading any
- *      legacy alias);
+ *   1. an active (non-commented) occurrence — replace its value in place;
  *   2. a commented-out template line (`// "field": "..."`) — uncomment that
  *      line in place and set the value, keeping the trailing explanation
  *      comment (templates ship switches commented; this avoids a duplicate
@@ -197,9 +189,9 @@ function isInsideLineComment(raw: string, index: number): boolean {
  *   3. otherwise insert right after the root `{` (a trailing comma is valid
  *      JSONC and avoids double-comma collisions).
  */
-export function upsertConfigField(raw: string, field: string, value: string, aliases?: string[]): string {
+export function upsertConfigField(raw: string, field: string, value: string): string {
   if (raw.trim() === "") return `{\n  "${field}": "${value}"\n}\n`
-  const gre = new RegExp(`"(?:${fieldNames(field, aliases)})"\\s*:\\s*"[^"]*"`, "g")
+  const gre = new RegExp(`"${field}"\\s*:\\s*"[^"]*"`, "g")
   let commented: RegExpExecArray | null = null
   let m: RegExpExecArray | null
   while ((m = gre.exec(raw)) !== null) {
@@ -214,7 +206,7 @@ export function upsertConfigField(raw: string, field: string, value: string, ali
     if (lineEnd === -1) lineEnd = raw.length
     const fixed = raw.slice(lineStart, lineEnd)
       .replace(/^(\s*)\/\/\s*/, "$1")
-      .replace(fieldRe(field, aliases), `"${field}": "${value}"`)
+      .replace(fieldRe(field), `"${field}": "${value}"`)
     return raw.slice(0, lineStart) + fixed + raw.slice(lineEnd)
   }
   const idx = raw.indexOf("{")
@@ -274,11 +266,11 @@ function readProjectTemplate(): string | null {
  * Write `"field": "value"` into the project-level config. Returns false when
  * the write fails (e.g. read-only project dir).
  */
-export function setConfigField(field: string, value: string, aliases?: string[]): boolean {
+export function setConfigField(field: string, value: string): boolean {
   try {
     const file = writableProjectConfigFile()
     const raw = existsSync(file) ? readFileSync(file, "utf-8") : (readProjectTemplate() ?? "")
-    const updated = upsertConfigField(raw, field, value, aliases)
+    const updated = upsertConfigField(raw, field, value)
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, updated, "utf-8")
     return true

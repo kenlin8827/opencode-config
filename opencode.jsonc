@@ -11,7 +11,9 @@
     "instructions/rfc-keywords.md",
     "instructions/coding-principles.md",
     "instructions/sdd-principles.md",
-    "instructions/verification-honesty.md"
+    "instructions/verification-honesty.md",
+    "instructions/comment-strategy.md",
+    "instructions/sql-migration.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-mem, etc.) are managed and enabled via install/options.jsonc.

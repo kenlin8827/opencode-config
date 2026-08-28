@@ -21,8 +21,9 @@
  *   - e2eGuard        → project opencode.jsonc field (on | off, default off)
  *   - autoAdvisorMode → project opencode.jsonc field (off | lite | full, default off)
  *   - deepSeekAnchor  → ~/.config/opencode/.deepseek-anchor-enabled (on | off, default on)
+ *   - activeProfile   → ~/.config/opencode/.active-profile (name | none)
  *
- * The panel always shows all four plugin badges — ON or OFF — so the user
+ * The panel always shows all plugin badges — ON or OFF — so the user
  * can see the full configuration at a glance. The color (variant)
  * signals urgency: warning = active/guarding, info = idle/default.
  */
@@ -165,13 +166,10 @@ function resolveE2eGuard(projectDir: string): "on" | "off" {
 }
 
 function resolveAutoAdvisor(projectDir: string): "off" | "lite" | "full" {
-  const cfg = readProjectConfig(projectDir)
-  const raw = cfg?.autoAdvisorMode ?? cfg?.advisorMode
+  const raw = readProjectConfig(projectDir)?.autoAdvisorMode
   if (typeof raw !== "string") return "off"
-  const m = raw.trim().toLowerCase()
-  if (["full", "decisive"].includes(m)) return "full"
-  if (["lite", "advisory"].includes(m)) return "lite"
-  return "off"
+  const mode = raw.trim().toLowerCase()
+  return mode === "full" || mode === "lite" ? mode : "off"
 }
 
 function resolveDeepSeekAnchor(): "on" | "off" {
@@ -193,12 +191,28 @@ function resolveDeepSeekAnchor(): "on" | "off" {
   return "on"
 }
 
+function resolveActiveProfile(): string {
+  const stateFile = join(homedir(), ".config", "opencode", ".active-profile")
+  if (!existsSync(stateFile)) return ""
+  try {
+    return readFileSync(stateFile, "utf-8").trim()
+  } catch {
+    return ""
+  }
+}
+
 // ─── Badge builders ─────────────────────────────────────────────────
 
 function buildBadges(projectDir: string): Badge[] {
   const badges: Badge[] = []
 
-  // Always show all four plugin states — ON or OFF — so the user
+  // Profile first — the most contextually relevant info at a glance.
+  const profile = resolveActiveProfile()
+  if (profile) {
+    badges.push({ label: "profile", state: profile, variant: "success" })
+  }
+
+  // Always show all plugin states — ON or OFF — so the user
   // can see the full configuration at a glance.
   const adr = resolveAdrGuard(projectDir)
   badges.push({ label: "adr-guard", state: adr.toUpperCase(), variant: adr === "on" ? "warning" : "info" })
@@ -220,11 +234,12 @@ function buildBadges(projectDir: string): Badge[] {
 /**
  * Build a vertical status panel JSX tree.
  * Layout:
- *   ┌─ OCP ─────────────────────┐
+ *   ─ OCP ─────────────────────┐
+ *   │ ● profile      anthropic   │
  *   │ ● adr-guard    ON          │
- *   │ ● e2e-guard    OFF         │
- *   │ ● auto-advisor OFF         │
- *   │ ● deepseek-anchor ON      │
+ *   │ ○ e2e-guard    OFF         │
+ *   │ ○ auto-advisor OFF         │
+ *   │ ● deepseek-anchor ON       │
  *   └───────────────────────────┘
  *
  * Mirrors the sidebar section style used by MCP/LSP groups.
@@ -246,19 +261,19 @@ function renderStatusPanel(badges: Badge[], theme: ThemeColors, version: string)
       theme.textMuted
 
     return jsx("box", {
-      style: { flexDirection: "row", paddingLeft: 1, height: 1 },
+      style: { flexDirection: "row", paddingLeft: 1, flexWrap: "wrap" },
       children: [
         // Status dot
         jsx("text", {
           style: { color: dotColor },
           children: jsx("span", { children: isActive ? "● " : "○ " }),
         }),
-        // Label (muted)
+        // Label (muted) — compact padding to leave more room for state values
         jsx("text", {
           style: { color: theme.textMuted },
-          children: jsx("span", { children: b.label.padEnd(14) }),
+          children: jsx("span", { children: b.label.padEnd(10) }),
         }),
-        // State value
+        // State value — wraps to next line when too long
         jsx("text", {
           style: { color: stateColor },
           children: jsx("span", { children: b.state }),

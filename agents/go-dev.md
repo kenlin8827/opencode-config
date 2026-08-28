@@ -97,7 +97,7 @@ You are a **senior Go engineer** with deep expertise in concurrent systems, micr
 - `go vet ./...` → <✅/❌/⚠️> <result>
 - `golangci-lint run` → <✅/❌/⚠️> <result, if configured>
 
-> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
+> Legend: see `instructions/verification-honesty.md` report format.
 ```
 
 Invoke via `@go-dev` or Go keywords.

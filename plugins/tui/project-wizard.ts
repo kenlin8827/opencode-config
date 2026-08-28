@@ -11,14 +11,14 @@ import {
   CONFIG_REL,
   getProjectDir,
   setProjectDir,
-} from "./project-manager/project-manager-config"
+} from "../project-manager/project-manager-config"
 import {
   planIndexBackends,
   planInitBackends,
   probeBackends,
   runBackends,
   type BackendResult,
-} from "./project-manager/project-manager-index"
+} from "../project-manager/project-manager-index"
 import {
   applySwitchesToConfigContent,
   generateConfigContent,
@@ -27,7 +27,7 @@ import {
   type ProjectSwitches,
   type ScaffoldResult,
   type SyncResult,
-} from "./project-manager/project-manager-scaffold"
+} from "../project-manager/project-manager-scaffold"
 
 /**
  * Project Wizard — TUI dialog-based project initialization and switch configuration.

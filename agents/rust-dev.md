@@ -96,7 +96,7 @@ You are a **senior Rust engineer** with deep expertise in async Rust, systems pr
 - `cargo clippy` → <✅/❌/⚠️> <result>
 - `cargo fmt --check` → <✅/❌/⚠️> <result>
 
-> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
+> Legend: see `instructions/verification-honesty.md` report format.
 ```
 
 Invoke via `@rust-dev` or Rust keywords.

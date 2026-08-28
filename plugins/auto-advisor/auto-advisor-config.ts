@@ -21,10 +21,6 @@
  * The project directory is injected by the plugin entry via setProjectDir()
  * (PluginInput.directory); until then we fall back to process.cwd().
  *
- * Backward compatibility: legacy field name "advisorMode" is still read, and
- * rewritten as "autoAdvisorMode" on the next /auto-advisor switch. Old state
- * file values "advisory" / "decisive" are normalized to "lite" / "full".
- *
  * Config-file plumbing (project dir resolution, JSONC parsing, field upsert,
  * never-throw write) is shared with adr-guard and env-guard via
  * ../shared/opencode-prime; this file keeps only the auto-advisor-specific
@@ -52,30 +48,18 @@ export type AdvisorMode = (typeof VALID_MODES)[number]
 const DEFAULT_MODE: AdvisorMode = "off"
 
 const MODE_FIELD = "autoAdvisorMode"
-// Legacy field name still read for backward compatibility; upgraded to
-// MODE_FIELD in place on the next write.
-const MODE_FIELD_ALIASES = ["advisorMode"]
-
-const LEGACY_ALIASES: Record<string, AdvisorMode> = {
-  advisory: "lite",
-  decisive: "full",
-}
 
 export function normalizeMode(mode: unknown): AdvisorMode | null {
   if (typeof mode !== "string") return null
   const m = mode.trim().toLowerCase()
-  if ((VALID_MODES as readonly string[]).includes(m)) return m as AdvisorMode
-  // Legacy migration: "advisory" → "lite", "decisive" → "full".
-  if (m in LEGACY_ALIASES) return LEGACY_ALIASES[m]
-  return null
+  return (VALID_MODES as readonly string[]).includes(m) ? m as AdvisorMode : null
 }
 
 function readModeFromConfig(path: string): AdvisorMode | null {
   if (!existsSync(path)) return null
   try {
     const cfg = JSON.parse(stripJsonc(readFileSync(path, "utf-8")))
-    // Check new field name first, then legacy.
-    return normalizeMode(cfg?.autoAdvisorMode) ?? normalizeMode(cfg?.advisorMode)
+    return normalizeMode(cfg?.autoAdvisorMode)
   } catch {
     return null // unreadable or unparseable — try next source
   }
@@ -93,7 +77,7 @@ export function getMode(): AdvisorMode {
 
 // ─── Writing ─────────────────────────────────────────────────────────
 // /auto-advisor <mode> targets the project-level config only. Targeted field
-// upsert (shared): replace the existing autoAdvisorMode/advisorMode value, or
+// upsert (shared): replace the existing autoAdvisorMode value, or
 // insert the field right after the root `{`. Comments and all other fields
 // stay untouched.
 
@@ -101,15 +85,14 @@ export function setMode(mode: AdvisorMode): boolean {
   // Project-level write only — never touches the global config.
   // Never throw: the project dir may be read-only, and plugin hooks must
   // not crash the session. Caller logs and degrades on false.
-  return setConfigField(MODE_FIELD, mode, MODE_FIELD_ALIASES)
+  return setConfigField(MODE_FIELD, mode)
 }
 
 export function isOn(): boolean {
   return getMode() !== "off"
 }
 
-// NOTE: isOn() is no longer used for hard dispatch blocking. It remains for
-// backward compatibility and potential future use. OFF mode now relies on
+// NOTE: isOn() is no longer used for hard dispatch blocking. OFF mode relies on
 // the system prompt's soft guard ("Do NOT auto-dispatch") instead of a
 // tool.execute.before hard block. Manual @advisor is allowed in all modes.
 

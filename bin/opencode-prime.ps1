@@ -26,6 +26,7 @@
       web             Launch the OpenChamber web UI (openchamber serve; all extra args pass through,
                       auto-picks a free port starting at 3000 unless --port is given)
       desktop | ui    Launch the OpenChamber native desktop app
+      session clean   Delete old sessions via `opencode session delete`
       version         Print the repo's install/VERSION
       help            Print this help
 
@@ -273,6 +274,10 @@ switch ($Subcommand.ToLowerInvariant()) {
         }
         Start-Process -FilePath $exe -ArgumentList @Rest
         exit 0
+    }
+    'session' {
+        & $Install session @Rest
+        exit $LASTEXITCODE
     }
     { $_ -in @('version', '--version', '-v') } {
         Get-Content (Join-Path $RepoRoot 'install/VERSION')

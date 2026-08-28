@@ -9,7 +9,7 @@
  * Run: npx tsx tests/test-queue-manager-unit.ts   (or: bun tests/test-queue-manager-unit.ts)
  */
 
-import { computeQueued, visibleText, preview, age, isCancelled, type WithParts } from "../plugins/queue-manager"
+import { computeQueued, visibleText, preview, age, isCancelled, type WithParts } from "../plugins/tui/queue-manager"
 
 // ─── Test framework ───────────────────────────────────────────────────────
 

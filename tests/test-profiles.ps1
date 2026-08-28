@@ -31,7 +31,7 @@ foreach ($k in $tiersObj.PSObject.Properties.Name) {
 
 function Get-AgentTier($agents, [string]$name) {
     if ($agentTier.ContainsKey($name)) { return $agentTier[$name] }
-    return $agents[$name].tier  # legacy pre-migration configs
+    return $null
 }
 
 # Apply a profile to $obj in place: rewrite every agent of a covered tier to
@@ -45,7 +45,7 @@ function Apply-ProfileInPlace([hashtable]$obj, [hashtable]$p) {
             if ((Get-AgentTier $obj.agent $aname) -eq $tier) { $obj.agent[$aname].model = $ref; $n++ }
         }
         if ($n -eq 0) { throw "no agent currently uses tier $tier" }
-        if ($tier -eq 'standard' -or ($tier -eq 'default' -and -not $p.tiers.ContainsKey('standard'))) { $obj['model'] = $ref }
+        if ($tier -eq 'standard') { $obj['model'] = $ref }
     }
 }
 
@@ -89,7 +89,7 @@ try {
                 }
             }
             if ($n -eq 0) { $errors += "tier ${tier}: no agent matched" }
-            if (($tier -eq 'standard' -or ($tier -eq 'default' -and -not $p.tiers.ContainsKey('standard'))) -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
+            if ($tier -eq 'standard' -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
         }
         # uncovered tiers: agents must keep the template ref
         foreach ($aname in $obj.agent.Keys) {

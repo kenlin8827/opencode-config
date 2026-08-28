@@ -40,14 +40,6 @@ const C = {
 
 const AVAILABLE_TIERS = ['flash', 'standard', 'pro', 'max', 'vision'];
 
-const LEGACY_TIER_MIGRATION: Record<string, string> = {
-  default: 'standard',
-  code: 'pro',
-  advisor: 'max',
-  explorer: 'flash',
-  vision: 'vision',
-};
-
 interface RowItem {
   id: string;
   type: 'lang' | 'agent' | 'rtk' | 'global_commands' | 'openchamber' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
@@ -97,21 +89,15 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
     pluginState[item.key] = item.value;
   }
 
-  // Load effective tiers map from repo (source of truth) and migrate/override with valid user tiers
+  // Load effective tiers map from repo and override it with valid user tiers.
   const defaultTiers = readTierMap(repoDir);
-  const userTiers = readTierMap(targetDir);
-  const migratedUserTiers: Record<string, string> = {};
-  for (const [agent, tier] of Object.entries(userTiers)) {
-    if (AVAILABLE_TIERS.includes(tier)) {
-      migratedUserTiers[agent] = tier;
-    } else if (LEGACY_TIER_MIGRATION[tier]) {
-      migratedUserTiers[agent] = LEGACY_TIER_MIGRATION[tier];
-    }
-  }
+  const userTiers = Object.fromEntries(
+    Object.entries(readTierMap(targetDir)).filter(([, tier]) => AVAILABLE_TIERS.includes(tier))
+  );
 
   const tiersState: Record<string, string> = {
     ...defaultTiers,
-    ...migratedUserTiers,
+    ...userTiers,
   };
 
   // Available agent candidates
@@ -434,7 +420,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         console.log(`  • ${t.summaryVersion.padEnd(16)}: ${res.version}`);
         console.log(`  • ${t.summaryTarget.padEnd(16)}: ${res.targetDir}`);
         console.log(`  • ${t.summaryInstalled.padEnd(16)}: ${res.filesInstalled}`);
-        console.log(`  • ${t.summaryCleaned.padEnd(16)}: ${res.filesRemoved}`);
         if (res.backupPath) {
           console.log(`  • ${t.summaryBackup.padEnd(16)}: ${res.backupPath}`);
         }

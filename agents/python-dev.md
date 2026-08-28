@@ -91,7 +91,7 @@ You are a **senior Python engineer** with deep expertise in modern Python, async
 - `ruff check` → <✅/❌/⚠️> <result>
 - `mypy`/`pyright` → <✅/❌/⚠️> <result>
 
-> Status: ✅ = executed + passed · ❌ = executed + failed · ⚠️ = not run (state reason). See `instructions/verification-honesty.md`.
+> Legend: see `instructions/verification-honesty.md` report format.
 ```
 
 Invoke via `@python-dev` or Python keywords.

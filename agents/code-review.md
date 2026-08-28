@@ -34,12 +34,12 @@ Check against `instructions/coding-principles.md` baseline (cite the principle #
 - **Correctness**: logic errors, off-by-one, null/undefined, async/await, race conditions, type safety. → cp#8 (Understand before solving)
 - **Robustness**: defensive guards on all entry points (null/undefined/type checks before property access), error-handling layering (inner `catch` only when the level has a distinct recovery — fallback value, retry, skip-and-continue; if recovery is identical to what the outer catch would do, let it bubble — redundant inner catches add noise without value; outermost `try/catch` is the safety net, not the primary handler; no empty `catch {}` blocks, no unlogged rejections, `.catch()` safety nets on fire-and-forget promises), resource cleanup (`setTimeout`/`setInterval`/`AbortController` cleared in `finally`), input boundary limits (array length, string truncation, integer overflow, Unicode surrogate-pair splits via `substring`), global side effects (process-level handlers, prototype pollution vectors, `unhandledRejection` handlers that suppress unrelated errors). → cp#8 (Understand before solving)
 - **Security**: injection (SQL/command/XSS), secrets in code/logs, authn/authz gaps, unsafe deserialization.
-- **Design**: SRP, naming, abstraction level, duplication, dead code. → cp#4 (Small, focused units), cp#7 (No premature abstraction)
+- **Design**: SOLID — SRP (one reason to change), OCP (extend via interface, not edit), LSP (subtypes honor parent contracts), ISP (no unused dep methods), DIP (depend on abstractions). Plus DRY/KISS/YAGNI. Naming, abstraction level, duplication, dead code. → cp#4 (SRP), cp#7 (OCP/premature abstraction).
 - **Performance**: N+1 queries, unnecessary loops, missing indexes, memory leaks, sync I/O. → cp#6 (No premature optimization)
 - **Tests**: tests for new behavior? existing tests pass *at the tier run* (a 1-file tier that only ran `compile + lint` is not an unrun suite)? edge cases covered? → `instructions/test-scope.md`
 - **Standards**: follows repo conventions? lint/format issues? → cp#3 (Readability first)
 - **Diff hygiene**: minimal diff, no drive-by refactors, no dead code introduced. → cp#1 (Write less code), cp#2 (Delete > write)
-- **Comments**: comments explain *why*, not *what*. → cp#5 (Comments explain why)
+- **Comments & diagrams**: comment walls (>15 lines prose, cp#3 Readability first), diagram spam on trivial logic (cp#1 Write less code), `@param` spam (cp#5 Comments explain why), Mermaid-in-code, block-comment abuse. → `instructions/comment-strategy.md`.
 
 ## Severity levels
 
@@ -54,7 +54,7 @@ Check against `instructions/coding-principles.md` baseline (cite the principle #
 - **Every finding cites `file:line`.**
 - **Every finding includes concrete fix** — show corrected code or describe exact change.
 - **Review the diff, not the whole codebase** — but read enough context to understand.
-- **NEVER fix code yourself** — report only. Per `instructions/verification-honesty.md` rule 3, read-only agents use the "flag" path: findings are explicitly flagged, never silently omitted.
+- **NEVER fix code yourself** — report only. Findings: flag-only per `verification-honesty.md` R3.
 - **Be specific** — "handle errors" is useless; "line 42 `fetch()` has no try/catch, network failure crashes handler" is useful.
 - **Acknowledge good code.**
 - **No false positives** — unsure? "potential issue" + trigger condition.

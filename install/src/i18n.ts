@@ -105,7 +105,6 @@ export interface I18nText {
   summaryVersion: string;
   summaryTarget: string;
   summaryInstalled: string;
-  summaryCleaned: string;
   summaryBackup: string;
 }
 
@@ -199,7 +198,6 @@ export const FALLBACK_EN: I18nText = {
   summaryVersion: 'Version',
   summaryTarget: 'Target Directory',
   summaryInstalled: 'Files Installed',
-  summaryCleaned: 'Files Cleaned',
   summaryBackup: 'Backup Saved',
 };
 

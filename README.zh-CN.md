@@ -27,6 +27,21 @@ irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1
 > 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 API 密钥、自定义模型和层级选择均会**完整保留**。
 
 <details>
+<summary><b>安装指定版本</b></summary>
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash -s -- -v 0.9.0
+```
+
+```powershell
+# Windows
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -Version "0.9.0"
+```
+
+</details>
+
+<details>
 <summary><b>手动安装与前置条件</b></summary>
 
 如果你希望在运行前检查脚本，或你的环境禁止远程脚本执行：

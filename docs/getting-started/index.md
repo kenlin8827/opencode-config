@@ -20,6 +20,21 @@ irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1
 
 > 💡 **Zero-Risk Upgrades**: Re-running the command above smoothly upgrades to the latest release while **preserving** all your API keys, custom models, and tier assignments.
 
+<details>
+<summary><b>Install a specific version</b></summary>
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash -s -- -v 0.9.0
+```
+
+```powershell
+# Windows
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -Version "0.9.0"
+```
+
+</details>
+
 ---
 
 ## Single-Screen TUI Control Center

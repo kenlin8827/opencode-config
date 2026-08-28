@@ -26,6 +26,9 @@ After a one-time `register` (or a default install), the repo provisioned two glo
 | `ocp unregister` | | Remove the global shims from `~/.local/bin` |
 | `ocp wizard` | `ocp menu` | Interactive TUI setup wizard (first-run and reconfigure flows) |
 | `ocp dashboard` | `ocp cc`, `ocp matrix` | Single-screen TUI control center — toggle MCP servers / plugins / RTK, cycle agent model tiers, then install |
+| `ocp session list` | | List sessions (passthrough to `opencode session list`) |
+| `ocp session delete` | | Delete a session by ID (passthrough to `opencode session delete`) |
+| `ocp session clean` | | Delete old sessions via `opencode session delete`. Usage: `ocp session clean --days 7 [--dry-run] [-y]` |
 | `ocp version` | `ocp --version`, `ocp -v` | Print the repo's `install/VERSION` |
 | `ocp help` | `ocp -h`, `ocp --help` | Print the command help |
 | *(anything else)* | | Falls through to `install.ps1` / `install.sh`, so unknown flags and future subcommands keep working after an upgrade |
@@ -101,6 +104,38 @@ ocp register -BinDir ~/bin  # shims into a custom directory
 ### `register` and `unregister`
 
 `register` now does two things: it writes the three shims into the bin directory, **and** makes sure that directory resolves in new terminals — by appending it to your user `PATH` (Windows registry, via `[Environment]::SetEnvironmentVariable` — never `setx`, so long PATH values are safe) or to your shell profile (`~/.zshrc`, `~/.bashrc` or `~/.profile`, guarded by a managed marker). `unregister` removes the shims; it does not touch your `PATH`.
+
+### `ocp session` — session management
+
+Unified session management surface. `list` and `delete` pass through to the `opencode` CLI verbatim; `clean` adds batch cleanup by date.
+
+#### Passthrough commands
+
+```bash
+ocp session list                        # list recent sessions
+ocp session list --format json -n 20    # JSON output, last 20
+ocp session delete <sessionID>          # delete a specific session
+```
+
+#### `ocp session clean` — batch cleanup
+
+Delete old sessions via the official `opencode session delete` CLI — no direct database access, all storage operations go through the engine. Requires `opencode` on PATH.
+
+| Flag | Aliases | Meaning |
+| :--- | :--- | :--- |
+| `--days <n>` | `-d <n>` | Delete sessions older than *n* days (default: 7) |
+| `--dry-run` | | Preview what would be deleted without actually deleting |
+| `--include-subagents` | | Also delete subagent (child) sessions (default: excluded) |
+| `-y`, `--yes` | | Skip the confirmation prompt |
+
+```bash
+ocp session clean --dry-run             # preview — what would be deleted?
+ocp session clean --days 3              # delete sessions older than 3 days
+ocp session clean --days 30 -y          # delete sessions older than 30 days, no prompt
+ocp session clean -d 7 --include-subagents  # include subagent sessions
+```
+
+The command prints a summary before deleting: session count, age breakdown, token totals, and up to 10 sample session titles. Deletion is performed via `opencode session delete` (the official CLI), so all storage operations go through the engine — no direct database access.
 
 ---
 

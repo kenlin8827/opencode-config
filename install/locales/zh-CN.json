@@ -95,6 +95,5 @@
   "summaryVersion": "版本",
   "summaryTarget": "目标路径",
   "summaryInstalled": "安装文件数",
-  "summaryCleaned": "清理旧文件",
   "summaryBackup": "备份保存于"
 }

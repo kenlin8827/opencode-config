@@ -20,6 +20,21 @@ irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1
 
 > 💡 **零风险平滑升级**：已安装的用户重复执行上述命令可直接升级到最新版本，你的 **API 密钥、自定义模型和模型梯队选择均会完整保留**，不会丢失。
 
+<details>
+<summary><b>安装指定版本</b></summary>
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash -s -- -v 0.9.0
+```
+
+```powershell
+# Windows
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -Version "0.9.0"
+```
+
+</details>
+
 ---
 
 ## 单屏 TUI 全景控制台

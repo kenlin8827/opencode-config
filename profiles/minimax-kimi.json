@@ -1,7 +1,7 @@
 {
-  "description": "MiniMax + Kimi hybrid — MiniMax-M3 carries standard tier and doubles as vision (image input), kimi-for-coding codes on pro, k3-256k judges on max, MiniMax-M2.7-highspeed explores on flash. Requires MINIMAX_API_KEY and KIMI_API_KEY environment variables.",
+  "description": "MiniMax + Kimi hybrid — MiniMax-M3 carries standard tier and doubles as vision (image input), kimi-for-coding codes on pro, k3-256k judges on max, MiniMax-M2.7 explores on flash. Requires MINIMAX_API_KEY and KIMI_API_KEY environment variables.",
   "tiers": {
-    "flash": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "flash": "minimax-cn-coding-plan/MiniMax-M2.7",
     "standard": "minimax-cn-coding-plan/MiniMax-M3",
     "pro": "kimi-for-coding/kimi-for-coding",
     "max": "kimi-for-coding/k3-256k",

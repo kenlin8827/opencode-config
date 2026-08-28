@@ -305,9 +305,7 @@ function applyProfile(
   for (const [tier, ref] of Object.entries(profile.tiers)) {
     let count = 0
     for (const [name, agent] of Object.entries(config.agent)) {
-      // tiers.json is authoritative; a legacy agent.tier field (pre-migration
-      // configs) only fills in for agents the map doesn't list.
-      const agentTier = tierMap[name] ?? agent.tier
+      const agentTier = tierMap[name]
       if (agentTier === tier) {
         agent.model = ref
         patch.agent![name] = { model: ref }
@@ -317,7 +315,7 @@ function applyProfile(
     if (count === 0) {
       throw new Error(`no agent currently uses tier ${tier}`)
     }
-    if (tier === "standard" || (tier === "default" && !("standard" in profile.tiers))) {
+    if (tier === "standard") {
       config.model = ref
       patch.model = ref
     }
@@ -331,8 +329,7 @@ function applyProfile(
 // Live apply via the server's global config API (PATCH /global/config):
 // the server patches opencode.jsonc (comments preserved), invalidates
 // its config cache and rebuilds instances — no restart needed. Returns
-// false when the endpoint is missing (older opencode builds) or fails,
-// so the caller can fall back to a raw file rewrite.
+// false when the request fails, so the caller can use a raw file rewrite.
 async function applyLive(
   api: TuiPluginApi,
   patch: OpenCodeConfig,
@@ -354,7 +351,7 @@ function getCurrentTierMapping(
   const map: Record<string, string> = {}
   if (!config.agent) return map
   for (const [name, agent] of Object.entries(config.agent)) {
-    const tier = tierMap[name] ?? agent.tier
+    const tier = tierMap[name]
     if (tier && agent.model && !(tier in map)) {
       map[tier] = agent.model
     }
@@ -497,9 +494,9 @@ function editAgentTier(
         placeholder: tr("profile.editTierPlaceholder"),
         options: withBookends(
           sorted.map((name) => {
-            const tier = changed[name] ?? tierMap[name] ?? agents[name].tier ?? "standard"
+            const tier = changed[name] ?? tierMap[name] ?? "standard"
             const isChanged = changed[name] !== undefined
-            const oldTier = tierMap[name] ?? agents[name].tier
+            const oldTier = tierMap[name] ?? "standard"
             return {
               title: isChanged ? `${name}  (${oldTier} → ${tier})` : `${name}  (${tier})`,
               value: name,
@@ -1261,16 +1258,6 @@ const tui: TuiPlugin = async (api) => {
         },
       },
     ],
-  })
-
-  // Announce the active profile when a top-level session opens
-  api.event.on("session.created", (event) => {
-    const props = (event as { properties?: { info?: { parentID?: string } } })
-      .properties
-    if (props?.info?.parentID) return
-    const active = getActiveProfile()
-    if (!active) return
-    toast(api, tr("profile.activeProfileToast", { name: active }))
   })
 }
 

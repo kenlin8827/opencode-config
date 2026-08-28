@@ -4,13 +4,16 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash
 #
+# Options:
+#   -v, --version <ver>   Install a specific version (default: latest)
+#
 # This script downloads the latest release archive, extracts it, and runs the
 # in-repo installer (install/install.sh). It is the pipe-friendly equivalent of
 # the manual download-extract-install cycle documented in the README.
 #
-# All arguments passed to this script are forwarded to the in-repo installer.
-# For example:
-#   curl -fsSL ... | bash -s -- install -f -y
+# All remaining arguments (after -v is consumed) are forwarded to the in-repo
+# installer. For example:
+#   curl -fsSL ... | bash -s -- -v 0.9.0 install -f -y
 #   curl -fsSL ... | bash -s -- status
 
 set -e
@@ -22,6 +25,20 @@ REPO="kenlin8827/opencode-prime"
 RELEASE_BASE="https://github.com/${REPO}/releases/latest/download"
 INSTALL_DIR="$HOME/.local/share/opencode-prime"
 TMP_TAR="/tmp/ocp.tar.gz"
+VERSION=""
+INSTALLER_ARGS=()
+
+# Parse -v/--version for this wrapper; forward everything else.
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v|--version)
+            VERSION="$2"; shift 2 ;;
+        --version=*)
+            VERSION="${1#*=}"; shift ;;
+        *)
+            INSTALLER_ARGS+=("$1"); shift ;;
+    esac
+done
 
 # Color helpers (only if stdout is a TTY)
 if [ -t 1 ]; then
@@ -61,11 +78,15 @@ esac
 info "Detected platform: ${PLATFORM} (${ARCH})"
 
 # ---------------------------------------------------------------------------
-# Download the latest release archive
+# Build download URL (versioned or latest)
 # ---------------------------------------------------------------------------
-ARCHIVE_URL="${RELEASE_BASE}/opencode-prime-latest.tar.gz"
-
-log "Downloading OpenCode Prime latest release..."
+if [ -n "$VERSION" ]; then
+    ARCHIVE_URL="https://github.com/${REPO}/releases/download/v${VERSION}/opencode-prime-${VERSION}.tar.gz"
+    log "Downloading OpenCode Prime v${VERSION}..."
+else
+    ARCHIVE_URL="${RELEASE_BASE}/opencode-prime-latest.tar.gz"
+    log "Downloading OpenCode Prime latest release..."
+fi
 log "  URL: ${ARCHIVE_URL}"
 
 # Try curl first, then wget as fallback
@@ -126,5 +147,5 @@ chmod +x "$INSTALLER"
 log "Starting OpenCode Prime installer..."
 echo "============================================================"
 
-# Forward all arguments to the in-repo installer
-exec bash "$INSTALLER" "$@"
+# Forward remaining arguments to the in-repo installer
+exec bash "$INSTALLER" "${INSTALLER_ARGS[@]}"

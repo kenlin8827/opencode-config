@@ -289,11 +289,6 @@ export function classifyE2e(command: string): E2eRisk | null {
   return worst
 }
 
-/** Backwards-compatible boolean shape — any E2E execution at all. */
-export function isE2eCommand(command: string): boolean {
-  return classifyE2e(command) !== null
-}
-
 // ─── Block messages (one per risk level) ─────────────────────────────
 
 export function blockMessageFull(): string {

@@ -30,7 +30,7 @@ import {
   generateWithFallback,
   userQuestionTitle,
   sessionModelRef,
-} from "../plugins/smart-title"
+} from "../plugins/smart-title/smart-title"
 
 let passed = 0
 let failed = 0

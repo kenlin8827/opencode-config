@@ -30,8 +30,8 @@ import {
   detectCurrentSwitches,
   toggleGuardState,
   cycleAdvisorMode,
-} from "../plugins/project-wizard"
-import projectWizardPlugin from "../plugins/project-wizard"
+} from "../plugins/tui/project-wizard"
+import projectWizardPlugin from "../plugins/tui/project-wizard"
 
 let passed = 0
 let failed = 0

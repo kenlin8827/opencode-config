@@ -110,7 +110,7 @@ function test01_ValidateMessage() {
   // Compliant forms.
   assert(validateMessage("feat: add api") === null, "plain type passes")
   assert(validateMessage("fix(auth): guard nil session") === null, "scoped type passes")
-  assert(validateMessage("refactor!: drop legacy endpoints") === null, "breaking `!` passes")
+  assert(validateMessage("refactor!: drop v1 endpoints") === null, "breaking `!` passes")
   assert(validateMessage("feat(x): y\n\nLong body that can be anything at all.") === null, "only first line is judged")
   assert(validateMessage(`feat: ${"y".repeat(66)}`) === null, "exactly 72 chars passes")
 
@@ -408,8 +408,7 @@ async function test09_Announce() {
   setProjectDir(dir2)
   let prompts = 0
   const hookClient: any = {
-    session: { prompt: async () => { prompts++ } },
-    tui: { showToast: async () => {} },
+    tui: { showToast: async () => { prompts++ } },
   }
   const hook = makeAnnounceHook(hookClient)
   await hook({ event: { type: "session.created", properties: { info: { id: "sub", parentID: "main" } } } })

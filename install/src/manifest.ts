@@ -75,17 +75,3 @@ export function generateManifest(repoDir: string, version: string): { path: stri
   fs.writeFileSync(manifestPath, files.join('\n') + '\n', 'utf8');
   return { path: manifestPath, count: files.length };
 }
-
-export function computeFilesToRemove(
-  repoDir: string,
-  prevVersion: string,
-  curVersion: string
-): string[] {
-  const prevManifest = readManifest(getManifestPath(repoDir, prevVersion));
-  if (!prevManifest) return [];
-
-  const curManifest = readManifest(getManifestPath(repoDir, curVersion)) || collectShippedFiles(repoDir);
-  const curSet = new Set(curManifest);
-
-  return prevManifest.filter((f) => !curSet.has(f));
-}

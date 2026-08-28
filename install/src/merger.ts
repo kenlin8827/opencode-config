@@ -130,18 +130,9 @@ export function extractPreserveBag(targetDir: string): PreserveBag {
 }
 
 const VALID_TIERS = new Set(['flash', 'standard', 'pro', 'max', 'vision']);
-const LEGACY_TIER_MIGRATION: Record<string, string> = {
-  default: 'standard',
-  code: 'pro',
-  advisor: 'max',
-  explorer: 'flash',
-  vision: 'vision',
-};
 
 function normalizeTier(tier: string, fallback: string): string {
-  if (VALID_TIERS.has(tier)) return tier;
-  if (LEGACY_TIER_MIGRATION[tier]) return LEGACY_TIER_MIGRATION[tier];
-  return fallback;
+  return VALID_TIERS.has(tier) ? tier : fallback;
 }
 
 /**

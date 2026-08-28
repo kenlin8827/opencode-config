@@ -1,65 +1,53 @@
-## Output protocol (mandatory)
+# Output protocol (mandatory)
 
 Applies to all explanation, summary, and analysis output (not code).
 
-### Conclusion first
+## Conclusion first
 First sentence: `**Conclusion**: <one sentence> (Confidence: High/Medium/Low — <reason>)`
 
-### Visual overview (mandatory)
-Diagrams REQUIRED. Any explanation involving structure, relationships, or flow MUST include a diagram.
+## Visual overview (mandatory)
+Any explanation involving structure, relationships, or flow **MUST** include a diagram: architecture/relationships → box diagram; data flow/process/sequential logic → flowchart; comparison → table (not prose).
+Prefer horizontal (`LR`) flowcharts — saves vertical space; hierarchy/tree/state diagrams may stay vertical (`TB`).
 
-**Triggers** — include diagram when response involves:
-- Architecture/structure → box diagram
-- Data flow/process → flowchart
-- Component relationships → box diagram + arrows
-- Comparisons → table (not prose)
-- Sequential logic/state → flowchart
+| Medium | Format |
+|--------|--------|
+| Terminal | ASCII/Unicode boxes, tables. No Mermaid. |
+| `.md` files | Mermaid fenced blocks |
+| Both + complex | ASCII inline + Mermaid in `.md` |
 
-**Format:**
-- Terminal → ASCII/Unicode boxes, tables. No Mermaid.
-- `.md` files → Mermaid fenced blocks.
-- Both → ASCII inline + Mermaid in `.md` when complex.
+Minimum: every 3+ sentence response has ≥1 visual element.
 
-**Minimum:** Every 3+ sentence response needs ≥1 visual element.
+## Layered exposition
+- **Summary**: 1–3 sentences (conclusion + key numbers)
+- **Key points**: numbered, one sentence each
+- **Details**: expansion, skippable
 
-### Layered exposition
-Three independently readable layers:
-- **Summary** (1-3 sentences: conclusion + key numbers)
-- **Key points** (one sentence each, numbered)
-- **Details** (expansion, skippable)
-
-### Content labeling
+## Content labeling
 - [Fact] — verified (executed: code, docs, test results)
 - [Inference] — derived from known info
-- [Assumption] — unverified, needs validation
+- [Assumption] — unverified → own section `## Assumptions (to confirm)`
 
-> Labels are fixed English tokens (machine-parseable). The content after each label **MUST** follow the user's language.
+> Labels are fixed English tokens (machine-parseable); content after each label **MUST** follow the user's language.
 
-Assumptions get own section: `## Assumptions (to confirm)`
-
-### Counterargument
+## Counterargument
 Each key conclusion: `> Counter: This fails when <condition>, because <reason>.`
 
-### Decision confirmation
-When output contains decision points needing sign-off:
-
-- **Primary agents** (have `question` tool): call `question` tool actively. Batch decisions. Options: ≥`Agree` + `Modify` (+ `Reject` when appropriate).
-- **Option ordering**: put the recommended option FIRST in the option list and mark it (e.g. `A) Use Redis (recommended)`). One-line rationale only — full reasoning stays outside the question.
-- **Subagents** (no `question` tool): two-tier strategy:
-  - **Non-blocking** (wrong = easy fix): state assumption, proceed, list in `## Decisions to confirm`.
-  - **Blocking** (wrong = significant waste): STOP. Output `## ⛔ Blocking decision` with options (recommended first, marked) + recommendation. End turn. Orchestrator re-dispatches with answer.
+## Decision confirmation
+- **Primary agents** (have `question` tool): batch decisions; options ≥ `Agree` + `Modify` (+ `Reject` when appropriate). Recommended option FIRST and marked (`A) Use Redis (recommended)`), 1-line rationale only.
+- **Subagents** (no `question` tool), two-tier:
+  - Non-blocking (wrong = easy fix): state assumption, proceed, list in `## Decisions to confirm`.
+  - Blocking (wrong = significant waste): STOP. Output `## ⛔ Blocking decision` with options (recommended first, marked) + recommendation. End turn. Orchestrator re-dispatches with answer.
 
 No decision points → skip section. NEVER invent trivial decisions.
 
-### Decision mode: 3 advisor modes (off/lite/full)
+## Advisor modes: 3 advisor modes (off/lite/full)
+`off` (orchestrator alone) | `lite` (default — `@advisor` opinions only, never answers for the user) | `full` (`@advisor` answers on user's behalf only when FACTUAL + confidence ≥ 8). Toggle `/auto-advisor off|lite|full` or `autoAdvisorMode` in `opencode.jsonc`. Full protocol: `plugins/auto-advisor/` (injected at runtime).
 
-Three modes: **off** (orchestrator alone) | **lite** (default — advisor opinions only, never answers for the user) | **full** (advisor answers on user's behalf only when FACTUAL + confidence ≥ 8). Toggle via `/auto-advisor` or `autoAdvisorMode` in `opencode.jsonc`. Full protocol in `plugins/auto-advisor-instructions.ts`.
-
-### Verifiable data
+## Verifiable data
 Cite sources (file paths, URLs, test output). Show calculation steps.
 
-### Concise language
+## Concise language
 Max 30 words/sentence. One idea/paragraph. Explain jargon on first use.
 
-### Optional analogy
+## Optional analogy
 Complex concepts: `> 💡 Analogy: ...` callout, not in main body.

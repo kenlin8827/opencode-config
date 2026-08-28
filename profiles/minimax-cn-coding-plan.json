@@ -1,8 +1,8 @@
 {
-  "description": "MiniMax Token Plan (minimaxi.com) — MiniMax-M2.7-highspeed carries standard and flash tiers (fast variant), MiniMax-M3 codes on pro and judges on max. MiniMax-M3 also handles vision (image input). Requires MINIMAX_API_KEY environment variable.",
+  "description": "MiniMax Token Plan (minimaxi.com) — MiniMax-M2.7 carries standard and flash tiers (fast variant), MiniMax-M3 codes on pro and judges on max. MiniMax-M3 also handles vision (image input). Requires MINIMAX_API_KEY environment variable.",
   "tiers": {
-    "flash": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
-    "standard": "minimax-cn-coding-plan/MiniMax-M2.7-highspeed",
+    "flash": "minimax-cn-coding-plan/MiniMax-M2.7",
+    "standard": "minimax-cn-coding-plan/MiniMax-M2.7",
     "pro": "minimax-cn-coding-plan/MiniMax-M3",
     "max": "minimax-cn-coding-plan/MiniMax-M3",
     "vision": "minimax-cn-coding-plan/MiniMax-M3"

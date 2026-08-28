@@ -171,9 +171,8 @@ export function parseConfidence(text: string): number {
 // read the config or the actual id is missing → trust the configuration and
 // return false (don't block auto-execute on a parse failure).
 //
-// This replaces the old heuristic ("model id must contain 'advisor'") which
-// was broken for any provider whose model ids don't include the string
-// 'advisor' — e.g. DeepSeek ("deepseek-v4-pro"), Qwen, MiniMax, etc.
+// Provider model ids are compared directly because they do not necessarily
+// contain the agent name (for example DeepSeek, Qwen, or MiniMax model ids).
 
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -182,7 +181,6 @@ import { getProjectDir, stripJsonc } from "./auto-advisor-config"
 
 const CONFIG_DIR_FALLBACK = join(homedir(), ".config", "opencode")
 const CONFIG_FILE_FALLBACK = join(CONFIG_DIR_FALLBACK, "opencode.jsonc")
-const CONFIG_FILE_LEGACY = join(CONFIG_DIR_FALLBACK, "opencode.json")
 
 // Cache the config read — it doesn't change during a session.
 let cachedAdvisorModel: string | null | undefined = undefined
@@ -190,8 +188,7 @@ let cachedDefaultModel: string | null | undefined = undefined
 
 // Agent → tier mapping from tiers.json (kept out of opencode.jsonc because
 // opencode forwards unknown agent fields to the provider as model options).
-// Missing/invalid file → empty map; a legacy agent-level tier field still
-// fills in for agents the map doesn't list.
+// Missing or invalid files produce an empty map.
 function readTierMap(dir: string): Record<string, string> {
   try {
     const raw = readFileSync(join(dir, "tiers.json"), "utf-8")
@@ -219,7 +216,6 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
     join(dir, "opencode.jsonc"),
     join(dir, ".opencode", "opencode.jsonc"),
     CONFIG_FILE_FALLBACK,
-    CONFIG_FILE_LEGACY,
   ]
   for (const path of candidates) {
     if (!existsSync(path)) continue
@@ -237,15 +233,13 @@ function readAgentModels(): { advisor: string | null; default: string | null } {
       if (!cachedAdvisorModel && advisorAgent?.model && typeof advisorAgent.model === "string") {
         cachedAdvisorModel = advisorAgent.model
       }
-      // Find the default model: either root-level cfg.model, or the first
-      // agent in tier "default".
+      // Find the default model from the root config or the standard tier.
       if (!cachedDefaultModel && cfg.model && typeof cfg.model === "string") {
         cachedDefaultModel = cfg.model
       }
       if (!cachedDefaultModel) {
         for (const [name, a] of Object.entries(agents)) {
-          const tier = tierMap[name] ?? (a?.tier as string | undefined)
-          if (tier === "default" && typeof a.model === "string") {
+          if (tierMap[name] === "standard" && typeof a.model === "string") {
             cachedDefaultModel = a.model
             break
           }

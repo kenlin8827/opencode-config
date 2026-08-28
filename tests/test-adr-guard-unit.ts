@@ -150,7 +150,7 @@ function test04_TypeGate() {
   section("04: feat/refactor type gate")
   assert(requiresAdr("feat: add login"), "feat: triggers")
   assert(requiresAdr("feat(api): add login"), "feat(scope): triggers")
-  assert(requiresAdr("refactor!: drop legacy path"), "refactor!: triggers")
+  assert(requiresAdr("refactor!: drop v1 path"), "refactor!: triggers")
   assert(requiresAdr("REFACTOR(core): x"), "case-insensitive")
   assert(requiresAdr("feat: x\n\nbody with refactor: notes"), "only first line counts")
   assert(!requiresAdr("fix: bug"), "fix: does not trigger")

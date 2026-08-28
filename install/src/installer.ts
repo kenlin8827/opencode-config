@@ -8,7 +8,6 @@ import {
   generateManifest,
   getManifestPath,
   readManifest,
-  computeFilesToRemove,
 } from './manifest';
 import { extractPreserveBag, mergeConfig, readJsoncFile } from './merger';
 
@@ -42,7 +41,7 @@ export function getCurrentRepoVersion(repoDir: string): string {
   if (fs.existsSync(versionFile)) {
     return fs.readFileSync(versionFile, 'utf8').trim();
   }
-  return '0.5.1';
+  throw new Error(`Missing version file: ${versionFile}`);
 }
 
 export function getInstalledVersion(targetDir: string): string | null {
@@ -182,12 +181,10 @@ export function executeInstall(
   version: string;
   targetDir: string;
   filesInstalled: number;
-  filesRemoved: number;
   backupPath: string | null;
 } {
   const targetDir = args.target ? path.resolve(args.target) : getDefaultTargetDir();
   const curVersion = getCurrentRepoVersion(repoDir);
-  const installedVer = getInstalledVersion(targetDir);
 
   // Load options
   const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
@@ -212,30 +209,17 @@ export function executeInstall(
   // 3. Extract user modifications to preserve
   const preserveBag = extractPreserveBag(targetDir);
 
-  // 4. Remove deprecated files from previous version manifest
-  let removedCount = 0;
-  if (installedVer && installedVer !== curVersion) {
-    const filesToRemove = computeFilesToRemove(repoDir, installedVer, curVersion);
-    for (const relFile of filesToRemove) {
-      const p = path.join(targetDir, relFile);
-      if (fs.existsSync(p)) {
-        fs.rmSync(p, { force: true, recursive: true });
-        removedCount++;
-      }
-    }
-  }
-
-  // 5. Copy files
+  // 4. Copy files
   const shippedFiles = collectShippedFiles(repoDir);
   const installedCount = copyRepoFiles(repoDir, targetDir, shippedFiles);
 
-  // 6. Merge configuration
+  // 5. Merge configuration
   mergeConfig(repoDir, targetDir, effectiveOptions, preserveBag);
 
-  // 7. Write installed version
+  // 6. Write installed version
   fs.writeFileSync(path.join(targetDir, 'installed.version'), curVersion + '\n', 'utf8');
 
-  // 8. Tool diagnostics
+  // 7. Tool diagnostics
   checkExternalTools(effectiveOptions);
 
   return {
@@ -243,7 +227,6 @@ export function executeInstall(
     version: curVersion,
     targetDir,
     filesInstalled: installedCount,
-    filesRemoved: removedCount,
     backupPath,
   };
 }
@@ -303,8 +286,7 @@ export function executeUninstall(
     return { targetDir, removedCount: 0 };
   }
 
-  const installedVer = getInstalledVersion(targetDir) || getCurrentRepoVersion(repoDir);
-  const manifest = readManifest(getManifestPath(repoDir, installedVer)) || collectShippedFiles(repoDir);
+  const manifest = readManifest(getManifestPath(repoDir, getCurrentRepoVersion(repoDir))) || collectShippedFiles(repoDir);
 
   let count = 0;
   for (const rel of manifest) {

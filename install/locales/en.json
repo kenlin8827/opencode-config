@@ -95,6 +95,5 @@
   "summaryVersion": "Version",
   "summaryTarget": "Target Directory",
   "summaryInstalled": "Files Installed",
-  "summaryCleaned": "Files Cleaned",
   "summaryBackup": "Backup Saved"
 }

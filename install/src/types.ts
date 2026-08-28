@@ -30,7 +30,9 @@ export type CommandAction =
   | 'tui'
   | 'serve'
   | 'web'
-  | 'desktop';
+  | 'desktop'
+  | 'session'
+  | 'clean';
 
 export interface CliArgs {
   action: CommandAction;
@@ -46,6 +48,10 @@ export interface CliArgs {
   isInteractive: boolean;
   // Arguments forwarded verbatim to the launched binary (`tui` / `desktop`).
   passthrough?: string[];
+  // `clean` subcommand options.
+  cleanDays?: number;
+  cleanDryRun?: boolean;
+  cleanIncludeSubagents?: boolean;
 }
 
 export interface ManifestData {

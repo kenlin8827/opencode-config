@@ -16,12 +16,18 @@
     # One-line install with arguments (pipe + -Args):
     & ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -InstallerArgs @("install","-Force","-Yes")
 
+.EXAMPLE
+    # Install a specific version:
+    & ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -Version "0.9.0"
+
 .NOTES
     All arguments in $InstallerArgs are forwarded to the in-repo installer.
+    When -Version is omitted the latest release is installed.
 #>
 
 param(
-    [string[]]$InstallerArgs = @()
+    [string[]]$InstallerArgs = @(),
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,11 +47,15 @@ function Write-Warn  { param([string]$Msg) Write-Host "[OCP] $Msg" -ForegroundCo
 function Write-Err   { param([string]$Msg) Write-Host "[OCP ERROR] $Msg" -ForegroundColor Red }
 
 # ---------------------------------------------------------------------------
-# Download the latest release archive
+# Build download URL (versioned or latest)
 # ---------------------------------------------------------------------------
-$ArchiveUrl = "$ReleaseBase/opencode-prime-latest.zip"
-
-Write-Info "Downloading OpenCode Prime latest release..."
+if ($Version) {
+    $ArchiveUrl = "https://github.com/$Repo/releases/download/v$Version/opencode-prime-$Version.zip"
+    Write-Info "Downloading OpenCode Prime v$Version..."
+} else {
+    $ArchiveUrl = "$ReleaseBase/opencode-prime-latest.zip"
+    Write-Info "Downloading OpenCode Prime latest release..."
+}
 Write-Info "  URL: $ArchiveUrl"
 
 try {

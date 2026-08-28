@@ -1,4 +1,4 @@
-# Run all tests sequentially
+﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -216,8 +216,8 @@ $allFiles = @(
     "docs/zh/workflows/sdd.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/metrics.ts", "plugins/auto-format.ts",
-    "plugins/queue-manager.ts",
-    "plugins/project-wizard.ts",
+    "plugins/tui/queue-manager.ts",
+    "plugins/tui/project-wizard.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -406,8 +406,8 @@ Check "project-manager-tool-guard.ts: merge/revert/fixup/squash exempt" ($pmGuar
 $pmBarrel = Get-Content "$PSScriptRoot\..\plugins\project-manager.ts" -Raw
 Check "project-manager.ts: barrel re-exports ProjectManagerPlugin" ($pmBarrel -match "export.*ProjectManagerPlugin")
 
-# Queue manager plugin checks (plugins/queue-manager.ts — TUI-only, registered via tui.json)
-$qmPlugin = Get-Content "$PSScriptRoot\..\plugins\queue-manager.ts" -Raw
+# Queue manager plugin checks (plugins/tui/queue-manager.ts — TUI-only, registered via tui.json)
+$qmPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\queue-manager.ts" -Raw
 Check "queue-manager.ts: imports TuiPlugin from plugin/tui" ($qmPlugin -match "@opencode-ai/plugin/tui")
 Check "queue-manager.ts: slash command name is queued" ($qmPlugin -match 'SLASH_NAME = "queued"')
 Check "queue-manager.ts: registers palette command with slashName" ($qmPlugin -match "slashName: SLASH_NAME" -and $qmPlugin -match 'namespace: "palette"')
@@ -416,30 +416,30 @@ Check "queue-manager.ts: busy fallback strips via part.update" ($qmPlugin -match
 Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -match "TOMBSTONE")
 Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
 $tuiConfig = Get-Content "$PSScriptRoot\..\tui.json" -Raw | ConvertFrom-Json
-Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/queue-manager.ts")
+Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/queue-manager.ts")
 
-# Project wizard plugin checks (plugins/project-wizard.ts — TUI-only, registered via tui.json)
-$pwPlugin = Get-Content "$PSScriptRoot\..\plugins\project-wizard.ts" -Raw
+# Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.json)
+$pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw
 Check "project-wizard.ts: imports TuiPlugin from plugin/tui" ($pwPlugin -match "@opencode-ai/plugin/tui")
 Check "project-wizard.ts: registers palette command with slashName project-wizard" ($pwPlugin -match 'slashName: "project-wizard"' -and $pwPlugin -match 'namespace: "palette"')
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
-Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/project-wizard.ts")
+Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/project-wizard.ts")
 
-# Profile wizard plugin checks (plugins/profile-wizard.ts — TUI-only, registered via tui.json)
-$pfPlugin = Get-Content "$PSScriptRoot\..\plugins\profile-wizard.ts" -Raw
+# Profile wizard plugin checks (plugins/tui/profile-wizard.ts — TUI-only, registered via tui.json)
+$pfPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\profile-wizard.ts" -Raw
 Check "profile-wizard.ts: imports TuiPlugin from plugin/tui" ($pfPlugin -match "@opencode-ai/plugin/tui")
 Check "profile-wizard.ts: slash command name is profile" ($pfPlugin -match 'slashName: "profile"')
 Check "profile-wizard.ts: registers palette command" ($pfPlugin -match 'namespace: "palette"')
 Check "profile-wizard.ts: has Edit agent→tier mapping sub-menu" ($pfPlugin -match "EDIT_TIERS")
-Check "profile-wizard.ts: has editTierMapping function" ($pfPlugin -match "function editTierMapping")
+Check "profile-wizard.ts: has editAgentTier function" ($pfPlugin -match "function editAgentTier")
 Check "profile-wizard.ts: has pickAgentTier function" ($pfPlugin -match "function pickAgentTier")
-Check "profile-wizard.ts: has applyTierChanges function" ($pfPlugin -match "async function applyTierChanges")
+Check "profile-wizard.ts: has applyAgentTierChanges function" ($pfPlugin -match "async function applyAgentTierChanges")
 Check "profile-wizard.ts: has writeTiersFileAtomic function" ($pfPlugin -match "function writeTiersFileAtomic")
 Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIERS")
 Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
 Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
 Check "profile-wizard.ts: tier editor has Back button to return to profile picker" ($pfPlugin -match '"__back__"')
-Check "tui.json: profile-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/profile-wizard.ts")
+Check "tui.json: profile-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/profile-wizard.ts")
 
 # SDD plugin checks (plugins/sdd/ — registered programmatically)
 $sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw
@@ -557,7 +557,7 @@ Check "auto-advisor-mode-tracker.ts: switch gives user-visible feedback" ($advis
 # Advisor e2e test aligns with the current command surface
 $advisorE2e = Get-Content "$PSScriptRoot\test-advisor-e2e.ps1" -Raw
 Check "test-advisor-e2e.ps1: uses /auto-advisor <mode> form" ($advisorE2e -match "/auto-advisor ")
-Check "test-advisor-e2e.ps1: no legacy advisor-on/off/decisive commands" `
+Check "test-advisor-e2e.ps1: uses only auto-advisor command" `
     (($advisorE2e -notmatch "advisor-on") -and ($advisorE2e -notmatch "advisor-decisive") -and ($advisorE2e -notmatch "--command advisor-"))
 Check "test-advisor-e2e.ps1: covers invalid-argument no-op" ($advisorE2e -match "banana")
 

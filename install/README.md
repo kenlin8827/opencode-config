@@ -1,4 +1,4 @@
-# install (v0.8.1)
+# install (v0.9.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -17,6 +17,20 @@ irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1
 ```
 
 > These remote scripts download the latest release archive, extract it to a temporary directory, and forward all arguments to the in-repo `install/install.sh` or `install/install.ps1` described below.
+
+### Pin to a specific version
+
+Omit the version flag to get the latest release, or pin explicitly:
+
+```bash
+# macOS / Linux / WSL — install v0.9.0
+curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash -s -- -v 0.9.0
+```
+
+```powershell
+# Windows — install v0.9.0
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.ps1))) -Version "0.9.0"
+```
 
 ---
 
@@ -234,8 +248,8 @@ flash  (fastest/cheapest)  <=  standard  (general workhorse)  <=  pro  (stronges
 | `alibaba-coding-plan-cn` | Alibaba Coding Plan China (official) | qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / qwen3.7-plus / qwen3.7-plus |
 | `alibaba-token-plan` | Alibaba Token Plan (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
 | `alibaba-token-plan-cn` | Alibaba Token Plan China (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
-| `minimax-coding-plan` | MiniMax Token Plan minimax.io (official) | MiniMax-M2.7-highspeed / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7-highspeed / MiniMax-M3 |
-| `minimax-cn-coding-plan` | MiniMax Token Plan minimaxi.com (official) | MiniMax-M2.7-highspeed / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7-highspeed / MiniMax-M3 |
+| `minimax-coding-plan` | MiniMax Token Plan minimax.io (official) | MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7 / MiniMax-M3 |
+| `minimax-cn-coding-plan` | MiniMax Token Plan minimaxi.com (official) | MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7 / MiniMax-M3 |
 | `zhipuai-coding-plan` | Zhipu AI Coding Plan (official) | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.2-highspeed / glm-5v-turbo |
 | `tencent-coding-plan` | Tencent Coding Plan (official) | hunyuan-turbos / tc-code-latest / minimax-m2.5 / hunyuan-turbos / kimi-k2.5 |
 | `tencent-token-plan` | Tencent Token Plan (official) | hy3 / hy3 / hy3 / hy3 / — |

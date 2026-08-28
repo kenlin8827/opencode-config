@@ -1,0 +1,221 @@
+import { execFileSync } from 'node:child_process';
+
+/**
+ * `ocp clean` — delete old OpenCode sessions via the official CLI.
+ *
+ * Uses `opencode db <query> --format json` to list sessions and
+ * `opencode session delete <id>` to remove them. This avoids direct
+ * SQLite access (the server owns the database lock) and delegates
+ * all storage operations to the engine.
+ */
+
+// ─── Types ──────────────────────────────────────────────────────────────
+
+export interface CleanOptions {
+  days: number;
+  dryRun: boolean;
+  yes: boolean;
+  includeSubagents: boolean;
+}
+
+interface SessionRow {
+  id: string;
+  title: string;
+  time_created: number;
+  parent_id: string | null;
+  tokens_input: number;
+  tokens_output: number;
+  cost: number;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+function runOpencode(args: string[]): string {
+  try {
+    return execFileSync('opencode', args, {
+      encoding: 'utf-8',
+      timeout: 30_000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes('ENOENT') || msg.includes('not found')) {
+      console.error('✗ opencode CLI was not found on PATH.');
+      console.error('  Install OpenCode first: https://opencode.ai');
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
+function querySessions(sql: string): SessionRow[] {
+  const out = runOpencode(['db', sql, '--format', 'json']);
+  if (!out) return [];
+  return JSON.parse(out) as SessionRow[];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function formatDate(unixMs: number): string {
+  return new Date(unixMs).toISOString().slice(0, 16).replace('T', ' ');
+}
+
+function daysAgo(unixMs: number): number {
+  return Math.floor((Date.now() - unixMs) / (86400 * 1000));
+}
+
+function getDbSize(): number {
+  try {
+    const dbPath = runOpencode(['db', 'path']);
+    const fs = require('node:fs');
+    if (fs.existsSync(dbPath)) return fs.statSync(dbPath).size;
+  } catch { /* ignore */ }
+  return 0;
+}
+
+// ─── Main logic ─────────────────────────────────────────────────────────
+
+export async function executeClean(opts: CleanOptions): Promise<void> {
+  // OpenCode stores timestamps in milliseconds (Unix epoch * 1000).
+  const cutoff = Date.now() - opts.days * 86400 * 1000;
+
+  // Build the SQL query.
+  const parentFilter = opts.includeSubagents ? '' : 'AND parent_id IS NULL';
+  const sql = `SELECT id, title, time_created, parent_id, tokens_input, tokens_output, cost FROM session WHERE time_created < ${cutoff} ${parentFilter} ORDER BY time_created ASC`;
+
+  const rows = querySessions(sql);
+
+  const dbSizeBefore = getDbSize();
+
+  if (rows.length === 0) {
+    console.log(`No sessions older than ${opts.days} day(s) found.`);
+    console.log(`Database size: ${formatBytes(dbSizeBefore)}`);
+    return;
+  }
+
+  // Age distribution.
+  const ageGroups = [
+    { label: `${opts.days}-7 days`, count: 0 },
+    { label: '7-30 days', count: 0 },
+    { label: '30-90 days', count: 0 },
+    { label: '90+ days', count: 0 },
+  ];
+  for (const r of rows) {
+    const age = daysAgo(r.time_created);
+    if (age < 7) ageGroups[0].count++;
+    else if (age < 30) ageGroups[1].count++;
+    else if (age < 90) ageGroups[2].count++;
+    else ageGroups[3].count++;
+  }
+
+  const totalInputTokens = rows.reduce((s, r) => s + (r.tokens_input || 0), 0);
+  const totalOutputTokens = rows.reduce((s, r) => s + (r.tokens_output || 0), 0);
+
+  // ── Print summary ────────────────────────────────────────────────────
+
+  console.log('');
+  console.log('═'.repeat(60));
+  console.log(`  OpenCode Session Cleanup — ${opts.dryRun ? 'DRY RUN' : 'LIVE'}`);
+  console.log('═'.repeat(60));
+  console.log('');
+  console.log(`  Cutoff       : older than ${opts.days} day(s) (before ${formatDate(cutoff)})`);
+  console.log(`  Subagents    : ${opts.includeSubagents ? 'included' : 'excluded'}`);
+  console.log(`  Database size: ${formatBytes(dbSizeBefore)}`);
+  console.log('');
+  console.log(`  Sessions to delete: ${rows.length}`);
+  console.log('');
+
+  const nonEmpty = ageGroups.filter(g => g.count > 0);
+  if (nonEmpty.length > 0) {
+    console.log('  Age breakdown:');
+    for (const g of nonEmpty) {
+      console.log(`    ${g.label.padEnd(16)} ${g.count}`);
+    }
+    console.log('');
+  }
+
+  if (totalInputTokens > 0 || totalOutputTokens > 0) {
+    console.log(`  Tokens (input) : ${totalInputTokens.toLocaleString()}`);
+    console.log(`  Tokens (output): ${totalOutputTokens.toLocaleString()}`);
+    console.log('');
+  }
+
+  // Show up to 10 sample sessions.
+  const sampleCount = Math.min(rows.length, 10);
+  console.log(`  Sample sessions (showing ${sampleCount} of ${rows.length}):`);
+  for (const r of rows.slice(0, sampleCount)) {
+    const title = (r.title || '(untitled)').slice(0, 40);
+    const age = daysAgo(r.time_created);
+    const sub = r.parent_id ? ' [sub]' : '';
+    console.log(`    ${formatDate(r.time_created)}  ${age}d ago  ${title}${sub}`);
+  }
+  if (rows.length > sampleCount) {
+    console.log(`    ... and ${rows.length - sampleCount} more`);
+  }
+  console.log('');
+
+  // ── Dry run — stop here ──────────────────────────────────────────────
+
+  if (opts.dryRun) {
+    console.log('  (dry run — no sessions were deleted)');
+    console.log('═'.repeat(60));
+    return;
+  }
+
+  // ── Confirmation prompt ──────────────────────────────────────────────
+
+  if (!opts.yes) {
+    const readline = require('node:readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    const answer: string = await new Promise((resolve) => {
+      rl.question(`  Delete ${rows.length} session(s)? [y/N] `, (ans: string) => {
+        rl.close();
+        resolve(ans);
+      });
+    });
+
+    if (!answer.match(/^[yY]$/)) {
+      console.log('  Cancelled.');
+      return;
+    }
+  }
+
+  // ── Delete via `opencode session delete` ─────────────────────────────
+
+  let deleted = 0;
+  let failed = 0;
+
+  for (const r of rows) {
+    try {
+      runOpencode(['session', 'delete', r.id]);
+      deleted++;
+    } catch (err) {
+      failed++;
+      const msg = (err as Error).message.split('\n')[0];
+      console.error(`  ✗ Failed to delete ${r.id}: ${msg}`);
+    }
+  }
+
+  const dbSizeAfter = getDbSize();
+  const reclaimed = dbSizeBefore - dbSizeAfter;
+
+  console.log('');
+  console.log(`  Deleted: ${deleted} session(s)${failed > 0 ? `, ${failed} failed` : ''}`);
+  console.log('');
+  console.log(`  Database size before: ${formatBytes(dbSizeBefore)}`);
+  console.log(`  Database size after : ${formatBytes(dbSizeAfter)}`);
+  if (reclaimed > 0) {
+    console.log(`  Space reclaimed     : ${formatBytes(reclaimed)}`);
+  }
+  console.log('');
+  console.log('═'.repeat(60));
+  console.log('  Done.');
+  console.log('═'.repeat(60));
+}
+
