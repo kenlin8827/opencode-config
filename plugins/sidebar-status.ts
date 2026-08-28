@@ -210,7 +210,7 @@ function buildBadges(projectDir: string): Badge[] {
   badges.push({ label: "auto-advisor", state: advisor.toUpperCase(), variant: advisor === "full" ? "warning" : advisor === "lite" ? "info" : "info" })
 
   const ds = resolveDeepSeekAnchor()
-  badges.push({ label: "ds-anchor", state: ds.toUpperCase(), variant: ds === "on" ? "info" : "warning" })
+  badges.push({ label: "deepseek-anchor", state: ds.toUpperCase(), variant: ds === "on" ? "info" : "warning" })
 
   return badges
 }
@@ -224,7 +224,7 @@ function buildBadges(projectDir: string): Badge[] {
  *   │ ● adr-guard    ON          │
  *   │ ● e2e-guard    OFF         │
  *   │ ● auto-advisor OFF         │
- *   │ ● ds-anchor    ON          │
+ *   │ ● deepseek-anchor ON      │
  *   └───────────────────────────┘
  *
  * Mirrors the sidebar section style used by MCP/LSP groups.
