@@ -234,12 +234,12 @@ function buildBadges(projectDir: string): Badge[] {
 /**
  * Build a vertical status panel JSX tree.
  * Layout:
- *   ─ OCP ─────────────────────┐
- *   │ ● profile      anthropic   │
- *   │ ● adr-guard    ON          │
- *   │ ○ e2e-guard    OFF         │
- *   │ ○ auto-advisor OFF         │
- *   │ ● deepseek-anchor ON       │
+ *   ─ OCP ──────────────────────┐
+ *   │ ● profile  zhipuai-coding │
+ *   │ ● adr-guard  ON           │
+ *   │ ○ e2e-guard  OFF          │
+ *   │ ○ auto-advisor  OFF       │
+ *   │ ● deepseek-anchor  ON     │
  *   └───────────────────────────┘
  *
  * Mirrors the sidebar section style used by MCP/LSP groups.
@@ -250,7 +250,9 @@ function renderStatusPanel(badges: Badge[], theme: ThemeColors, version: string)
   // Build one row per badge — each row is a <box> containing a status dot
   // and a <text> with label + state.
   const rows: unknown[] = badges.map((b) => {
-    const isActive = b.variant === "warning" || b.variant === "success"
+    // Dot fill mirrors the value: filled (●) for any state other than OFF,
+    // hollow (○) when OFF — regardless of the color variant.
+    const isActive = b.state !== "OFF"
     const dotColor =
       b.variant === "warning" ? theme.warning :
       b.variant === "success" ? theme.success :
@@ -268,10 +270,12 @@ function renderStatusPanel(badges: Badge[], theme: ThemeColors, version: string)
           style: { color: dotColor },
           children: jsx("span", { children: isActive ? "● " : "○ " }),
         }),
-        // Label (muted) — compact padding to leave more room for state values
+        // Label (muted) — fixed 2-space gap before the value; column
+        // alignment is intentionally skipped so long values (profile
+        // names) never wrap in the narrow sidebar.
         jsx("text", {
           style: { color: theme.textMuted },
-          children: jsx("span", { children: b.label.padEnd(10) }),
+          children: jsx("span", { children: b.label + "  " }),
         }),
         // State value — wraps to next line when too long
         jsx("text", {
