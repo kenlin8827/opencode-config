@@ -238,16 +238,23 @@
 
 ```
 /provider
-  → 弹窗："( Manage provider models )" + 每个服务商一个条目
-    （opencode.jsonc 中已激活的，或 providers/*.json 中可用的 —
-    选中未激活的条目会从定义文件激活它）
-  → 选中服务商：baseURL 输入 → apiKey 输入 → 原子写入
-    （opencode.jsonc.bak 备份）+ toast；空输入保留现值，
-    支持 '{env:VAR}' 令牌，密钥永不明文预填
-  → "( Manage provider models )"：选中已激活服务商 → 模型清单：
-    "( Add model… )" 依次三步输入（key → 上游 id → 显示名）；
-    选中已有模型则弹出删除确认
-  → Esc 取消
+  → 一级弹窗："➕ 添加自定义服务商"（空白）和 "📦 添加预设服务商…"
+    （将 providers/*.json 定义文件导入配置）置顶，
+    其下是 opencode.jsonc 中已存储的服务商
+  → 二级（服务商详情）：
+    ⚙ 基础设置… — 表单（新增时可编辑 id / name / npm / baseURL / apiKey）；
+      字段先在内存中修改，💾 时通过 opencode.jsonc 原子写入一次性保存；
+      apiKey 留空保留已存密钥，密钥永不明文预填；'{env:VAR}' 令牌留在
+      options.apiKey，明文密钥写入 ~/.local/share/opencode/auth.json —
+      与官方 /connect 命令同一存储
+    📥 拉取模型… — 输入 glob 模式（默认 *），从线上 {baseURL}/models
+      (openai) 或 /v1/models (anthropic) 端点导入匹配的模型；
+      仅追加 — 已有 key 跳过，不覆盖不删除
+    ── 模型 ── — 与配置节点镜像；点开模型表单（身份 / 能力 / 限制），
+      🗑 删除该条目
+    ➕ 添加模型… — 同一模型表单新建条目
+    🗑 删除服务商… — 确认后删除整个配置条目
+  → 每一级都只用 Esc 返回；变更需重启 opencode 生效
 ```
 
 ---
@@ -255,6 +262,8 @@
 ## LLM Router 凭证
 
 对于 `llm-router` 自定义服务商，通过下面的环境变量设置 `baseURL` / `apiKey`（推荐）、通过 `/provider` 向导（交互式），或直接编辑 `~/.config/opencode/opencode.jsonc`。
+
+> `/provider` 向导把明文 API 密钥存入 `~/.local/share/opencode/auth.json` — 与官方 `/connect` 命令同一存储，两者保持一致。
 
 ### 环境变量（推荐用于 API 密钥）
 

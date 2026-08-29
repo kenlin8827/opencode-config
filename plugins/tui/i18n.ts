@@ -14,14 +14,34 @@ import type { TuiPluginApi, TuiDialogSelectOption } from "@opencode-ai/plugin/tu
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-export type Locale = "en" | "zh-CN"
+export type Locale = string
+
+interface LocaleMeta {
+  code: Locale
+  /** Native display name shown in the language menu. */
+  name: string
+  /** Matched against LANG/LC_ALL/Intl locale/timezone for auto-detection. */
+  match?: RegExp
+}
+
+/**
+ * Locale registry (menu order). "en" is the mandatory fallback locale.
+ * To add a language: register it here and fill its entries in STRINGS;
+ * detection, persistence, switching and menus pick it up automatically.
+ */
+const LOCALES: readonly LocaleMeta[] = [
+  { code: "en", name: "English" },
+  { code: "zh-CN", name: "中文", match: /zh|cn|hans|shanghai|chongqing|urumqi|harbin|beijing|prc|taipei|hong_kong/i },
+]
+
+const FALLBACK_LOCALE: Locale = "en"
 
 /**
  * Convenience alias for dialog option objects used by all wizards.
  */
 export type DialogOption<V = string> = TuiDialogSelectOption<V>
 
-type StringEntry = Record<Locale, string>
+type StringEntry = Partial<Record<Locale, string>> & { en: string }
 
 // ─── Locale state ────────────────────────────────────────────────────
 
@@ -31,16 +51,25 @@ export function getLocale(): Locale {
   return currentLocale
 }
 
+function isRegistered(code: unknown): code is Locale {
+  return typeof code === "string" && LOCALES.some((l) => l.code === code)
+}
+
 function detectLocale(): Locale {
-  const envLang = process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || ""
-  if (/zh|cn|hans/i.test(envLang)) return "zh-CN"
+  const probes = [
+    process.env.LANG || "",
+    process.env.LC_ALL || "",
+    process.env.LANGUAGE || "",
+  ]
   try {
-    const sysLocale = Intl.DateTimeFormat().resolvedOptions().locale
-    if (/zh|cn/i.test(sysLocale)) return "zh-CN"
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    if (/Shanghai|Chongqing|Urumqi|Harbin|Beijing|PRC|Asia\/Taipei|Asia\/Hong_Kong/i.test(tz)) return "zh-CN"
+    const opts = Intl.DateTimeFormat().resolvedOptions()
+    probes.push(opts.locale, opts.timeZone)
   } catch { /* ignore */ }
-  return "en"
+  const haystack = probes.join(" ")
+  for (const l of LOCALES) {
+    if (l.code !== FALLBACK_LOCALE && l.match?.test(haystack)) return l.code
+  }
+  return FALLBACK_LOCALE
 }
 
 const KV_KEY = "opencode.locale"
@@ -53,7 +82,7 @@ export function initI18n(api: TuiPluginApi): void {
   if (initialized) return
   initialized = true
   const stored = api.kv.get<Locale>(KV_KEY)
-  if (stored === "en" || stored === "zh-CN") {
+  if (isRegistered(stored)) {
     currentLocale = stored
   } else {
     currentLocale = detectLocale()
@@ -66,14 +95,20 @@ export function setLocale(api: TuiPluginApi, locale: Locale): void {
   api.kv.set(KV_KEY, locale)
 }
 
+/** Locale the menu switch would move to (cycles through the registry). */
+export function nextLocale(): Locale {
+  const idx = LOCALES.findIndex((l) => l.code === currentLocale)
+  return LOCALES[(idx + 1) % LOCALES.length].code
+}
+
 export function toggleLocale(api: TuiPluginApi): Locale {
-  const next = currentLocale === "en" ? "zh-CN" : "en"
+  const next = nextLocale()
   setLocale(api, next)
   return next
 }
 
 export function localeName(locale: Locale): string {
-  return locale === "zh-CN" ? "中文" : "English"
+  return LOCALES.find((l) => l.code === locale)?.name ?? locale
 }
 
 // ─── Translation table ──────────────────────────────────────────────
@@ -84,110 +119,123 @@ const STRINGS = {
   // ════════════════════════════════════════════════════════════════
   // ── Common (shared across all wizards) ───────────────────────────
   // ════════════════════════════════════════════════════════════════
-  "common.back": { en: "( Back )", "zh-CN": "( 返回 )" },
-  "common.cancel": { en: "( Cancel )", "zh-CN": "( 取消 )" },
-  "common.applyChanges": { en: "( Apply changes )", "zh-CN": "( 应用变更 )" },
-  "common.escBack": { en: "Esc: back", "zh-CN": "Esc: 返回" },
-  "common.escClose": { en: "Esc: close", "zh-CN": "Esc: 关闭" },
+  "common.cancel": { en: "❌ Cancel", "zh-CN": "❌ 取消" },
+  "common.applyChanges": { en: "✅ Apply", "zh-CN": "✅ 应用" },
   "common.activeMarker": { en: "← active", "zh-CN": "← 当前" },
   "common.currentMarker": { en: "← current", "zh-CN": "← 当前" },
+  "common.addedMarker": { en: "added", "zh-CN": "已添加" },
   "common.unset": { en: "(unset)", "zh-CN": "(未设置)" },
   "common.config": { en: "config", "zh-CN": "配置" },
   "common.builtin": { en: "built-in", "zh-CN": "内置" },
   "common.connected": { en: "connected", "zh-CN": "已连接" },
   "common.modelCount": { en: "{count} model(s)", "zh-CN": "{count} 个模型" },
   "common.langTitle": { en: "Switch language", "zh-CN": "切换语言" },
-  "common.langDesc": { en: "Toggle between English and 中文", "zh-CN": "在 English 和 中文 之间切换" },
+  "common.langDesc": { en: "Switch interface language", "zh-CN": "切换界面语言" },
+  "common.langPickPlaceholder": { en: "Select language (Esc cancels)", "zh-CN": "选择语言 (Esc 取消)" },
   "common.langSwitched": { en: "Language switched to {lang}", "zh-CN": "语言已切换为 {lang}" },
+  "common.interfaceHeader": { en: "Interface", "zh-CN": "界面" },
 
   // ════════════════════════════════════════════════════════════════
   // ── Profile wizard ──────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════
-  "profile.cmdTitle": { en: "Switch model profile", "zh-CN": "切换模型预设" },
-  "profile.cmdDesc": { en: "Edit agent tiers, manage profile models, or select a profile", "zh-CN": "编辑 agent 层级，管理预设模型，或选择预设" },
+  "profile.cmdTitle": { en: "Switch model profile", "zh-CN": "切换配置方案" },
+  "profile.cmdDesc": { en: "Select a profile, edit agent tiers or live tier models, or manage profile models", "zh-CN": "选择配置方案，编辑 Agent 的模型层级或当前层级的模型，或管理配置方案的模型" },
 
   // Main menu
-  "profile.mainTitle": { en: "Profile wizard", "zh-CN": "预设向导" },
+  "profile.mainTitle": { en: "Profile wizard", "zh-CN": "配置方案向导" },
+  "profile.agentsHeader": { en: "Agents", "zh-CN": "Agents" },
+  "profile.tiersHeader": { en: "Tiers", "zh-CN": "模型层级" },
+  "profile.providersHeader": { en: "Providers", "zh-CN": "服务商" },
+  "profile.profilesHeader": { en: "Profiles", "zh-CN": "配置方案" },
+  "profile.actionsHeader": { en: "Actions", "zh-CN": "操作" },
   "profile.mainPlaceholder": { en: "Pick an action (Esc: close)", "zh-CN": "选择一个操作 (Esc: 关闭)" },
-  "profile.editAgentTier": { en: "Edit: Agent→Tier", "zh-CN": "编辑: Agent→Tier" },
-  "profile.editAgentTierDesc": { en: "Reassign which tier (flash/standard/pro/max/vision) each agent uses", "zh-CN": "重新分配每个 agent 所属层级 (flash/standard/pro/max/vision)" },
-  "profile.manageModels": { en: "Manage: Profile→Models", "zh-CN": "管理: 预设→模型" },
-  "profile.manageModelsDesc": { en: "Edit a profile's tier→model mapping, or add/delete profiles", "zh-CN": "编辑预设的 tier→model 映射，或添加/删除预设" },
-  "profile.selectProfile": { en: "Select: Profile", "zh-CN": "选择: 预设" },
-  "profile.selectProfileActive": { en: "Select: Profile (active: {active})", "zh-CN": "选择: 预设 (当前: {active})" },
-  "profile.selectProfileDesc": { en: "Pick a profile and apply immediately", "zh-CN": "选一个预设并立即应用" },
-  "profile.backToMain": { en: "Return to main menu", "zh-CN": "返回主菜单" },
+  "profile.editAgentTier": { en: "Edit: Agent→Tier", "zh-CN": "编辑: Agent→模型层级" },
+  "profile.editAgentTierDesc": { en: "Reassign which tier (flash/standard/pro/max/vision) each agent uses", "zh-CN": "重新分配每个 Agent 所属的模型层级 (flash/standard/pro/max/vision)" },
+  "profile.editTierModels": { en: "Edit: Tier→Model", "zh-CN": "编辑: 模型层级→模型" },
+  "profile.editTierModelsDesc": { en: "Change the live tier→model mapping directly, without going through a profile", "zh-CN": "直接修改当前生效的 模型层级→模型 映射，无需经过配置方案" },
+  "profile.manageModels": { en: "Manage: Profile→Models", "zh-CN": "管理: 配置方案→模型" },
+  "profile.manageModelsDesc": { en: "Edit a profile's tier→model mapping, or add/delete profiles", "zh-CN": "编辑配置方案的 模型层级→模型 映射，或添加/删除配置方案" },
+  "profile.selectProfile": { en: "Select: Profile", "zh-CN": "选择: 配置方案" },
+  "profile.selectProfileActive": { en: "Select: Profile (active: {active})", "zh-CN": "选择: 配置方案 (当前: {active})" },
+  "profile.selectProfileDesc": { en: "Pick a profile, review its mapping, then apply", "zh-CN": "选一个配置方案，确认映射后再应用" },
 
   // Edit: Agent→Tier
-  "profile.editTierTitle": { en: "Edit agent→tier", "zh-CN": "编辑 agent→tier" },
-  "profile.editTierTitlePending": { en: "Edit agent→tier ({count} pending)", "zh-CN": "编辑 agent→tier ({count} 个待应用)" },
-  "profile.editTierPlaceholder": { en: "Pick an agent to reassign its tier (Esc: back)", "zh-CN": "选择 agent 重新分配层级 (Esc: 返回)" },
+  "profile.editTierTitle": { en: "Edit agent→tier", "zh-CN": "编辑 Agent→模型层级" },
+  "profile.editTierTitlePending": { en: "Edit agent→tier ({count} pending)", "zh-CN": "编辑 Agent→模型层级 ({count} 个待应用)" },
+  "profile.editTierPlaceholder": { en: "Pick an agent to reassign its tier (Esc: back)", "zh-CN": "选择 Agent 重新分配模型层级 (Esc: 返回)" },
   "profile.applyChangesDesc": { en: "Write {count} change{s} to tiers.json and apply live", "zh-CN": "将 {count} 个变更写入 tiers.json 并热生效" },
-  "profile.tierModelDesc": { en: "Tier: {tier} — model: {model}", "zh-CN": "层级: {tier} — 模型: {model}" },
-  "profile.pickTierTitle": { en: "Set tier for '{agent}' (current: {tier})", "zh-CN": "设置 '{agent}' 的层级 (当前: {tier})" },
-  "profile.pickTierPlaceholder": { en: "Pick a tier (Esc: back)", "zh-CN": "选择层级 (Esc: 返回)" },
-  "profile.backToAgentList": { en: "Return to agent list", "zh-CN": "返回 agent 列表" },
+  "profile.tierModelDesc": { en: "Tier: {tier} — model: {model}", "zh-CN": "模型层级: {tier} — 模型: {model}" },
+  "profile.pickTierTitle": { en: "Set tier for '{agent}' (current: {tier})", "zh-CN": "设置 '{agent}' 的模型层级 (当前: {tier})" },
+  "profile.pickTierPlaceholder": { en: "Pick a tier (Esc: back)", "zh-CN": "选择模型层级 (Esc: 返回)" },
   "profile.tierChanged": { en: "{agent}: {old} → {new} (pending)", "zh-CN": "{agent}: {old} → {new} (待应用)" },
   "profile.writeTiersFailed": { en: "Failed to write tiers.json: {err}", "zh-CN": "写入 tiers.json 失败: {err}" },
-  "profile.readConfigFailed": { en: "Cannot read opencode.jsonc: {err}", "zh-CN": "无法读取 opencode.jsonc: {err}" },
-  "profile.noAgents": { en: "No agents found in opencode.jsonc.", "zh-CN": "opencode.jsonc 中未找到 agent。" },
-  "profile.tiersUpdatedConfigFailed": { en: "tiers.json updated, but cannot read opencode.jsonc: {err}. Restart or run /profile to apply.", "zh-CN": "tiers.json 已更新，但无法读取 opencode.jsonc: {err}。重启或运行 /profile 来应用。" },
+  "profile.readConfigFailed": { en: "Cannot read the opencode config: {err}", "zh-CN": "无法读取 opencode 配置: {err}" },
+  "profile.noAgents": { en: "No agents found in the config.", "zh-CN": "配置中未找到 Agent。" },
+  "profile.tiersUpdatedConfigFailed": { en: "tiers.json updated, but cannot read the opencode config: {err}. Restart or run /profile to apply.", "zh-CN": "tiers.json 已更新，但无法读取 opencode 配置: {err}。重启或运行 /profile 来应用。" },
   "profile.noModelRef": { en: "{agent} → {tier} (no model ref — set via /profile)", "zh-CN": "{agent} → {tier} (无模型引用 — 通过 /profile 设置)" },
-  "profile.writeOpencodeFailed": { en: "tiers.json updated, but failed to write opencode.jsonc: {err}. Restart or run /profile.", "zh-CN": "tiers.json 已更新，但写入 opencode.jsonc 失败: {err}。重启或运行 /profile。" },
-  "profile.tierChangesApplied": { en: "{count} tier change{s} applied — {details}. {live}", "zh-CN": "{count} 个层级变更已应用 — {details}。{live}" },
+  "profile.writeOpencodeFailed": { en: "tiers.json updated, but failed to write the opencode config: {err}. Restart or run /profile.", "zh-CN": "tiers.json 已更新，但写入 opencode 配置失败: {err}。重启或运行 /profile。" },
+  "profile.tierChangesApplied": { en: "{count} tier change{s} applied — {details}. {live}", "zh-CN": "{count} 个模型层级变更已应用 — {details}。{live}" },
   "profile.liveNoRestart": { en: "Live, no restart needed.", "zh-CN": "已热生效，无需重启。" },
   "profile.restartToApply": { en: "Restart to apply.", "zh-CN": "重启后生效。" },
 
+  // Edit: Tier→Model (live config, no profile)
+  "profile.editTierModelsTitle": { en: "Edit tier→model (live)", "zh-CN": "编辑 模型层级→模型（当前生效）" },
+  "profile.editTierModelsTitlePending": { en: "Edit tier→model (live) ({count} pending)", "zh-CN": "编辑 模型层级→模型（当前生效）({count} 个待应用)" },
+  "profile.editTierModelsPlaceholder": { en: "Pick a tier to change its model (Esc: back)", "zh-CN": "选择模型层级修改其模型 (Esc: 返回)" },
+  "profile.applyTierModelsDesc": { en: "Apply {count} model change{s} to the live config", "zh-CN": "将 {count} 个模型变更热应用到当前配置" },
+  "profile.noTierModels": { en: "No tier mapping found — agents have no models in the config.", "zh-CN": "未找到模型层级映射 — 配置中 Agent 没有模型。" },
+  "profile.pickTierModelProviderTitle": { en: "tier.{tier} → provider", "zh-CN": "模型层级 {tier} → 服务商" },
+  "profile.pickTierModelModelTitle": { en: "tier.{tier} → model on {provider}", "zh-CN": "模型层级 {tier} → {provider} 上的模型" },
+  "profile.promptTierModelRefTitle": { en: "tier.{tier} — custom ref", "zh-CN": "模型层级 {tier} — 手动输入引用" },
+  "profile.liveTierModelChanged": { en: "tier.{tier} → {provider}/{model} (pending)", "zh-CN": "模型层级 {tier} → {provider}/{model} (待应用)" },
+  "profile.tierModelsApplied": { en: "{count} model change{s} applied — {details}. {live}", "zh-CN": "{count} 个模型变更已应用 — {details}。{live}" },
+
   // Manage: Profile→Models
-  "profile.manageTitle": { en: "Manage: Profile→Models", "zh-CN": "管理: 预设→模型" },
-  "profile.managePlaceholder": { en: "Pick a profile to edit its tier→model mapping (Esc: back)", "zh-CN": "选择预设编辑其 tier→model 映射 (Esc: 返回)" },
-  "profile.addProfile": { en: "( Add profile )", "zh-CN": "( 添加预设 )" },
-  "profile.addProfileDesc": { en: "Create a new blank profile JSON in ~/.config/opencode/profiles/", "zh-CN": "在 ~/.config/opencode/profiles/ 创建空白预设 JSON" },
-  "profile.deleteProfile": { en: "( Delete profile )", "zh-CN": "( 删除预设 )" },
-  "profile.deleteProfileDesc": { en: "Remove an existing profile JSON file", "zh-CN": "删除已有的预设 JSON 文件" },
-  "profile.reviewTiersTitle": { en: "{name} — review tiers", "zh-CN": "{name} — 审阅层级" },
-  "profile.reviewTiersPlaceholder": { en: "Pick a tier to change its model (provider → model), or apply (Esc: back)", "zh-CN": "选择层级修改其模型 (provider → model)，或应用 (Esc: 返回)" },
-  "profile.applyChangesModelDesc": { en: "Write the mapping below to the profile JSON and apply", "zh-CN": "将以下映射写入预设 JSON 并应用" },
-  "profile.backToProfileList": { en: "Return to profile list (keep overrides)", "zh-CN": "返回预设列表（保留覆写）" },
-  "profile.cancelDiscard": { en: "Discard overrides and return to profile list", "zh-CN": "丢弃覆写，返回预设列表" },
-  "profile.pickProviderTitle": { en: "{name} — tier.{tier} → provider", "zh-CN": "{name} — tier.{tier} → 服务商" },
+  "profile.manageTitle": { en: "Manage: Profile→Models", "zh-CN": "管理: 配置方案→模型" },
+  "profile.managePlaceholder": { en: "Pick a profile to edit its tier→model mapping (Esc: back)", "zh-CN": "选择配置方案编辑其 模型层级→模型 映射 (Esc: 返回)" },
+  "profile.addProfile": { en: "Add: Profile", "zh-CN": "添加: 配置方案" },
+  "profile.addProfileDesc": { en: "Create a new blank profile JSON in ~/.config/opencode/profiles/", "zh-CN": "在 ~/.config/opencode/profiles/ 创建空白配置方案 JSON" },
+  "profile.deleteProfile": { en: "🗑️ Delete", "zh-CN": "🗑️ 删除" },
+  "profile.deleteProfileDesc": { en: "Delete this profile's JSON file (asks for confirmation)", "zh-CN": "删除此配置方案的 JSON 文件（删除前需确认）" },
+  "profile.reviewTiersTitle": { en: "{name} — review tiers", "zh-CN": "{name} — 审阅模型层级" },
+  "profile.reviewTiersPlaceholder": { en: "Pick a tier to change its model (provider → model), or apply (Esc: back)", "zh-CN": "选择模型层级修改其模型 (服务商 → 模型)，或应用 (Esc: 返回)" },
+  "profile.applyChangesModelDesc": { en: "Write the mapping below to the profile JSON and apply", "zh-CN": "将以下映射写入配置方案 JSON 并应用" },
+  "profile.cancelDiscard": { en: "Discard overrides and return to profile list", "zh-CN": "丢弃覆写，返回配置方案列表" },
+  "profile.pickProviderTitle": { en: "{name} — tier.{tier} → provider", "zh-CN": "{name} — 模型层级 {tier} → 服务商" },
   "profile.pickProviderPlaceholder": { en: "Pick a provider (Esc: back)", "zh-CN": "选择服务商 (Esc: 返回)" },
   "profile.typeCustomRef": { en: "( Type a custom ref )", "zh-CN": "( 手动输入引用 )" },
   "profile.typeCustomRefDesc": { en: "For providers not listed above", "zh-CN": "用于未列出的服务商" },
-  "profile.backToTierReview": { en: "Return to tier review", "zh-CN": "返回层级审阅" },
-  "profile.pickModelTitle": { en: "{name} — tier.{tier} → model on {provider}", "zh-CN": "{name} — tier.{tier} → {provider} 上的模型" },
+  "profile.pickModelTitle": { en: "{name} — tier.{tier} → model on {provider}", "zh-CN": "{name} — 模型层级 {tier} → {provider} 上的模型" },
   "profile.pickModelPlaceholder": { en: "Pick a model — {count} available (Esc: back)", "zh-CN": "选择模型 — {count} 个可用 (Esc: 返回)" },
-  "profile.backToProviderList": { en: "Return to provider list", "zh-CN": "返回服务商列表" },
-  "profile.modelChanged": { en: "{name}: tier.{tier} → {provider}/{model} (pending)", "zh-CN": "{name}: tier.{tier} → {provider}/{model} (待应用)" },
-  "profile.promptTierRefTitle": { en: "{name} — tier.{tier}", "zh-CN": "{name} — tier.{tier}" },
+  "profile.modelChanged": { en: "{name}: tier.{tier} → {provider}/{model} (pending)", "zh-CN": "{name}: 模型层级 {tier} → {provider}/{model} (待应用)" },
+  "profile.promptTierRefTitle": { en: "{name} — tier.{tier}", "zh-CN": "{name} — 模型层级 {tier}" },
   "profile.promptTierRefPlaceholder": { en: "<provider>/<model_id> (empty keeps current)", "zh-CN": "<provider>/<model_id> (留空保留当前值)" },
   "profile.invalidRef": { en: "Invalid ref '{ref}' — expected '<provider>/<model_id>'.", "zh-CN": "无效引用 '{ref}' — 格式应为 '<provider>/<model_id>'。" },
-  "profile.customized": { en: "{override} ← customized (preset: {ref})", "zh-CN": "{override} ← 已覆写 (原预设: {ref})" },
-  "profile.profileVanished": { en: "Profile '{name}' vanished.", "zh-CN": "预设 '{name}' 不见了。" },
-  "profile.writeProfileFailed": { en: "Failed to write profile '{name}': {err}", "zh-CN": "写入预设 '{name}' 失败: {err}" },
-  "profile.profileUpdatedApplied": { en: "Profile '{name}' updated and applied — {updated} agent(s) updated ({details}). {live}", "zh-CN": "预设 '{name}' 已更新并应用 — {updated} 个 agent 已更新 ({details})。{live}" },
-  "profile.profileSavedApplyFailed": { en: "Profile JSON saved, but failed to apply: {err}", "zh-CN": "预设 JSON 已保存，但应用失败: {err}" },
+  "profile.customized": { en: "{override} ← customized (preset: {ref})", "zh-CN": "{override} ← 已覆写 (原配置方案: {ref})" },
+  "profile.profileVanished": { en: "Profile '{name}' vanished.", "zh-CN": "配置方案 '{name}' 不见了。" },
+  "profile.writeProfileFailed": { en: "Failed to write profile '{name}': {err}", "zh-CN": "写入配置方案 '{name}' 失败: {err}" },
+  "profile.profileUpdatedApplied": { en: "Profile '{name}' updated and applied — {updated} agent(s) updated ({details}). {live}", "zh-CN": "配置方案 '{name}' 已更新并应用 — {updated} 个 Agent 已更新 ({details})。{live}" },
+  "profile.profileSavedApplyFailed": { en: "Profile JSON saved, but failed to apply: {err}", "zh-CN": "配置方案 JSON 已保存，但应用失败: {err}" },
 
   // Add / Delete profile
-  "profile.addProfileTitle": { en: "Add new profile", "zh-CN": "添加新预设" },
-  "profile.addProfilePlaceholder": { en: "Profile name (e.g. my-custom)", "zh-CN": "预设名称 (如 my-custom)" },
-  "profile.profileExists": { en: "Profile '{name}' already exists.", "zh-CN": "预设 '{name}' 已存在。" },
-  "profile.customProfile": { en: "Custom profile", "zh-CN": "自定义预设" },
-  "profile.profileCreated": { en: "Profile '{name}' created — edit its tiers via Manage.", "zh-CN": "预设 '{name}' 已创建 — 通过管理编辑其层级。" },
-  "profile.createProfileFailed": { en: "Failed to create profile: {err}", "zh-CN": "创建预设失败: {err}" },
-  "profile.noProfilesToDelete": { en: "No profiles to delete.", "zh-CN": "没有可删除的预设。" },
-  "profile.deleteProfileTitle": { en: "Delete profile", "zh-CN": "删除预设" },
-  "profile.deleteProfilePlaceholder": { en: "Pick a profile to delete (Esc: back)", "zh-CN": "选择要删除的预设 (Esc: 返回)" },
-  "profile.backToProfileList2": { en: "Return to profile list", "zh-CN": "返回预设列表" },
-  "profile.confirmDeleteMsg": { en: "Delete profile '{name}'?\n\nFile: {path}\n\nA .bak backup will be kept. This cannot be undone.", "zh-CN": "删除预设 '{name}'?\n\n文件: {path}\n\n将保留 .bak 备份。此操作不可撤销。" },
-  "profile.profileDeleted": { en: "Profile '{name}' deleted (.bak kept).", "zh-CN": "预设 '{name}' 已删除（保留 .bak 备份）。" },
+  "profile.addProfileTitle": { en: "Add new profile", "zh-CN": "添加新配置方案" },
+  "profile.addProfilePlaceholder": { en: "Profile name (e.g. my-custom)", "zh-CN": "配置方案名称 (如 my-custom)" },
+  "profile.profileExists": { en: "Profile '{name}' already exists.", "zh-CN": "配置方案 '{name}' 已存在。" },
+  "profile.customProfile": { en: "Custom profile", "zh-CN": "自定义配置方案" },
+  "profile.profileCreated": { en: "Profile '{name}' created — edit its tiers via Manage.", "zh-CN": "配置方案 '{name}' 已创建 — 通过管理编辑其模型层级。" },
+  "profile.createProfileFailed": { en: "Failed to create profile: {err}", "zh-CN": "创建配置方案失败: {err}" },
+  "profile.deleteProfileTitle": { en: "Delete profile", "zh-CN": "删除配置方案" },
+  "profile.confirmDeleteMsg": { en: "Delete profile '{name}'?\n\nFile: {path}\n\nA .bak backup will be kept. This cannot be undone.", "zh-CN": "删除配置方案 '{name}'?\n\n文件: {path}\n\n将保留 .bak 备份。此操作不可撤销。" },
+  "profile.profileDeleted": { en: "Profile '{name}' deleted (.bak kept).", "zh-CN": "配置方案 '{name}' 已删除（保留 .bak 备份）。" },
   "profile.deleteFailed": { en: "Failed to delete: {err}", "zh-CN": "删除失败: {err}" },
 
   // Select: Profile
-  "profile.selectTitle": { en: "Select: Profile", "zh-CN": "选择: 预设" },
-  "profile.selectPlaceholder": { en: "Pick a profile to apply immediately (Esc: back)", "zh-CN": "选择预设立即应用 (Esc: 返回)" },
-  "profile.noProfiles": { en: "No profiles found in {dir}.", "zh-CN": "在 {dir} 中未找到预设。" },
-  "profile.switchedTo": { en: "Switched to '{name}' — {updated} agent(s) updated ({details}). {live}", "zh-CN": "已切换到 '{name}' — {updated} 个 agent 已更新 ({details})。{live}" },
+  "profile.selectTitle": { en: "Select: Profile", "zh-CN": "选择: 配置方案" },
+  "profile.selectPlaceholder": { en: "Pick a profile to review and apply (Esc: back)", "zh-CN": "选择配置方案审阅并应用 (Esc: 返回)" },
+  "profile.confirmApplyTitle": { en: "Apply profile '{name}'?", "zh-CN": "应用配置方案 '{name}'？" },
+  "profile.confirmApplyMsg": { en: "The following tier→model mapping will be applied:\n\n{mapping}\n\nAgent models in the config will be overwritten.", "zh-CN": "即将应用以下 模型层级→模型 映射：\n\n{mapping}\n\n配置中的 Agent 模型将被覆写。" },
+  "profile.noProfiles": { en: "No profiles found in {dir}.", "zh-CN": "在 {dir} 中未找到配置方案。" },
+  "profile.switchedTo": { en: "Switched to '{name}' — {updated} agent(s) updated ({details}). {live}", "zh-CN": "已切换到 '{name}' — {updated} 个 Agent 已更新 ({details})。{live}" },
   "profile.appliedLive": { en: "Applied live, no restart needed.", "zh-CN": "已热生效，无需重启。" },
   "profile.restartToApply2": { en: "Restart opencode to apply.", "zh-CN": "重启 opencode 后生效。" },
   "profile.applyFailed": { en: "Failed to apply '{name}': {err}", "zh-CN": "应用 '{name}' 失败: {err}" },
@@ -200,54 +248,109 @@ const STRINGS = {
   "profile.tierVision": { en: "Multimodal — image/screenshot analysis", "zh-CN": "多模态 — 图像/截图分析" },
 
   // Misc
-  "profile.activeProfileToast": { en: "Active profile: {name}", "zh-CN": "当前预设: {name}" },
+  "profile.activeProfileToast": { en: "Active profile: {name}", "zh-CN": "当前配置方案: {name}" },
 
   // ════════════════════════════════════════════════════════════════
   // ── Provider wizard ────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════
   "provider.cmdTitle": { en: "Configure provider", "zh-CN": "配置服务商" },
-  "provider.cmdDesc": { en: "Set up credentials and manage models for custom providers", "zh-CN": "配置自定义服务商凭证和管理模型" },
+  "provider.cmdDesc": { en: "Add custom providers, configure credentials, fetch and manage models", "zh-CN": "添加自定义服务商，配置凭证，拉取和管理模型" },
   "provider.toastTitle": { en: "Provider wizard", "zh-CN": "服务商向导" },
-  "provider.setupTitle": { en: "Provider setup — select provider", "zh-CN": "服务商配置 — 选择服务商" },
-  "provider.setupPlaceholder": { en: "Pick a provider to configure credentials for", "zh-CN": "选择要配置凭证的服务商" },
-  "provider.manageModels": { en: "( Manage provider models )", "zh-CN": "( 管理服务商模型 )" },
-  "provider.manageModelsDesc": { en: "Add or remove models on an active provider", "zh-CN": "添加或删除已激活服务商的模型" },
-  "provider.manageTitle": { en: "Manage models — select provider", "zh-CN": "管理模型 — 选择服务商" },
-  "provider.managePlaceholder": { en: "Pick a provider to add/remove models (Esc closes)", "zh-CN": "选择服务商添加/删除模型 (Esc 关闭)" },
-  "provider.backToMain": { en: "Return to provider list", "zh-CN": "返回服务商列表" },
-  "provider.modelsTitle": { en: "{id} — models", "zh-CN": "{id} — 模型" },
-  "provider.modelsPlaceholder": { en: "Pick a model to remove, or add a new one (Esc closes)", "zh-CN": "选择要删除的模型，或添加新模型 (Esc 关闭)" },
-  "provider.addModel": { en: "( Add model… )", "zh-CN": "( 添加模型… )" },
-  "provider.addModelDesc": { en: "Enter key, upstream id and display name", "zh-CN": "输入 key、上游 id 和显示名" },
-  "provider.removeModelTitle": { en: "{id} — remove model", "zh-CN": "{id} — 删除模型" },
-  "provider.modelKeyTitle": { en: "{id} — new model key", "zh-CN": "{id} — 新模型 key" },
-  "provider.modelKeyPlaceholder": { en: "Key used in refs '<provider>/<key>', e.g. gpt-5.6-low or vendor/gpt-5.6", "zh-CN": "引用中使用的 key '<provider>/<key>'，如 gpt-5.6-low 或 vendor/gpt-5.6" },
-  "provider.modelIdTitle": { en: "{id}/{key} — upstream model id", "zh-CN": "{id}/{key} — 上游模型 id" },
-  "provider.modelIdPlaceholder": { en: "Id sent to the API (empty keeps the key)", "zh-CN": "发送给 API 的 id (留空则使用 key)" },
-  "provider.modelNameTitle": { en: "{id}/{key} — display name", "zh-CN": "{id}/{key} — 显示名" },
-  "provider.modelNamePlaceholder": { en: "Shown in pickers (empty keeps the key)", "zh-CN": "在选择器中显示 (留空则使用 key)" },
-  "provider.baseURLTitle": { en: "{id} — baseURL", "zh-CN": "{id} — baseURL" },
-  "provider.apiKeyTitle": { en: "{id} — apiKey", "zh-CN": "{id} — apiKey" },
-  "provider.baseURLPlaceholder": { en: "https://api.example.com/v1 or {env:VAR} ({hint}; empty keeps)", "zh-CN": "https://api.example.com/v1 或 {env:VAR} ({hint}；留空保留)" },
+  "provider.setupTitle": { en: "Provider wizard", "zh-CN": "服务商向导" },
+  "provider.setupPlaceholder": { en: "Pick a provider to configure (Esc: close)", "zh-CN": "选择服务商进行配置 (Esc: 关闭)" },
+  "provider.addProvider": { en: "➕ Add custom provider", "zh-CN": "➕ 添加自定义服务商" },
+  "provider.addProviderDesc": { en: "Create a blank provider config from scratch", "zh-CN": "从零创建空白服务商配置" },
+  "provider.addPresetProvider": { en: "📦 Add preset provider…", "zh-CN": "📦 添加预设服务商…" },
+  "provider.addPresetProviderDesc": { en: "Import a preset provider from the bundled providers/ definitions", "zh-CN": "从内置的 providers/ 定义文件导入预设服务商" },
+  "provider.pickPresetTitle": { en: "Add preset provider", "zh-CN": "添加预设服务商" },
+  "provider.pickPresetPlaceholder": { en: "Pick a preset — new ones are imported, added ones open their details (Esc: back)", "zh-CN": "选择预设服务商 — 新的将导入，已添加的直接进详情 (Esc: 返回)" },
+  "provider.noPresetsLeft": { en: "No preset definitions found in the providers/ directory.", "zh-CN": "providers/ 目录中未找到预设定义。" },
+  "provider.invalidProviderId": { en: "Invalid id — lowercase letters, digits, '-' and '_' only.", "zh-CN": "无效 id — 仅限小写字母、数字、'-' 和 '_'。" },
+  "provider.providerExists": { en: "Provider '{id}' already exists.", "zh-CN": "服务商 '{id}' 已存在。" },
+  "provider.detailTitle": { en: "{id} — provider details", "zh-CN": "{id} — 服务商详情" },
+  "provider.detailPlaceholder": { en: "Pick settings, a model, or an action (Esc: back)", "zh-CN": "选择设置、模型或操作 (Esc: 返回)" },
+  "provider.noCustomProviders": { en: "No custom providers yet.", "zh-CN": "还没有自定义服务商。" },
+  "provider.modelsHeader": { en: "Models", "zh-CN": "模型" },
+  "provider.settingsHeader": { en: "Settings", "zh-CN": "设置" },
+  "provider.actionsHeader": { en: "Actions", "zh-CN": "操作" },
+  "provider.configuredHeader": { en: "Providers", "zh-CN": "服务商" },
+  "provider.basicSettings": { en: "⚙ Basic settings…", "zh-CN": "⚙ 基础设置…" },
+  "provider.addProviderFormTitle": { en: "Add custom provider — basic settings", "zh-CN": "添加自定义服务商 — 基础设置" },
+  "provider.idTitle": { en: "New provider — id", "zh-CN": "新服务商 — id" },
+  "provider.idPlaceholder": { en: "Used in refs '<id>/<model>'; lowercase letters, digits, '-' and '_'", "zh-CN": "用于引用 '<id>/<model>'；小写字母、数字、'-' 和 '_'" },
+  "provider.idRequired": { en: "id is required.", "zh-CN": "id 为必填。" },
+  "provider.providerFormTitleEdit": { en: "{id} — basic settings", "zh-CN": "{id} — 基础设置" },
+  "provider.providerFormPlaceholder": { en: "Edit fields, then save (* = required; Esc: back)", "zh-CN": "编辑字段后保存 (* = 必填；Esc: 返回)" },
+  "provider.saveProvider": { en: "💾 Save provider", "zh-CN": "💾 保存服务商" },
+  "provider.nameLabel": { en: "name", "zh-CN": "名称" },
+  "provider.editNameDesc": { en: "Display name shown in pickers", "zh-CN": "选择器中显示的名称" },
+  "provider.nameTitle": { en: "{id} — name", "zh-CN": "{id} — 名称" },
+  "provider.namePlaceholder": { en: "Shown in pickers ({hint}). Empty clears to the id.", "zh-CN": "在选择器中显示 ({hint})。留空则清除，回退为 id。" },
+  "provider.npmLabel": { en: "npm", "zh-CN": "npm 包" },
+  "provider.baseURLLabel": { en: "baseURL", "zh-CN": "服务地址" },
+  "provider.apiKeyLabel": { en: "apiKey", "zh-CN": "API 密钥" },
+  "provider.pickNpmTitle": { en: "{id} — npm package", "zh-CN": "{id} — npm 包" },
+  "provider.pickNpmPlaceholder": { en: "Pick the SDK package — it decides the API protocol (Esc: back)", "zh-CN": "选择 SDK 包 — 决定 API 协议 (Esc: 返回)" },
+  "provider.editBaseURLDesc": { en: "API endpoint base URL", "zh-CN": "API 端点地址" },
+  "provider.editApiKeyDesc": { en: "API key credential", "zh-CN": "API 密钥凭证" },
+  "provider.baseURLTitle": { en: "{id} — baseURL", "zh-CN": "{id} — 服务地址" },
+  "provider.apiKeyTitle": { en: "{id} — apiKey", "zh-CN": "{id} — API 密钥" },
+  "provider.baseURLPlaceholder": { en: "https://api.example.com/v1 or {env:VAR} ({hint}; empty clears)", "zh-CN": "https://api.example.com/v1 或 {env:VAR} ({hint}；留空清除)" },
+  "provider.baseURLRequired": { en: "baseURL is required for openai-compatible providers.", "zh-CN": "openai 兼容服务商必须填写服务地址。" },
   "provider.apiKeyPlaceholder": { en: "sk-... or {env:VAR} ({hint}; empty keeps)", "zh-CN": "sk-... 或 {env:VAR} ({hint}；留空保留)" },
+  "provider.fetchModels": { en: "📥 Fetch models…", "zh-CN": "📥 拉取模型…" },
+  "provider.fetchModelsDesc": { en: "Fetch the remote model list and import matches as custom models", "zh-CN": "拉取远端模型列表，匹配项导入为自定义" },
+  "provider.fetchPatternTitle": { en: "{id} — fetch pattern", "zh-CN": "{id} — 拉取 pattern" },
+  "provider.fetchPatternPlaceholder": { en: "Glob filter for model ids, e.g. gpt-* (empty = *)", "zh-CN": "按模型 id 过滤的 glob，如 gpt-* (留空 = *)" },
+  "provider.fetchNeedsBaseURL": { en: "Set baseURL before fetching.", "zh-CN": "拉取前请先设置服务地址。" },
+  "provider.fetchNeedsKey": { en: "Set apiKey before fetching.", "zh-CN": "拉取前请先设置 API 密钥。" },
+  "provider.keyMigrated": { en: "API key moved to the shared credential store used by /connect.", "zh-CN": "API 密钥已移至与 /connect 共享的凭证存储。" },
+  "provider.keyInCredStore": { en: "set (in credential store)", "zh-CN": "已设置（凭证存储）" },
+  "provider.keyInConfig": { en: "set (in config)", "zh-CN": "已设置（配置文件）" },
+  "provider.fetchEnvMissing": { en: "Environment variable '{name}' is not set.", "zh-CN": "环境变量 '{name}' 未设置。" },
+  "provider.fetchFailed": { en: "Fetch failed: {err}", "zh-CN": "拉取失败: {err}" },
+  "provider.fetchNoMatch": { en: "Fetch OK — no models match '{pattern}' ({total} total).", "zh-CN": "拉取成功 — 没有匹配 '{pattern}' 的模型 (共 {total} 个)。" },
+  "provider.fetchImported": { en: "Imported {added} model(s) into '{id}' (pattern '{pattern}'); {skipped} existing kept.", "zh-CN": "已导入 {added} 个模型到 '{id}' (pattern '{pattern}')；{skipped} 个已有模型保留。" },
+  "provider.fetchNoNew": { en: "All {skipped} matched model(s) already exist on '{id}' — nothing added.", "zh-CN": "匹配的 {skipped} 个模型均已存在于 '{id}' — 未新增。" },
+  "provider.addModel": { en: "➕ Add model…", "zh-CN": "➕ 添加模型…" },
+  "provider.addModelDesc": { en: "Form sheet: identity, capabilities, limits", "zh-CN": "表单录入: 身份、能力、限制" },
+  "provider.removeModelTitle": { en: "{id} — remove model", "zh-CN": "{id} — 删除模型" },
+  "provider.modelFormTitleAdd": { en: "{id} — add model", "zh-CN": "{id} — 添加模型" },
+  "provider.modelFormTitleEdit": { en: "{id}/{key} — edit model", "zh-CN": "{id}/{key} — 编辑模型" },
+  "provider.modelFormPlaceholder": { en: "Pick a field to edit, or save (* = required; Esc: back)", "zh-CN": "选择要编辑的字段，或保存 (* = 必填；Esc: 返回)" },
+  "provider.modelFieldTitle": { en: "{id} — model {field}", "zh-CN": "{id} — 模型 {field}" },
+  "provider.formFieldsHeader": { en: "Fields", "zh-CN": "字段" },
+  "provider.formCapsHeader": { en: "Capabilities", "zh-CN": "能力" },
+  "provider.formLimitsHeader": { en: "Limits", "zh-CN": "限制" },
+  "provider.formActionsHeader": { en: "Actions", "zh-CN": "操作" },
+  "provider.capAttachmentDesc": { en: "Accepts image / file attachments", "zh-CN": "接受图片 / 文件附件" },
+  "provider.capTemperatureDesc": { en: "Supports the temperature parameter", "zh-CN": "支持 temperature 参数" },
+  "provider.capReasoningDesc": { en: "Reasoning model", "zh-CN": "推理模型" },
+  "provider.capToolCallDesc": { en: "Tool calling (keep on for coding)", "zh-CN": "工具调用 (编码模型保持开)" },
+  "provider.modalitiesPlaceholder": { en: "Enter/click to toggle, Esc to return", "zh-CN": "回车/点击切换，Esc 返回" },
+  "provider.limitContextPlaceholder": { en: "Context window in tokens (empty = unset)", "zh-CN": "上下文窗口 (tokens，留空 = 未设置)" },
+  "provider.limitOutputPlaceholder": { en: "Max output tokens (empty = unset)", "zh-CN": "最大输出 tokens (留空 = 未设置)" },
+  "provider.invalidNumber": { en: "Not a valid non-negative integer.", "zh-CN": "不是有效的非负整数。" },
+  "provider.saveModel": { en: "💾 Save model", "zh-CN": "💾 保存模型" },
+  "provider.deleteProvider": { en: "🗑 Delete provider…", "zh-CN": "🗑 删除服务商…" },
+  "provider.deleteProviderTitle": { en: "{id} — delete provider", "zh-CN": "{id} — 删除服务商" },
+  "provider.deleteProviderConfirm": { en: "Remove '{id}', all its models and the stored credential? This cannot be undone.", "zh-CN": "移除 '{id}'、其全部模型及已存密钥？不可撤销。" },
+  "provider.providerDeleted": { en: "Provider '{id}' deleted.", "zh-CN": "服务商 '{id}' 已删除。" },
+  "provider.deleteModel": { en: "🗑 Delete model…", "zh-CN": "🗑 删除模型…" },
+  "provider.modelKeyPlaceholder": { en: "Key used in refs '<provider>/<key>', e.g. gpt-5.6-low or vendor/gpt-5.6", "zh-CN": "引用中使用的 key '<provider>/<key>'，如 gpt-5.6-low 或 vendor/gpt-5.6" },
+  "provider.modelIdPlaceholder": { en: "Id sent to the API (empty keeps the key)", "zh-CN": "发送给 API 的 id (留空则使用 key)" },
+  "provider.modelNamePlaceholder": { en: "Shown in pickers (empty keeps the key)", "zh-CN": "在选择器中显示 (留空则使用 key)" },
+  "provider.fieldStatusDesc": { en: "deprecated = hidden from pickers (soft disable); alpha = experimental only", "zh-CN": "deprecated = 从选择器隐藏 (软禁用)；alpha = 仅实验模式显示" },
   "provider.wizardTitle": { en: "Provider setup wizard", "zh-CN": "服务商配置向导" },
-  "provider.cancelledAdded": { en: "Cancelled — '{id}' was activated but no credentials changed.", "zh-CN": "已取消 — '{id}' 已激活但凭证未更改。" },
-  "provider.cancelled": { en: "Cancelled — no credentials changed.", "zh-CN": "已取消 — 凭证未更改。" },
   "provider.writeFailed": { en: "Failed to write config: {err}", "zh-CN": "写入配置失败: {err}" },
-  "provider.configSaved": { en: "Config saved — baseURL & apiKey set for '{id}'. Restart to take effect.", "zh-CN": "配置已保存 — '{id}' 的 baseURL 和 apiKey 已设置。重启后生效。" },
-  "provider.configSavedAdded": { en: "'{id}' activated + credentials saved — restart to take effect.", "zh-CN": "'{id}' 已激活 + 凭证已保存 — 重启后生效。" },
+  "provider.configSaved": { en: "'{id}' saved — restart to take effect.", "zh-CN": "'{id}' 已保存 — 重启后生效。" },
   "provider.modelAdded": { en: "Model '{key}' added to '{id}'.", "zh-CN": "模型 '{key}' 已添加到 '{id}'。" },
   "provider.modelRemoved": { en: "Model '{key}' removed from '{id}'.", "zh-CN": "模型 '{key}' 已从 '{id}' 删除。" },
   "provider.addModelFailed": { en: "Failed to add model: {err}", "zh-CN": "添加模型失败: {err}" },
-  "provider.removeModelFailed": { en: "Failed to remove model: {err}", "zh-CN": "删除模型失败: {err}" },
-  "provider.activeInConfig": { en: "active in opencode.jsonc", "zh-CN": "在 opencode.jsonc 中已激活" },
-  "provider.availableFromDef": { en: "available ({source}) — will be activated", "zh-CN": "可用 ({source}) — 将被激活" },
-  "provider.noDefinition": { en: "No definition for '{id}'.", "zh-CN": "找不到 '{id}' 的定义。" },
-  "provider.noActiveModels": { en: "No active provider has a models section.", "zh-CN": "没有已激活的服务商包含 models 配置。" },
-  "provider.noModelsSection": { en: "Provider '{id}' has no models section.", "zh-CN": "服务商 '{id}' 没有 models 配置。" },
   "provider.invalidKey": { en: "Invalid key — no spaces; '/' allowed inside, not at edges or doubled.", "zh-CN": "无效 key — 不能含空格；'/' 可在中间使用，但不能在首尾或连续出现。" },
   "provider.modelExists": { en: "Model '{key}' already exists on '{id}'.", "zh-CN": "模型 '{key}' 已存在于 '{id}'。" },
-  "provider.removeModelConfirm": { en: "Remove model '{key}' from '{id}'? Profiles referencing '{id}/{key}' will break.", "zh-CN": "从 '{id}' 删除模型 '{key}'？引用 '{id}/{key}' 的预设将会失效。" },
+  "provider.providerVanished": { en: "Provider '{id}' no longer exists.", "zh-CN": "服务商 '{id}' 已不存在。" },
+  "provider.removeModelConfirm": { en: "Remove model '{key}' from '{id}'? Profiles referencing '{id}/{key}' will break.", "zh-CN": "从 '{id}' 删除模型 '{key}'？引用 '{id}/{key}' 的配置方案将会失效。" },
   "provider.noProvidersAvailable": { en: "No providers configured and no definitions in {dir}.", "zh-CN": "未配置服务商且 {dir} 中无定义文件。" },
   "provider.cannotReadConfig": { en: "Cannot read {path}: {err}", "zh-CN": "无法读取 {path}: {err}" },
 
@@ -267,6 +370,11 @@ const STRINGS = {
   "project.exitWizardDesc": { en: "Close setup dialog (or Esc)", "zh-CN": "关闭设置对话框 (或 Esc)" },
   "project.configureSwitchesTitle": { en: "Configure Switches — {config}", "zh-CN": "配置开关 — {config}" },
   "project.configureSwitchesPlaceholder": { en: "Select switch to edit (Esc cancels)", "zh-CN": "选择要编辑的开关 (Esc 取消)" },
+  "project.setupHeader": { en: "Setup", "zh-CN": "设置" },
+  "project.maintainHeader": { en: "Maintenance", "zh-CN": "维护" },
+  "project.advisorHeader": { en: "Advisor", "zh-CN": "顾问" },
+  "project.guardsHeader": { en: "Quality Guards", "zh-CN": "质量护栏" },
+  "project.actionsHeader": { en: "Actions", "zh-CN": "操作" },
   "project.saveApply": { en: "💾 Save & Apply Changes", "zh-CN": "💾 保存并应用变更" },
   "project.saveApplyDesc": { en: "Write switches to config file", "zh-CN": "将开关写入配置文件" },
   "project.backToMain": { en: "🔙 Back to Main Menu", "zh-CN": "🔙 返回主菜单" },
@@ -292,7 +400,7 @@ const STRINGS = {
   "project.operationFailed": { en: "Operation failed: {err}", "zh-CN": "操作失败: {err}" },
   "project.saveFailedMsg": { en: "Save failed: {err}", "zh-CN": "保存失败: {err}" },
   "project.indexFailed": { en: "Index refresh failed: {err}", "zh-CN": "索引刷新失败: {err}" },
-  "project.syncMissing": { en: "⚠️ Config file (.opencode/opencode.jsonc) does not exist.\nPlease run Init first.", "zh-CN": "⚠️ 配置文件 (.opencode/opencode.jsonc) 不存在。\n请先运行初始化。" },
+  "project.syncMissing": { en: "⚠️ Project config does not exist.\nPlease run Init first.", "zh-CN": "⚠️ 项目配置文件不存在。\n请先运行初始化。" },
   "project.syncUpToDate": { en: "ℹ️ Configuration is already up to date.\nAll latest template switch keys are already present.", "zh-CN": "ℹ️ 配置已是最新。\n所有最新模板开关键已存在。" },
   "project.syncAdded": { en: "✅ Successfully appended {count} new switch line(s) to config:\n\n{lines}\n\nExisting configuration content was preserved.", "zh-CN": "✅ 已追加 {count} 个新开关行到配置:\n\n{lines}\n\n已保留现有配置内容。" },
   "project.syncMalformed": { en: "❌ Configuration file is malformed (missing proper closing brace).\nPlease fix the file manually.", "zh-CN": "❌ 配置文件格式错误（缺少正确的闭合括号）。\n请手动修复文件。" },
@@ -317,6 +425,8 @@ const STRINGS = {
   "queue.viewActionDesc": { en: "Show the complete message text", "zh-CN": "显示完整消息文本" },
   "queue.backToQueue": { en: "( ← Back to queue )", "zh-CN": "( ← 返回队列 )" },
   "queue.listTitle": { en: "Message queue — {count} queued{busy}", "zh-CN": "消息队列 — {count} 条排队{busy}" },
+  "queue.queuedHeader": { en: "Queued", "zh-CN": "排队中" },
+  "queue.actionsHeader": { en: "Actions", "zh-CN": "操作" },
   "queue.sessionBusy": { en: " (session busy)", "zh-CN": " (会话忙碌)" },
   "queue.sessionIdle": { en: " (session idle)", "zh-CN": " (会话空闲)" },
   "queue.listPlaceholder": { en: "Pick a queued message to edit or cancel (Esc closes)", "zh-CN": "选择排队消息进行编辑或取消 (Esc 关闭)" },
@@ -370,58 +480,71 @@ export function tr(key: StringKey, params?: Record<string, string | number>): st
   return text
 }
 
-// ─── Language switch menu item (used by each wizard's main menu) ─────
+// ─── Language switch (shared by all wizard main menus) ─────────────
 
 export const SWITCH_LANG = "__switch_lang__"
 
 /**
- * Returns a menu option for language switching, to be inserted into
- * any wizard's main DialogSelect options array.
+ * Central language-switch action. With two registered locales it
+ * toggles directly (one-click); with more it opens a locale picker.
+ * `reopen` re-renders the caller's menu so it refreshes in the new
+ * language. Adding a locale requires NO wizard-side changes.
  *
  * Usage:
- *   import { languageOption, SWITCH_LANG } from "./i18n"
- *   // in options array:
- *   languageOption(api)
+ *   import { languageOption, switchLanguage, SWITCH_LANG } from "./i18n"
+ *   // in options array:  languageOption(api)
  *   // in onSelect:
  *   if (option.value === SWITCH_LANG) {
- *     toggleLocale(api)
- *     // re-open this menu
+ *     switchLanguage(api, () => showMainMenu(api))
+ *     return
  *   }
  */
-export function languageOption(api: TuiPluginApi): DialogOption<string> {
-  const other = currentLocale === "en" ? "zh-CN" : "en"
+export function switchLanguage(api: TuiPluginApi, reopen: () => void): void {
+  const apply = (code: Locale) => {
+    setLocale(api, code)
+    try {
+      api.ui.toast({ title: tr("common.langTitle"), message: tr("common.langSwitched", { lang: localeName(code) }), variant: "info" })
+    } catch { /* ui.toast unsupported */ }
+    reopen()
+  }
+  if (LOCALES.length <= 2) {
+    apply(nextLocale())
+    return
+  }
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<Locale>({
+        title: tr("common.langTitle"),
+        placeholder: tr("common.langPickPlaceholder"),
+        options: LOCALES.map((l) => ({ title: l.name, value: l.code })),
+        current: currentLocale,
+        onSelect: (option) => {
+          navigated = true
+          apply(option.value)
+        },
+      }),
+    () => {
+      // Esc closes the picker — return to the caller's menu; the host
+      // clears the dialog first, so delay one beat before re-opening.
+      if (!navigated) setTimeout(reopen, 0)
+    },
+  )
+}
+
+/**
+ * Menu option for language switching, inserted into any wizard's main
+ * DialogSelect options array. Handle it via `switchLanguage` above.
+ */
+export function languageOption(_api: TuiPluginApi): DialogOption<string> {
+  // two locales → show the direct toggle target; more → the picker decides
+  const title = LOCALES.length <= 2
+    ? `🌐 ${localeName(currentLocale)} → ${localeName(nextLocale())}`
+    : `🌐 ${localeName(currentLocale)}`
   return {
-    title: `🌐 ${localeName(currentLocale)} → ${localeName(other)}`,
+    title,
     value: SWITCH_LANG,
     description: tr("common.langDesc"),
   }
 }
 
-// ─── withBookends: smart option list builder ─────────────────────────
-//
-// When the dynamic items list exceeds `threshold` (default 10),
-// the fixed action items (Back, Apply, etc.) are duplicated at BOTH
-// the top and bottom of the list — so the user never has to scroll
-// more than half the list to reach them.
-//
-// When ≤ threshold, fixed items appear only at the bottom (the
-// conventional position).
-
-/**
- * Build a DialogSelect options array with smart bookend placement.
- *
- * @param items    Dynamic list items (agents, profiles, models, etc.)
- * @param fixed    Fixed action items (Back, Apply, Cancel…) — placed at end, and also at start when list is long
- * @param threshold Item count above which fixed items are duplicated at the top (default 10)
- * @returns Final options array
- */
-export function withBookends<V extends string>(
-  items: DialogOption<V>[],
-  fixed: DialogOption<V>[],
-  threshold = 10,
-): DialogOption<V>[] {
-  if (items.length > threshold) {
-    return [...fixed, ...items, ...fixed]
-  }
-  return [...items, ...fixed]
-}

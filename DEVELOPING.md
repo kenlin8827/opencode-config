@@ -475,8 +475,10 @@ agents/
 
 profiles/                     # Tier→model presets applied via /profile
 providers/
+├── antigravity-router.json   # Custom provider definition (merged via /provider add)
 ├── claude-code-router.json   # Custom provider definition (merged via /provider add)
 ├── codex-router.json         # Custom provider definition (merged via /provider add)
+├── llm-router.json           # Custom provider definition (merged via /provider add)
 └── qoder-router.json         # Custom provider definition (merged via /provider add)
 
 plugins/

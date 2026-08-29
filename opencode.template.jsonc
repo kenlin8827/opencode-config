@@ -5,15 +5,19 @@
   "model": "llm-router/standard",
   "permission": "allow",
   "default_agent": "build",
+  // All entries MUST use absolute ~/ paths: opencode resolves relative
+  // instruction paths against the current project directory (globUp from
+  // the working dir), not the config dir — a relative entry would silently
+  // fail to load in any project that lacks a matching instructions/*.md.
   "instructions": [
     "~/.config/opencode/instructions/output-protocol.md",
-    "instructions/test-scope.md",
-    "instructions/rfc-keywords.md",
-    "instructions/coding-principles.md",
-    "instructions/sdd-principles.md",
-    "instructions/verification-honesty.md",
-    "instructions/comment-strategy.md",
-    "instructions/sql-migration.md"
+    "~/.config/opencode/instructions/test-scope.md",
+    "~/.config/opencode/instructions/rfc-keywords.md",
+    "~/.config/opencode/instructions/coding-principles.md",
+    "~/.config/opencode/instructions/sdd-principles.md",
+    "~/.config/opencode/instructions/verification-honesty.md",
+    "~/.config/opencode/instructions/comment-strategy.md",
+    "~/.config/opencode/instructions/sql-migration.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-mem, etc.) are managed and enabled via install/options.jsonc.

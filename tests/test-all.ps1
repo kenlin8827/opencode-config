@@ -43,10 +43,13 @@ Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
-# instructions array: output-protocol.md + test-scope.md + rfc-keywords.md + coding-principles.md + sdd-principles.md
+# instructions array: output-protocol + test-scope + rfc-keywords + coding-principles
+# + sdd-principles + verification-honesty + comment-strategy + sql-migration
 # (context-efficiency.md was removed — backend routing + token rules are now
 # injected dynamically by plugins/project-profiler with the session profile)
-Check "instructions count = 5" ($config.instructions.Count -eq 5)
+Check "instructions count = 8" ($config.instructions.Count -eq 8)
+Check "instructions all use absolute ~/ paths" `
+    (($config.instructions | Where-Object { $_ -notlike '~/.config/opencode/*' }).Count -eq 0)
 Check "instructions contains sdd-principles.md" `
     ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md" -or $config.instructions -contains "instructions/sdd-principles.md")
 Check "instructions does NOT include context-efficiency.md" `
@@ -427,18 +430,26 @@ Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -
 
 # Profile wizard plugin checks (plugins/tui/profile-wizard.ts — TUI-only, registered via tui.json)
 $pfPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\profile-wizard.ts" -Raw
+$i18nContent = Get-Content "$PSScriptRoot\..\plugins\tui\i18n.ts" -Raw
 Check "profile-wizard.ts: imports TuiPlugin from plugin/tui" ($pfPlugin -match "@opencode-ai/plugin/tui")
 Check "profile-wizard.ts: slash command name is profile" ($pfPlugin -match 'slashName: "profile"')
 Check "profile-wizard.ts: registers palette command" ($pfPlugin -match 'namespace: "palette"')
 Check "profile-wizard.ts: has Edit agent→tier mapping sub-menu" ($pfPlugin -match "EDIT_TIERS")
 Check "profile-wizard.ts: has editAgentTier function" ($pfPlugin -match "function editAgentTier")
+Check "profile-wizard.ts: has Edit tier→model live sub-menu" ($pfPlugin -match "EDIT_TIER_MODELS")
+Check "profile-wizard.ts: has editTierModels function" ($pfPlugin -match "function editTierModels")
+Check "profile-wizard.ts: has applyTierModelChanges function" ($pfPlugin -match "async function applyTierModelChanges")
+Check "profile-wizard.ts: live tier→model syncs active profile file" ($pfPlugin -match "writeProfileAtomic\(activeName")
+Check "profile-wizard.ts: profile selection has confirm gate showing tier→model" ($pfPlugin -match "function confirmApplyProfile")
+Check "profile-wizard.ts: delete lives in tier review, goes straight to confirm dialog" (($pfPlugin -match "confirmDeleteProfile\(api, name, profile, overrides\)") -and ($pfPlugin -notmatch "promptDeleteProfile"))
+Check "profile-wizard.ts: dialogs group data vs actions via category headers, no fake divider rows" (($pfPlugin -match "profile\.actionsHeader") -and ($pfPlugin -notmatch 'option\.value === SEP') -and ($i18nContent -notmatch "function sepItem"))
 Check "profile-wizard.ts: has pickAgentTier function" ($pfPlugin -match "function pickAgentTier")
 Check "profile-wizard.ts: has applyAgentTierChanges function" ($pfPlugin -match "async function applyAgentTierChanges")
 Check "profile-wizard.ts: has writeTiersFileAtomic function" ($pfPlugin -match "function writeTiersFileAtomic")
 Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIERS")
 Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
 Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
-Check "profile-wizard.ts: tier editor has Back button to return to profile picker" ($pfPlugin -match '"__back__"')
+Check "profile-wizard.ts: no explicit back items, Esc is the only back nav" (($pfPlugin -notmatch '"__back__"') -and ($pfPlugin -match 'navigated'))
 Check "tui.json: profile-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/profile-wizard.ts")
 
 # SDD plugin checks (plugins/sdd/ — registered programmatically)

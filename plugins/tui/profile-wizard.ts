@@ -16,21 +16,30 @@ import type {
  *   /profile                — slash command (opens the picker)
  *   command palette (ctrl+p) — "Switch model profile"
  *
- * Main menu has three entry points:
+ * Main menu entry points (most frequent first):
  *
- *   1. Edit: Agent→Tier   — reassign which tier an agent belongs to
+ *   1. Select: Profile     — pick a profile, review its tier→model
+ *      mapping, then confirm to apply (profile list → confirm)
+ *
+ *   2. Edit: Agent→Tier   — reassign which tier an agent belongs to
  *      (writes tiers.json; agent list → tier picker → Apply/Cancel)
  *
- *   2. Manage: Profile→Models — edit a profile's tier→model mapping
+ *   3. Edit: Tier→Model   — change the live tier→model mapping directly
+ *      (tier list → pick provider → pick model → Apply; syncs the
+ *      active profile file if present; no profile required)
+ *
+ *   4. Manage: Profile→Models — edit a profile's tier→model mapping
  *      (profile list → tier list with model refs → pick provider →
- *      pick model → Apply/Cancel; plus Add/Delete profile)
+ *      pick model → Apply/Cancel; add profile from the list, delete
+ *      it from its tier review screen with a confirm dialog)
  *
- *   3. Select: Profile     — pick a profile and apply immediately
- *      (profile list → apply)
+ *   "Add: Profile" also lives in the Actions group (low-frequency —
+ *   not pinned on top like the provider wizard's ➕ Add custom provider).
  *
- * Every dialog level intercepts Esc (via dialog.replace onClose
- * callback + navigated flag) to go back one level instead of
- * closing the entire dialog stack.
+ * Every dialog level uses Esc as the only back navigation (via
+ * dialog.replace onClose callback + navigated flag): Esc goes back
+ * one level instead of closing the entire dialog stack. No explicit
+ * back items exist in the option lists.
  *
  * Profiles are JSON files in ~/.config/opencode/profiles/ with shape:
  *   { "description": ..., "tiers": { "<tier>": "<provider>/<model_id>" } }
@@ -51,7 +60,7 @@ import {
 } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
-import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, withBookends } from "./i18n"
+import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG } from "./i18n"
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
@@ -63,10 +72,10 @@ const APPLY = "__apply__"
 const CANCEL = "__cancel__"
 const TYPE_CUSTOM = "__type_custom__"
 const TIER_PREFIX = "tier:"
-const BACK = "__back__"
 const ADD_PROFILE = "__add_profile__"
 const DELETE_PROFILE = "__delete_profile__"
 const EDIT_TIERS = "__edit_tiers__"
+const EDIT_TIER_MODELS = "__edit_tier_models__"
 const MANAGE_MODELS = "__manage_models__"
 const SELECT_PROFILE = "__select_profile__"
 
@@ -288,7 +297,7 @@ function applyProfile(
   const patch: OpenCodeConfig = { agent: {} }
 
   if (!config.agent) {
-    throw new Error("opencode.jsonc has no agent section")
+    throw new Error("opencode config has no agent section")
   }
   if (Object.keys(tierMap).length === 0) {
     throw new Error(`tiers.json missing or empty: ${TIERS_FILE}`)
@@ -401,7 +410,7 @@ function tierDescription(tier: string): string {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// ┌─ Level 1: Main menu — three entry points ─────────────────────────
+// ┌─ Level 1: Main menu — four entry points ──────────────────────────────
 // ════════════════════════════════════════════════════════════════════
 
 function startWizard(api: TuiPluginApi): void {
@@ -409,37 +418,58 @@ function startWizard(api: TuiPluginApi): void {
   const active = getActiveProfile()
   const sorted = Array.from(profiles.keys()).sort()
 
+  const actionsCat = tr("profile.actionsHeader")
+  const interfaceCat = tr("common.interfaceHeader")
+
   api.ui.dialog.replace(() =>
     api.ui.DialogSelect<string>({
       title: tr("profile.mainTitle"),
       placeholder: tr("profile.mainPlaceholder"),
       options: [
         {
+          title: active ? tr("profile.selectProfileActive", { active }) : tr("profile.selectProfile"),
+          value: SELECT_PROFILE,
+          description: tr("profile.selectProfileDesc"),
+          category: actionsCat,
+        },
+        {
           title: tr("profile.editAgentTier"),
           value: EDIT_TIERS,
           description: tr("profile.editAgentTierDesc"),
+          category: actionsCat,
+        },
+        {
+          title: tr("profile.editTierModels"),
+          value: EDIT_TIER_MODELS,
+          description: tr("profile.editTierModelsDesc"),
+          category: actionsCat,
         },
         {
           title: tr("profile.manageModels"),
           value: MANAGE_MODELS,
           description: tr("profile.manageModelsDesc"),
+          category: actionsCat,
         },
         {
-          title: active ? tr("profile.selectProfileActive", { active }) : tr("profile.selectProfile"),
-          value: SELECT_PROFILE,
-          description: tr("profile.selectProfileDesc"),
+          // adding is low-frequency — keep it discoverable but unpinned
+          title: tr("profile.addProfile"),
+          value: ADD_PROFILE,
+          description: tr("profile.addProfileDesc"),
+          category: actionsCat,
         },
-        languageOption(api),
+        { ...languageOption(api), category: interfaceCat },
       ],
       onSelect: (option) => {
         if (option.value === SWITCH_LANG) {
-          const next = toggleLocale(api)
-          toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
-          startWizard(api)
+          switchLanguage(api, () => startWizard(api))
           return
         }
         if (option.value === EDIT_TIERS) {
           editAgentTier(api, loadTierMap(), {})
+          return
+        }
+        if (option.value === EDIT_TIER_MODELS) {
+          editTierModels(api, {})
           return
         }
         if (option.value === MANAGE_MODELS) {
@@ -448,6 +478,10 @@ function startWizard(api: TuiPluginApi): void {
         }
         if (option.value === SELECT_PROFILE) {
           selectProfile(api)
+          return
+        }
+        if (option.value === ADD_PROFILE) {
+          promptAddProfile(api, () => startWizard(api))
           return
         }
       },
@@ -492,8 +526,10 @@ function editAgentTier(
           ? tr("profile.editTierTitlePending", { count: Object.keys(changed).length })
           : tr("profile.editTierTitle"),
         placeholder: tr("profile.editTierPlaceholder"),
-        options: withBookends(
-          sorted.map((name) => {
+        // The host DialogSelect renders `category` as bold accent section
+        // headers that are NOT focusable options — real grouping, no fake rows.
+        options: [
+          ...sorted.map((name) => {
             const tier = changed[name] ?? tierMap[name] ?? "standard"
             const isChanged = changed[name] !== undefined
             const oldTier = tierMap[name] ?? "standard"
@@ -501,31 +537,22 @@ function editAgentTier(
               title: isChanged ? `${name}  (${oldTier} → ${tier})` : `${name}  (${tier})`,
               value: name,
               description: tr("profile.tierModelDesc", { tier, model: agents[name].model ?? tr("common.unset") }),
+              category: tr("profile.agentsHeader"),
             }
           }),
-          [
-            ...(hasChanges
-              ? [{
-                  title: tr("common.applyChanges"),
-                  value: APPLY,
-                  description: tr("profile.applyChangesDesc", { count: Object.keys(changed).length, s: Object.keys(changed).length > 1 ? "s" : "" }),
-                }]
-              : []),
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToMain"),
-            },
-          ],
-        ),
+          ...(hasChanges
+            ? [{
+                title: tr("common.applyChanges"),
+                value: APPLY,
+                description: tr("profile.applyChangesDesc", { count: Object.keys(changed).length, s: Object.keys(changed).length > 1 ? "s" : "" }),
+                category: tr("profile.actionsHeader"),
+              }]
+            : []),
+        ],
         onSelect: (option) => {
           navigated = true
           if (option.value === APPLY) {
             void applyAgentTierChanges(api, tierMap, changed)
-            return
-          }
-          if (option.value === BACK) {
-            startWizard(api)
             return
           }
           const currentTier = changed[option.value] ?? tierMap[option.value] ?? agents[option.value].tier ?? "standard"
@@ -552,24 +579,13 @@ function pickAgentTier(
       api.ui.DialogSelect<string>({
         title: tr("profile.pickTierTitle", { agent: agentName, tier: currentTier }),
         placeholder: tr("profile.pickTierPlaceholder"),
-        options: [
-          ...VALID_TIERS.map((t) => ({
-            title: t === currentTier ? `${t}  ${tr("common.currentMarker")}` : t,
-            value: t,
-            description: tierDescription(t),
-          })),
-          {
-            title: tr("common.back"),
-            value: BACK,
-            description: tr("profile.backToAgentList"),
-          },
-        ],
+        options: VALID_TIERS.map((t) => ({
+          title: t === currentTier ? `${t}  ${tr("common.currentMarker")}` : t,
+          value: t,
+          description: tierDescription(t),
+        })),
         onSelect: (option) => {
           navigated = true
-          if (option.value === BACK) {
-            editAgentTier(api, tierMap, changed)
-            return
-          }
           const newTier = option.value
           if (newTier !== currentTier) {
             changed[agentName] = newTier
@@ -659,7 +675,292 @@ async function applyAgentTierChanges(
 }
 
 // ════════════════════════════════════════════════════════════════════
-// ┌─ Branch 2: Manage: Profile→Models ─────────────────────────────────
+// ┌─ Branch 2: Edit: Tier→Model (live config, no profile) ───────────
+// ════════════════════════════════════════════════════════════════════
+
+// Level 2: Tier list with live model refs
+function editTierModels(api: TuiPluginApi, overrides: Record<string, string>): void {
+  let config: OpenCodeConfig
+  try {
+    config = readConfig(CONFIG_FILE)
+  } catch (err) {
+    toast(api, tr("profile.readConfigFailed", { err: (err as Error).message }), "error")
+    startWizard(api)
+    return
+  }
+
+  const tierMap = loadTierMap()
+  const current = getCurrentTierMapping(config, tierMap)
+
+  // Tiers worth listing: those in use by agents, plus tiers defined by
+  // the active profile (so a ref can be prepared before any agent uses it).
+  const activeName = getActiveProfile()
+  const activeProfile = activeName ? loadProfiles().get(activeName) ?? null : null
+  const tierSet = new Set<string>(Object.keys(current))
+  if (activeProfile) {
+    for (const tier of Object.keys(activeProfile.tiers)) tierSet.add(tier)
+  }
+  const extras = Array.from(tierSet).filter((t) => !VALID_TIERS.includes(t as (typeof VALID_TIERS)[number])).sort()
+  const tiers = [...VALID_TIERS.filter((t) => tierSet.has(t)), ...extras]
+
+  if (tiers.length === 0) {
+    toast(api, tr("profile.noTierModels"), "warning")
+    startWizard(api)
+    return
+  }
+
+  const hasChanges = Object.keys(overrides).length > 0
+
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<string>({
+        title: hasChanges
+          ? tr("profile.editTierModelsTitlePending", { count: Object.keys(overrides).length })
+          : tr("profile.editTierModelsTitle"),
+        placeholder: tr("profile.editTierModelsPlaceholder"),
+        options: [
+          ...tiers.map((tier) => {
+            const ref = overrides[tier] ?? current[tier] ?? tr("common.unset")
+            return {
+              title: tier,
+              value: `${TIER_PREFIX}${tier}`,
+              description:
+                overrides[tier] !== undefined && current[tier] !== undefined
+                  ? tr("profile.customized", { override: overrides[tier], ref: current[tier] })
+                  : ref,
+              category: tr("profile.tiersHeader"),
+            }
+          }),
+          ...(hasChanges
+            ? [{
+                title: tr("common.applyChanges"),
+                value: APPLY,
+                description: tr("profile.applyTierModelsDesc", { count: Object.keys(overrides).length, s: Object.keys(overrides).length > 1 ? "s" : "" }),
+                category: tr("profile.actionsHeader"),
+              }]
+            : []),
+        ],
+        onSelect: (option) => {
+          navigated = true
+          if (option.value === APPLY) {
+            void applyTierModelChanges(api, overrides)
+            return
+          }
+          const tier = option.value.slice(TIER_PREFIX.length)
+          void pickLiveTierProvider(api, overrides, tier)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => startWizard(api), 0)
+    },
+  )
+}
+
+// Level 3: Provider picker (live tier edit)
+async function pickLiveTierProvider(
+  api: TuiPluginApi,
+  overrides: Record<string, string>,
+  tier: string,
+): Promise<void> {
+  const catalog = await loadCatalog(api)
+  const ids = Object.keys(catalog).sort()
+  if (ids.length === 0) {
+    promptLiveTierRef(api, overrides, tier)
+    return
+  }
+
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<string>({
+        title: tr("profile.pickTierModelProviderTitle", { tier }),
+        placeholder: tr("profile.pickProviderPlaceholder"),
+        options: [
+          ...ids.map((id) => {
+            const p = catalog[id]
+            const tags = [
+              tr("common.modelCount", { count: Object.keys(p.models).length }),
+              p.source === "config" ? tr("common.config") : tr("common.builtin"),
+            ]
+            if (p.connected) tags.push(tr("common.connected"))
+            return {
+              title: id,
+              value: id,
+              description: tags.join(" · "),
+              category: tr("profile.providersHeader"),
+            }
+          }),
+          {
+            title: tr("profile.typeCustomRef"),
+            value: TYPE_CUSTOM,
+            description: tr("profile.typeCustomRefDesc"),
+            category: tr("profile.actionsHeader"),
+          },
+        ],
+        onSelect: (option) => {
+          navigated = true
+          if (option.value === TYPE_CUSTOM) {
+            promptLiveTierRef(api, overrides, tier)
+            return
+          }
+          const provider = catalog[option.value]
+          if (provider) {
+            pickLiveTierModel(api, overrides, tier, option.value, provider.models)
+          }
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => editTierModels(api, overrides), 0)
+    },
+  )
+}
+
+// Level 4: Model picker (live tier edit)
+function pickLiveTierModel(
+  api: TuiPluginApi,
+  overrides: Record<string, string>,
+  tier: string,
+  providerId: string,
+  models: Record<string, CatalogModel>,
+): void {
+  const entries = Object.entries(models)
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogSelect<string>({
+        title: tr("profile.pickTierModelModelTitle", { tier, provider: providerId }),
+        placeholder: tr("profile.pickModelPlaceholder", { count: entries.length }),
+        options: entries.map(([key, m]) => ({
+          title: key,
+          value: key,
+          description: m.name && m.name !== key ? m.name : undefined,
+        })),
+        onSelect: (option) => {
+          navigated = true
+          overrides[tier] = `${providerId}/${option.value}`
+          toast(api, tr("profile.liveTierModelChanged", { tier, provider: providerId, model: option.value }), "info")
+          editTierModels(api, overrides)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => void pickLiveTierProvider(api, overrides, tier), 0)
+    },
+  )
+}
+
+// Manual entry fallback (live tier edit)
+function promptLiveTierRef(
+  api: TuiPluginApi,
+  overrides: Record<string, string>,
+  tier: string,
+): void {
+  const current = overrides[tier] ?? ""
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogPrompt({
+        title: tr("profile.promptTierModelRefTitle", { tier }),
+        placeholder: tr("profile.promptTierRefPlaceholder"),
+        value: current,
+        onConfirm: (value) => {
+          navigated = true
+          const v = value.trim()
+          if (v && v !== current) {
+            if (!v.includes("/") || v.startsWith("/") || v.endsWith("/")) {
+              toast(api, tr("profile.invalidRef", { ref: v }), "error")
+            } else {
+              overrides[tier] = v
+              toast(api, tr("profile.liveTierModelChanged", { tier, provider: v.split("/")[0] ?? "", model: v.split("/")[1] ?? v }), "info")
+            }
+          }
+          editTierModels(api, overrides)
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => editTierModels(api, overrides), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => editTierModels(api, overrides), 0)
+    },
+  )
+}
+
+// Apply live tier→model changes: rewrite opencode.jsonc agent models per
+// tier (root model tracks standard), then sync the active profile file
+// when present so a later profile re-apply does not revert the change.
+async function applyTierModelChanges(
+  api: TuiPluginApi,
+  overrides: Record<string, string>,
+): Promise<void> {
+  const changeCount = Object.keys(overrides).length
+  if (changeCount === 0) {
+    startWizard(api)
+    return
+  }
+
+  let config: OpenCodeConfig
+  try {
+    config = readConfig(CONFIG_FILE)
+  } catch (err) {
+    api.ui.dialog.clear()
+    toast(api, tr("profile.readConfigFailed", { err: (err as Error).message }), "error")
+    return
+  }
+
+  const tierMap = loadTierMap()
+  const tiersInUse = new Set(Object.values(tierMap))
+  const merged: Record<string, string> = {}
+  for (const [tier, ref] of Object.entries({ ...getCurrentTierMapping(config, tierMap), ...overrides })) {
+    // Tiers no agent uses yet have nowhere to land in the live config;
+    // they persist via the active-profile sync above instead.
+    if (tiersInUse.has(tier)) merged[tier] = ref
+  }
+  if (Object.keys(merged).length === 0) {
+    api.ui.dialog.clear()
+    toast(api, tr("profile.noTierModels"), "warning")
+    return
+  }
+
+  // Keep the active profile file in sync so it stays a faithful source
+  // of truth for the live config.
+  const activeName = getActiveProfile()
+  const activeProfile = activeName ? loadProfiles().get(activeName) ?? null : null
+  if (activeName && activeProfile) {
+    const synced: Record<string, string> = {}
+    for (const [tier, ref] of Object.entries(overrides)) {
+      if (tier in activeProfile.tiers && activeProfile.tiers[tier] !== ref) synced[tier] = ref
+    }
+    if (Object.keys(synced).length > 0) {
+      try {
+        writeProfileAtomic(activeName, { ...activeProfile, tiers: { ...activeProfile.tiers, ...synced } })
+      } catch {
+        // non-fatal: live apply still proceeds; profile drifts until next sync
+      }
+    }
+  }
+
+  try {
+    const { updated, details, patch } = applyProfile(config, { tiers: merged }, tierMap)
+    const live = await applyLive(api, patch)
+    if (!live) {
+      writeConfigAtomic(CONFIG_FILE, config)
+    }
+    api.ui.dialog.clear()
+    toast(
+      api,
+      tr("profile.tierModelsApplied", { count: updated, details: details.join("; "), live: live ? tr("profile.liveNoRestart") : tr("profile.restartToApply") }),
+      "success",
+    )
+  } catch (err) {
+    api.ui.dialog.clear()
+    toast(api, tr("profile.applyFailed", { name: "tier→model", err: (err as Error).message }), "error")
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ┌─ Branch 3: Manage: Profile→Models ─────────────────────────────────
 // ════════════════════════════════════════════════════════════════════
 
 // Level 2: Profile list (for managing models)
@@ -674,44 +975,24 @@ function manageProfileModels(api: TuiPluginApi): void {
       api.ui.DialogSelect<string>({
         title: tr("profile.manageTitle"),
         placeholder: tr("profile.managePlaceholder"),
-        options: withBookends(
-          sorted.map((name) => ({
+        options: [
+          ...sorted.map((name) => ({
             title: name === active ? `${name}  ← active` : name,
             value: name,
             description: profiles.get(name)!.description?.slice(0, 100),
+            category: tr("profile.profilesHeader"),
           })),
-          [
-            {
-              title: tr("profile.addProfile"),
-              value: ADD_PROFILE,
-              description: tr("profile.addProfileDesc"),
-            },
-            ...(sorted.length > 0
-              ? [{
-                  title: tr("profile.deleteProfile"),
-                  value: DELETE_PROFILE,
-                  description: tr("profile.deleteProfileDesc"),
-                }]
-              : []),
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToMain"),
-            },
-          ],
-        ),
+          {
+            title: tr("profile.addProfile"),
+            value: ADD_PROFILE,
+            description: tr("profile.addProfileDesc"),
+            category: tr("profile.actionsHeader"),
+          },
+        ],
         onSelect: (option) => {
           navigated = true
           if (option.value === ADD_PROFILE) {
             promptAddProfile(api)
-            return
-          }
-          if (option.value === DELETE_PROFILE) {
-            promptDeleteProfile(api)
-            return
-          }
-          if (option.value === BACK) {
-            startWizard(api)
             return
           }
           const profile = profiles.get(option.value)
@@ -742,45 +1023,47 @@ function reviewProfileTiers(
       api.ui.DialogSelect<string>({
         title: tr("profile.reviewTiersTitle", { name }),
         placeholder: tr("profile.reviewTiersPlaceholder"),
-        options: withBookends(
-          Object.entries(profile.tiers).map(([tier, ref]) => ({
+        options: [
+          ...Object.entries(profile.tiers).map(([tier, ref]) => ({
             title: tier,
             value: `${TIER_PREFIX}${tier}`,
             description:
               overrides[tier] !== undefined
                 ? tr("profile.customized", { override: overrides[tier], ref })
                 : ref,
+            category: tr("profile.tiersHeader"),
           })),
-          [
-            {
-              title: tr("common.applyChanges"),
-              value: APPLY,
-              description: tr("profile.applyChangesModelDesc"),
-            },
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToProfileList"),
-            },
-            {
-              title: tr("common.cancel"),
-              value: CANCEL,
-              description: tr("profile.cancelDiscard"),
-            },
-          ],
-        ),
+          {
+            title: tr("common.applyChanges"),
+            value: APPLY,
+            description: tr("profile.applyChangesModelDesc"),
+            category: tr("profile.actionsHeader"),
+          },
+          {
+            title: tr("common.cancel"),
+            value: CANCEL,
+            description: tr("profile.cancelDiscard"),
+            category: tr("profile.actionsHeader"),
+          },
+          {
+            title: tr("profile.deleteProfile"),
+            value: DELETE_PROFILE,
+            description: tr("profile.deleteProfileDesc"),
+            category: tr("profile.actionsHeader"),
+          },
+        ],
         onSelect: (option) => {
           navigated = true
           if (option.value === APPLY) {
             void applyProfileModelChanges(api, name, profile, overrides)
             return
           }
-          if (option.value === BACK) {
+          if (option.value === CANCEL) {
             manageProfileModels(api)
             return
           }
-          if (option.value === CANCEL) {
-            manageProfileModels(api)
+          if (option.value === DELETE_PROFILE) {
+            confirmDeleteProfile(api, name, profile, overrides)
             return
           }
           const tier = option.value.slice(TIER_PREFIX.length)
@@ -816,8 +1099,8 @@ async function pickProvider(
       api.ui.DialogSelect<string>({
         title: tr("profile.pickProviderTitle", { name, tier }),
         placeholder: tr("profile.pickProviderPlaceholder"),
-        options: withBookends(
-          ids.map((id) => {
+        options: [
+          ...ids.map((id) => {
             const p = catalog[id]
             const tags = [
               tr("common.modelCount", { count: Object.keys(p.models).length }),
@@ -828,29 +1111,20 @@ async function pickProvider(
               title: id,
               value: id,
               description: tags.join(" · "),
+              category: tr("profile.providersHeader"),
             }
           }),
-          [
-            {
-              title: tr("profile.typeCustomRef"),
-              value: TYPE_CUSTOM,
-              description: tr("profile.typeCustomRefDesc"),
-            },
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToTierReview"),
-            },
-          ],
-        ),
+          {
+            title: tr("profile.typeCustomRef"),
+            value: TYPE_CUSTOM,
+            description: tr("profile.typeCustomRefDesc"),
+            category: tr("profile.actionsHeader"),
+          },
+        ],
         onSelect: (option) => {
           navigated = true
           if (option.value === TYPE_CUSTOM) {
             promptTierRef(api, name, profile, overrides, tier)
-            return
-          }
-          if (option.value === BACK) {
-            reviewProfileTiers(api, name, profile, overrides)
             return
           }
           const provider = catalog[option.value]
@@ -882,26 +1156,13 @@ function pickModel(
       api.ui.DialogSelect<string>({
         title: tr("profile.pickModelTitle", { name, tier, provider: providerId }),
         placeholder: tr("profile.pickModelPlaceholder", { count: entries.length }),
-        options: withBookends(
-          entries.map(([key, m]) => ({
-            title: key,
-            value: key,
-            description: m.name && m.name !== key ? m.name : undefined,
-          })),
-          [
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToProviderList"),
-            },
-          ],
-        ),
+        options: entries.map(([key, m]) => ({
+          title: key,
+          value: key,
+          description: m.name && m.name !== key ? m.name : undefined,
+        })),
         onSelect: (option) => {
           navigated = true
-          if (option.value === BACK) {
-            void pickProvider(api, name, profile, overrides, tier)
-            return
-          }
           overrides[tier] = `${providerId}/${option.value}`
           toast(api, tr("profile.modelChanged", { name, tier, provider: providerId, model: option.value }), "info")
           reviewProfileTiers(api, name, profile, overrides)
@@ -922,13 +1183,16 @@ function promptTierRef(
   tier: string,
 ): void {
   const current = overrides[tier] ?? profile.tiers[tier]
-  api.ui.dialog.replace(() =>
-    api.ui.DialogPrompt({
-      title: tr("profile.promptTierRefTitle", { name, tier }),
-      placeholder: tr("profile.promptTierRefPlaceholder"),
-      value: current,
-      onConfirm: (value) => {
-        const v = value.trim()
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogPrompt({
+        title: tr("profile.promptTierRefTitle", { name, tier }),
+        placeholder: tr("profile.promptTierRefPlaceholder"),
+        value: current,
+        onConfirm: (value) => {
+          navigated = true
+          const v = value.trim()
         if (v && v !== current) {
           if (!v.includes("/") || v.startsWith("/") || v.endsWith("/")) {
             toast(
@@ -942,9 +1206,15 @@ function promptTierRef(
           }
         }
         reviewProfileTiers(api, name, profile, overrides)
-      },
-      onCancel: () => setTimeout(() => reviewProfileTiers(api, name, profile, overrides), 0),
-    }),
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => reviewProfileTiers(api, name, profile, overrides), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => reviewProfileTiers(api, name, profile, overrides), 0)
+    },
   )
 }
 
@@ -999,20 +1269,25 @@ async function applyProfileModelChanges(
 
 // ─── Add / Delete profile ────────────────────────────────────────────
 
-function promptAddProfile(api: TuiPluginApi): void {
-  api.ui.dialog.replace(() =>
-    api.ui.DialogPrompt({
-      title: tr("profile.addProfileTitle"),
-      placeholder: tr("profile.addProfilePlaceholder"),
-      onConfirm: (value) => {
-        const name = value.trim()
+// `back` decides where Esc/cancel returns — the main menu (top-level
+// ➕ entry) or the manage list (nested entry).
+function promptAddProfile(api: TuiPluginApi, back: () => void = () => manageProfileModels(api)): void {
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogPrompt({
+        title: tr("profile.addProfileTitle"),
+        placeholder: tr("profile.addProfilePlaceholder"),
+        onConfirm: (value) => {
+          navigated = true
+          const name = value.trim()
         if (!name) {
-          manageProfileModels(api)
+          back()
           return
         }
         if (existsSync(profilePath(name))) {
           toast(api, tr("profile.profileExists", { name }), "error")
-          promptAddProfile(api)
+          promptAddProfile(api, back)
           return
         }
         const blankProfile: Profile = {
@@ -1031,79 +1306,56 @@ function promptAddProfile(api: TuiPluginApi): void {
           reviewProfileTiers(api, name, blankProfile, {})
         } catch (err) {
           toast(api, tr("profile.createProfileFailed", { err: (err as Error).message }), "error")
-          manageProfileModels(api)
+          back()
         }
       },
-      onCancel: () => setTimeout(() => manageProfileModels(api), 0),
-    }),
-  )
-}
-
-function promptDeleteProfile(api: TuiPluginApi): void {
-  const profiles = loadProfiles()
-  const sorted = Array.from(profiles.keys()).sort()
-  if (sorted.length === 0) {
-    toast(api, tr("profile.noProfilesToDelete"), "warning")
-    manageProfileModels(api)
-    return
-  }
-
-  let navigated = false
-  api.ui.dialog.replace(
-    () =>
-      api.ui.DialogSelect<string>({
-        title: tr("profile.deleteProfileTitle"),
-        placeholder: tr("profile.deleteProfilePlaceholder"),
-        options: withBookends(
-          sorted.map((name) => ({
-            title: name,
-            value: name,
-            description: profilePath(name),
-          })),
-          [
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToProfileList2"),
-            },
-          ],
-        ),
-        onSelect: (option) => {
+        onCancel: () => {
           navigated = true
-          if (option.value === BACK) {
-            manageProfileModels(api)
-            return
-          }
-          confirmDeleteProfile(api, option.value)
+          setTimeout(back, 0)
         },
       }),
     () => {
-      if (!navigated) setTimeout(() => manageProfileModels(api), 0)
+      if (!navigated) setTimeout(back, 0)
     },
   )
 }
 
-function confirmDeleteProfile(api: TuiPluginApi, name: string): void {
-  api.ui.dialog.replace(() =>
-    api.ui.DialogConfirm({
-      title: tr("profile.deleteProfileTitle"),
-      message: tr("profile.confirmDeleteMsg", { name, path: profilePath(name) }),
-      onConfirm: () => {
-        try {
-          deleteProfile(name)
-          toast(api, tr("profile.profileDeleted", { name }), "success")
-        } catch (err) {
-          toast(api, tr("profile.deleteFailed", { err: (err as Error).message }), "error")
-        }
-        manageProfileModels(api)
-      },
-      onCancel: () => setTimeout(() => promptDeleteProfile(api), 0),
-    }),
+function confirmDeleteProfile(
+  api: TuiPluginApi,
+  name: string,
+  profile: Profile,
+  overrides: Record<string, string>,
+): void {
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("profile.deleteProfileTitle"),
+        message: tr("profile.confirmDeleteMsg", { name, path: profilePath(name) }),
+        onConfirm: () => {
+          navigated = true
+          try {
+            deleteProfile(name)
+            toast(api, tr("profile.profileDeleted", { name }), "success")
+          } catch (err) {
+            toast(api, tr("profile.deleteFailed", { err: (err as Error).message }), "error")
+          }
+          // defer: the host runs dialog.clear() after this callback returns
+          setTimeout(() => manageProfileModels(api), 0)
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => reviewProfileTiers(api, name, profile, overrides), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => reviewProfileTiers(api, name, profile, overrides), 0)
+    },
   )
 }
 
 // ════════════════════════════════════════════════════════════════════
-// ┌─ Branch 3: Select: Profile — pick and apply immediately ────────────
+// ┌─ Branch 4: Select: Profile — pick, review mapping, confirm & apply ─
 // ════════════════════════════════════════════════════════════════════
 
 function selectProfile(api: TuiPluginApi): void {
@@ -1123,37 +1375,56 @@ function selectProfile(api: TuiPluginApi): void {
       api.ui.DialogSelect<string>({
         title: tr("profile.selectTitle"),
         placeholder: tr("profile.selectPlaceholder"),
-        options: withBookends(
-          sorted.map((name) => ({
-            title: name === active ? `${name}  ← active` : name,
-            value: name,
-            description: profiles.get(name)!.description?.slice(0, 100),
-          })),
-          [
-            {
-              title: tr("common.back"),
-              value: BACK,
-              description: tr("profile.backToMain"),
-            },
-          ],
-        ),
+        options: sorted.map((name) => ({
+          title: name === active ? `${name}  ← active` : name,
+          value: name,
+          description: profiles.get(name)!.description?.slice(0, 100),
+        })),
         onSelect: (option) => {
           navigated = true
-          if (option.value === BACK) {
-            startWizard(api)
-            return
-          }
           const profile = profiles.get(option.value)
           if (!profile) {
             toast(api, tr("profile.profileVanished", { name: option.value }), "error")
             selectProfile(api)
             return
           }
-          void applySelection(api, option.value, profile)
+          confirmApplyProfile(api, option.value, profile)
         },
       }),
     () => {
       if (!navigated) setTimeout(() => startWizard(api), 0)
+    },
+  )
+}
+
+// Confirmation gate: show the profile's full tier→model mapping in a
+// plain confirm dialog (message = preview, only confirm/cancel exist),
+// so the user can cancel instead of applying blind.
+function confirmApplyProfile(
+  api: TuiPluginApi,
+  name: string,
+  profile: Profile,
+): void {
+  const mapping = Object.entries(profile.tiers)
+    .map(([tier, ref]) => `  ${tier} → ${ref || tr("common.unset")}`)
+    .join("\n")
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("profile.confirmApplyTitle", { name }),
+        message: tr("profile.confirmApplyMsg", { mapping }),
+        onConfirm: () => {
+          navigated = true
+          void applySelection(api, name, profile)
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => selectProfile(api), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => selectProfile(api), 0)
     },
   )
 }
@@ -1205,21 +1476,34 @@ function configCatalog(): Catalog {
   return catalog
 }
 
-async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
-  // Preferred: the opencode server catalog (built-in + configured providers).
-  const catalog: Catalog = {}
-  try {
-    const res = await api.client.provider.list()
-    const all = (res as { data?: { all?: CatalogProvider[] } }).data?.all
-    if (res.error === undefined && Array.isArray(all) && all.length > 0) {
-      for (const p of all) {
-        if (!p?.id || !p.models || Object.keys(p.models).length === 0) continue
-        catalog[p.id] = p
+// The server catalog is static for the session's lifetime (providers are
+// registered at startup), so the round-trip is memoized; only the cheap
+// config-file merge re-runs per call so models added via /provider still
+// show up without a restart. Keeps provider/model pickers snappy on
+// every entry and on Esc-back navigation.
+let serverCatalogPromise: Promise<Catalog> | null = null
+function serverCatalog(api: TuiPluginApi): Promise<Catalog> {
+  serverCatalogPromise ??= (async () => {
+    const catalog: Catalog = {}
+    try {
+      const res = await api.client.provider.list()
+      const all = (res as { data?: { all?: CatalogProvider[] } }).data?.all
+      if (res.error === undefined && Array.isArray(all) && all.length > 0) {
+        for (const p of all) {
+          if (!p?.id || !p.models || Object.keys(p.models).length === 0) continue
+          catalog[p.id] = p
+        }
       }
+    } catch {
+      // fall through to the config-file catalog
     }
-  } catch {
-    // fall through to the config-file catalog
-  }
+    return catalog
+  })()
+  return serverCatalogPromise
+}
+
+async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
+  const catalog: Catalog = { ...(await serverCatalog(api)) }
 
   // Merge the opencode.jsonc definitions on top: models added via
   // /provider after launch are missing from the server catalog until

@@ -238,16 +238,24 @@ The `/provider` slash command (a TUI plugin registered via `tui.json`) configure
 
 ```
 /provider
-  → dialog: "( Manage provider models )" + one entry per provider
-    (active in opencode.jsonc, or available from providers/*.json —
-    picking an inactive one activates it from its definition file)
-  → pick a provider: baseURL prompt → apiKey prompt → atomic write
-    (opencode.jsonc.bak backup) + toast; empty input keeps current values,
-    '{env:VAR}' tokens are supported, secrets are never pre-filled
-  → "( Manage provider models )": pick an active provider → its model list:
-    "( Add model… )" walks three prompts (key → upstream id → display
-    name); picking an existing model asks for removal confirmation
-  → Esc cancels
+  → level 1 dialog: "➕ Add custom provider" (blank) and "📦 Add preset
+    provider" (imports a providers/*.json definition into the config)
+    pinned on top, then the providers stored in opencode.jsonc
+  → level 2 (provider detail):
+    ⚙ Basic settings — form (id on add / name / npm / baseURL / apiKey);
+      fields mutate in memory, 💾 saves once via atomic opencode.jsonc
+      write; empty apiKey keeps the stored key, secrets are never
+      pre-filled; '{env:VAR}' tokens stay in options.apiKey, literal
+      keys go to ~/.local/share/opencode/auth.json — the same store the
+      official /connect command writes
+    fetch — prompts a glob (default *) and imports matching models from
+      the live {baseURL}/models (openai) or /v1/models (anthropic)
+      endpoint; additive only — existing keys are skipped
+    ── Models ── — mirrors the config node; click opens the model form
+      (identity / capabilities / limits), 🗑 removes the entry
+    ➕ Add model… — same model form for a new entry
+    🗑 Delete provider… — confirm, then drop the whole config entry
+  → Esc is the only way back at every level; changes need an opencode restart
 ```
 
 ---
@@ -255,6 +263,8 @@ The `/provider` slash command (a TUI plugin registered via `tui.json`) configure
 ## LLM Router credentials
 
 For the `llm-router` custom provider, set `baseURL` / `apiKey` via the environment variables below (recommended), via the `/provider` wizard (interactive), or by editing `~/.config/opencode/opencode.jsonc` directly.
+
+> The `/provider` wizard stores literal API keys in `~/.local/share/opencode/auth.json` — the same store the official `/connect` command writes, so both stay in sync.
 
 ### Environment variables (recommended for API keys)
 

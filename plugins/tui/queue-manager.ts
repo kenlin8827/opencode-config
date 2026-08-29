@@ -5,7 +5,7 @@ import type {
   TuiPluginModule,
 } from "@opencode-ai/plugin/tui"
 import type { Message, Part } from "@opencode-ai/sdk/v2"
-import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG, withBookends } from "./i18n"
+import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG } from "./i18n"
 
 /**
  * Queue Manager — TUI dialog-based management of queued user messages.
@@ -412,33 +412,33 @@ async function openQueueList(api: TuiPluginApi, sessionID: string): Promise<void
     api.ui.DialogSelect<string>({
       title: tr("queue.listTitle", { count: entries.length, busy: busy ? tr("queue.sessionBusy") : tr("queue.sessionIdle") }),
       placeholder: tr("queue.listPlaceholder"),
+      // The host DialogSelect renders `category` as bold accent section
+      // headers that are NOT focusable options — real grouping, no fake rows.
       options: [
-        ...withBookends(
-          entries.map((entry, i) => ({
-            title: `#${i + 1} ${entry.preview}`,
-            value: entry.messageID,
-            description: `${age(entry.created)} · ${tr("queue.textPartCount", { count: entry.textParts.length })}${
-              entry.nonTextParts.length ? ` · ${tr("queue.attachmentCount", { count: entry.nonTextParts.length })}` : ""
-            }`,
-          })),
-          entries.length > 1
-            ? [
-                {
-                  title: tr("queue.cancelAll"),
-                  value: "__cancel_all__",
-                  description: tr("queue.stripAllCount", { count: entries.length }),
-                },
-              ]
-            : [],
-        ),
-        languageOption(api),
+        ...entries.map((entry, i) => ({
+          title: `#${i + 1} ${entry.preview}`,
+          value: entry.messageID,
+          description: `${age(entry.created)} · ${tr("queue.textPartCount", { count: entry.textParts.length })}${
+            entry.nonTextParts.length ? ` · ${tr("queue.attachmentCount", { count: entry.nonTextParts.length })}` : ""
+          }`,
+          category: tr("queue.queuedHeader"),
+        })),
+        ...(entries.length > 1
+          ? [
+              {
+                title: tr("queue.cancelAll"),
+                value: "__cancel_all__",
+                description: tr("queue.stripAllCount", { count: entries.length }),
+                category: tr("queue.actionsHeader"),
+              },
+            ]
+          : []),
+        { ...languageOption(api), category: tr("common.interfaceHeader") },
       ],
       onSelect: async (option) => {
         navigated = true
         if (option.value === SWITCH_LANG) {
-          const next = toggleLocale(api)
-          toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
-          void openQueueList(api, sessionID)
+          switchLanguage(api, () => void openQueueList(api, sessionID))
           return
         }
         if (option.value === "__cancel_all__") {

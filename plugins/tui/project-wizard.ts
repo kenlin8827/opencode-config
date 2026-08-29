@@ -6,7 +6,7 @@ import type {
 } from "@opencode-ai/plugin/tui"
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { tr, initI18n, languageOption, toggleLocale, localeName, SWITCH_LANG } from "./i18n"
+import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG, type DialogOption } from "./i18n"
 import {
   CONFIG_REL,
   getProjectDir,
@@ -42,6 +42,15 @@ import {
  */
 
 const PLUGIN_ID = "opencode-prime.project-wizard"
+
+/**
+ * Project root for scaffolding: opencode's resolved project directory.
+ * process.cwd() is the TUI process launch cwd (e.g. C:\Windows\System32
+ * when started from a Windows shortcut) and MUST NOT be trusted.
+ */
+function projectRoot(api: TuiPluginApi): string {
+  return api.state.path.directory || process.cwd()
+}
 
 function toast(
   api: TuiPluginApi,
@@ -188,7 +197,7 @@ export function startProjectWizard(
   api: TuiPluginApi,
   stateOverride?: WizardState,
 ): void {
-  const rootDir = process.cwd()
+  const rootDir = projectRoot(api)
   setProjectDir(rootDir)
 
   const detected = detectCurrentSwitches(rootDir)
@@ -209,8 +218,10 @@ export function startProjectWizard(
  * upon confirmation or Esc.
  *
  * DialogAlert only has onConfirm (no onCancel), so we use dialog.replace's
- * second argument (onClose) to catch the Esc key.  A navigated flag
- * prevents double-firing when onConfirm runs first.
+ * second argument (onClose) to catch the Esc key.  A navigated flag is
+ * flipped before any navigation to prevent double-firing: the dialog stack
+ * invokes onClose again while clearing/replacing the stack, and pops the
+ * stack only after onClose returns (so re-rendering must be deferred).
  */
 function showAlertModal(
   api: TuiPluginApi,
@@ -234,14 +245,19 @@ function showAlertModal(
         },
       }),
     () => {
-      if (!navigated) params.onDismiss()
+      if (navigated) return
+      navigated = true
+      // Defer: stack pops after onClose returns; sync re-render is wiped and re-fires onClose
+      setTimeout(() => {
+        params.onDismiss()
+      }, 20)
     },
   )
 }
 
 /** Level 1 Menu: Select primary action */
 function showMainMenu(api: TuiPluginApi, state: WizardState): void {
-  const rootDir = process.cwd()
+  const rootDir = projectRoot(api)
   const { switches: current, exists: isExisting, configRelPath: configRel } = state
   const activeSelection = state.currentSelection ?? "__action_init__"
 
@@ -259,6 +275,20 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
 
   const switchesSummary = `adv:${current.autoAdvisorMode ?? "def"} · adr:${current.adrGuard ?? "def"} · env:${current.envGuard ?? "def"} · e2e:${current.e2eGuard ?? "def"}`
 
+  // The host DialogSelect renders `category` as bold accent section
+  // headers that are NOT focusable options — real grouping, no fake rows.
+  const setupCat = tr("project.setupHeader")
+  const maintainCat = tr("project.maintainHeader")
+  const actionsCat = tr("project.actionsHeader")
+  const items: DialogOption<string>[] = [
+    { title: mainActionTitle, value: "__action_init__", description: mainActionDesc, category: setupCat },
+    { title: tr("project.configureSwitches"), value: "__action_switches__", description: switchesSummary, category: setupCat },
+    { title: tr("project.syncTemplates"), value: "__action_sync__", description: tr("project.syncTemplatesDesc"), category: maintainCat },
+    { title: tr("project.refreshIndex"), value: "__action_index__", description: tr("project.refreshIndexDesc"), category: maintainCat },
+    { title: tr("project.exitWizard"), value: "__action_exit__", description: tr("project.exitWizardDesc"), category: actionsCat },
+    { ...languageOption(api), category: tr("common.interfaceHeader") },
+  ]
+
   let navigated = false
   api.ui.dialog.replace(
     () =>
@@ -267,41 +297,12 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
       placeholder: tr("project.mainPlaceholder"),
       skipFilter: true,
       current: activeSelection,
-      options: [
-        {
-          title: mainActionTitle,
-          value: "__action_init__",
-          description: mainActionDesc,
-        },
-        {
-          title: tr("project.configureSwitches"),
-          value: "__action_switches__",
-          description: switchesSummary,
-        },
-        {
-          title: tr("project.syncTemplates"),
-          value: "__action_sync__",
-          description: tr("project.syncTemplatesDesc"),
-        },
-        {
-          title: tr("project.refreshIndex"),
-          value: "__action_index__",
-          description: tr("project.refreshIndexDesc"),
-        },
-        languageOption(api),
-        {
-          title: tr("project.exitWizard"),
-          value: "__action_exit__",
-          description: tr("project.exitWizardDesc"),
-        },
-      ],
+      options: items,
       onSelect: async (option) => {
         navigated = true
         switch (option.value) {
           case SWITCH_LANG: {
-            const next = toggleLocale(api)
-            toast(api, tr("common.langSwitched", { lang: localeName(next) }), "info")
-            showMainMenu(api, state)
+            switchLanguage(api, () => showMainMenu(api, state))
             return
           }
           case "__action_exit__": {
@@ -360,7 +361,7 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
               const res = runSync()
               let syncMsg = ""
               if (res.status === "missing") {
-                syncMsg = "⚠️ Config file (.opencode/opencode.jsonc) does not exist.\nPlease run Init first."
+                syncMsg = "⚠️ Project config does not exist.\nPlease run Init first."
               } else if (res.status === "up-to-date") {
                 syncMsg = "ℹ️ Configuration is already up to date.\nAll latest template switch keys are already present."
               } else if (res.status === "added") {
@@ -424,16 +425,34 @@ function showMainMenu(api: TuiPluginApi, state: WizardState): void {
     }),
     () => {
       // Esc on main menu = close wizard entirely
-      if (!navigated) api.ui.dialog.clear()
+      if (navigated) return
+      navigated = true
+      api.ui.dialog.clear()
     },
   )
 }
 
 /** Level 2 Menu: Configure Switches and Quality Guards */
 function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
-  const rootDir = process.cwd()
+  const rootDir = projectRoot(api)
   const { switches: current, exists: isExisting, configRelPath: configRel } = state
   const activeSelection = state.currentSelection ?? "__switch_advisor__"
+
+  // The host DialogSelect renders `category` as bold accent section
+  // headers that are NOT focusable options — real grouping, no fake rows.
+  const advisorCat = tr("project.advisorHeader")
+  const guardsCat = tr("project.guardsHeader")
+  const actionsCat = tr("project.actionsHeader")
+  const items: DialogOption<string>[] = [
+    { title: `🤖 autoAdvisorMode:  ${formatAdvisorBadge(current.autoAdvisorMode)}`, value: "__switch_advisor__", description: "Advisor reviews (lite / full / off)", category: advisorCat },
+    { title: `🛡️ adrGuard:         ${formatGuardBadge(current.adrGuard)}`, value: "__switch_adr__", description: "Enforce ADR on feat/refactor", category: guardsCat },
+    { title: `📁 adrGuardDir:      ${current.adrGuardDir ?? "docs/adr"}`, value: "__switch_adr_dir__", description: "ADR markdown folder path", category: guardsCat },
+    { title: `🏛️ adrMode:          ${formatAdrModeBadge(current.adrMode)}`, value: "__switch_adr_mode__", description: "ADR structure (auto/flat/hierarchy)", category: guardsCat },
+    { title: `🔒 envGuard:         ${formatGuardBadge(current.envGuard)}`, value: "__switch_env__", description: "Protect secret .env file reads", category: guardsCat },
+    { title: `🧪 e2eGuard:         ${formatGuardBadge(current.e2eGuard)}`, value: "__switch_e2e__", description: "Assess E2E before test execution", category: guardsCat },
+    { title: tr("project.saveApply"), value: "__save_switches__", description: tr("project.saveApplyDesc"), category: actionsCat },
+    { title: tr("project.backToMain"), value: "__back_main__", description: tr("project.backToMainDesc"), category: actionsCat },
+  ]
 
   let navigated = false
   api.ui.dialog.replace(
@@ -443,48 +462,7 @@ function showSwitchesMenu(api: TuiPluginApi, state: WizardState): void {
       placeholder: tr("project.configureSwitchesPlaceholder"),
       skipFilter: true,
       current: activeSelection,
-      options: [
-        {
-          title: `🤖 autoAdvisorMode:  ${formatAdvisorBadge(current.autoAdvisorMode)}`,
-          value: "__switch_advisor__",
-          description: "Advisor reviews (lite / full / off)",
-        },
-        {
-          title: `🛡️ adrGuard:         ${formatGuardBadge(current.adrGuard)}`,
-          value: "__switch_adr__",
-          description: "Enforce ADR on feat/refactor",
-        },
-        {
-          title: `📁 adrGuardDir:      ${current.adrGuardDir ?? "docs/adr"}`,
-          value: "__switch_adr_dir__",
-          description: "ADR markdown folder path",
-        },
-        {
-          title: `🏛️ adrMode:          ${formatAdrModeBadge(current.adrMode)}`,
-          value: "__switch_adr_mode__",
-          description: "ADR structure (auto/flat/hierarchy)",
-        },
-        {
-          title: `🔒 envGuard:         ${formatGuardBadge(current.envGuard)}`,
-          value: "__switch_env__",
-          description: "Protect secret .env file reads",
-        },
-        {
-          title: `🧪 e2eGuard:         ${formatGuardBadge(current.e2eGuard)}`,
-          value: "__switch_e2e__",
-          description: "Assess E2E before test execution",
-        },
-        {
-          title: tr("project.saveApply"),
-          value: "__save_switches__",
-          description: tr("project.saveApplyDesc"),
-        },
-        {
-          title: tr("project.backToMain"),
-          value: "__back_main__",
-          description: tr("project.backToMainDesc"),
-        },
-      ],
+      options: items,
       onSelect: async (option) => {
         navigated = true
         const nextState = { switches: current, exists: isExisting, configRelPath: configRel }
