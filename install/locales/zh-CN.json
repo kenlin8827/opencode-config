@@ -33,7 +33,7 @@
   "targetDirPrompt": "请输入安装目标目录（直接按回车使用默认值）：",
   "installingSpinner": "正在安装 OpenCode 配置文件...",
   "installSuccessNote": "OpenCode 配置安装完成！",
-  "saveOptionsSuccess": "已更新并保存预设至 install/options.jsonc",
+  "saveOptionsSuccess": "已更新并保存预设至 ~/.config/opencode/options.jsonc",
   "installSummaryTitle": "📦 安装摘要详情",
   "primaryAgentLabel": "默认主 Agent",
   "primaryAgentHint": "会话启动时默认加载的智能体 (default_agent)",

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { InstallOptions, PreserveBag } from './types';
 
 /**
@@ -21,6 +22,51 @@ export function readJsoncFile<T = any>(filePath: string): T | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Path to the user's machine-local option overrides. These are written by the
+ * wizard / dashboard and merged on top of the repo-shipped defaults on every
+ * install, so user choices persist across releases.
+ */
+export function getUserOptionsPath(targetDir: string): string {
+  return path.join(targetDir, 'options.jsonc');
+}
+
+/**
+ * Shallow-merge two InstallOptions objects, with `override` winning per key.
+ * Nested maps (mcp, plugin, tiers) are merged key-by-key rather than replaced,
+ * so enabling/disabling a single MCP or plugin does not wipe the other defaults.
+ */
+export function mergeUserOptions(
+  base: InstallOptions,
+  override: InstallOptions | null | undefined
+): InstallOptions {
+  if (!override) return { ...base };
+
+  const merged: InstallOptions = { ...base };
+
+  for (const key of Object.keys(override) as Array<keyof InstallOptions>) {
+    const b = base[key];
+    const o = override[key];
+
+    if (
+      key === 'mcp' ||
+      key === 'plugin' ||
+      key === 'tiers'
+    ) {
+      if (o && typeof o === 'object' && !Array.isArray(o)) {
+        merged[key] = { ...(b && typeof b === 'object' && !Array.isArray(b) ? b : {}), ...o } as any;
+        continue;
+      }
+    }
+
+    if (o !== undefined) {
+      (merged as any)[key] = o;
+    }
+  }
+
+  return merged;
 }
 
 /**

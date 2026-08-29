@@ -7,6 +7,7 @@ import {
   getDefaultTargetDir,
   getCurrentRepoVersion,
   getInstalledVersion,
+  loadEffectiveOptions,
 } from './installer';
 import {
   parseDynamicOptionsSchema,
@@ -66,27 +67,33 @@ export interface DashboardResult {
 
 export async function runTuiDashboard(repoDir: string, initialLocale?: string): Promise<DashboardResult> {
   const version = getCurrentRepoVersion(repoDir);
-  const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
+  const repoOptionsPath = path.join(repoDir, 'install', 'options.jsonc');
   const availableLocales = getAvailableLocales(repoDir);
   let currentLocaleCode: string = initialLocale || detectDefaultLocaleCode();
   let targetDir = getDefaultTargetDir();
 
-  // Load dynamic schema from options.jsonc
-  const optionsContent = fs.existsSync(optionsPath) ? fs.readFileSync(optionsPath, 'utf8') : '{}';
+  // Load dynamic schema from repo defaults (read-only source of truth)
+  const optionsContent = fs.existsSync(repoOptionsPath) ? fs.readFileSync(repoOptionsPath, 'utf8') : '{}';
   const schema = parseDynamicOptionsSchema(optionsContent, repoDir);
 
-  // Mutable state
-  let currentAgent = schema.defaultAgent.value;
-  let currentRtk = schema.rtk.value;
-  let currentGlobalCommands = schema.globalCommandsDefault;
-  let currentOpenChamber = schema.openChamberDefault;
+  // Mutable state: start from effective options (repo defaults + saved user overrides)
+  // so the dashboard reflects what the next install would actually use.
+  const effective = loadEffectiveOptions(repoDir, targetDir);
+  let currentAgent = effective.default_agent ?? schema.defaultAgent.value;
+  let currentRtk = effective.rtk ?? schema.rtk.value;
+  let currentGlobalCommands = effective.global_commands ?? schema.globalCommandsDefault;
+  let currentOpenChamber = effective.openchamber ?? schema.openChamberDefault;
   const mcpState: Record<string, boolean> = {};
   for (const item of schema.mcpItems) {
-    mcpState[item.key] = item.value;
+    mcpState[item.key] = (effective.mcp && typeof effective.mcp === 'object' && item.key in effective.mcp)
+      ? Boolean(effective.mcp[item.key])
+      : item.value;
   }
   const pluginState: Record<string, boolean> = {};
   for (const item of schema.pluginItems) {
-    pluginState[item.key] = item.value;
+    pluginState[item.key] = (effective.plugin && typeof effective.plugin === 'object' && item.key in effective.plugin)
+      ? Boolean(effective.plugin[item.key])
+      : item.value;
   }
 
   // Load effective tiers map from repo and override it with valid user tiers.
@@ -370,7 +377,10 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
     };
 
     const saveOptions = () => {
-      updateOptionsJsoncInPlace(optionsPath, {
+      // Persist user choices to the target directory, not the repo defaults,
+      // so loadEffectiveOptions() can pick them up on the next install.
+      const userOptionsPath = path.join(targetDir, 'options.jsonc');
+      updateOptionsJsoncInPlace(userOptionsPath, {
         defaultAgent: currentAgent,
         rtk: currentRtk,
         globalCommands: currentGlobalCommands,
@@ -378,6 +388,7 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         mcps: mcpState,
         plugins: pluginState,
       });
+      console.log(`Options saved to: ${userOptionsPath}`);
     };
 
     let settled = false;
@@ -535,7 +546,7 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           const prompt = t.targetDirectoryPrompt.replace('{target}', targetDir);
           rl.question(prompt, (answer) => {
             if (answer && answer.trim()) {
-              targetDir = answer.trim();
+              targetDir = path.resolve(answer.trim());
             }
             rl.close();
             if (process.stdin.isTTY) process.stdin.setRawMode(true);

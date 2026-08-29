@@ -136,7 +136,7 @@ export const FALLBACK_EN: I18nText = {
   targetDirPrompt: 'Target installation directory:',
   installingSpinner: 'Installing OpenCode Prime configuration files...',
   installSuccessNote: 'Configuration successfully installed!',
-  saveOptionsSuccess: 'Updated options saved to install/options.jsonc',
+  saveOptionsSuccess: 'Updated options saved to ~/.config/opencode/options.jsonc',
   installSummaryTitle: '📦 Installation Summary',
   primaryAgentLabel: 'Primary Agent',
   primaryAgentHint: 'Default agent loaded on session start (default_agent)',

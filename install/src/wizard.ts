@@ -9,9 +9,10 @@ import {
   executeUninstall,
   getDefaultTargetDir,
   getCurrentRepoVersion,
+  loadEffectiveOptions,
 } from './installer';
 import { getDefaultBinDir, runGlobalRegistration, isShimRegistered, unregisterShim } from './shim';
-import { readJsoncFile } from './merger';
+import { readJsoncFile, parseJsonc } from './merger';
 import { runTuiDashboard } from './dashboard';
 import { ensureOpenChamber } from './openchamber';
 import { loadLocale, getAvailableLocales, detectDefaultLocaleCode, I18nText } from './i18n';
@@ -157,52 +158,42 @@ export function updateOptionsJsoncInPlace(
     plugins?: Record<string, boolean>;
   }
 ): void {
-  if (!fs.existsSync(filePath)) return;
-  let content = fs.readFileSync(filePath, 'utf8');
-
-  if (updates.defaultAgent !== undefined) {
-    content = content.replace(
-      /("default_agent"\s*:\s*)"[^"]*"/,
-      `$1"${updates.defaultAgent}"`
-    );
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (updates.rtk !== undefined) {
-    content = content.replace(
-      /("rtk"\s*:\s*)(true|false)/,
-      `$1${updates.rtk}`
-    );
+  let current: Record<string, any> = {};
+  if (fs.existsSync(filePath)) {
+    try {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      current = parseJsonc(raw) || {};
+    } catch {
+      current = {};
+    }
   }
 
-  if (updates.globalCommands !== undefined) {
-    content = content.replace(
-      /("global_commands"\s*:\s*)(true|false)/,
-      `$1${updates.globalCommands}`
-    );
-  }
-
-  if (updates.openChamber !== undefined) {
-    content = content.replace(
-      /("openchamber"\s*:\s*)(true|false)/,
-      `$1${updates.openChamber}`
-    );
-  }
-
+  if (updates.defaultAgent !== undefined) current.default_agent = updates.defaultAgent;
+  if (updates.rtk !== undefined) current.rtk = updates.rtk;
+  if (updates.globalCommands !== undefined) current.global_commands = updates.globalCommands;
+  if (updates.openChamber !== undefined) current.openchamber = updates.openChamber;
   if (updates.mcps) {
-    for (const [key, val] of Object.entries(updates.mcps)) {
-      const escaped = key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`("${escaped}"\\s*:\\s*)(true|false)`);
-      content = content.replace(regex, `$1${val}`);
-    }
+    current.mcp = { ...(current.mcp || {}), ...updates.mcps };
+  }
+  if (updates.plugins) {
+    current.plugin = { ...(current.plugin || {}), ...updates.plugins };
   }
 
-  if (updates.plugins) {
-    for (const [key, val] of Object.entries(updates.plugins)) {
-      const escaped = key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`("${escaped}"\\s*:\\s*)(true|false)`);
-      content = content.replace(regex, `$1${val}`);
-    }
-  }
+  // Generic serialization: preserves any keys the user hand-edited (e.g. tiers),
+  // unlike a hardcoded allow-list.
+  const entries = Object.entries(current).filter(([, v]) => v !== undefined);
+  const body = entries
+    .map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v, null, 2).replace(/\n/g, '\n  ')}`)
+    .join(',\n');
+
+  const content = body
+    ? `// User option overrides — merged on top of repo defaults on every install.\n{\n${body}\n}\n`
+    : '{}\n';
 
   fs.writeFileSync(filePath, content, 'utf8');
 }
@@ -229,7 +220,7 @@ function applyGlobalRegistration(repoDir: string, t: I18nText): void {
 
 export async function runInteractiveWizard(repoDir: string): Promise<void> {
   const version = getCurrentRepoVersion(repoDir);
-  const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
+  const repoOptionsPath = path.join(repoDir, 'install', 'options.jsonc');
   const availableLocales = getAvailableLocales(repoDir);
   let currentLocaleCode: string = detectDefaultLocaleCode();
 
@@ -344,7 +335,6 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
       }
       break;
     } else if (action === 'quick_install') {
-      const options = readJsoncFile<InstallOptions>(optionsPath) || {};
       const targetInput = await p.text({
         message: t.targetDirPrompt,
         initialValue: defaultTarget,
@@ -355,9 +345,14 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
         continue;
       }
 
-      // Global Command Registration (ocp / opencode-prime) — default from options.jsonc
+      const resolvedTarget = path.resolve(targetInput || defaultTarget);
+
+      // Effective defaults: repo defaults < any previously saved user options
+      const effectiveOptions = loadEffectiveOptions(repoDir, resolvedTarget);
+
+      // Global Command Registration (ocp / opencode-prime) — default from effective options
       const defaultBinDir = getDefaultBinDir();
-      const globalCmdsDefault = options.global_commands !== false;
+      const globalCmdsDefault = effectiveOptions.global_commands !== false;
       const registerGlobalCmds = await p.confirm({
         message: `${t.stepRegisterPrompt.replace('{binDir}', defaultBinDir)}\n  (${t.stepRegisterNote})`,
         initialValue: globalCmdsDefault,
@@ -368,7 +363,9 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
 
       // Persist the choice back so subsequent installs / --yes respect it.
       if (registerGlobalCmds !== globalCmdsDefault) {
-        updateOptionsJsoncInPlace(optionsPath, { globalCommands: registerGlobalCmds });
+        const userOptionsPath = path.join(resolvedTarget, 'options.jsonc');
+        updateOptionsJsoncInPlace(userOptionsPath, { globalCommands: registerGlobalCmds });
+        console.log(`Options saved to: ${userOptionsPath}`);
       }
 
       const s = p.spinner();
@@ -376,21 +373,23 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
 
       const args: CliArgs = {
         action: 'install',
-        target: targetInput || defaultTarget,
+        target: resolvedTarget,
         force: true,
         noBackup: false,
         yes: true,
         isInteractive: true,
       };
 
-      const res = executeInstall(repoDir, args, options);
+      // Only pass the explicit choice this session; loadEffectiveOptions inside
+      // executeInstall will merge repo defaults + saved user options again.
+      const res = executeInstall(repoDir, args, { global_commands: registerGlobalCmds });
       s.stop(t.installSuccessNote);
 
       if (registerGlobalCmds) {
         applyGlobalRegistration(repoDir, t);
       }
 
-      if (options.openchamber !== false) {
+      if (effectiveOptions.openchamber !== false) {
         p.log.step(ensureOpenChamber().message);
       }
 

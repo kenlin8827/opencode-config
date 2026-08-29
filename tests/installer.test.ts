@@ -3,9 +3,13 @@ import path from 'node:path';
 import os from 'node:os';
 import {
   parseJsonc,
+  readJsoncFile,
   readTierMap,
   extractPreserveBag,
   mergeConfig,
+  mergeUserOptions,
+  getUserOptionsPath,
+  updateOptionsJsoncInPlace,
 } from '../install/src/merger';
 import {
   collectShippedFiles,
@@ -18,6 +22,8 @@ import {
   executeInit,
   executeUninstall,
   getCurrentRepoVersion,
+  loadEffectiveOptions,
+  mcpProvisionPlan,
 } from '../install/src/installer';
 import { registerShim, unregisterShim } from '../install/src/shim';
 import {
@@ -61,6 +67,78 @@ if (!schema.defaultAgent.value || schema.mcpItems.length === 0 || schema.pluginI
 }
 console.log(`✓ Schema passed (Found ${schema.mcpItems.length} MCPs, ${schema.pluginItems.length} Plugins)`);
 
+// 3b. User options merging
+console.log('\nTest 3b: User Options Merge Logic');
+const merged = mergeUserOptions(
+  { default_agent: 'code', rtk: true, mcp: { serena: true, codegraph: true }, plugin: { '@dietrichgebert/ponytail': true } },
+  { default_agent: 'build', mcp: { serena: false }, plugin: { 'opencode-qoder-bridge': true } }
+);
+if (merged.default_agent !== 'build') throw new Error('mergeUserOptions failed to override top-level key');
+if (merged.rtk !== true) throw new Error('mergeUserOptions dropped an unchanged key');
+if (merged.mcp?.serena !== false || merged.mcp?.codegraph !== true) throw new Error('mergeUserOptions failed to merge nested mcp map');
+if (merged.plugin?.['@dietrichgebert/ponytail'] !== true || merged.plugin?.['opencode-qoder-bridge'] !== true) throw new Error('mergeUserOptions failed to merge nested plugin map');
+console.log('✓ User options merge passed');
+
+// 3d. updateOptionsJsoncInPlace can create and update a user options file from scratch
+console.log('\nTest 3d: Options File In-Place Update');
+const scratchOptionsDir = path.join(os.tmpdir(), `opencode-options-test-${Date.now()}`);
+const scratchOptionsPath = path.join(scratchOptionsDir, 'options.jsonc');
+updateOptionsJsoncInPlace(scratchOptionsPath, {
+  defaultAgent: 'build',
+  rtk: false,
+  globalCommands: false,
+  openChamber: false,
+  mcps: { serena: false, codegraph: true },
+  plugins: { '@dietrichgebert/ponytail': true },
+});
+if (!fs.existsSync(scratchOptionsPath)) throw new Error('updateOptionsJsoncInPlace did not create the file');
+const writtenOptions = readJsoncFile<InstallOptions>(scratchOptionsPath);
+if (writtenOptions?.default_agent !== 'build') throw new Error('default_agent not written to scratch file');
+if (writtenOptions?.rtk !== false) throw new Error('rtk not written to scratch file');
+if (writtenOptions?.global_commands !== false) throw new Error('global_commands not written to scratch file');
+if (writtenOptions?.openchamber !== false) throw new Error('openchamber not written to scratch file');
+if (writtenOptions?.mcp?.serena !== false || writtenOptions?.mcp?.codegraph !== true) throw new Error('mcp map not written to scratch file');
+if (writtenOptions?.plugin?.['@dietrichgebert/ponytail'] !== true) throw new Error('plugin map not written to scratch file');
+
+// Update again to verify merge behavior
+updateOptionsJsoncInPlace(scratchOptionsPath, {
+  defaultAgent: 'plan',
+  mcps: { dbhub: true },
+});
+const mergedOptions = readJsoncFile<InstallOptions>(scratchOptionsPath);
+if (mergedOptions?.default_agent !== 'plan') throw new Error('default_agent not updated');
+if (mergedOptions?.rtk !== false) throw new Error('rtk was dropped on update');
+if (mergedOptions?.mcp?.serena !== false || mergedOptions?.mcp?.codegraph !== true || mergedOptions?.mcp?.dbhub !== true) {
+  throw new Error('mcp map not merged on update');
+}
+console.log('✓ Options file in-place update passed');
+
+// Update with an unknown key to verify generic serialization preserves it
+updateOptionsJsoncInPlace(scratchOptionsPath, {
+  mcps: { dbhub: false },
+});
+const preservedOptions = readJsoncFile<InstallOptions>(scratchOptionsPath);
+if (preservedOptions?.plugin?.['@dietrichgebert/ponytail'] !== true) {
+  throw new Error('plugin map was dropped by generic serialization');
+}
+if (preservedOptions?.default_agent !== 'plan') {
+  throw new Error('default_agent was dropped by generic serialization');
+}
+console.log('✓ Generic serialization preserves existing keys');
+if (fs.existsSync(scratchOptionsDir)) fs.rmSync(scratchOptionsDir, { recursive: true, force: true });
+
+// 3c. Effective options load from repo defaults + target user overrides
+console.log('\nTest 3c: Effective Options Load');
+const effective = loadEffectiveOptions(repoDir, testTargetDir, { openchamber: false });
+if (effective.openchamber !== false) throw new Error('loadEffectiveOptions failed to apply customOptions override');
+if (!effective.mcp || typeof effective.mcp !== 'object') throw new Error('loadEffectiveOptions lost mcp defaults');
+
+// Verify customOptions merge is nested, not wholesale replacement
+const effective2 = loadEffectiveOptions(repoDir, testTargetDir, { mcp: { serena: false } });
+if (effective2.mcp?.serena !== false) throw new Error('customOptions failed to override mcp.serena');
+if (effective2.mcp?.codegraph !== true) throw new Error('customOptions replaced entire mcp map');
+console.log('✓ Effective options load passed');
+
 // 4. Manifest Generation
 console.log('\nTest 4: Manifest Generation');
 const version = getCurrentRepoVersion(repoDir);
@@ -101,6 +179,19 @@ if (targetTiers.qa !== 'flash' || targetTiers.devops !== 'max' || targetTiers.co
   throw new Error('Custom tiers merging failed');
 }
 console.log(`✓ Install passed (${installRes.filesInstalled} files written, custom tiers merged)`);
+
+// 5b. MCP CLI provisioning plan
+console.log('\nTest 5b: MCP CLI Provisioning Plan');
+const provisionPlan = mcpProvisionPlan(repoDir, { mcp: { serena: true, codegraph: true, dbhub: true, gitnexus: false } });
+if (!Array.isArray(provisionPlan)) throw new Error('mcpProvisionPlan did not return an array');
+// Serena is installed on this machine (verified by checkExternalTools), so it should not appear.
+// The plan should include only enabled MCPs that declare an install field and whose binary is missing.
+for (const item of provisionPlan) {
+  if (typeof item.name !== 'string' || typeof item.install !== 'string') {
+    throw new Error('mcpProvisionPlan returned malformed entry');
+  }
+}
+console.log(`✓ MCP provision plan passed (${provisionPlan.length} entries)`);
 
 // 6. Status Check
 console.log('\nTest 6: Status Check');

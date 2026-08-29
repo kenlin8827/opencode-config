@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { CliArgs, InstallOptions } from './types';
 import {
   collectShippedFiles,
@@ -9,7 +9,13 @@ import {
   getManifestPath,
   readManifest,
 } from './manifest';
-import { extractPreserveBag, mergeConfig, readJsoncFile } from './merger';
+import {
+  extractPreserveBag,
+  mergeConfig,
+  readJsoncFile,
+  getUserOptionsPath,
+  mergeUserOptions,
+} from './merger';
 
 /**
  * Maximum number of backup directories ("<targetDir>.bak.<timestamp>") kept
@@ -177,6 +183,73 @@ export function checkExternalTools(options: InstallOptions): void {
   }
 }
 
+/**
+ * Effective install options: repo install/options.jsonc (defaults) < user
+ * overrides (target options.jsonc) < explicit customOptions (CLI / wizard /
+ * dashboard).
+ */
+export function loadEffectiveOptions(
+  repoDir: string,
+  targetDir: string,
+  customOptions?: InstallOptions
+): InstallOptions {
+  const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
+  const fileOptions = readJsoncFile<InstallOptions>(optionsPath) || {};
+  const userOptions = readJsoncFile<InstallOptions>(getUserOptionsPath(targetDir));
+  const merged = mergeUserOptions(fileOptions, userOptions);
+  return mergeUserOptions(merged, customOptions);
+}
+
+/**
+ * Decide which enabled MCP servers need CLI provisioning: enabled in options,
+ * declares an `install` field in the template, and its binary (the MCP key
+ * name) is missing from PATH. Pure decision — no side effects.
+ */
+export function mcpProvisionPlan(
+  repoDir: string,
+  options: InstallOptions
+): Array<{ name: string; install: string }> {
+  const template = readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'));
+  const mcp = template?.mcp;
+  if (!mcp || typeof mcp !== 'object' || !options.mcp) return [];
+
+  const plan: Array<{ name: string; install: string }> = [];
+  for (const [name, enabled] of Object.entries(options.mcp)) {
+    if (!enabled) continue;
+    const block = mcp[name];
+    if (!block || typeof block !== 'object') continue;
+    const install = block.install;
+    if (typeof install !== 'string' || !install.trim()) continue;
+    if (isBinaryOnPath(name)) continue;
+    plan.push({ name, install });
+  }
+  return plan;
+}
+
+/**
+ * Provision CLIs for enabled MCP servers that declare an `install` field and
+ * are missing from PATH. Never throws — failures are logged with manual
+ * instructions so a missing CLI can't fail the config install.
+ */
+export function provisionMcpCli(repoDir: string, options: InstallOptions): void {
+  for (const { name, install } of mcpProvisionPlan(repoDir, options)) {
+    console.log(`🚀 [mcp] ${name} missing from PATH — provisioning via: ${install}`);
+    const res = spawnSync(install, {
+      stdio: 'inherit',
+      timeout: 600000,
+      shell: true,
+    });
+    if (res.status !== 0 || res.error) {
+      const detail = res.error ? res.error.message : `exit code ${res.status}`;
+      console.log(`⚠ [mcp] ${name} automatic installation failed (${detail}). Install manually: ${install}`);
+    } else if (isBinaryOnPath(name)) {
+      console.log(`✓ [mcp] ${name} installed`);
+    } else {
+      console.log(`✓ [mcp] ${name} install command finished — open a new terminal if the binary is not on PATH yet`);
+    }
+  }
+}
+
 export function executeInstall(
   repoDir: string,
   args: CliArgs,
@@ -191,10 +264,8 @@ export function executeInstall(
   const targetDir = args.target ? path.resolve(args.target) : getDefaultTargetDir();
   const curVersion = getCurrentRepoVersion(repoDir);
 
-  // Load options
-  const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
-  const fileOptions = readJsoncFile<InstallOptions>(optionsPath) || {};
-  const effectiveOptions: InstallOptions = { ...fileOptions, ...customOptions };
+  // Load options: repo defaults < user overrides < explicit customOptions
+  const effectiveOptions = loadEffectiveOptions(repoDir, targetDir, customOptions);
 
   // 1. Ensure Manifest for current version exists
   const curManifestPath = getManifestPath(repoDir, curVersion);
@@ -226,6 +297,9 @@ export function executeInstall(
 
   // 7. Tool diagnostics
   checkExternalTools(effectiveOptions);
+
+  // 8. Provision CLIs for enabled MCP servers missing from PATH
+  provisionMcpCli(repoDir, effectiveOptions);
 
   return {
     success: true,

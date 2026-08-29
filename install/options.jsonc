@@ -58,7 +58,7 @@
   // true = enabled (CLI auto-provisioned via `install` if missing); false = skipped
   "mcp": {
     // LSP semantic code retrieval/editing; needs uv
-    "serena": true,
+    "serena": false,
     // Code-graph exploration; needs one-time manual `codegraph init` per repo
     "codegraph": true,
     // PolyForm Noncommercial license — enable only if licensed + indexed
