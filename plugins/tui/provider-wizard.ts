@@ -49,6 +49,8 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  *                          order); click opens the model form, 🗑 removes
  *                          the config entry
  *     ➕ Add model…        form sheet: identity / capabilities / limits
+ *     📥 Fetch models…     import remote models by glob pattern
+ *     🗑 Clear models…    remove models matching a glob pattern (* = all)
  *     🗑 Delete provider…  confirm, then drop the whole config entry
  *   Writes go through atomic opencode.jsonc saves (forms on 💾); the
  *   saved provider is compacted — fields equal to host parse defaults
@@ -92,6 +94,7 @@ const EDIT_BASE_URL = "__edit_base_url__"
 const EDIT_API_KEY = "__edit_api_key__"
 const FETCH_MODELS = "__fetch_models__"
 const ADD_MODEL = "__add_model__"
+const CLEAR_MODELS = "__clear_models__"
 const MODEL_PREFIX = "model:"
 const FIELD_KEY = "__field_key__"
 const FIELD_ID = "__field_id__"
@@ -577,6 +580,7 @@ function detailMenu(api: TuiPluginApi, id: string): void {
   items.push(
     { title: tr("provider.addModel"), value: ADD_MODEL, description: tr("provider.addModelDesc"), category: actionsCat },
     { title: tr("provider.fetchModels"), value: FETCH_MODELS, description: tr("provider.fetchModelsDesc"), category: actionsCat },
+    { title: tr("provider.clearModels"), value: CLEAR_MODELS, description: tr("provider.clearModelsDesc"), category: actionsCat },
     { title: tr("provider.deleteProvider"), value: DELETE_PROVIDER, category: actionsCat },
   )
 
@@ -610,6 +614,9 @@ function detailMenu(api: TuiPluginApi, id: string): void {
             return
           case FETCH_MODELS:
             promptFetchPattern(api, id)
+            return
+          case CLEAR_MODELS:
+            promptClearPattern(api, id)
             return
           case ADD_MODEL:
             modelForm(api, id, {
@@ -1017,6 +1024,75 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
 }
 
 // ─── Level 2 actions: add/remove models ──────────────────────────────
+
+function promptClearPattern(api: TuiPluginApi, id: string): void {
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogPrompt({
+        title: tr("provider.clearModelsPatternTitle", { id }),
+        placeholder: tr("provider.clearModelsPatternPlaceholder"),
+        value: "*",
+        onConfirm: (value) => {
+          navigated = true
+          void doClearModels(api, id, value.trim() || "*")
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => detailMenu(api, id), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => detailMenu(api, id), 0)
+    },
+  )
+}
+
+function doClearModels(api: TuiPluginApi, id: string, pattern: string): void {
+  const config = readConfigOrToast(api)
+  if (!config) return
+  const models = config.provider?.[id]?.models ?? {}
+  const allKeys = Object.keys(models)
+  if (allKeys.length === 0) {
+    toast(api, tr("provider.noModelsToClear", { id }), "info")
+    setTimeout(() => detailMenu(api, id), 0)
+    return
+  }
+
+  const re = globToRegex(pattern)
+  const matched = allKeys.filter((key) => re.test(key))
+  if (matched.length === 0) {
+    toast(api, tr("provider.clearModelsNoMatch", { id, pattern }), "warning")
+    setTimeout(() => detailMenu(api, id), 0)
+    return
+  }
+
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("provider.clearModelsTitle", { id }),
+        message: tr("provider.clearModelsConfirm", { id, count: matched.length, pattern }),
+        onConfirm: () => {
+          navigated = true
+          for (const key of matched) {
+            delete config.provider![id].models![key]
+          }
+          if (saveConfig(api, config, id)) {
+            toast(api, tr("provider.modelsCleared", { id, count: matched.length, pattern }), "success")
+          }
+          setTimeout(() => detailMenu(api, id), 0)
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => detailMenu(api, id), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => detailMenu(api, id), 0)
+    },
+  )
+}
 
 function confirmDeleteProvider(api: TuiPluginApi, id: string): void {
   const config = readConfigOrToast(api)
