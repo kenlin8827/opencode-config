@@ -267,6 +267,7 @@ const STRINGS = {
   "provider.noPresetsLeft": { en: "No preset definitions found in the providers/ directory.", "zh-CN": "providers/ 目录中未找到预设定义。" },
   "provider.invalidProviderId": { en: "Invalid id — lowercase letters, digits, '-' and '_' only.", "zh-CN": "无效 id — 仅限小写字母、数字、'-' 和 '_'。" },
   "provider.providerExists": { en: "Provider '{id}' already exists.", "zh-CN": "服务商 '{id}' 已存在。" },
+  "provider.providerRenamed": { en: "Renamed '{from}' → '{to}'.", "zh-CN": "已重命名 '{from}' → '{to}'。" },
   "provider.detailTitle": { en: "{id} — provider details", "zh-CN": "{id} — 服务商详情" },
   "provider.detailPlaceholder": { en: "Pick settings, a model, or an action (Esc: back)", "zh-CN": "选择设置、模型或操作 (Esc: 返回)" },
   "provider.noCustomProviders": { en: "No custom providers yet.", "zh-CN": "还没有自定义服务商。" },

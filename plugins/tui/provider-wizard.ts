@@ -697,10 +697,10 @@ function providerForm(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew
   // sub-page titles need some id even before the user typed one
   const displayId = isNew ? draft.id || "…" : id
   const items: DialogOption<string>[] = []
-  if (isNew) {
-    items.push({ title: `id: ${shown(draft.id)}${!draft.id ? " *" : ""}`, value: EDIT_ID, description: tr("provider.idPlaceholder"), category: fieldsCat })
-  }
   items.push(
+    // id is always editable: editing means renaming the config key +
+    // migrating auth; a blank entry falls back to the original id (no rename)
+    { title: `id: ${shown(isNew ? draft.id : draft.id || id)}${isNew && !draft.id ? " *" : ""}`, value: EDIT_ID, description: tr("provider.idPlaceholder"), category: fieldsCat },
     { title: `${tr("provider.nameLabel")}: ${shown(draft.name)}`, value: EDIT_NAME, description: tr("provider.editNameDesc"), category: fieldsCat },
     { title: `${tr("provider.npmLabel")}: ${draft.npm}`, value: EDIT_NPM, description: tr("provider.pickNpmPlaceholder"), category: fieldsCat },
     { title: `${tr("provider.baseURLLabel")}: ${shown(draft.baseURL)}${!draft.baseURL && draft.npm !== NPM_ANTHROPIC ? " *" : ""}`, value: EDIT_BASE_URL, description: tr("provider.editBaseURLDesc"), category: fieldsCat },
@@ -725,19 +725,19 @@ function providerForm(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew
       navigated = true
       switch (option.value) {
         case EDIT_ID:
-          promptProviderField(api, displayId, draft, "id", isNew)
+          promptProviderField(api, displayId, draft, "id", isNew, back)
           return
         case EDIT_NAME:
-          promptProviderField(api, displayId, draft, "name", isNew)
+          promptProviderField(api, displayId, draft, "name", isNew, back)
           return
         case EDIT_NPM:
-          pickNpmDraft(api, displayId, draft, isNew)
+          pickNpmDraft(api, displayId, draft, isNew, back)
           return
         case EDIT_BASE_URL:
-          promptProviderField(api, displayId, draft, "baseURL", isNew)
+          promptProviderField(api, displayId, draft, "baseURL", isNew, back)
           return
         case EDIT_API_KEY:
-          promptProviderField(api, displayId, draft, "apiKey", isNew)
+          promptProviderField(api, displayId, draft, "apiKey", isNew, back)
           return
         case SAVE_PROVIDER:
           saveProviderForm(api, id, draft, isNew)
@@ -752,7 +752,14 @@ function providerForm(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew
   })
 }
 
-function promptProviderField(api: TuiPluginApi, id: string, draft: ProviderDraft, field: "id" | "name" | "baseURL" | "apiKey", isNew = false): void {
+function promptProviderField(
+  api: TuiPluginApi,
+  id: string,
+  draft: ProviderDraft,
+  field: "id" | "name" | "baseURL" | "apiKey",
+  isNew = false,
+  onBack?: () => void,
+): void {
   const titleKey =
     field === "id"
       ? "provider.idTitle"
@@ -794,16 +801,16 @@ function promptProviderField(api: TuiPluginApi, id: string, draft: ProviderDraft
         },
         onCancel: () => {
           navigated = true
-          setTimeout(() => providerForm(api, id, draft, isNew), 0)
+          setTimeout(onBack ?? (() => providerForm(api, id, draft, isNew)), 0)
         },
       }),
     () => {
-      if (!navigated) setTimeout(() => providerForm(api, id, draft, isNew), 0)
+      if (!navigated) setTimeout(onBack ?? (() => providerForm(api, id, draft, isNew)), 0)
     },
   )
 }
 
-function pickNpmDraft(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew = false): void {
+function pickNpmDraft(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew = false, onBack?: () => void): void {
   const known = [NPM_OPENAI, NPM_ANTHROPIC]
   // keep a custom package selectable so the user can switch back
   const values = known.includes(draft.npm) ? known : [draft.npm, ...known]
@@ -824,24 +831,25 @@ function pickNpmDraft(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew
     },
   }
   api.ui.dialog.replace(() => api.ui.DialogSelect<string>(selectProps), () => {
-    if (!navigated) setTimeout(() => providerForm(api, id, draft, isNew), 0)
+    if (!navigated) setTimeout(onBack ?? (() => providerForm(api, id, draft, isNew)), 0)
   })
 }
 
 function saveProviderForm(api: TuiPluginApi, id: string, draft: ProviderDraft, isNew = false): void {
-  const target = isNew ? draft.id.trim() : id
+  const newId = draft.id.trim()
+  // rename path: edit mode + user typed a different, non-empty id
+  const renamed = !isNew && newId.length > 0 && newId !== id
+  const target = isNew || renamed ? newId : id
   const redraw = () => setTimeout(() => providerForm(api, id, draft, isNew), 0)
-  if (isNew) {
-    if (!target) {
-      toast(api, tr("provider.idRequired"), "error")
-      redraw()
-      return
-    }
-    if (!/^[a-z0-9][a-z0-9_-]*$/.test(target)) {
-      toast(api, tr("provider.invalidProviderId"), "error")
-      redraw()
-      return
-    }
+  if (isNew && !target) {
+    toast(api, tr("provider.idRequired"), "error")
+    redraw()
+    return
+  }
+  if ((isNew || renamed) && !/^[a-z0-9][a-z0-9_-]*$/.test(target)) {
+    toast(api, tr("provider.invalidProviderId"), "error")
+    redraw()
+    return
   }
   // openai-compatible packages have no default endpoint — baseURL is
   // mandatory; @ai-sdk/anthropic falls back to api.anthropic.com.
@@ -860,6 +868,30 @@ function saveProviderForm(api: TuiPluginApi, id: string, draft: ProviderDraft, i
     }
     config.provider ??= {}
     config.provider[target] = { models: {} }
+  } else if (renamed) {
+    if (config.provider?.[target]) {
+      toast(api, tr("provider.providerExists", { id: target }), "error")
+      redraw()
+      return
+    }
+    // carry the full record (npm/options/models/name) to the new key
+    config.provider![target] = config.provider![id]
+    delete config.provider![id]
+    // move the stored credential too — left behind, it would leak the
+    // old id and bind to no provider (the /connect-mirrored lookup uses
+    // the provider key, so a stale entry is dead weight at best)
+    const authNow = readAuth()
+    if (authNow[id]) {
+      authNow[target] = authNow[id]
+      delete authNow[id]
+      try {
+        writeAuth(authNow)
+      } catch (err) {
+        toast(api, tr("provider.writeFailed", { err: (err as Error).message }), "error")
+        redraw()
+        return
+      }
+    }
   }
   const provider = config.provider![target]
   if (draft.name) provider.name = draft.name
@@ -910,6 +942,7 @@ function saveProviderForm(api: TuiPluginApi, id: string, draft: ProviderDraft, i
     // tell the user the secret changed its home, so the vanishing config
     // entry never looks like data loss
     if (migrated) toast(api, tr("provider.keyMigrated"), "info")
+    if (renamed) toast(api, tr("provider.providerRenamed", { from: id, to: target }), "info")
     detailMenu(api, target)
   }
 }
@@ -1234,13 +1267,13 @@ function modelForm(api: TuiPluginApi, id: string, draft: ModelDraft, origKey?: s
       navigated = true
       switch (option.value) {
         case FIELD_KEY:
-          fieldEdit(api, id, draft, origKey, "key", tr("provider.modelKeyPlaceholder"))
+          fieldEdit(api, id, draft, origKey, "key", tr("provider.modelKeyPlaceholder"), () => detailMenu(api, id))
           return
         case FIELD_ID:
-          fieldEdit(api, id, draft, origKey, "id", tr("provider.modelIdPlaceholder"))
+          fieldEdit(api, id, draft, origKey, "id", tr("provider.modelIdPlaceholder"), () => detailMenu(api, id))
           return
         case FIELD_NAME:
-          fieldEdit(api, id, draft, origKey, "name", tr("provider.modelNamePlaceholder"))
+          fieldEdit(api, id, draft, origKey, "name", tr("provider.modelNamePlaceholder"), () => detailMenu(api, id))
           return
         case FIELD_STATUS: {
           // deprecated hides the model from suggestions — soft disable
@@ -1262,16 +1295,16 @@ function modelForm(api: TuiPluginApi, id: string, draft: ModelDraft, origKey?: s
           toggle("toolCall")
           return
         case FIELD_MODAL_IN:
-          modalitiesEdit(api, id, draft, origKey, "modalitiesIn")
+          modalitiesEdit(api, id, draft, origKey, "modalitiesIn", undefined, () => detailMenu(api, id))
           return
         case FIELD_MODAL_OUT:
-          modalitiesEdit(api, id, draft, origKey, "modalitiesOut")
+          modalitiesEdit(api, id, draft, origKey, "modalitiesOut", undefined, () => detailMenu(api, id))
           return
         case FIELD_CONTEXT:
-          fieldEdit(api, id, draft, origKey, "contextLimit", tr("provider.limitContextPlaceholder"))
+          fieldEdit(api, id, draft, origKey, "contextLimit", tr("provider.limitContextPlaceholder"), () => detailMenu(api, id))
           return
         case FIELD_OUTPUT:
-          fieldEdit(api, id, draft, origKey, "outputLimit", tr("provider.limitOutputPlaceholder"))
+          fieldEdit(api, id, draft, origKey, "outputLimit", tr("provider.limitOutputPlaceholder"), () => detailMenu(api, id))
           return
         case SAVE_MODEL:
           saveModelForm(api, id, draft, origKey)
@@ -1296,6 +1329,7 @@ function fieldEdit(
   origKey: string | undefined,
   field: "key" | "id" | "name" | "contextLimit" | "outputLimit",
   placeholder: string,
+  onBack?: () => void,
 ): void {
   let navigated = false
   api.ui.dialog.replace(
@@ -1311,11 +1345,11 @@ function fieldEdit(
         },
         onCancel: () => {
           navigated = true
-          setTimeout(() => modelForm(api, id, draft, origKey), 0)
+          setTimeout(onBack ?? (() => modelForm(api, id, draft, origKey)), 0)
         },
       }),
     () => {
-      if (!navigated) setTimeout(() => modelForm(api, id, draft, origKey), 0)
+      if (!navigated) setTimeout(onBack ?? (() => modelForm(api, id, draft, origKey)), 0)
     },
   )
 }
@@ -1327,6 +1361,7 @@ function modalitiesEdit(
   origKey: string | undefined,
   field: "modalitiesIn" | "modalitiesOut",
   focus?: string,
+  onBack?: () => void,
 ): void {
   const dir = field === "modalitiesIn" ? "input" : "output"
   let navigated = false
@@ -1350,7 +1385,7 @@ function modalitiesEdit(
     },
   }
   api.ui.dialog.replace(() => api.ui.DialogSelect<string>(selectProps), () => {
-    if (!navigated) setTimeout(() => modelForm(api, id, draft, origKey), 0)
+    if (!navigated) setTimeout(onBack ?? (() => modelForm(api, id, draft, origKey)), 0)
   })
 }
 
