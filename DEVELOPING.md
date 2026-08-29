@@ -304,7 +304,6 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `project-wizard.ts` | TUI plugin | `/project-wizard` dialog wizard: two-tier interactive wizard (scaffolding init, switch configuration, template sync, index catch-up) with re-entrant echo. |
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
-| `ocp.ts` (+ `plugins/ocp/`) | `config` + `command.execute.before` | `/ocp update\|upgrade\|status\|version` command — in-session self-management wrapping the repo's `ocp` CLI (`update` runs the read-only `ocp update` version check). Handled fully in-process; posts results via `session.prompt({ noReply })` and throws a synthetic empty HTTP response so the LLM is never invoked. |
 
 All slash commands are registered programmatically via the `config` hook — no `commands/*.md` files are needed. Protocol bodies live as markdown next to their plugin and are loaded at runtime, injected via `experimental.chat.system.transform` (LLM-only, not visible in chat UI).
 
@@ -515,8 +514,6 @@ plugins/
 ├── metrics.ts                     # Hook: auto-collect tool metrics
 ├── auto-format.ts                 # Hook: auto-run formatters
 ├── browser-screenshot.ts          # Custom tool: Playwright screenshots
-├── ocp.ts                         # Barrel: /ocp in-session self-management command
-├── ocp/                           # Command hook, arg parsing, CLI runtime helpers
 ├── profile-wizard.ts              # TUI plugin: /profile dialog wizard
 ├── provider-wizard.ts             # TUI plugin: /provider dialog wizard
 └── queue-manager.ts               # TUI plugin: /queued dialog manager

@@ -32,7 +32,6 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project-wizard` TUI dialog wizards |
 | `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 | `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
-| `ocp/` | `/ocp` command — OpenCode Prime self-management in-session: `/ocp update` (check for a newer release), `/ocp upgrade` (pull + reinstall), `/ocp status`, `/ocp version`; handled in-process, never invokes the LLM |
 
 ---
 

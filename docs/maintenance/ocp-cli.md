@@ -11,10 +11,13 @@ After a one-time `register` (or a default install), the repo provisioned two glo
 | Command | Aliases | What it does |
 | :--- | :--- | :--- |
 | `ocp` *(no args)* | | Launch the **OpenCode terminal UI** (same as `ocp tui`) |
-| `ocp tui` | | Launch the OpenCode terminal TUI (`exec opencode`); all extra args pass through to `opencode` |
+| `ocp tui` | | Launch the OpenCode terminal TUI (`exec opencode`); all extra args pass through to `opencode`. Add `--init` to create/activate the OCP project in the current directory before launching. |
 | `ocp serve` | | Launch the headless OpenCode server (`opencode serve`); all extra args pass through (e.g. `ocp serve --port 4096`) |
 | `ocp web` | | Launch the **OpenChamber web UI** (`openchamber serve`); auto-generates a `--ui-password`, auto-picks a free port starting at 3000 (see [port policy](#web-port-and-password-policy)) |
-| `ocp desktop` | `ocp ui` | Launch the **OpenChamber native desktop app** (a separate download from [openchamber.dev/download](https://openchamber.dev/download)) |
+| `ocp desktop` | `ocp ui` | Launch the **OpenChamber native desktop app** (a separate download from [openchamber.dev/download](https://openchamber.dev/download)). Add `--init` or pass `.` to create/activate the OCP project in the current directory, register it as an OpenChamber project, and then launch the desktop app. |
+| `ocp project init` | | Create or activate the OCP project in the current directory: create baseline files when missing, sync + refresh indexes when already present |
+| `ocp project index` | | Manually refresh existing code-intelligence indexes in the current project |
+| `ocp project sync` | | Append newly added template switches to the existing project config (append-only, never overwrites) |
 | `ocp install` | | Apply the current version's manifest to the target (`~/.config/opencode` by default) |
 | `ocp update` | | Check the suite (newest `install/VERSION` on `main` vs what is installed in `~/.config/opencode`) **and** the companion tools (`opencode`, `openchamber`). Every available update is selected by default — on an interactive terminal press Enter to apply it or `n` to skip it. Add `-y` to apply ALL pending updates without prompting (safe for scripts/cron); add `--check-only` to probe versions and apply nothing (this is also the default when run non-interactively without `-y`) |
 | `ocp upgrade` | | Pull the latest release and re-apply the installer: `git pull --ff-only` for git clones, otherwise download `opencode-prime-latest.{tar.gz,zip}` from GitHub Releases (same source as the one-liner quick install; set `OCP_RELEASE_MIRROR` to a ghproxy-style prefix as fallback). Add `--force` to re-apply even when already up to date |
@@ -28,7 +31,8 @@ After a one-time `register` (or a default install), the repo provisioned two glo
 | `ocp dashboard` | `ocp cc`, `ocp matrix` | Single-screen TUI control center — toggle MCP servers / plugins / RTK, cycle agent model tiers, then install |
 | `ocp session list` | | List sessions (passthrough to `opencode session list`) |
 | `ocp session delete` | | Delete a session by ID (passthrough to `opencode session delete`) |
-| `ocp session clean` | | Delete old sessions via `opencode session delete`. Usage: `ocp session clean --days 7 [--dry-run] [-y]` |
+| `ocp session clean` | | Delete old sessions via `opencode session delete`. Usage: `ocp session clean --days 7 [--dry-run] [-y] [--project <id|name>] [--directory <path>]` |
+| `ocp auth open` | | Open OpenCode's `auth.json` in the default editor; creates an empty file if it does not exist |
 | `ocp version` | `ocp --version`, `ocp -v` | Print the repo's `install/VERSION` |
 | `ocp help` | `ocp -h`, `ocp --help` | Print the command help |
 | *(anything else)* | | Falls through to `install.ps1` / `install.sh`, so unknown flags and future subcommands keep working after an upgrade |
@@ -44,6 +48,7 @@ Requires `opencode` on PATH (the installer provisions it). Every argument after 
 ```bash
 ocp tui                     # plain terminal UI
 ocp tui --version           # opencode's own --version
+ocp tui --init              # init/activate current project, then open TUI
 ```
 
 ### `ocp serve` — headless server
@@ -81,6 +86,40 @@ ocp web --ui-password s3cret # bring your own password
 ### `ocp desktop` (alias `ocp ui`) — native desktop app
 
 The Tauri-based desktop app is not usually on `PATH`, so the launcher probes the common install locations (Windows: `%LOCALAPPDATA%\Programs`, `%LOCALAPPDATA%`, `Program Files*`; Linux: `~/.Applications`, `/usr/local/bin`, `/opt`; macOS: `open -a OpenChamber` via LaunchServices). If it cannot be found, the error message points you to <https://openchamber.dev/download> — the installer never downloads the desktop app; it only provisions the `openchamber` **CLI** that powers `ocp web`.
+
+```bash
+ocp desktop                 # plain desktop app
+ocp ui                      # same as above
+ocp ui .                    # init/activate cwd, then open desktop app
+ocp ui --init               # same as `ocp ui .`
+```
+
+When `.` or `--init` is used, the launcher:
+
+1. Runs `ocp project init` in the current directory (creates baseline files if missing, syncs + refreshes indexes if present).
+2. Registers the current directory as an OpenChamber project and makes it active:
+   - **OpenChamber not running** — the project is written directly into `~/.config/openchamber/settings.json` (same schema and id format OpenChamber uses), then the desktop app launches with the project visible in the sidebar on first render.
+   - **OpenChamber already running** — the project is registered via `POST /api/opencode/directory` and the app is opened/focused either way. On an interactive terminal, OCP then offers to **restart OpenChamber** so the app reopens with the project already in its list (the deterministic option — activation is on disk before the window loads). Decline (or non-TTY) and OCP instead verifies the registration for a few seconds and re-registers if the running window's stale in-memory project list overwrites it; press Ctrl+R in the window to load it now.
+
+OpenChamber's own API never pushes project-list changes to a running UI, which is why the not-running path seeds the settings file before launch.
+
+---
+
+## Project Subcommands
+
+`ocp project init|index|sync` are terminal mirrors of the `/project` slash command family. They operate on the **current working directory** (not the install target):
+
+| Command | What it does |
+| :--- | :--- |
+| `ocp project init` | Create baseline files when missing, or sync + refresh indexes when already present. Never overwrites existing files. |
+| `ocp project index` | Refresh existing code-intelligence indexes (`codegraph sync`, `gitnexus analyze` when stale). |
+| `ocp project sync` | Append newly added template switches to the existing project config (append-only, existing content untouched). |
+
+```bash
+ocp project init            # create/activate project in cwd
+ocp project index           # refresh indexes for existing project
+ocp project sync            # append missing template switches
+```
 
 ---
 
@@ -124,6 +163,10 @@ Delete old sessions via the official `opencode session delete` CLI — no direct
 | Flag | Aliases | Meaning |
 | :--- | :--- | :--- |
 | `--days <n>` | `-d <n>` | Delete sessions older than *n* days (default: 7) |
+| `--project <id\|name>` | | Delete sessions by `project_id` or project path/name. If the value is not a 40-char hex ID, it is resolved against `directory`. |
+| `--project-name <name>` | | Alias for `--project` when passing a name/path instead of an ID |
+| `--directory <path>` | `--dir <path>` | Delete sessions whose workspace path matches exactly. Use `--cwd` to match the current directory. |
+| `--cwd` | | Match the current working directory (shorthand for `--directory <cwd>`) |
 | `--dry-run` | | Preview what would be deleted without actually deleting |
 | `--include-subagents` | | Also delete subagent (child) sessions (default: excluded) |
 | `-y`, `--yes` | | Skip the confirmation prompt |
@@ -133,25 +176,12 @@ ocp session clean --dry-run             # preview — what would be deleted?
 ocp session clean --days 3              # delete sessions older than 3 days
 ocp session clean --days 30 -y          # delete sessions older than 30 days, no prompt
 ocp session clean -d 7 --include-subagents  # include subagent sessions
+ocp session clean --cwd --days 1        # clean sessions from the current workspace
+ocp session clean --project <project_id> --days 7  # clean sessions for a specific project
+ocp session clean --project opencode-prime --days 7  # clean by project path/name
 ```
 
 The command prints a summary before deleting: session count, age breakdown, token totals, and up to 10 sample session titles. Deletion is performed via `opencode session delete` (the official CLI), so all storage operations go through the engine — no direct database access.
-
----
-
-## In-Session Companion: the `/ocp` Slash Command
-
-Inside any OpenCode chat, the bundled `plugins/ocp` plugin exposes the same management surface without leaving the session:
-
-| Command | Effect |
-| :--- | :--- |
-| `/ocp update` | Check whether a newer release is available (read-only, same as the CLI) |
-| `/ocp upgrade` | Pull the latest release and re-apply the installer (same as the CLI) |
-| `/ocp status` | Show installed vs repo version |
-| `/ocp version` | Print the repo's `install/VERSION` |
-| `/ocp` (or unknown) | Print the help text |
-
-The command is handled entirely in-process — the LLM is never invoked, and the output appears directly in your chat as a user-visible message. To force-reapply the current manifest without a remote pull, run `ocp install -Force` in a terminal.
 
 ---
 

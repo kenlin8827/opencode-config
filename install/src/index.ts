@@ -1,5 +1,8 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { execFile } from 'node:child_process';
+import { homedir } from 'node:os';
+import { promisify } from 'node:util';
 import { CliArgs, CommandAction, InstallOptions } from './types';
 import { readJsoncFile } from './merger';
 import {
@@ -8,6 +11,8 @@ import {
   executeInit,
   executeUninstall,
   getCurrentRepoVersion,
+  getDefaultTargetDir,
+  loadEffectiveOptions,
 } from './installer';
 import { generateManifest } from './manifest';
 import { unregisterShim, runGlobalRegistration } from './shim';
@@ -17,6 +22,42 @@ import { launchTui, launchServe, launchWeb, launchDesktop } from './launcher';
 import { ensureOpenChamber } from './openchamber';
 import { executeUpdate, executeUpgrade } from './updater';
 import { executeClean } from './session-clean';
+import { getProjectDir, setProjectDir } from '../../plugins/project-manager/project-manager-config';
+import {
+  planIndexBackends,
+  planInitBackends,
+  probeBackends,
+  runBackends,
+  type BackendResult,
+} from '../../plugins/project-manager/project-manager-index';
+import { runInit, runSync, type ScaffoldResult, type SyncResult } from '../../plugins/project-manager/project-manager-scaffold';
+
+const execFileAsync = promisify(execFile);
+
+const IS_WINDOWS = process.platform === 'win32';
+const IS_MACOS = process.platform === 'darwin';
+
+const AUTH_FILE = path.join(homedir(), '.local', 'share', 'opencode', 'auth.json');
+
+function ensureAuthFile(): void {
+  if (fs.existsSync(AUTH_FILE)) return;
+  fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
+  fs.writeFileSync(AUTH_FILE, '{}\n', { encoding: 'utf-8', mode: 0o600 });
+}
+
+async function openAuthFile(): Promise<{ ok: boolean; message: string }> {
+  ensureAuthFile();
+  const command = IS_WINDOWS ? 'cmd' : IS_MACOS ? 'open' : 'xdg-open';
+  const args = IS_WINDOWS ? ['/c', 'start', '', AUTH_FILE] : [AUTH_FILE];
+
+  try {
+    await execFileAsync(command, args, { timeout: 30_000, windowsHide: true });
+    return { ok: true, message: `Opened ${AUTH_FILE}` };
+  } catch (err: any) {
+    const detail = err?.stderr || err?.stdout || err?.message || String(err);
+    return { ok: false, message: `Failed to open ${AUTH_FILE}: ${detail}` };
+  }
+}
 
 function parseCliArgs(rawArgs: string[]): CliArgs {
   const args: CliArgs = {
@@ -57,6 +98,26 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
     } else if (arg === 'wizard' || arg === 'menu') {
       args.action = 'wizard';
       hasExplicitAction = true;
+    } else if (arg === 'project') {
+      // `project` namespace — init / index / sync mirror the `/project` slash command.
+      const next = rawArgs[i + 1];
+      if (next === 'init') {
+        args.action = 'project-init';
+        i++; // consume 'init'
+        hasExplicitAction = true;
+      } else if (next === 'index') {
+        args.action = 'project-index';
+        i++; // consume 'index'
+        hasExplicitAction = true;
+      } else if (next === 'sync') {
+        args.action = 'project-sync';
+        i++; // consume 'sync'
+        hasExplicitAction = true;
+      } else {
+        // Unknown `project` subcommand (or --help) — fall through to local help.
+        printHelp();
+        process.exit(0);
+      }
     } else if (arg === 'dashboard' || arg === 'matrix' || arg === 'cc') {
       args.action = 'dashboard';
       hasExplicitAction = true;
@@ -104,7 +165,18 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
         hasExplicitAction = true;
         break;
       } else {
-        // Unknown `session` subcommand — fall through to help.
+        // Unknown `session` subcommand (or --help) — fall through to local help.
+        printHelp();
+        process.exit(0);
+      }
+    } else if (arg === 'auth') {
+      // `auth` namespace — only `open` is supported locally.
+      const next = rawArgs[i + 1];
+      if (next === 'open') {
+        args.action = 'auth';
+        i++; // consume 'open'
+        hasExplicitAction = true;
+      } else {
         printHelp();
         process.exit(0);
       }
@@ -115,6 +187,14 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
       args.cleanDryRun = true;
     } else if (arg === '--include-subagents') {
       args.cleanIncludeSubagents = true;
+    } else if (arg === '--project') {
+      args.cleanProject = rawArgs[++i];
+    } else if (arg === '--project-name') {
+      args.cleanProjectName = rawArgs[++i];
+    } else if (arg === '--directory' || arg === '--dir') {
+      args.cleanDirectory = rawArgs[++i];
+    } else if (arg === '--cwd') {
+      args.cleanDirectory = process.cwd();
     } else if (arg === '-Target' || arg === '--target' || arg === '-t') {
       args.target = rawArgs[++i];
     } else if (arg === '-Force' || arg === '--force' || arg === '-f') {
@@ -159,7 +239,12 @@ Actions:
   tui          Launch the OpenCode terminal UI (exec opencode)
   serve        Launch the headless opencode server (opencode serve; all args pass through)
   web          Launch the OpenChamber web UI (auto-picks a free port unless --port is given)
+               Subcommands: 'ocp web stop' stops; 'ocp web restart' restarts; '--daemon' runs in background
   desktop      Launch the OpenChamber native desktop app (alias: ui)
+  project      Project-level commands:
+                 init   Create or activate the OCP project in the current directory
+                 index  Refresh existing code-intelligence indexes
+                 sync   Append newly added template switches to the project config
   install      Install or update OpenCode Prime configuration files
   update       Check the suite + companion tools (opencode, openchamber) for updates;
                apply the selected ones in an interactive TTY (Enter = keep, n = skip);
@@ -168,6 +253,7 @@ Actions:
   upgrade      Pull the latest release (git pull for clones, release download
                otherwise) and re-apply the installer
   session        Manage sessions: list, delete (passthrough), clean
+  auth           Open OpenCode's auth.json: 'auth open' (creates the file if missing)
   status         Check installed version and comparison with current repo
   generate     Generate manifest for current repo VERSION
   init         Backup and reset the target configuration directory
@@ -190,10 +276,103 @@ Session subcommands:
   session delete <id>       Delete a session (passthrough to opencode)
   session clean [--days <n>]  Delete old sessions (default: 7 days)
     --days, -d <n>           Delete sessions older than N days (default: 7)
+    --project <id|name>      Delete sessions by project_id or project path/name
+    --project-name <name>    Alias for --project when using a name/path
+    --directory, --dir <path>  Delete sessions from a specific workspace path
+    --cwd                    Shorthand for --directory <current directory>
     --dry-run                Preview what would be deleted without actually deleting
     --include-subagents      Also delete subagent (child) sessions
     -y, --yes                Skip the confirmation prompt
 `);
+}
+
+/** Format one backend result for the project command report. */
+function formatBackendLine(r: BackendResult): string {
+  if (r.status === 'ran') return `  ✅ ${r.backend}: ${r.detail}`;
+  if (r.status === 'failed') return `  ❌ ${r.backend}: ${r.detail}`;
+  return `  ⏭️ ${r.backend}: ${r.detail}`;
+}
+
+/** Format one scaffold result for the project command report. */
+function formatScaffoldLine(r: ScaffoldResult): string {
+  if (r.status === 'created') return `  ✅ created ${r.relPath}`;
+  if (r.status === 'updated') return `  ♻️ updated ${r.relPath} (template switches appended)`;
+  if (r.status === 'invalid') return `  ⚠️ malformed ${r.relPath}`;
+  return `  ⏭️ kept ${r.relPath}`;
+}
+
+/** Format one sync result for the project command report. */
+function formatSyncLine(r: SyncResult): string {
+  if (r.status === 'missing') return '  ⚠️ project config does not exist — run `ocp project init` first';
+  if (r.status === 'invalid') return '  ⚠️ project config is malformed (no proper closing brace) — left untouched';
+  if (r.status === 'up-to-date') return '  ⏭️ project config already has every template switch';
+  return `  ♻️ appended ${r.added.length} new switch line(s)`;
+}
+
+/**
+ * `ocp project init|index|sync` — project-level scaffolding and index refresh.
+ * Mirrors the `/project` slash command family, but driven from the terminal.
+ */
+async function executeProjectAction(action: 'project-init' | 'project-index' | 'project-sync'): Promise<number> {
+  const rootDir = process.cwd();
+  const previousDir = getProjectDir();
+  setProjectDir(rootDir);
+  try {
+    if (action === 'project-sync') {
+      console.log(`[ocp] Syncing project config in ${rootDir}...`);
+      const syncResult = runSync();
+      console.log(formatSyncLine(syncResult));
+      if (syncResult.added.length > 0) {
+        console.log(syncResult.added.map((k) => `    + ${k}`).join('\n'));
+      }
+      return 0;
+    }
+
+    if (action === 'project-index') {
+      console.log(`[ocp] Refreshing indexes in ${rootDir}...`);
+      const probe = probeBackends(rootDir);
+      const backends = await runBackends(planIndexBackends(probe), rootDir).catch(
+        (e): BackendResult[] => [{ backend: 'codegraph', status: 'failed', detail: String(e) }],
+      );
+      console.log('Backends:');
+      for (const r of backends) console.log(formatBackendLine(r));
+      return 0;
+    }
+
+    // project-init: create if missing, sync + refresh if present.
+    const configExisted =
+      fs.existsSync(path.join(rootDir, '.opencode', 'opencode.jsonc')) ||
+      fs.existsSync(path.join(rootDir, 'opencode.jsonc'));
+    console.log(configExisted
+      ? `[ocp] Activating existing OCP project in ${rootDir}...`
+      : `[ocp] No OCP project detected in ${rootDir} — creating one...`);
+
+    const results = runInit();
+    const probe = probeBackends(rootDir);
+    let backends = await runBackends(planInitBackends(probe), rootDir).catch(
+      (e): BackendResult[] => [{ backend: 'codegraph', status: 'failed', detail: String(e) }],
+    );
+    if (configExisted) {
+      const indexBackends = await runBackends(planIndexBackends(probe), rootDir).catch(
+        (e): BackendResult[] => [{ backend: 'gitnexus', status: 'failed', detail: String(e) }],
+      );
+      backends = backends.concat(indexBackends);
+    }
+
+    console.log(`[ocp] project ${configExisted ? 'activated' : 'created'} in ${rootDir}`);
+    console.log('');
+    console.log('Files:');
+    for (const r of results) console.log(formatScaffoldLine(r));
+    console.log('');
+    console.log('Backends:');
+    for (const r of backends) console.log(formatBackendLine(r));
+    return 0;
+  } catch (err: any) {
+    console.error(`[ocp] project ${action.replace('project-', '')} failed: ${err?.message ?? String(err)}`);
+    return 1;
+  } finally {
+    setProjectDir(previousDir);
+  }
 }
 
 /**
@@ -268,8 +447,12 @@ async function main() {
     process.exit(launchWeb(args.passthrough ?? []));
   }
 
+  if (args.action === 'project-init' || args.action === 'project-index' || args.action === 'project-sync') {
+    process.exit(await executeProjectAction(args.action));
+  }
+
   if (args.action === 'desktop') {
-    process.exit(launchDesktop(args.passthrough ?? []));
+    process.exit(await launchDesktop(args.passthrough ?? []));
   }
 
   if (args.action === 'dashboard') {
@@ -297,8 +480,17 @@ async function main() {
       dryRun: args.cleanDryRun ?? false,
       yes: args.yes,
       includeSubagents: args.cleanIncludeSubagents ?? false,
+      project: args.cleanProject,
+      projectName: args.cleanProjectName,
+      directory: args.cleanDirectory,
     });
     return;
+  }
+
+  if (args.action === 'auth') {
+    const { ok, message } = await openAuthFile();
+    console.log(message);
+    process.exit(ok ? 0 : 1);
   }
 
   if (args.action === 'wizard') {
@@ -347,9 +539,8 @@ async function main() {
     }
     case 'install':
     default: {
-      const optionsPath = path.join(repoDir, 'install', 'options.jsonc');
-      const fileOptions = readJsoncFile<InstallOptions>(optionsPath) || {};
-      const wantGlobal = fileOptions.global_commands !== false;
+      const effectiveOptions = loadEffectiveOptions(repoDir, args.target || getDefaultTargetDir(), args.optionsFile ? readJsoncFile<InstallOptions>(args.optionsFile) || {} : undefined);
+      const wantGlobal = effectiveOptions.global_commands !== false;
 
       const res = executeInstall(repoDir, args);
       console.log(`Installed v${res.version} to ${res.targetDir} (${res.filesInstalled} files applied)`);
@@ -361,7 +552,7 @@ async function main() {
         console.log(reg.pathMessage);
       }
 
-      if (fileOptions.openchamber !== false) {
+      if (effectiveOptions.openchamber !== false) {
         console.log(ensureOpenChamber().message);
       }
       break;

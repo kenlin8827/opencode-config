@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 
 /**
  * `ocp clean` — delete old OpenCode sessions via the official CLI.
@@ -16,6 +17,9 @@ export interface CleanOptions {
   dryRun: boolean;
   yes: boolean;
   includeSubagents: boolean;
+  project?: string;
+  projectName?: string;
+  directory?: string;
 }
 
 interface SessionRow {
@@ -26,6 +30,12 @@ interface SessionRow {
   tokens_input: number;
   tokens_output: number;
   cost: number;
+}
+
+interface ProjectRow {
+  project_id: string;
+  directory: string;
+  count: number;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
@@ -69,6 +79,39 @@ function daysAgo(unixMs: number): number {
   return Math.floor((Date.now() - unixMs) / (86400 * 1000));
 }
 
+function sqlEscape(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function normalizeDirectory(dir: string): string {
+  const resolved = path.resolve(dir);
+  return process.platform === 'win32' ? resolved.replace(/\\/g, '/') : resolved;
+}
+
+function looksLikeProjectId(value: string): boolean {
+  if (value === 'global') return true;
+  return /^[0-9a-f]{40}$/i.test(value);
+}
+
+function queryProjects(sql: string): ProjectRow[] {
+  const out = runOpencode(['db', sql, '--format', 'json']);
+  if (!out) return [];
+  return JSON.parse(out) as ProjectRow[];
+}
+
+function resolveProjectId(name: string): string | undefined {
+  const safe = sqlEscape(name);
+  const sql = `SELECT project_id, directory, COUNT(*) as count FROM session WHERE INSTR(LOWER(directory), LOWER('${safe}')) > 0 GROUP BY project_id, directory ORDER BY count DESC`;
+  const rows = queryProjects(sql);
+  if (rows.length === 0) return undefined;
+  if (rows.length === 1) return rows[0].project_id;
+  console.error(`Multiple projects match '${name}':`);
+  for (const r of rows) {
+    console.error(`  ${r.project_id}  ${r.directory}  (${r.count} sessions)`);
+  }
+  process.exit(1);
+}
+
 function getDbSize(): number {
   try {
     const dbPath = runOpencode(['db', 'path']);
@@ -81,19 +124,39 @@ function getDbSize(): number {
 // ─── Main logic ─────────────────────────────────────────────────────────
 
 export async function executeClean(opts: CleanOptions): Promise<void> {
+  // Resolve a human-readable project name to a project_id first.
+  // `--project` accepts either a raw project_id or a project path/name.
+  let effectiveProject = opts.project;
+  const projectNameInput = opts.projectName ?? (opts.project && !looksLikeProjectId(opts.project) ? opts.project : undefined);
+  if (projectNameInput) {
+    const resolved = resolveProjectId(projectNameInput);
+    if (!resolved) {
+      console.log(`No project found matching '${projectNameInput}'.`);
+      return;
+    }
+    effectiveProject = resolved;
+  }
+
   // OpenCode stores timestamps in milliseconds (Unix epoch * 1000).
   const cutoff = Date.now() - opts.days * 86400 * 1000;
 
   // Build the SQL query.
+  const effectiveDirectory = opts.directory ? normalizeDirectory(opts.directory) : undefined;
   const parentFilter = opts.includeSubagents ? '' : 'AND parent_id IS NULL';
-  const sql = `SELECT id, title, time_created, parent_id, tokens_input, tokens_output, cost FROM session WHERE time_created < ${cutoff} ${parentFilter} ORDER BY time_created ASC`;
+  const projectFilter = effectiveProject ? `AND project_id = '${sqlEscape(effectiveProject)}'` : '';
+  const directoryFilter = effectiveDirectory ? `AND directory = '${sqlEscape(effectiveDirectory)}'` : '';
+  const sql = `SELECT id, title, time_created, parent_id, tokens_input, tokens_output, cost FROM session WHERE time_created < ${cutoff} ${parentFilter} ${projectFilter} ${directoryFilter} ORDER BY time_created ASC`;
 
   const rows = querySessions(sql);
 
   const dbSizeBefore = getDbSize();
 
   if (rows.length === 0) {
-    console.log(`No sessions older than ${opts.days} day(s) found.`);
+    const context = effectiveDirectory ? ` in ${effectiveDirectory}`
+      : projectNameInput ? ` for project name '${projectNameInput}'`
+      : effectiveProject ? ` for project ${effectiveProject}`
+      : '';
+    console.log(`No sessions older than ${opts.days} day(s) found${context}.`);
     console.log(`Database size: ${formatBytes(dbSizeBefore)}`);
     return;
   }
@@ -125,6 +188,9 @@ export async function executeClean(opts: CleanOptions): Promise<void> {
   console.log('');
   console.log(`  Cutoff       : older than ${opts.days} day(s) (before ${formatDate(cutoff)})`);
   console.log(`  Subagents    : ${opts.includeSubagents ? 'included' : 'excluded'}`);
+  const projectLabel = opts.projectName ?? (opts.project && !looksLikeProjectId(opts.project) ? opts.project : undefined);
+  console.log(`  Project      : ${projectLabel ? `${projectLabel} → ${effectiveProject}` : effectiveProject ?? '(any)'}`);
+  console.log(`  Directory    : ${effectiveDirectory ?? '(any)'}`);
   console.log(`  Database size: ${formatBytes(dbSizeBefore)}`);
   console.log('');
   console.log(`  Sessions to delete: ${rows.length}`);

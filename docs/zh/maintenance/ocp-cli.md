@@ -17,7 +17,7 @@
 | `ocp desktop` | `ocp ui` | 启动 **OpenChamber 原生桌面应用**（需从 [openchamber.dev/download](https://openchamber.dev/download) 单独下载） |
 | `ocp session list` | | 列出会话（透传 `opencode session list`） |
 | `ocp session delete` | | 按 ID 删除会话（透传 `opencode session delete`） |
-| `ocp session clean` | | 按日期批量清理旧会话。用法：`ocp session clean --days 7 [--dry-run] [-y]` |
+| `ocp session clean` | | 按日期批量清理旧会话。用法：`ocp session clean --days 7 [--dry-run] [-y] [--project <id|name>] [--directory <path>]` |
 | `ocp install` | | 将当前版本的清单应用到目标目录（默认 `~/.config/opencode`） |
 | `ocp update` | | 检查套件本体（`main` 分支最新 `install/VERSION` 对比 `~/.config/opencode` 已安装版本）**和**配套工具（`opencode`、`openchamber`）。所有可用更新默认全部勾选——交互终端中按回车应用、输 `n` 跳过；加 `-y` 可不经确认自动应用全部待更新项（适合脚本/定时任务）；加 `--check-only` 则只探测版本、不做任何修改（非交互运行且未加 `-y` 时默认如此） |
 | `ocp upgrade` | | 拉取最新发布包并重新应用安装器：git 克隆走 `git pull --ff-only`，否则从 GitHub Releases 下载 `opencode-prime-latest.{tar.gz,zip}`（与一键安装同源；官方源失败时可用 `OCP_RELEASE_MIRROR` 设置 ghproxy 类镜像前缀回退）。加 `--force` 可在版本相同时强制重放 |
@@ -29,6 +29,7 @@
 | `ocp unregister` | | 移除 `~/.local/bin` 中的全局 shim |
 | `ocp wizard` | `ocp menu` | 交互式 TUI 安装向导（首次安装与重新配置） |
 | `ocp dashboard` | `ocp cc`、`ocp matrix` | 单屏 TUI 全景控制台 —— 切换 MCP 服务 / 插件 / RTK、循环调整 Agent 模型梯队，然后一键安装 |
+| `ocp auth open` | | 用默认编辑器打开 OpenCode 的 `auth.json`；文件不存在时会自动创建一个空文件 |
 | `ocp version` | `ocp --version`、`ocp -v` | 打印仓库的 `install/VERSION` |
 | `ocp help` | `ocp -h`、`ocp --help` | 打印命令帮助 |
 | *（其他任意输入）* | | 透传给 `install.ps1` / `install.sh`，因此未知参数与未来新增子命令在升级后依然可用 |
@@ -101,6 +102,10 @@ ocp session delete <sessionID>          # 删除指定会话
 | 参数 | 别名 | 说明 |
 | :--- | :--- | :--- |
 | `--days <n>` | `-d <n>` | 删除超过 *n* 天的会话（默认 7） |
+| `--project <id\|name>` | | 按 `project_id` 或项目路径/名称删除。如果值不是 40 位十六进制 ID，会自动按路径解析为 ID。 |
+| `--project-name <name>` | | `--project` 的别名，用于明确按名称/路径传入时 |
+| `--directory <path>` | `--dir <path>` | 仅删除工作区路径完全匹配的会话。使用 `--cwd` 匹配当前目录。 |
+| `--cwd` | | 匹配当前工作目录（`--directory <当前目录>` 的简写） |
 | `--dry-run` | | 预览将被删除的内容，不实际执行 |
 | `--include-subagents` | | 同时删除子代理（子）会话（默认排除） |
 | `-y`、`--yes` | | 跳过确认提示 |
@@ -110,6 +115,9 @@ ocp session clean --dry-run             # 预览 —— 哪些会话会被删除
 ocp session clean --days 3              # 删除超过 3 天的会话
 ocp session clean --days 30 -y          # 删除超过 30 天的会话，不提示
 ocp session clean -d 7 --include-subagents  # 包含子代理会话
+ocp session clean --cwd --days 1        # 清理当前工作空间的旧会话
+ocp session clean --project <project_id> --days 7  # 清理指定项目的旧会话
+ocp session clean --project opencode-prime --days 7  # 按项目路径/名称清理
 ```
 
 命令在删除前会打印摘要：会话数量、时间分布、Token 用量，以及最多 10 条示例会话标题。删除操作通过 `opencode session delete`（官方 CLI）执行，所有存储操作均经由引擎 —— 不直接操作数据库。
@@ -136,22 +144,6 @@ ocp register -BinDir ~/bin  # shim 安装到自定义目录
 ### `register` 与 `unregister`
 
 `register` 现在做两件事：把三个 shim 写入 bin 目录，**并**确保该目录在新终端中可用 —— Windows 上将其追加进用户 `PATH` 注册表值（通过 `[Environment]::SetEnvironmentVariable`，绝不使用 `setx`，长 PATH 值不会被截断）；POSIX 上向 shell 配置文件（`~/.zshrc`、`~/.bashrc` 或 `~/.profile`，带托管标记守卫）追加 `export PATH` 块。`unregister` 只移除 shim，不会改动你的 `PATH`。
-
----
-
-## 会话内伴侣：`/ocp` 斜杠命令
-
-在任意 OpenCode 会话中，内置的 `plugins/ocp` 插件让你无需退出会话即可完成同样的自管理操作：
-
-| 命令 | 效果 |
-| :--- | :--- |
-| `/ocp update` | 检查是否有新版本（只读，与终端 CLI 一致） |
-| `/ocp upgrade` | 拉取最新发布包并重新应用安装器（与终端 CLI 一致） |
-| `/ocp status` | 对比已安装版本与仓库版本 |
-| `/ocp version` | 打印仓库的 `install/VERSION` |
-| `/ocp`（或未知参数） | 打印帮助文本 |
-
-该命令完全在进程内处理 —— 不会唤起 LLM，输出直接以用户可见消息的形式出现在聊天中。如需在不拉取远程的情况下强制重放当前清单，请在终端运行 `ocp install -Force`。
 
 ---
 

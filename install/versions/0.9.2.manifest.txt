@@ -114,11 +114,6 @@ plugins/md-to-pdf/style.css
 plugins/md-to-pdf/style.ts
 plugins/md-to-pdf/system-inject.ts
 plugins/metrics.ts
-plugins/ocp.ts
-plugins/ocp/index.ts
-plugins/ocp/ocp-command.ts
-plugins/ocp/ocp-config.ts
-plugins/ocp/ocp-runtime.ts
 plugins/openrtk.ts
 plugins/openrtk/index.ts
 plugins/openrtk/rewrite.ts

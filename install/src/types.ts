@@ -32,7 +32,12 @@ export type CommandAction =
   | 'web'
   | 'desktop'
   | 'session'
-  | 'clean';
+  | 'auth'
+  | 'clean'
+  | 'project-init'
+  | 'project-index'
+  | 'project-sync'
+  | 'project-setup';
 
 export interface CliArgs {
   action: CommandAction;
@@ -52,6 +57,9 @@ export interface CliArgs {
   cleanDays?: number;
   cleanDryRun?: boolean;
   cleanIncludeSubagents?: boolean;
+  cleanProject?: string;
+  cleanProjectName?: string;
+  cleanDirectory?: string;
 }
 
 export interface ManifestData {

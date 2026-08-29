@@ -28,6 +28,7 @@
 #                   unless --port is given)
 #   desktop | ui    Launch the OpenChamber native desktop app
 #   session clean   Delete old sessions via `opencode session delete`
+#   auth open       Open OpenCode's auth.json in the default editor (creates it if missing)
 #   version         Print the repo's install/VERSION
 #   help            Print this help
 #
@@ -40,27 +41,6 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL="$REPO_ROOT/install/install.sh"
-
-# Locate the OpenChamber native desktop app (Tauri). It is usually not on
-# PATH, so probe the binary name first, then common install locations.
-find_openchamber_desktop() {
-    command -v openchamber-desktop >/dev/null 2>&1 && { command -v openchamber-desktop; return; }
-    local candidates=(
-        "$HOME/Applications/openchamber-desktop"
-        "$HOME/Applications/OpenChamber/OpenChamber"
-        "/usr/local/bin/openchamber-desktop"
-        "/opt/openchamber-desktop/openchamber-desktop"
-    )
-    local c
-    for c in "${candidates[@]}"; do
-        [[ -x "$c" ]] && { printf '%s\n' "$c"; return; }
-    done
-    if command -v open >/dev/null 2>&1; then
-        # macOS: .app bundles are not on PATH — let LaunchServices open it.
-        printf '%s\n' 'open:-a OpenChamber'
-    fi
-    return 1
-}
 
 print_help() {
     awk 'NR>=2 && /^$/{exit} NR>=2' "$0"
@@ -109,6 +89,13 @@ case "$sub" in
             echo "✗ opencode was not found on PATH." >&2
             echo "  Install OpenCode first: https://opencode.ai (or re-run 'ocp install')." >&2
             exit 1
+        fi
+        # --init: ensure the current directory is an OCP project before launching the TUI.
+        if [[ "$*" == *--init* ]]; then
+            "$INSTALL" project init || exit 1
+            new_args=()
+            for a in "$@"; do [ "$a" != "--init" ] && new_args+=("$a"); done
+            set -- "${new_args[@]}"
         fi
         exec opencode "$@"
         ;;
@@ -241,16 +228,28 @@ case "$sub" in
         exec openchamber serve --ui-password "$pw" "$@"
         ;;
     desktop|ui)
-        if ! target="$(find_openchamber_desktop)"; then
-            echo "✗ The OpenChamber desktop app was not found." >&2
-            echo "  Download the native app from https://openchamber.dev/download" >&2
-            echo "  (the 'openchamber' CLI serves the browser UI instead — use 'ocp web')" >&2
-            exit 1
+        # Detect init request: `ocp ui .` or `ocp ui --init` (or both).
+        # `.` is normalized to `--init` before delegating to the installer so
+        # the TypeScript launcher can scaffold the OCP project and register the
+        # current directory as an OpenChamber project. Plain `ocp ui` ignores.
+        init_requested=false
+        if [[ "$1" == "." ]]; then
+            init_requested=true
+            shift
         fi
-        if [[ "$target" == open:* ]]; then
-            exec open "${target#open:}" "$@"
+        if [[ "$*" == *--init* ]]; then
+            init_requested=true
+            new_args=()
+            for a in "$@"; do
+                # Drop --init and any stray `.` wherever they appear.
+                { [ "$a" != "--init" ] && [ "$a" != "." ]; } && new_args+=("$a")
+            done
+            set -- "${new_args[@]}"
         fi
-        exec "$target" "$@"
+        if [[ "$init_requested" == true ]]; then
+            set -- --init "$@"
+        fi
+        exec "$INSTALL" desktop "$@"
         ;;
     session)
         exec "$INSTALL" session "$@"

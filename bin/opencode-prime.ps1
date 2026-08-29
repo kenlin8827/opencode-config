@@ -27,6 +27,7 @@
                       auto-picks a free port starting at 3000 unless --port is given)
       desktop | ui    Launch the OpenChamber native desktop app
       session clean   Delete old sessions via `opencode session delete`
+      auth open       Open OpenCode's auth.json in the default editor (creates it if missing)
       version         Print the repo's install/VERSION
       help            Print this help
 
@@ -195,6 +196,12 @@ switch ($Subcommand.ToLowerInvariant()) {
             Write-Host '  Install OpenCode first: https://opencode.ai (or re-run `ocp install`).'
             exit 1
         }
+        # --init: ensure the current directory is an OCP project before launching the TUI.
+        if ($Rest -contains '--init') {
+            & $Install project init
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $Rest = $Rest | Where-Object { $_ -ne '--init' }
+        }
         & opencode @Rest
         exit $LASTEXITCODE
     }
@@ -265,15 +272,24 @@ switch ($Subcommand.ToLowerInvariant()) {
         exit $LASTEXITCODE
     }
     { $_ -in @('desktop', 'ui') } {
-        $exe = Find-OpenChamberDesktop
-        if (-not $exe) {
-            Write-Host '✗ The OpenChamber desktop app was not found.' -ForegroundColor Red
-            Write-Host '  Download the native app from https://openchamber.dev/download'
-            Write-Host '  (the `openchamber` CLI serves the browser UI instead — use `ocp web`)'
-            exit 1
+        # Detect init request: `ocp ui .` or `ocp ui --init` (or both).
+        # `.` is normalized to `--init` so the installer can scaffold the OCP
+        # project and register the current directory in OpenChamber.
+        # Plain `ocp ui` just launches the desktop app.
+        $initRequested = $false
+        if ($Rest.Count -gt 0 -and $Rest[0] -eq '.') {
+            $initRequested = $true
+            $Rest = $Rest[1..($Rest.Count - 1)]
         }
-        Start-Process -FilePath $exe -ArgumentList @Rest
-        exit 0
+        if ($Rest -contains '--init') {
+            $initRequested = $true
+            $Rest = @($Rest | Where-Object { $_ -ne '--init' -and $_ -ne '.' })
+        }
+        if ($initRequested) {
+            $Rest = @('--init') + $Rest
+        }
+        & $Install desktop @Rest
+        exit $LASTEXITCODE
     }
     'session' {
         & $Install session @Rest

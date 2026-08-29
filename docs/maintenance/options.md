@@ -157,4 +157,4 @@ Once registered, `ocp` also acts as the runtime launcher: `ocp` (or `ocp tui`) s
 
 To opt out of automatic shim registration during install, set `"global_commands": false` in `install/options.jsonc` — the standalone `register` / `unregister` actions above remain available regardless.
 
-👉 The complete command list, launcher semantics (port & password policy for `ocp web`), and the in-session `/ocp` slash command are documented in the dedicated [OCP CLI Reference](/maintenance/ocp-cli).
+👉 The complete command list and launcher semantics (port & password policy for `ocp web`) are documented in the dedicated [OCP CLI Reference](/maintenance/ocp-cli).

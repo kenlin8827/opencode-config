@@ -157,4 +157,4 @@ pwsh install/install.ps1 register
 
 若不想在安装时自动注册 shim，可在 `install/options.jsonc` 中设置 `"global_commands": false` —— 上方的 `register` / `unregister` 独立操作仍然随时可用。
 
-👉 完整命令清单、启动器语义（`ocp web` 的端口与密码策略）以及会话内 `/ocp` 斜杠命令，见独立章节 [OCP 命令行参考](/zh/maintenance/ocp-cli)。
+👉 完整命令清单与启动器语义（`ocp web` 的端口与密码策略）见独立章节 [OCP 命令行参考](/zh/maintenance/ocp-cli)。
