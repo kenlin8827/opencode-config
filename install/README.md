@@ -160,7 +160,7 @@ model picks are now configured inside opencode itself:
 - `/profile <name>` — apply a bundled profile (per-tier model picks)
 - `llm-router` credentials — set the `LLM_ROUTER_BASE_URL` /
   `LLM_ROUTER_API_KEY` environment variables, or edit the target
-  `opencode.jsonc` directly
+  `providers/llm-router.json` preset file directly
 
 The replacement workflow is tracked by a follow-up ADR.
 

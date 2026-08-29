@@ -114,12 +114,30 @@ export function pruneOldBackups(targetDir: string, keep: number = getMaxBackups(
 
 export function copyRepoFiles(repoDir: string, targetDir: string, files: string[]): number {
   let count = 0;
+  // Shipped preset files in `providers/` are seeded on first install only.
+  // After that, the user owns `~/.config/opencode/providers/`: opencode loads
+  // every JSON there as an available preset (see `/provider` → "Add preset"),
+  // and the user can delete / edit / re-add presets as they see fit. We use
+  // the presence of `installed.version` (written at the end of a successful
+  // install) as the "first install already happened" signal — checking the
+  // preset file itself is unreliable because the user may have just deleted
+  // it and we must not undo that.
+  const userOwnsProviders = fs.existsSync(path.join(targetDir, 'installed.version'));
   for (const relFile of files) {
     // The config template ships in the package but never lands in the target:
     // mergeConfig renders it (plus options + preserved fields) into the
     // target's opencode.jsonc. Copying it verbatim would leave a stray
     // opencode.template.jsonc beside the merged config.
     if (relFile === 'opencode.template.jsonc') continue;
+
+    if (
+      userOwnsProviders &&
+      relFile.startsWith('providers/') &&
+      relFile.endsWith('.json')
+    ) {
+      continue;
+    }
+
     const src = path.join(repoDir, relFile);
     const dest = path.join(targetDir, relFile);
     const destDir = path.dirname(dest);

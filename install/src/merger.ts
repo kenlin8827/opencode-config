@@ -262,7 +262,11 @@ export function mergeConfig(
     config.env = { ...(config.env || {}), ...bag.userEnv };
   }
 
-  // 3. Merge preserved user custom providers/models
+// 3. Merge preserved user custom providers/models. Shipped providers live in
+  // `providers/*.json` as standalone preset files opencode loads natively; the
+  // template does not inline a provider block anymore. Anything the user
+  // wrote into `opencode.jsonc.provider` is preserved verbatim — additions,
+  // edits, and deletions all stick.
   if (bag?.userModels && Object.keys(bag.userModels).length > 0) {
     config.provider = { ...(config.provider || {}), ...bag.userModels };
   }

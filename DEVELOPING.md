@@ -15,7 +15,7 @@ agents/          # Agent prompts: 3 primaries + 17 specialists
 instructions/    # Shared instruction files injected into all agents
 plugins/         # TypeScript plugins (barrel entries at root, logic in subdirs)
 profiles/        # Model profiles: provider + per-tier model picks
-providers/       # Custom provider definitions (merged via /provider add)
+providers/       # Custom provider definitions (auto-loaded by opencode as presets; /provider → "Add preset" can also import them into opencode.jsonc)
 install/         # Self-installing engine (TypeScript), manifests, VERSION, options
 bin/             # OCP CLI dispatchers (opencode-prime, ocp) — installer wrapper + runtime launcher
 tests/           # Structural + prompt test suites (see tests/README.md)
@@ -474,11 +474,11 @@ agents/
 
 profiles/                     # Tier→model presets applied via /profile
 providers/
-├── antigravity-router.json   # Custom provider definition (merged via /provider add)
-├── claude-code-router.json   # Custom provider definition (merged via /provider add)
-├── codex-router.json         # Custom provider definition (merged via /provider add)
-├── llm-router.json           # Custom provider definition (merged via /provider add)
-└── qoder-router.json         # Custom provider definition (merged via /provider add)
+├── antigravity-router.json   # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
+├── claude-code-router.json   # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
+├── codex-router.json         # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
+├── llm-router.json           # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
+└── qoder-router.json         # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
 
 plugins/
 ├── shared/opencode-prime.ts      # Shared JSONC plumbing (project dir, field upsert)

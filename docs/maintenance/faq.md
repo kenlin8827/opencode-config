@@ -50,7 +50,7 @@ pwsh install/install.ps1 init
 
 ### "provider.llm-router not configured"
 
-Set credentials via environment variables `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` (see [Configuration & Profiles](/core/profiles)), or edit `~/.config/opencode/opencode.jsonc` directly, then restart opencode.
+Set credentials via environment variables `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` (see [Configuration & Profiles](/core/profiles)), or edit `~/.config/opencode/providers/llm-router.json` directly, then restart opencode.
 
 ### Auto-advisor mode does not switch
 

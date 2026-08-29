@@ -261,7 +261,7 @@
 
 ## LLM Router 凭证
 
-对于 `llm-router` 自定义服务商，通过下面的环境变量设置 `baseURL` / `apiKey`（推荐）、通过 `/provider` 向导（交互式），或直接编辑 `~/.config/opencode/opencode.jsonc`。
+对于 `llm-router` 自定义服务商，通过下面的环境变量设置 `baseURL` / `apiKey`（推荐）、通过 `/provider` 向导（交互式），或直接编辑 `~/.config/opencode/providers/llm-router.json`（这是 opencode 加载的预设定义文件，`opencode.jsonc` 不再内联 `llm-router` 块）。
 
 > `/provider` 向导把明文 API 密钥存入 `~/.local/share/opencode/auth.json` — 与官方 `/connect` 命令同一存储，两者保持一致。
 

@@ -262,7 +262,7 @@ The `/provider` slash command (a TUI plugin registered via `tui.json`) configure
 
 ## LLM Router credentials
 
-For the `llm-router` custom provider, set `baseURL` / `apiKey` via the environment variables below (recommended), via the `/provider` wizard (interactive), or by editing `~/.config/opencode/opencode.jsonc` directly.
+For the `llm-router` custom provider, set `baseURL` / `apiKey` via the environment variables below (recommended), via the `/provider` wizard (interactive), or by editing `~/.config/opencode/providers/llm-router.json` directly (this is the preset definition file opencode loads — `opencode.jsonc` no longer carries an inline `llm-router` block).
 
 > The `/provider` wizard stores literal API keys in `~/.local/share/opencode/auth.json` — the same store the official `/connect` command writes, so both stay in sync.
 

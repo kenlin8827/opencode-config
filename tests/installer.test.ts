@@ -193,6 +193,37 @@ for (const item of provisionPlan) {
 }
 console.log(`✓ MCP provision plan passed (${provisionPlan.length} entries)`);
 
+// 5c. Preset provider lives in providers/llm-router.json (not inlined into
+// opencode.jsonc) and the install must not silently re-ship a user-deleted
+// preset — the directory is user-owned after first install.
+console.log('\nTest 5c: Preset Providers — Ship-Once, User-Owned');
+const providersDir = path.join(testTargetDir, 'providers');
+const llmRouterPresetPath = path.join(providersDir, 'llm-router.json');
+if (!fs.existsSync(llmRouterPresetPath)) {
+  throw new Error('First install did not seed providers/llm-router.json preset');
+}
+const userConfigAfterInstall = readJsoncFile<Record<string, any>>(path.join(testTargetDir, 'opencode.jsonc'));
+if (userConfigAfterInstall?.provider?.['llm-router']) {
+  throw new Error('opencode.jsonc inlines llm-router — should only live in providers/llm-router.json');
+}
+console.log('✓ First install seeds providers/llm-router.json, opencode.jsonc stays clean of inline providers');
+
+// User deletes the preset file — install must not bring it back.
+fs.rmSync(llmRouterPresetPath, { force: true });
+const upgradeRes = executeInstall(repoDir, {
+  action: 'install',
+  target: testTargetDir,
+  force: true,
+  noBackup: true,
+  yes: true,
+  isInteractive: false,
+});
+if (!upgradeRes.success) throw new Error('Upgrade install failed');
+if (fs.existsSync(llmRouterPresetPath)) {
+  throw new Error('Upgrade silently re-shipped the user-deleted providers/llm-router.json preset');
+}
+console.log('✓ User-deleted preset stays deleted after upgrade');
+
 // 6. Status Check
 console.log('\nTest 6: Status Check');
 const st = executeStatus(repoDir, testTargetDir);

@@ -139,23 +139,6 @@
       "enabled": true
     }
   },
-  "provider": {
-    "llm-router": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "llm-router",
-      "options": {
-        "baseURL": "{env:LLM_ROUTER_BASE_URL}",
-        "apiKey": "{env:LLM_ROUTER_API_KEY}"
-      },
-      "models": {
-        "flash":    { "name": "LLM Router flash",    "id": "flash",    "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
-        "standard": { "name": "LLM Router standard", "id": "standard", "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } },
-        "pro":      { "name": "LLM Router pro",      "id": "pro",      "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
-        "max":      { "name": "LLM Router max",      "id": "max",      "reasoning": true, "modalities": { "input": ["text"], "output": ["text"] } },
-        "vision":   { "name": "LLM Router vision",   "id": "vision",   "attachment": true, "reasoning": true, "modalities": { "input": ["text", "image"], "output": ["text"] } }
-      }
-    }
-  },
   "agent": {
     "build": {
       "description": "Build — default entry point for all tasks. Routes every coding task to the right specialist agent (even simple ones); handles only non-coding tasks (exploration, Q&A, git info) directly. Coordinates multi-step workflows across agents.",
