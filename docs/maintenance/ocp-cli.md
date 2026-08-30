@@ -51,6 +51,17 @@ ocp tui --version           # opencode's own --version
 ocp tui --init              # init/activate current project, then open TUI
 ```
 
+By default `ocp tui` launches `opencode` directly in the current shell. To route it through a herdr workspace instead (equivalent to `ocp herdr`), set `"tui_mode": "herdr"` in `install/options.jsonc` — this auto-enables `tools.herdr` if it isn't already.
+
+CLI overrides (one-shot, take precedence over `tui_mode`):
+
+```bash
+ocp tui --direct            # force direct (opencode in current shell)
+ocp tui --herdr             # force herdr workspace for this invocation
+```
+
+Bare `ocp` (no args) always opens `opencode` directly — it bypasses both `tui_mode` and the `--herdr`/`--direct` overrides.
+
 ### `ocp serve` — headless server
 
 Pure passthrough to `opencode serve`. Handy for ACP/HTTP clients that talk to a running engine:

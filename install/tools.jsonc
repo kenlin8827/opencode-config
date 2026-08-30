@@ -1,0 +1,135 @@
+// Tool registry — declarative config for optional external binaries that the
+// installer can provision (binary download, package manager, source build, …).
+//
+// Why a separate file from install/options.jsonc?
+//   - options.jsonc is a USER-FACING config (declares which tools the user
+//     wants enabled; persisted in git).
+//   - tools.jsonc is a SHIPPED REGISTRY (declares WHAT each tool is and how
+//     to install it; lives in repo, never copied to ~/.config/opencode/).
+//
+// Why per-platform install commands?
+//   - Some tools (rtk, herdr) ship native binaries per OS/arch; a single
+//     `npm install -g` doesn't fit. The schema mirrors what MCP `install`
+//     will eventually need too, so the resolver below is intentionally
+//     generic and reusable.
+//
+// Resolution order when picking an install command for the current machine:
+//   1. `${platform}-${arch}`  (e.g. "linux-x64", "darwin-arm64", "win32-x64")
+//   2. `${platform}`          (e.g. "linux", "darwin", "win32")
+//   3. `default`              (fallback)
+//   4. `null`                 (no install path for this platform; skipped)
+//
+// A user opts in/out per tool via install/options.jsonc:
+//   tools.herdr      = true   // opt-in, provisioned when missing
+//   tools.openchamber = false  // opt-out, installer leaves it alone
+//   tools.<name>     omitted  // treat as `true` (enabled by default)
+//
+// update_check (optional, drives `ocp update`):
+//   - `source.kind`: `github` | `npm` | `cargo` | `url`
+//   - For github: `source.repo = owner/name`
+//   - For npm:    `source.package = <npm-package-name>`
+//   - For cargo:  `source.crate = <crate-name>`
+//   - For url:    `source.url = <endpoint>` + optional `source.regex` for extraction
+//   - `upgrade` (optional): same shape as `install` (platform-aware command),
+//     run when the user accepts the upgrade prompt
+//
+// Resolution order for upgrade (same as install):
+//   1. `${platform}-${arch}` → 2. `${platform}` → 3. `default`
+{
+  "tools": {
+    "rtk": {
+      "description": "Rust Token Killer — token-optimized shell command proxy",
+      "binary": "rtk",
+      "url": "https://github.com/rtk-ai/rtk",
+      "install": {
+        "default": "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh",
+        "win32-x64": "irm https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.ps1 -useb | iex"
+      },
+      "update_check": {
+        "source": {
+          "kind": "github",
+          "repo": "rtk-ai/rtk"
+        },
+        "upgrade": {
+          "default": "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh",
+          "win32-x64": "irm https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.ps1 -useb | iex"
+        }
+      }
+    },
+    "herdr": {
+      "description": "Terminal workspace manager for AI coding agents",
+      "binary": "herdr",
+      "url": "https://herdr.dev",
+      "install": {
+        "default": "npm install -g herdr-cli",
+        "win32-x64": "iwr https://herdr.dev/install.ps1 -useb | iex",
+        "darwin-arm64": "curl -fsSL https://herdr.dev/install.sh | sh",
+        "linux-x64": "curl -fsSL https://herdr.dev/install.sh | sh"
+      },
+      "post_install": [
+        {
+          "name": "install-opencode-integration",
+          "when": "opencode",
+          "command": "herdr integration install opencode"
+        },
+        {
+          "name": "link-ocp-auto-opencode-plugin",
+          "when": "opencode",
+          "command": "herdr plugin link \"$OCP_REPO_DIR/install/herdr-plugins/auto-opencode\""
+        }
+      ],
+      "update_check": {
+        "source": {
+          "kind": "github",
+          "repo": "herdrdev/herdr"
+        },
+        "upgrade": {
+          "default": "npm install -g herdr-cli@latest",
+          "win32-x64": "iwr https://herdr.dev/install.ps1 -useb | iex",
+          "darwin-arm64": "curl -fsSL https://herdr.dev/install.sh | sh",
+          "linux-x64": "curl -fsSL https://herdr.dev/install.sh | sh"
+        }
+      }
+    },
+    "openchamber": {
+      "description": "OpenChamber web UI CLI — powers `ocp web`",
+      "binary": "openchamber",
+      "url": "https://openchamber.dev",
+      "install": {
+        "default": "npm install -g @openchamber/web"
+      },
+      "update_check": {
+        "source": {
+          "kind": "npm",
+          "package": "@openchamber/web"
+        },
+        "upgrade_strategy": "smart",
+        "upgrade_package": "@openchamber/web",
+        "upgrade": {
+          "default": "npm install -g @openchamber/web@latest"
+        }
+      }
+    },
+    "opencode": {
+      "description": "OpenCode — AI coding agent",
+      "binary": "opencode",
+      "url": "https://opencode.ai",
+      "install": {
+        "default": "curl -fsSL https://opencode.ai/install | bash",
+        "win32-x64": "irm https://opencode.ai/install.ps1 | iex"
+      },
+      "update_check": {
+        "source": {
+          "kind": "github",
+          "repo": "anomalyco/opencode"
+        },
+        "upgrade_strategy": "smart",
+        "upgrade_package": "opencode-ai",
+        "upgrade": {
+          "default": "curl -fsSL https://opencode.ai/install | bash",
+          "win32-x64": "irm https://opencode.ai/install.ps1 | iex"
+        }
+      }
+    }
+  }
+}

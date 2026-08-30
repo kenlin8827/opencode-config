@@ -234,7 +234,7 @@
 
 ## 自定义服务商（`/provider` 向导）
 
-`/provider` 斜杠命令（通过 `tui.json` 注册的 TUI 插件）以原生弹窗端到端配置自定义服务商 — 无需参数：
+`/provider` 斜杠命令（通过 `tui.template.jsonc` 注册的 TUI 插件）以原生弹窗端到端配置自定义服务商 — 无需参数：
 
 ```
 /provider

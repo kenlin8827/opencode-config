@@ -111,6 +111,23 @@
 
 ---
 
+## Herdr（`ocp herdr`）—— 可选终端工作区管理器
+
+[Herdr](https://herdr.dev) 是为 AI 编码代理量身打造的终端工作区管理器。每个 herdr 工作区都以某个目录为根，并在新 pane 里自动启动 opencode（通过 OCP 的 `auto-opencode` 插件）。开启 `"herdr": true` 后，安装器会在本地缺 `herdr` 命令时自动拉取，并把内置配置链接到 `~/.config/herdr/config.toml`。
+
+默认 `"herdr": false`——不用 herdr 就保持关闭。
+
+要让 `ocp tui` 走 herdr 而非直接启动 `opencode`，请设：
+
+```jsonc
+// install/options.jsonc
+"tui_mode": "herdr"   // "direct"（默认）| "herdr"
+```
+
+选 `"herdr"` 会自动启用 `tools.herdr`（覆盖显式设为 `false` 的情况），并打印一行提示，无需再手动开启第二个开关。
+
+---
+
 ## OpenChamber（`ocp desktop` / `ocp web`）
 
 安装时自动供应 [OpenChamber](https://openchamber.dev) —— 运行在本地 OpenCode 引擎之上的桌面 / 网页图形界面（双栏 Diff 审查、多模型对比、会话时间线）。

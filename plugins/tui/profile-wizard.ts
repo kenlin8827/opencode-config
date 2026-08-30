@@ -9,7 +9,7 @@ import type {
  * Profile Wizard — TUI dialog-based profile switching.
  *
  * Dialog replacement of the former server-side profile-switcher plugin.
- * Registered via `tui.json` → `plugin` array (TUI plugins have no
+ * Registered via `tui.template.jsonc` → `plugin` array (TUI plugins have no
  * directory auto-discovery — they must be listed there).
  *
  * Entry points:

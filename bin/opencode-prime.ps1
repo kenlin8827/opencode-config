@@ -21,7 +21,9 @@
       generate        Regenerate install/versions/<ver>.manifest.txt
       register        Install global shims (opencode-prime, ocp) into ~/.local/bin
       unregister      Remove global shims from ~/.local/bin
-      tui             Launch the OpenCode terminal UI (exec opencode)
+      tui             Launch the OpenCode terminal UI (exec opencode).
+                     Add --herdr / --direct to override tui_mode config for
+                     this invocation (forces routing through the TS engine)
       serve           Launch the headless opencode server (opencode serve; all args pass through)
       web             Launch the OpenChamber web UI (openchamber serve; all extra args pass through,
                       auto-picks a free port starting at 3000 unless --port is given)
@@ -62,6 +64,22 @@ function Get-HelpText {
             if ($trim -eq '<#') { $in = $true }
         }
     }
+}
+
+function Get-ConfigTuiMode {
+    # Read tui_mode from options.jsonc without a JSON parser (the files are
+    # JSONC with comments). Mirrors loadEffectiveOptions(): repo defaults
+    # first, the user's target options.jsonc wins. Returns 'herdr' or
+    # 'direct' — the colon-anchored regex can't false-match prose comments.
+    $mode = 'direct'
+    $configDir = if ($env:OPENCODE_CONFIG_DIR) { $env:OPENCODE_CONFIG_DIR } else { Join-Path $HOME '.config/opencode' }
+    foreach ($p in @((Join-Path $RepoRoot 'install/options.jsonc'), (Join-Path $configDir 'options.jsonc'))) {
+        if (-not (Test-Path -LiteralPath $p)) { continue }
+        $raw = Get-Content -Raw -LiteralPath $p
+        if ($raw -match '"tui_mode"\s*:\s*"herdr"') { $mode = 'herdr' }
+        elseif ($raw -match '"tui_mode"\s*:\s*"direct"') { $mode = 'direct' }
+    }
+    return $mode
 }
 
 if ([string]::IsNullOrWhiteSpace($Subcommand)) {
@@ -191,6 +209,22 @@ switch ($Subcommand.ToLowerInvariant()) {
         break
     }
     'tui' {
+        # --herdr / --direct override `tui_mode` from options.jsonc. When
+        # either is present, hand off to the TS engine so it can decide
+        # which launcher to run. Without a flag, tui_mode=herdr also routes
+        # to the TS engine (herdr workspace + auto-opencode); herdr missing
+        # from PATH falls back to the direct opencode fast path.
+        if (($Rest -contains '--herdr') -or ($Rest -contains '--direct')) {
+            & $Install tui @Rest
+            exit $LASTEXITCODE
+        }
+        if ((Get-ConfigTuiMode) -eq 'herdr') {
+            if (Get-Command herdr -ErrorAction SilentlyContinue) {
+                & $Install tui @Rest
+                exit $LASTEXITCODE
+            }
+            Write-Host '[ocp] tui_mode=herdr, but herdr was not found on PATH — falling back to direct opencode.' -ForegroundColor Yellow
+        }
         if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) {
             Write-Host '✗ opencode was not found on PATH.' -ForegroundColor Red
             Write-Host '  Install OpenCode first: https://opencode.ai (or re-run `ocp install`).'

@@ -1,0 +1,18 @@
+id = "ocp.auto-opencode"
+name = "Auto-Start OpenCode on New Tabs"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "Provided by opencode-prime — runs `herdr agent start opencode` automatically whenever a new tab or pane is created, so every herdr workspace starts with opencode ready to use."
+platforms = ["linux", "macos", "windows"]
+
+# Fire on every new tab and every new pane (a split pane or a new tab both
+# create panes). Both events are needed because tab.created fires once per tab,
+# while pane.created fires for every additional pane created via splits.
+
+[[events]]
+on = "tab.created"
+command = ["node", "index.js"]
+
+[[events]]
+on = "pane.created"
+command = ["node", "index.js"]

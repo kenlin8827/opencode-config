@@ -55,7 +55,6 @@ export interface I18nText {
   openChamberHint: string;
   tuiModeLabel: string;
   tuiModeHint: string;
-  tuiModeSetMsg: string;
   toolLabels: Record<string, { label: string; hint: string }>;
   mcpSectionHeader: string;
   pluginSectionHeader: string;
@@ -76,10 +75,6 @@ export interface I18nText {
   switchLangHint: string;
   enabled: string;
   disabled: string;
-  onCmdRegAdded: string;
-  onCmdRegSkipped: string;
-  onChamberAdded: string;
-  onChamberSkipped: string;
   on: string;
   off: string;
   stepRegisterPrompt: string;
@@ -98,13 +93,8 @@ export interface I18nText {
   confirmUninstallPrompt: string;
   exitedDashboard: string;
   targetDirectoryPrompt: string;
-  targetModified: string;
   cycleTierHint: string;
   cycleAgentHint: string;
-  agentSetMsg: string;
-  rtkEnabledMsg: string;
-  rtkDisabledMsg: string;
-  tierSetMsg: string;
   installingTo: string;
   summaryVersion: string;
   summaryTarget: string;
@@ -153,7 +143,6 @@ export const FALLBACK_EN: I18nText = {
   openChamberHint: 'Install the OpenChamber web UI CLI powering `ocp web` (desktop app for `ocp desktop` / `ocp ui` is a separate download)',
   tuiModeLabel: 'TUI Mode',
   tuiModeHint: 'How `ocp tui` starts: direct (opencode in current shell) or herdr (workspace). Selecting herdr auto-enables tools.herdr',
-  tuiModeSetMsg: 'TUI mode set to "{mode}"',
   toolLabels: {
     rtk: { label: 'RTK Tokenizer', hint: 'Rust Token Killer proxy & plugin' },
     openchamber: { label: 'OpenChamber Web UI', hint: 'Install the OpenChamber web UI CLI powering `ocp web` (desktop app for `ocp desktop` / `ocp ui` is a separate download)' },
@@ -175,14 +164,10 @@ export const FALLBACK_EN: I18nText = {
   exitBtnHint: 'Close control center without saving',
   backBtn: '↩ BACK TO MAIN MENU',
   backBtnHint: 'Return to the wizard main menu',
-  footerHelp: '[ ↑/↓/j/k: Move ]  [ Space: Toggle/Cycle ]  [ L: Switch Lang ]  [ Enter: Apply ]  [ Esc: Back ]  [ Q: Exit ]',
+  footerHelp: '[ ↑/↓/j/k: Move ]  [ Space: Toggle ]  [ L: Lang ]  [ Enter: Apply ]  [ ^S: Save ]  [ ^Z: Reset ]  [ ^A: Install ]  [ ^Q: Quit ]  [ Esc: Back ]',
   switchLangHint: 'Language switched to English',
   enabled: 'ENABLED',
   disabled: 'DISABLED',
-  onCmdRegAdded: 'Global commands registered',
-  onCmdRegSkipped: 'Global commands skipped',
-  onChamberAdded: 'OpenChamber provisioning enabled',
-  onChamberSkipped: 'OpenChamber provisioning skipped',
   on: 'ON',
   off: 'OFF',
   stepRegisterPrompt: 'Register global commands (ocp / opencode-prime) into {binDir} and add it to your PATH?',
@@ -201,13 +186,8 @@ export const FALLBACK_EN: I18nText = {
   confirmUninstallPrompt: 'Safely uninstall all managed files from {target}?',
   exitedDashboard: 'Exited OpenCode Setup Control Center.',
   targetDirectoryPrompt: 'Enter new target directory [{target}]: ',
-  targetModified: 'Target directory changed to: {target}',
   cycleTierHint: 'Space/Enter to cycle tier',
   cycleAgentHint: 'Space/Enter to cycle',
-  agentSetMsg: 'Primary agent set to "{agent}"',
-  rtkEnabledMsg: 'RTK optimizer ENABLED',
-  rtkDisabledMsg: 'RTK optimizer DISABLED',
-  tierSetMsg: '@{agent} tier set to [{tier}]',
   installingTo: 'Installing configuration into {target}...',
   summaryVersion: 'Version',
   summaryTarget: 'Target Directory',

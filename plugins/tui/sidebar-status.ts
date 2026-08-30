@@ -9,7 +9,7 @@
  * its slash command, the panel picks up the change on the next poll cycle
  * (the server-side plugin still fires a confirmation toast for the toggle).
  *
- * Registration: `tui.json` → `plugin` array (TUI plugins have no directory
+ * Registration: `tui.template.jsonc` → `plugin` array (TUI plugins have no directory
  * auto-discovery — they must be listed there).
  *
  * Slot: `sidebar_content` (session view) — renders as a vertical group

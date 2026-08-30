@@ -1,11 +1,17 @@
-import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 
-import { getCurrentRepoVersion, getDefaultTargetDir, getInstalledVersion, isBinaryOnPath } from './installer';
-import { getOpenChamberInstallCommand } from './openchamber';
+import {
+  getCurrentRepoVersion,
+  getDefaultTargetDir,
+  getInstalledVersion,
+  isBinaryOnPath,
+  loadToolRegistry,
+  resolveInstallCommand,
+} from './installer';
 
 const REPO_BASE = 'https://github.com/kenlin8827/opencode-prime';
 const RELEASE_BASE = `${REPO_BASE}/releases/latest/download`;
@@ -14,18 +20,50 @@ const RELEASE_BASE = `${REPO_BASE}/releases/latest/download`;
 // github.com release downloads are slow or blocked.
 const RAW_VERSION_URL =
   'https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install/VERSION';
-// Companion tooling probes: OpenCode releases live on GitHub, the OpenChamber
-// web CLI is the npm package @openchamber/web.
-const OPENCODE_RELEASE_API = 'https://api.github.com/repos/sst/opencode/releases/latest';
-const OPENCHAMBER_NPM_META = 'https://registry.npmjs.org/@openchamber%2Fweb';
 
 /** A single component covered by the `ocp update` check/upgrade flow. */
 interface ComponentCheck {
-  key: 'ocp' | 'opencode' | 'openchamber';
+  key: string;
   label: string;
   local: string | null;
   latest: string | null;
   status: string;
+}
+
+/** `update_check.source` shape from install/tools.jsonc. */
+interface UpdateCheckSource {
+  kind: 'github' | 'npm' | 'cargo' | 'url';
+  repo?: string;       // for github
+  package?: string;    // for npm
+  crate?: string;      // for cargo
+  url?: string;        // for url
+  regex?: string;      // for url extraction
+}
+
+interface ToolEntryUpdate {
+  source?: UpdateCheckSource;
+  /**
+   * How to upgrade the tool:
+   *   - "smart" (default for npm-managed tools): detect the package manager
+   *     owning the installed binary, re-run its global install for
+   *     `upgrade_package`. Falls back to the static `upgrade` command if no
+   *     package manager is on PATH.
+   *   - "static": just run the platform-resolved `upgrade` command.
+   */
+  upgrade_strategy?: 'smart' | 'static';
+  /** Required when upgrade_strategy === "smart": the npm/yarn/etc package to install. */
+  upgrade_package?: string;
+  /** Optional fallback for both strategies when no pm is detected / no per-platform override. */
+  upgrade?: unknown; // string | Record<string, string>; resolved via resolveInstallCommand
+}
+
+interface ToolEntry {
+  description?: string;
+  binary: string;
+  url?: string;
+  install?: unknown;
+  post_install?: unknown;
+  update_check?: ToolEntryUpdate;
 }
 
 /**
@@ -70,7 +108,11 @@ export async function executeUpdate(repoDir: string, passthrough: string[]): Pro
       ? `installed in ${targetDir}`
       : `not installed (repo copy at v${repoVersion})`,
   };
-  const components = [ocp, await probeOpenCode(), await probeOpenChamber()];
+  // Drive the tool-update list from install/tools.jsonc. Each entry with
+  // an `update_check` block becomes a probe; entries without one (legacy
+  // entries or ones we haven't wired up yet) are silently skipped.
+  const toolProbes = await probeToolsFromRegistry(repoDir);
+  const components = [ocp, ...toolProbes];
 
   console.log('\nVersion check:');
   for (const c of components) {
@@ -144,87 +186,47 @@ async function applyComponentUpgrade(key: ComponentCheck['key'], repoDir: string
   switch (key) {
     case 'ocp':
       return executeUpgrade(repoDir, []);
-    case 'opencode':
-      return upgradeOpenCode();
-    case 'openchamber':
-      return upgradeOpenChamber();
+    default:
+      // Everything else comes from install/tools.jsonc via probeToolsFromRegistry.
+      // The dispatch (smart vs static) lives inside upgradeToolFromRegistry.
+      return upgradeToolFromRegistry(repoDir, key);
   }
 }
 
-/** Local opencode version via `opencode --version`, null when missing/unreadable. */
-function localOpenCodeVersion(): string | null {
-  if (!isBinaryOnPath('opencode')) return null;
-  try {
-    const res = spawnSync('opencode', ['--version'], { encoding: 'utf8', timeout: 15000, shell: process.platform === 'win32' });
-    const m = /\d+\.\d+\.\d+[\w.-]*/.exec(res.stdout ?? '');
-    return m ? m[0] : null;
-  } catch {
-    return null;
-  }
-}
-
-async function probeOpenCode(): Promise<ComponentCheck> {
-  const base = { key: 'opencode' as const, label: 'opencode' };
-  const local = localOpenCodeVersion();
-  if (!local) {
-    return { ...base, local: null, latest: null, status: 'not found on PATH (install: https://opencode.ai)' };
-  }
-  try {
-    const res = await fetch(OPENCODE_RELEASE_API, {
-      signal: AbortSignal.timeout(15000),
-      headers: { 'User-Agent': 'opencode-prime-updater' },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const latest = (((await res.json()) as { tag_name?: string }).tag_name ?? '').replace(/^v/, '');
-    if (!latest) throw new Error('empty tag');
-    return {
-      ...base,
-      local,
-      latest,
-      status: isNewerVersion(latest, local) ? 'update available' : 'up to date',
-    };
-  } catch {
-    return { ...base, local, latest: null, status: 'latest-release check failed — skipped' };
-  }
-}
-
-async function probeOpenChamber(): Promise<ComponentCheck> {
-  const base = { key: 'openchamber' as const, label: 'openchamber' };
-  if (!isBinaryOnPath('openchamber')) {
-    return { ...base, local: null, latest: null, status: 'not found on PATH (optional — only needed for `ocp web`)' };
-  }
-  // Resolve the installed @openchamber/web version through the package
-  // manager that owns the global install (the CLI itself has no reliable
-  // --version output).
-  const local = openChamberLocalVersion();
-  if (!local) {
-    return { ...base, local: null, latest: null, status: 'installed, but the local version could not be determined' };
-  }
-  try {
-    const res = await fetch(OPENCHAMBER_NPM_META, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const latest = ((await res.json()) as { 'dist-tags'?: { latest?: string } })['dist-tags']?.latest ?? '';
-    if (!latest) throw new Error('empty dist-tags.latest');
-    return {
-      ...base,
-      local,
-      latest,
-      status: isNewerVersion(latest, local) ? 'update available' : 'up to date',
-    };
-  } catch {
-    return { ...base, local, latest: null, status: 'npm registry check failed — skipped' };
-  }
-}
-
-/** Update opencode through the package manager that owns the current install. */
-function upgradeOpenCode(): number {
-  const cmd = pickOpenCodeUpgradeCommand();
-  if (!cmd) {
-    console.error('No package manager available — update manually: https://opencode.ai/install');
+/**
+ * Upgrade a tool declared in install/tools.jsonc. Two strategies are
+ * supported via `update_check.upgrade_strategy`:
+ *   - `"smart"` (default for npm-managed tools): detect which package
+ *     manager owns the installed binary and re-run that manager's install
+ *     for the package declared in `upgrade_package`. Falls back to the
+ *     static `upgrade` command if no package manager is on PATH.
+ *   - `"static"`: just run the platform-resolved `upgrade` command. Used
+ *     for tools installed by a script (e.g. herdr's official installer)
+ *     rather than a package manager.
+ *
+ * No `upgrade` command at all = 1 (refuses to do anything).
+ */
+function upgradeToolFromRegistry(repoDir: string, toolName: string): number {
+  const registry = loadToolRegistry(repoDir);
+  const def = registry?.tools?.[toolName] as ToolEntry | undefined;
+  if (!def) {
+    console.error(`"${toolName}" is not declared in install/tools.jsonc.`);
     return 1;
   }
-  console.log(`Running: ${cmd.bin} ${cmd.args.join(' ')}`);
-  const res = spawnSync(cmd.bin, cmd.args, {
+  const strategy = def.update_check?.upgrade_strategy ?? 'static';
+
+  if (strategy === 'smart') {
+    return smartUpgrade(toolName, def);
+  }
+
+  // static path: resolve and run the upgrade command
+  const cmd = resolveInstallCommand(def?.update_check?.upgrade);
+  if (!cmd) {
+    console.error(`No upgrade command declared for "${toolName}" on ${process.platform}-${process.arch} (and no smart upgrade configured).`);
+    return 1;
+  }
+  console.log(`Running: ${cmd}`);
+  const res = spawnSync(cmd, {
     stdio: 'inherit',
     timeout: 600000,
     shell: process.platform === 'win32',
@@ -232,24 +234,49 @@ function upgradeOpenCode(): number {
   return res.status ?? 1;
 }
 
-/** Prefer the manager whose global bin owns the current opencode binary. */
-function pickOpenCodeUpgradeCommand(): { bin: string; args: string[] } | null {
-  const ownedBy = (resolveBinPath('opencode') ?? '').toLowerCase();
-  if (ownedBy.includes('bun') && isBinaryOnPath('bun')) return { bin: 'bun', args: ['add', '-g', 'opencode-ai'] };
-  if (ownedBy.includes('pnpm') && isBinaryOnPath('pnpm')) return { bin: 'pnpm', args: ['add', '-g', 'opencode-ai'] };
-  if (isBinaryOnPath('bun')) return { bin: 'bun', args: ['add', '-g', 'opencode-ai'] };
-  if (isBinaryOnPath('pnpm')) return { bin: 'pnpm', args: ['add', '-g', 'opencode-ai'] };
-  if (isBinaryOnPath('npm')) return { bin: 'npm', args: ['install', '-g', 'opencode-ai'] };
-  return null;
-}
-
-/** Update OpenChamber through the first available package manager. */
-function upgradeOpenChamber(): number {
-  const cmd = getOpenChamberInstallCommand();
-  if (!cmd) {
-    console.error('No package manager available — install manually from https://openchamber.dev/download');
+/**
+ * "Smart" upgrade: pick the package manager whose global bin owns the
+ * current binary of `def.binary`, then re-install the package declared in
+ * `update_check.upgrade_package` through that manager. Falls back to the
+ * static `upgrade` command if no package manager is on PATH.
+ *
+ * The lookup order is:
+ *   1. The path of the binary contains "bun" / "pnpm" / "yarn" → use that.
+ *   2. Otherwise, the first of bun / pnpm / yarn / npm that is on PATH.
+ *   3. Otherwise, run the static fallback (or fail).
+ */
+function smartUpgrade(toolName: string, def: ToolEntry): number {
+  const pkg = def.update_check?.upgrade_package;
+  if (!pkg) {
+    console.error(`upgrade_strategy:"smart" requires "upgrade_package" in update_check for "${toolName}".`);
     return 1;
   }
+
+  const ownedBy = (resolveBinPath(def.binary) ?? '').toLowerCase();
+  let cmd: { bin: string; args: string[] } | null = null;
+  if (ownedBy.includes('bun') && isBinaryOnPath('bun')) cmd = { bin: 'bun', args: ['add', '-g', pkg] };
+  else if (ownedBy.includes('pnpm') && isBinaryOnPath('pnpm')) cmd = { bin: 'pnpm', args: ['add', '-g', pkg] };
+  else if (ownedBy.includes('yarn') && isBinaryOnPath('yarn')) cmd = { bin: 'yarn', args: ['global', 'add', pkg] };
+  else if (isBinaryOnPath('bun')) cmd = { bin: 'bun', args: ['add', '-g', pkg] };
+  else if (isBinaryOnPath('pnpm')) cmd = { bin: 'pnpm', args: ['add', '-g', pkg] };
+  else if (isBinaryOnPath('yarn')) cmd = { bin: 'yarn', args: ['global', 'add', pkg] };
+  else if (isBinaryOnPath('npm')) cmd = { bin: 'npm', args: ['install', '-g', pkg] };
+
+  if (!cmd) {
+    const fallback = resolveInstallCommand(def?.update_check?.upgrade);
+    if (fallback) {
+      console.log(`No package manager detected — falling back to: ${fallback}`);
+      const res = spawnSync(fallback, {
+        stdio: 'inherit',
+        timeout: 600000,
+        shell: process.platform === 'win32',
+      });
+      return res.status ?? 1;
+    }
+    console.error(`No package manager detected for "${toolName}" and no static fallback upgrade configured.`);
+    return 1;
+  }
+
   console.log(`Running: ${cmd.bin} ${cmd.args.join(' ')}`);
   const res = spawnSync(cmd.bin, cmd.args, {
     stdio: 'inherit',
@@ -260,82 +287,127 @@ function upgradeOpenChamber(): number {
 }
 
 /**
- * Installed @openchamber/web version. Strategy order:
- *   1. Ask each package manager for its global list (works when the manager
- *      that owns the install is on PATH).
- *   2. Resolve the `openchamber` shim itself and read the version from its
- *      content or a nearby package.json (covers managers not on PATH, since
- *      the shim is by definition on PATH).
+ * `ocp update` tool registry — drives the per-tool update check from
+ * install/tools.jsonc. Every entry that declares an `update_check` block
+ * becomes a probe; entries without one are silently skipped (they were
+ * created for the install flow only, with no upstream version to track).
+ *
+ * Each `source.kind`:
+ *   - github: api.github.com/repos/<repo>/releases/latest → tag_name
+ *   - npm:    registry.npmjs.org/<package> → dist-tags.latest
+ *   - cargo:  crates.io/api/v1/crates/<crate> → crate.max_stable_version
+ *   - url:    arbitrary endpoint, regex extracts semver from body
  */
-function openChamberLocalVersion(): string | null {
-  const listCommands: Array<[string, string[]]> = [
-    ['pnpm', ['list', '-g', '@openchamber/web', '--parseable']],
-    ['bun', ['pm', 'ls', '-g']],
-    ['npm', ['list', '-g', '@openchamber/web', '--depth=0']],
-  ];
-  for (const [bin, args] of listCommands) {
-    if (!isBinaryOnPath(bin)) continue;
-    const v = versionFromPackageManagerOutput(runQuiet(bin, args));
-    if (v) return v;
+async function probeToolsFromRegistry(repoDir: string): Promise<ComponentCheck[]> {
+  const registry = loadToolRegistry(repoDir);
+  if (!registry?.tools) return [];
+  const out: ComponentCheck[] = [];
+  for (const [name, rawDef] of Object.entries(registry.tools)) {
+    const def = rawDef as ToolEntry;
+    if (!def.update_check?.source) continue;
+    out.push(await probeToolFromRegistry(name, def));
+  }
+  return out;
+}
+
+async function probeToolFromRegistry(name: string, def: ToolEntry): Promise<ComponentCheck> {
+  const base = { key: name, label: name };
+  const local = localBinaryVersion(def.binary);
+
+  if (!local) {
+    return {
+      ...base,
+      local: null,
+      latest: null,
+      status: 'not found on PATH (install via `ocp install` or set tools.' + name + ')',
+    };
+  }
+  if (!def.update_check?.source) {
+    return { ...base, local, latest: null, status: 'no update_check source — skipped' };
   }
 
-  const shimPath = resolveBinPath('openchamber');
-  if (!shimPath) return null;
   try {
-    const content = fs.readFileSync(shimPath, 'utf8');
-    // Windows .cmd shims embed the resolved entry script path, which in a
-    // pnpm global store carries the version: @openchamber+web@<ver>_<peer>.
-    const v = versionFromPackageManagerOutput(content);
-    if (v) return v;
-    // Shims (cmd-shim on Windows, $basedir scripts on POSIX) reference the
-    // entry script relative to their own directory — anchor it there and
-    // walk to the owning package's package.json.
-    const m = /([^\s"']+@openchamber[\\/]web[\\/][^\s"']+)/.exec(content);
-    if (m) {
-      const rawPath = m[1].replace(/%dp0%\\?/gi, '').replace(/^\$basedir[\\/]/, '');
-      const abs = path.isAbsolute(rawPath) ? rawPath : path.join(path.dirname(shimPath), rawPath);
-      const fromPkg = readPackageVersion(path.join(path.dirname(path.dirname(abs)), 'package.json'));
-      if (fromPkg) return fromPkg;
+    const latest = await fetchLatestFromSource(def.update_check.source);
+    if (!latest) {
+      return { ...base, local, latest: null, status: 'latest-version probe failed — skipped' };
     }
-  } catch {
-    /* unreadable shim — fall through */
+    return {
+      ...base,
+      local,
+      latest,
+      status: isNewerVersion(latest, local) ? 'update available' : 'up to date',
+    };
+  } catch (err) {
+    return {
+      ...base,
+      local,
+      latest: null,
+      status: `latest-version probe failed: ${(err as Error).message ?? err}`,
+    };
   }
-  // npm/bun global layout: <shim dir>/../lib/node_modules/@openchamber/web.
-  for (const candidate of [
-    path.join(path.dirname(shimPath), '..', 'node_modules', '@openchamber', 'web', 'package.json'),
-    path.join(path.dirname(shimPath), '..', 'lib', 'node_modules', '@openchamber', 'web', 'package.json'),
-  ]) {
-    const v = readPackageVersion(candidate);
-    if (v) return v;
-  }
-  return null;
 }
 
-/** Matches `@openchamber{+|/|\}web@<version>` (pnpm store and list formats). */
-function versionFromPackageManagerOutput(out: string | null): string | null {
-  if (!out) return null;
-  const m = /@openchamber(?:\+|\/|\\)web@(\d[\w.-]*?)(?=[_\s\\/]|$)/m.exec(out);
-  return m ? m[1] : null;
-}
-
-function runQuiet(bin: string, args: string[]): string | null {
+/** Run `<binary> --version` and extract the first semver-looking token. */
+function localBinaryVersion(binary: string): string | null {
+  if (!isBinaryOnPath(binary)) return null;
   try {
-    return execFileSync(bin, args, {
+    const res = spawnSync(binary, ['--version'], {
       encoding: 'utf8',
       timeout: 15000,
       shell: process.platform === 'win32',
     });
+    const m = /\d+\.\d+\.\d+[\w.-]*/.exec(res.stdout ?? '');
+    return m ? m[0] : null;
   } catch {
     return null;
   }
 }
 
-function readPackageVersion(pkgJsonPath: string): string | null {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { name?: string; version?: string };
-    return parsed.name === '@openchamber/web' && parsed.version ? parsed.version : null;
-  } catch {
-    return null;
+/** Resolve a source-kind URL + extract the version. */
+async function fetchLatestFromSource(src: UpdateCheckSource): Promise<string | null> {
+  switch (src.kind) {
+    case 'github': {
+      if (!src.repo) return null;
+      const res = await fetch(`https://api.github.com/repos/${src.repo}/releases/latest`, {
+        signal: AbortSignal.timeout(15000),
+        headers: { 'User-Agent': 'opencode-prime-updater' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const tag = (((await res.json()) as { tag_name?: string }).tag_name ?? '').replace(/^v/, '');
+      return tag || null;
+    }
+    case 'npm': {
+      if (!src.package) return null;
+      const url = `https://registry.npmjs.org/${encodeURIComponent(src.package)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const latest = ((await res.json()) as { 'dist-tags'?: { latest?: string } })['dist-tags']?.latest ?? '';
+      return latest || null;
+    }
+    case 'cargo': {
+      if (!src.crate) return null;
+      const res = await fetch(`https://crates.io/api/v1/crates/${encodeURIComponent(src.crate)}`, {
+        signal: AbortSignal.timeout(15000),
+        headers: { 'User-Agent': 'opencode-prime-updater' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = (await res.json()) as { crate?: { max_stable_version?: string } };
+      return j.crate?.max_stable_version ?? null;
+    }
+    case 'url': {
+      if (!src.url) return null;
+      const res = await fetch(src.url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.text()).trim();
+      if (src.regex) {
+        const m = new RegExp(src.regex).exec(body);
+        return m ? (m[1] ?? m[0]) : null;
+      }
+      const fallback = /\d+\.\d+\.\d+[\w.-]*/.exec(body);
+      return fallback ? fallback[0] : null;
+    }
+    default:
+      return null;
   }
 }
 

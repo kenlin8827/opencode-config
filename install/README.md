@@ -1,4 +1,4 @@
-# install (v0.9.2)
+# install (v0.10.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -169,7 +169,7 @@ The replacement workflow is tracked by a follow-up ADR.
 A profile is a named preset bundling per-tier model picks, applied in one
 shot instead of editing each tier by hand. Profiles are applied from within
 an opencode session via the `/profile` slash command (see
-`plugins/profile-wizard.ts`, a TUI plugin registered in `tui.json`):
+`plugins/profile-wizard.ts`, a TUI plugin registered in `tui.template.jsonc`):
 
 ```
 /profile                  # dialog picker; first entry shows current mapping
@@ -303,7 +303,7 @@ Everything else stays in the repo and never reaches the target:
 | `tests/`        | Test scripts — not part of the config     |
 | `package.json`, `bun.lock`, `package-lock.json` | npm metadata — not needed by opencode |
 | `tsconfig.json` | TS build config — not needed at runtime   |
-| `tui.json`      | TUI tweak kept locally only               |
+| `tui.template.jsonc` | TUI tweak kept locally only               |
 | `.gitignore`, `README.md` | Repo metadata — not config          |
 
 In particular, **`.git/` is never copied to the target** — the target should

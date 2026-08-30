@@ -409,7 +409,7 @@ Check "project-manager-tool-guard.ts: merge/revert/fixup/squash exempt" ($pmGuar
 $pmBarrel = Get-Content "$PSScriptRoot\..\plugins\project-manager.ts" -Raw
 Check "project-manager.ts: barrel re-exports ProjectManagerPlugin" ($pmBarrel -match "export.*ProjectManagerPlugin")
 
-# Queue manager plugin checks (plugins/tui/queue-manager.ts — TUI-only, registered via tui.json)
+# Queue manager plugin checks (plugins/tui/queue-manager.ts — TUI-only, registered via tui.template.jsonc)
 $qmPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\queue-manager.ts" -Raw
 Check "queue-manager.ts: imports TuiPlugin from plugin/tui" ($qmPlugin -match "@opencode-ai/plugin/tui")
 Check "queue-manager.ts: slash command name is queued" ($qmPlugin -match 'SLASH_NAME = "queued"')
@@ -418,17 +418,17 @@ Check "queue-manager.ts: cancel uses session.deleteMessage" ($qmPlugin -match "s
 Check "queue-manager.ts: busy fallback strips via part.update" ($qmPlugin -match "part\.update")
 Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -match "TOMBSTONE")
 Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
-$tuiConfig = Get-Content "$PSScriptRoot\..\tui.json" -Raw | ConvertFrom-Json
-Check "tui.json: queue-manager registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/queue-manager.ts")
+$tuiTemplateRaw = Get-Content "$PSScriptRoot\..\tui.template.jsonc" -Raw
+Check "tui.template.jsonc: queue-manager registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/queue-manager\.ts"')
 
-# Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.json)
+# Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw
 Check "project-wizard.ts: imports TuiPlugin from plugin/tui" ($pwPlugin -match "@opencode-ai/plugin/tui")
 Check "project-wizard.ts: registers palette command with slashName project-wizard" ($pwPlugin -match 'slashName: "project-wizard"' -and $pwPlugin -match 'namespace: "palette"')
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
-Check "tui.json: project-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/project-wizard.ts")
+Check "tui.template.jsonc: project-wizard registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/project-wizard\.ts"')
 
-# Profile wizard plugin checks (plugins/tui/profile-wizard.ts — TUI-only, registered via tui.json)
+# Profile wizard plugin checks (plugins/tui/profile-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pfPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\profile-wizard.ts" -Raw
 $i18nContent = Get-Content "$PSScriptRoot\..\plugins\tui\i18n.ts" -Raw
 Check "profile-wizard.ts: imports TuiPlugin from plugin/tui" ($pfPlugin -match "@opencode-ai/plugin/tui")
@@ -450,7 +450,7 @@ Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIE
 Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
 Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
 Check "profile-wizard.ts: no explicit back items, Esc is the only back nav" (($pfPlugin -notmatch '"__back__"') -and ($pfPlugin -match 'navigated'))
-Check "tui.json: profile-wizard registered in plugin array" ($tuiConfig.plugin -contains "./plugins/tui/profile-wizard.ts")
+Check "tui.template.jsonc: profile-wizard registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/profile-wizard\.ts"')
 
 # SDD plugin checks (plugins/sdd/ — registered programmatically)
 $sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw

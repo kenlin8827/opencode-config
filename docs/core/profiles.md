@@ -234,7 +234,7 @@ Each tier resolves to the provider/model mapped by the active profile. **Variant
 
 ## Custom providers (`/provider` wizard)
 
-The `/provider` slash command (a TUI plugin registered via `tui.json`) configures custom providers end to end through native dialogs — no arguments:
+The `/provider` slash command (a TUI plugin registered via `tui.template.jsonc`) configures custom providers end to end through native dialogs — no arguments:
 
 ```
 /provider

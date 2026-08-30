@@ -111,6 +111,23 @@ To opt out: set `"rtk": false` in `install/options.jsonc` and re-run install.
 
 ---
 
+## Herdr (`ocp herdr`) — optional terminal workspace manager
+
+[Herdr](https://herdr.dev) is a terminal workspace manager purpose-built for AI coding agents. Each herdr workspace is rooted at a directory and auto-starts opencode in the new pane (via OCP's `auto-opencode` plugin). With `"herdr": true`, the installer provisions the `herdr` CLI on missing PATH and links the bundled config to `~/.config/herdr/config.toml`.
+
+By default `"herdr": false` — keep it off if you don't use herdr.
+
+To force `ocp tui` to launch via herdr instead of directly starting `opencode`, set:
+
+```jsonc
+// install/options.jsonc
+"tui_mode": "herdr"   // "direct" (default) | "herdr"
+```
+
+Selecting `"herdr"` auto-enables `tools.herdr` (regardless of its setting) and prints a one-line notice. No second option to flip.
+
+---
+
 ## OpenChamber (`ocp desktop` / `ocp web`)
 
 Install auto-provisions [OpenChamber](https://openchamber.dev) — the desktop / web GUI that runs on top of the local OpenCode engine (side-by-side diffs, multi-model comparison, session timeline).

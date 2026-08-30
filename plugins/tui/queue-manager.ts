@@ -16,7 +16,7 @@ import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG } from "./i18
  * answered (e.g. after an interrupt) stay stranded the same way. This plugin
  * gives that pile a management UI.
  *
- * Registered via `tui.json` → `plugin` array (TUI plugins have no directory
+ * Registered via `tui.template.jsonc` → `plugin` array (TUI plugins have no directory
  * auto-discovery — they must be listed there).
  *
  * Entry points:

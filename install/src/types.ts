@@ -1,5 +1,4 @@
 export interface InstallOptions {
-  rtk?: boolean;
   default_agent?: string;
   mcp?: Record<string, boolean>;
   plugin?: Record<string, boolean>;
@@ -8,11 +7,20 @@ export interface InstallOptions {
   // into ~/.local/bin and ensure that directory is on the
   // user's PATH; false = skip global command registration entirely.
   global_commands?: boolean;
-  // true (default) = install the OpenChamber web UI CLI (`openchamber`)
-  // globally via the detected package manager when missing — it powers
-  // `ocp web`; the native desktop app behind `ocp desktop` / `ocp ui` is a
-  // separate download; false = skip provisioning.
-  openchamber?: boolean;
+  // How `ocp tui` starts:
+  //   "direct" (default) — launch opencode directly in the current terminal
+  //   "herdr"            — launch a herdr workspace rooted at cwd (equivalent
+  //                        to `ocp herdr`); auto-enables tools.herdr
+  tui_mode?: 'direct' | 'herdr';
+  // Generic opt-in map for tools declared in install/tools.jsonc.
+  //   tools.<name>: true  → provision when missing (default if omitted)
+  //   tools.<name>: false → user opted out, installer leaves it alone
+  //   tools.<name> omitted → treat as enabled (default-true)
+  // Adding a new tool = add an entry to install/tools.jsonc. The rtk plugin
+  // cleanup in installer/merger.ts is the one side effect still wired by
+  // name — it reads `tools.rtk === false` and removes `plugins/openrtk*`
+  // from the target.
+  tools?: Record<string, boolean>;
 }
 
 export type CommandAction =
@@ -34,6 +42,10 @@ export type CommandAction =
   | 'session'
   | 'auth'
   | 'clean'
+  | 'herdr'
+  | 'herdr-config-install'
+  | 'herdr-config-path'
+  | 'herdr-config-status'
   | 'project-init'
   | 'project-index'
   | 'project-sync'

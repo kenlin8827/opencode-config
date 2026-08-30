@@ -70,7 +70,7 @@ function Read-Manifest([string]$path) {
 
 # --- generate manifest if missing ----------------------------------------
 
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.template.jsonc', 'tui.json', 'tiers.json', 'profiles/', 'providers/', 'scripts/')
+$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.template.jsonc', 'tui.template.jsonc', 'tiers.json', 'profiles/', 'providers/', 'scripts/')
 $excludePatterns = @('^scripts/pack\.', '^scripts/verify\.')
 
 function Generate-Manifest([string]$ver) {

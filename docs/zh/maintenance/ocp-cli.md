@@ -47,6 +47,17 @@ ocp tui                     # 直接进入终端界面
 ocp tui --version           # opencode 自身的 --version
 ```
 
+默认 `ocp tui` 在当前 shell 里直接启动 `opencode`。若要改走 herdr 工作区（等同 `ocp herdr`），在 `install/options.jsonc` 里设 `"tui_mode": "herdr"`——设置后会自动启用 `tools.herdr`。
+
+命令行覆盖（一次性，优先于 `tui_mode` 配置）：
+
+```bash
+ocp tui --direct            # 强制 direct（当前 shell 启动 opencode）
+ocp tui --herdr             # 强制本次走 herdr 工作区
+```
+
+裸调用 `ocp`（不带任何参数）始终直接打开 `opencode`——绕过 `tui_mode` 与 `--herdr` / `--direct`。
+
 ### `ocp serve` — 无头服务
 
 纯透传给 `opencode serve`，适合 ACP/HTTP 客户端连接常驻引擎：

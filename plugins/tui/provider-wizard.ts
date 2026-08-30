@@ -17,7 +17,7 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  * Provider Wizard — TUI dialog-based provider configuration.
  *
  * The single provider management entry point: `/provider` opens a native
- * dialog wizard. Registered via `tui.json` → `plugin` array (TUI plugins
+ * dialog wizard. Registered via `tui.template.jsonc` → `plugin` array (TUI plugins
  * have no directory auto-discovery — they must be listed there).
  *
  * Entry points:

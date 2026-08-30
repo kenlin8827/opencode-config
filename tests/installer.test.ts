@@ -7,6 +7,7 @@ import {
   readTierMap,
   extractPreserveBag,
   mergeConfig,
+  mergeTuiConfig,
   mergeUserOptions,
   getUserOptionsPath,
   updateOptionsJsoncInPlace,
@@ -70,33 +71,107 @@ console.log(`✓ Schema passed (Found ${schema.mcpItems.length} MCPs, ${schema.p
 // 3b. User options merging
 console.log('\nTest 3b: User Options Merge Logic');
 const merged = mergeUserOptions(
-  { default_agent: 'code', rtk: true, mcp: { serena: true, codegraph: true }, plugin: { '@dietrichgebert/ponytail': true } },
+  { default_agent: 'code', tools: { rtk: true }, mcp: { serena: true, codegraph: true }, plugin: { '@dietrichgebert/ponytail': true } },
   { default_agent: 'build', mcp: { serena: false }, plugin: { 'opencode-qoder-bridge': true } }
 );
 if (merged.default_agent !== 'build') throw new Error('mergeUserOptions failed to override top-level key');
-if (merged.rtk !== true) throw new Error('mergeUserOptions dropped an unchanged key');
+if (merged.tools?.rtk !== true) throw new Error('mergeUserOptions dropped an unchanged key');
 if (merged.mcp?.serena !== false || merged.mcp?.codegraph !== true) throw new Error('mergeUserOptions failed to merge nested mcp map');
 if (merged.plugin?.['@dietrichgebert/ponytail'] !== true || merged.plugin?.['opencode-qoder-bridge'] !== true) throw new Error('mergeUserOptions failed to merge nested plugin map');
 console.log('✓ User options merge passed');
 
-// 3d. updateOptionsJsoncInPlace can create and update a user options file from scratch
-console.log('\nTest 3d: Options File In-Place Update');
+// 3d. mergeTuiConfig — first install writes template; user plugins preserved on upgrade
+console.log('\nTest 3d: TUI Config Merge — preserves user-added plugins across reinstalls');
+const tuiMergeDir = path.join(os.tmpdir(), `opencode-tui-merge-test-${Date.now()}`);
+const tuiRepoDir = path.join(tuiMergeDir, 'repo');
+const tuiTargetDir = path.join(tuiMergeDir, 'target');
+fs.mkdirSync(tuiRepoDir, { recursive: true });
+fs.mkdirSync(tuiTargetDir, { recursive: true });
+// Minimal template (3 OCP plugins)
+fs.writeFileSync(
+  path.join(tuiRepoDir, 'tui.template.jsonc'),
+  '{\n  "$schema": "https://opencode.ai/tui.json",\n  "display_thinking": true,\n  "plugin": [\n    "./plugins/tui/a.ts",\n    "./plugins/tui/b.ts",\n  ]\n}\n',
+  'utf8'
+);
+
+// Subtest 1: first install — no existing tui.jsonc, write the template directly.
+mergeTuiConfig(tuiRepoDir, tuiTargetDir);
+const firstInstall = readJsoncFile<Record<string, any>>(path.join(tuiTargetDir, 'tui.jsonc'));
+if (!firstInstall || firstInstall.plugin.length !== 2) {
+  throw new Error('First-install merge should write all template plugins');
+}
+if (firstInstall.display_thinking !== true) {
+  throw new Error('First-install merge should write template scalar fields');
+}
+if (firstInstall.$schema !== 'https://opencode.ai/tui.json') {
+  throw new Error('First-install merge should write $schema from template');
+}
+console.log('✓ First install writes template plugins + scalars');
+
+// Subtest 2: user adds a custom plugin, then merge runs again — user plugin survives.
+const existing = readJsoncFile<Record<string, any>>(path.join(tuiTargetDir, 'tui.jsonc'));
+existing.plugin.push('./plugins/tui/user-extra.ts');
+existing.theme = 'custom-user-theme';   // user customization on a scalar the template doesn't carry
+fs.writeFileSync(
+  path.join(tuiTargetDir, 'tui.jsonc'),
+  JSON.stringify(existing, null, 2) + '\n',
+  'utf8'
+);
+mergeTuiConfig(tuiRepoDir, tuiTargetDir);
+const afterUpgrade = readJsoncFile<Record<string, any>>(path.join(tuiTargetDir, 'tui.jsonc'));
+const pluginPaths = afterUpgrade.plugin as string[];
+if (!pluginPaths.includes('./plugins/tui/a.ts') || !pluginPaths.includes('./plugins/tui/b.ts')) {
+  throw new Error('Re-install dropped a template plugin');
+}
+if (!pluginPaths.includes('./plugins/tui/user-extra.ts')) {
+  throw new Error('Re-install must preserve user-added plugins');
+}
+if (pluginPaths.indexOf('./plugins/tui/a.ts') > pluginPaths.indexOf('./plugins/tui/user-extra.ts')) {
+  throw new Error('Template plugins should come first, user additions after');
+}
+if (afterUpgrade.theme !== 'custom-user-theme') {
+  throw new Error('User scalar customizations should be preserved');
+}
+if (afterUpgrade.$schema !== 'https://opencode.ai/tui.json') {
+  throw new Error('$schema must always come from template');
+}
+console.log('✓ Re-install preserves user-added plugins + scalar customizations');
+
+// Subtest 3: dedupe — if user already has a template plugin, no duplicate.
+const withDup = readJsoncFile<Record<string, any>>(path.join(tuiTargetDir, 'tui.jsonc'));
+withDup.plugin.push('./plugins/tui/a.ts');   // duplicate of template plugin
+fs.writeFileSync(
+  path.join(tuiTargetDir, 'tui.jsonc'),
+  JSON.stringify(withDup, null, 2) + '\n',
+  'utf8'
+);
+mergeTuiConfig(tuiRepoDir, tuiTargetDir);
+const afterDedupe = readJsoncFile<Record<string, any>>(path.join(tuiTargetDir, 'tui.jsonc'));
+const aCount = (afterDedupe.plugin as string[]).filter((p) => p === './plugins/tui/a.ts').length;
+if (aCount !== 1) {
+  throw new Error(`Plugin dedupe failed — ./plugins/tui/a.ts appears ${aCount} times`);
+}
+console.log('✓ Re-install dedupes plugins already present in template');
+
+if (fs.existsSync(tuiMergeDir)) fs.rmSync(tuiMergeDir, { recursive: true, force: true });
+
+// 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch
+console.log('\nTest 3e: Options File In-Place Update');
 const scratchOptionsDir = path.join(os.tmpdir(), `opencode-options-test-${Date.now()}`);
 const scratchOptionsPath = path.join(scratchOptionsDir, 'options.jsonc');
 updateOptionsJsoncInPlace(scratchOptionsPath, {
   defaultAgent: 'build',
-  rtk: false,
   globalCommands: false,
-  openChamber: false,
+  tools: { rtk: false, openchamber: false, herdr: true },
   mcps: { serena: false, codegraph: true },
   plugins: { '@dietrichgebert/ponytail': true },
 });
 if (!fs.existsSync(scratchOptionsPath)) throw new Error('updateOptionsJsoncInPlace did not create the file');
 const writtenOptions = readJsoncFile<InstallOptions>(scratchOptionsPath);
 if (writtenOptions?.default_agent !== 'build') throw new Error('default_agent not written to scratch file');
-if (writtenOptions?.rtk !== false) throw new Error('rtk not written to scratch file');
+if (writtenOptions?.tools?.rtk !== false) throw new Error('tools.rtk not written to scratch file');
+if (writtenOptions?.tools?.openchamber !== false) throw new Error('tools.openchamber not written to scratch file');
 if (writtenOptions?.global_commands !== false) throw new Error('global_commands not written to scratch file');
-if (writtenOptions?.openchamber !== false) throw new Error('openchamber not written to scratch file');
 if (writtenOptions?.mcp?.serena !== false || writtenOptions?.mcp?.codegraph !== true) throw new Error('mcp map not written to scratch file');
 if (writtenOptions?.plugin?.['@dietrichgebert/ponytail'] !== true) throw new Error('plugin map not written to scratch file');
 
@@ -107,7 +182,7 @@ updateOptionsJsoncInPlace(scratchOptionsPath, {
 });
 const mergedOptions = readJsoncFile<InstallOptions>(scratchOptionsPath);
 if (mergedOptions?.default_agent !== 'plan') throw new Error('default_agent not updated');
-if (mergedOptions?.rtk !== false) throw new Error('rtk was dropped on update');
+if (mergedOptions?.tools?.rtk !== false) throw new Error('tools.rtk was dropped on update');
 if (mergedOptions?.mcp?.serena !== false || mergedOptions?.mcp?.codegraph !== true || mergedOptions?.mcp?.dbhub !== true) {
   throw new Error('mcp map not merged on update');
 }
@@ -129,8 +204,8 @@ if (fs.existsSync(scratchOptionsDir)) fs.rmSync(scratchOptionsDir, { recursive: 
 
 // 3c. Effective options load from repo defaults + target user overrides
 console.log('\nTest 3c: Effective Options Load');
-const effective = loadEffectiveOptions(repoDir, testTargetDir, { openchamber: false });
-if (effective.openchamber !== false) throw new Error('loadEffectiveOptions failed to apply customOptions override');
+const effective = loadEffectiveOptions(repoDir, testTargetDir, { tools: { openchamber: false } });
+if (effective.tools?.openchamber !== false) throw new Error('loadEffectiveOptions failed to apply customOptions override');
 if (!effective.mcp || typeof effective.mcp !== 'object') throw new Error('loadEffectiveOptions lost mcp defaults');
 
 // Verify customOptions merge is nested, not wholesale replacement
@@ -170,6 +245,8 @@ const installRes = executeInstall(
 if (!installRes.success || installRes.filesInstalled === 0) throw new Error('Install failed');
 if (!fs.existsSync(path.join(testTargetDir, 'opencode.jsonc'))) throw new Error('opencode.jsonc missing from target');
 if (fs.existsSync(path.join(testTargetDir, 'opencode.template.jsonc'))) throw new Error('config template leaked into target — only the merged opencode.jsonc should be installed');
+if (fs.existsSync(path.join(testTargetDir, 'tui.template.jsonc'))) throw new Error('TUI template leaked into target — only the merged tui.jsonc should be installed');
+if (!fs.existsSync(path.join(testTargetDir, 'tui.jsonc'))) throw new Error('tui.jsonc missing from target');
 if (!fs.existsSync(path.join(testTargetDir, 'installed.version'))) throw new Error('installed.version missing');
 if (!fs.existsSync(path.join(testTargetDir, 'tiers.json'))) throw new Error('tiers.json missing from target');
 

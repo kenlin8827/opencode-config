@@ -20,7 +20,9 @@
 #   generate        Regenerate install/versions/<ver>.manifest.txt
 #   register        Install global shims (opencode-prime, ocp) into ~/.local/bin
 #   unregister      Remove global shims from ~/.local/bin
-#   tui             Launch the OpenCode terminal UI (exec opencode)
+#   tui             Launch the OpenCode terminal UI (exec opencode).
+#                   Add --herdr / --direct to override tui_mode config for
+#                   this invocation (forces routing through the TS engine)
 #   serve           Launch the headless opencode server (opencode serve;
 #                   all args pass through)
 #   web             Launch the OpenChamber web UI (openchamber serve; all extra
@@ -44,6 +46,22 @@ INSTALL="$REPO_ROOT/install/install.sh"
 
 print_help() {
     awk 'NR>=2 && /^$/{exit} NR>=2' "$0"
+}
+
+# tui_mode from options.jsonc without a JSON parser (the files are JSONC
+# with comments). Mirrors loadEffectiveOptions(): repo defaults first, the
+# user's target options.jsonc wins. Prints 'herdr' or 'direct' — the
+# colon-anchored grep can't false-match prose comments.
+get_config_tui_mode() {
+    local mode=direct p
+    local config_dir="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
+    for p in "$REPO_ROOT/install/options.jsonc" "$config_dir/options.jsonc"; do
+        [[ -f "$p" ]] || continue
+        if grep -qE '"tui_mode"[[:space:]]*:[[:space:]]*"herdr"' "$p"; then mode=herdr
+        elif grep -qE '"tui_mode"[[:space:]]*:[[:space:]]*"direct"' "$p"; then mode=direct
+        fi
+    done
+    printf '%s' "$mode"
 }
 
 if [[ $# -eq 0 ]]; then
@@ -85,6 +103,22 @@ case "$sub" in
         exec "$INSTALL" unregister "$@"
         ;;
     tui)
+        # --herdr / --direct override `tui_mode` from options.jsonc. When
+        # either is present, hand off to the TS engine so it can decide which
+        # launcher to run. Without a flag, tui_mode=herdr also routes to the
+        # TS engine (herdr workspace + auto-opencode); herdr missing from
+        # PATH falls back to the direct opencode fast path.
+        for a in "$@"; do
+            if [[ "$a" == "--herdr" || "$a" == "--direct" ]]; then
+                exec "$INSTALL" tui "$@"
+            fi
+        done
+        if [[ "$(get_config_tui_mode)" == "herdr" ]]; then
+            if command -v herdr >/dev/null 2>&1; then
+                exec "$INSTALL" tui "$@"
+            fi
+            echo "[ocp] tui_mode=herdr, but herdr was not found on PATH — falling back to direct opencode." >&2
+        fi
         if ! command -v opencode >/dev/null 2>&1; then
             echo "✗ opencode was not found on PATH." >&2
             echo "  Install OpenCode first: https://opencode.ai (or re-run 'ocp install')." >&2

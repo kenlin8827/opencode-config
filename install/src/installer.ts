@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execSync, spawnSync } from 'node:child_process';
 import { CliArgs, InstallOptions } from './types';
+import { deployHerdrConfig } from './herdr-config';
 import {
   collectShippedFiles,
   generateManifest,
@@ -12,6 +13,7 @@ import {
 import {
   extractPreserveBag,
   mergeConfig,
+  mergeTuiConfig,
   readJsoncFile,
   getUserOptionsPath,
   mergeUserOptions,
@@ -130,6 +132,12 @@ export function copyRepoFiles(repoDir: string, targetDir: string, files: string[
     // opencode.template.jsonc beside the merged config.
     if (relFile === 'opencode.template.jsonc') continue;
 
+    // Same pattern for the TUI template — mergeTuiConfig renders it
+    // (plus preserved user plugins) into the target's tui.jsonc. We can't
+    // verbatim-copy because users add their own TUI plugins; overwriting
+    // would lose them on every reinstall.
+    if (relFile === 'tui.template.jsonc') continue;
+
     if (
       userOwnsProviders &&
       relFile.startsWith('providers/') &&
@@ -164,22 +172,20 @@ export function isBinaryOnPath(cmdName: string): boolean {
   }
 }
 
-export function checkExternalTools(options: InstallOptions): void {
-  // Check RTK binary
-  if (options.rtk !== false) {
-    if (isBinaryOnPath('rtk')) {
-      console.log('✓ [rtk] binary is present on PATH');
-    } else {
-      console.log('ℹ [rtk] binary not found on PATH (can be installed via cargo or downloaded)');
-    }
-  }
-
-  // Check OpenChamber web UI CLI
-  if (options.openchamber !== false) {
-    if (isBinaryOnPath('openchamber')) {
-      console.log('✓ [openchamber] web UI CLI is present on PATH');
-    } else {
-      console.log('ℹ [openchamber] web UI CLI not found on PATH (provisioned after the config install)');
+export function checkExternalTools(repoDir: string, options: InstallOptions): void {
+  // Walk every tool declared in install/tools.jsonc that the user has not
+  // opted out of. Provisioning itself happens in provisionTools() below;
+  // this function only reports presence.
+  const registry = loadToolRegistry(repoDir);
+  if (registry?.tools) {
+    for (const [name, def] of Object.entries(registry.tools)) {
+      if (!toolEnabled(name, options)) continue;
+      if (isBinaryOnPath(def.binary)) {
+        console.log(`✓ [tool] ${name} (${def.binary}) is present on PATH`);
+      } else {
+        const hint = def.url ? ` — see ${def.url}` : '';
+        console.log(`ℹ [tool] ${name} not found on PATH${hint}`);
+      }
     }
   }
 
@@ -268,6 +274,187 @@ export function provisionMcpCli(repoDir: string, options: InstallOptions): void 
   }
 }
 
+/**
+ * Resolve the install command for a tool on the current machine.
+ *
+ * Keys are tried in this order:
+ *   1. `${platform}-${arch}`   (e.g. "linux-x64", "darwin-arm64", "win32-x64")
+ *   2. `${platform}`           (e.g. "linux", "darwin", "win32")
+ *   3. `default`               (fallback)
+ *
+ * Returns null if no key matches — caller should skip with a friendly hint.
+ */
+export function resolveInstallCommand(install: unknown): string | null {
+  if (typeof install === 'string') return install.trim() || null;
+  if (!install || typeof install !== 'object') return null;
+  const map = install as Record<string, unknown>;
+  const platform = process.platform;          // 'linux' | 'darwin' | 'win32' | …
+  const arch = process.arch;                  // 'x64' | 'arm64' | …
+  const candidates = [
+    `${platform}-${arch}`,
+    platform,
+    'default',
+  ];
+  for (const key of candidates) {
+    const v = map[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+/**
+ * Generic tool registry shape (install/tools.jsonc).
+ *
+ * Designed to be reusable: the `install` field uses the same string-or-map
+ * shape as MCP `install` fields can adopt later without data migration —
+ * they share `resolveInstallCommand` and the same platform/arch resolution
+ * order.
+ *
+ * `post_install` is an array of init commands that run AFTER the binary
+ * is verified on PATH (whether it was just installed or already present).
+ * Each step is either:
+ *   - a string — a bare shell command (no guard)
+ *   - an object with `name?` (for logging), `when?` (binary name required
+ *     on PATH; step is skipped if missing), and `command` (shell)
+ *
+ * Multiple post-install steps per tool are supported so a single install
+ * can trigger several independent setup operations.
+ */
+export interface PostInstallStep {
+  name?: string;
+  /** Tool/binary name required on PATH for this step to run. */
+  when?: string;
+  /** Shell command. */
+  command: string;
+}
+
+export interface ToolRegistry {
+  tools?: Record<
+    string,
+    {
+      description?: string;
+      binary: string;
+      url?: string;
+      install?: unknown; // string | Record<string, string>; resolved via resolveInstallCommand
+      post_install?: Array<string | PostInstallStep>;
+    }
+  >;
+}
+
+/** Load the tool registry from install/tools.jsonc. Returns null on miss. */
+export function loadToolRegistry(repoDir: string): ToolRegistry | null {
+  return readJsoncFile<ToolRegistry>(path.join(repoDir, 'install', 'tools.jsonc'));
+}
+
+/**
+ * True when `options.tools[name]` is not explicitly set to false.
+ * All tools (rtk, openchamber, herdr, ...) read from the same `tools: {}`
+ * map — no top-level flags anymore.
+ */
+function toolEnabled(name: string, options: InstallOptions): boolean {
+  const v = options.tools?.[name];
+  return v !== false;
+}
+
+/**
+ * Provision optional tools declared in install/tools.jsonc.
+ *
+ * Two phases:
+ *   1. **Install**: For each enabled tool whose binary is missing from PATH,
+ *      run the resolved install command. Best-effort: failures are logged,
+ *      never thrown, so a network-blasted install can't fail the config
+ *      install. When the tool's install command has no entry for the
+ *      current platform/arch, log a hint pointing at the tool's homepage.
+ *   2. **Post-install**: After the install pass, run each tool's
+ *      `post_install` steps whose `when` guard is satisfied (i.e. the
+ *      referenced binary is now on PATH). This second phase handles
+ *      cross-tool dependencies — e.g. `herdr.post_install` referencing
+ *      `opencode` will only run after `opencode` itself has been installed
+ *      or was already present.
+ */
+export function provisionTools(repoDir: string, options: InstallOptions): void {
+  const registry = loadToolRegistry(repoDir);
+  if (!registry?.tools) return;
+
+  // Phase 1: install missing binaries.
+  for (const [name, def] of Object.entries(registry.tools)) {
+    if (!toolEnabled(name, options)) continue;
+    if (isBinaryOnPath(def.binary)) {
+      console.log(`✓ [tool] ${name} (${def.binary}) is present on PATH`);
+      continue;
+    }
+    const cmd = resolveInstallCommand(def.install);
+    if (!cmd) {
+      const hint = def.url ? ` (${def.url})` : '';
+      console.log(`ℹ [tool] ${name} not installed — no install command for ${process.platform}-${process.arch}${hint}`);
+      continue;
+    }
+    console.log(`🚀 [tool] ${name} missing from PATH — provisioning via: ${cmd}`);
+    const res = spawnSync(cmd, {
+      stdio: 'inherit',
+      timeout: 600000,
+      shell: true,
+    });
+    if (res.error || res.status !== 0) {
+      const detail = res.error ? res.error.message : `exit code ${res.status}`;
+      const hint = def.url ? ` Manual install: ${def.url}` : '';
+      console.log(`⚠ [tool] ${name} automatic installation failed (${detail}).${hint}`);
+    } else if (isBinaryOnPath(def.binary)) {
+      console.log(`✓ [tool] ${name} installed`);
+    } else {
+      console.log(`✓ [tool] ${name} install command finished — open a new terminal if the binary is not on PATH yet`);
+    }
+  }
+
+  // Phase 2: post-install steps (cross-tool order respected by phase-1
+  // completion — by now every tool's binary is on PATH or its install
+  // failed; we run steps whose `when` guards match reality).
+  for (const [name, def] of Object.entries(registry.tools)) {
+    if (!toolEnabled(name, options)) continue;
+    if (!def.post_install?.length) continue;
+    runPostInstall(repoDir, name, def);
+  }
+}
+
+/**
+ * Run a tool's post-install steps. Each step is skipped silently when its
+ * `when` binary is missing (so cross-tool order doesn't matter — by the
+ * time this runs, all installs have completed). Failures are logged and
+ * the next step is attempted.
+ *
+ * `OCP_REPO_DIR` is exported to each step so they can reference repo-side
+ * files (e.g. `herdr plugin link "$OCP_REPO_DIR/install/herdr-plugins/..."`)
+ * via portable paths that survive cwd changes.
+ */
+function runPostInstall(repoDir: string, name: string, def: ToolRegistry['tools'] extends infer T ? (T extends Record<string, infer V> ? V : never) : never): void {
+  const steps = def.post_install ?? [];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const command = typeof step === 'string' ? step : step.command;
+    const stepName = typeof step === 'string' ? `step ${i + 1}` : (step.name || `step ${i + 1}`);
+    const guard = typeof step === 'string' ? undefined : step.when;
+
+    if (guard && !isBinaryOnPath(guard)) {
+      console.log(`⏭ [post-install] ${name}: skipping "${stepName}" (requires "${guard}" on PATH)`);
+      continue;
+    }
+
+    console.log(`⚙ [post-install] ${name}: ${stepName}`);
+    const res = spawnSync(command, {
+      stdio: 'inherit',
+      timeout: 300000,
+      shell: true,
+      env: { ...process.env, OCP_REPO_DIR: repoDir },
+    });
+    if (res.error || res.status !== 0) {
+      const detail = res.error ? res.error.message : `exit code ${res.status ?? '?'}`;
+      console.log(`⚠ [post-install] ${name}/${stepName} failed: ${detail}`);
+    } else {
+      console.log(`✓ [post-install] ${name}/${stepName} ok`);
+    }
+  }
+}
+
 export function executeInstall(
   repoDir: string,
   args: CliArgs,
@@ -284,6 +471,16 @@ export function executeInstall(
 
   // Load options: repo defaults < user overrides < explicit customOptions
   const effectiveOptions = loadEffectiveOptions(repoDir, targetDir, customOptions);
+
+  // tui_mode=herdr implies tools.herdr=true; surface the override so the user
+  // sees why their explicit `tools.herdr: false` was ignored.
+  if (
+    effectiveOptions.tui_mode === 'herdr' &&
+    effectiveOptions.tools?.herdr === false
+  ) {
+    console.log('[ocp] tui_mode=herdr requires herdr — auto-enabling tools.herdr (overrides your tools.herdr=false).');
+    effectiveOptions.tools = { ...effectiveOptions.tools, herdr: true };
+  }
 
   // 1. Ensure Manifest for current version exists
   const curManifestPath = getManifestPath(repoDir, curVersion);
@@ -303,21 +500,94 @@ export function executeInstall(
   // 3. Extract user modifications to preserve
   const preserveBag = extractPreserveBag(targetDir);
 
-  // 4. Copy files
+  // 3.5 Remove files shipped in any historical version but no longer shipped
+  //   in the current one. Without this, removed agents/instructions/plugins
+  //   accumulate in ~/.config/opencode/ across upgrades.
+  //
+  //   We union every manifest *other than* the one matching installed.version
+  //   and curVersion — those two define the baseline of "what is currently
+  //   legitimately on disk" and must not be flagged as stale.
+  //
+  //   This catches the add/remove/re-add/remove sequence (a file shipped in
+  //   v0.9.0, dropped in v0.9.1, re-added in v0.9.2, dropped again in
+  //   v0.10.0) which a single-prev diff would miss, AND the "re-install same
+  //   version" case (installed.version === curVersion) where historical
+  //   leftovers from older versions still need cleaning.
+  //
+  //   Skipped only when (a) no previous version on disk (first install —
+  //   target is empty), or (b) install/versions/ is missing — same safety
+  //   net as manifest generation. providers/*.json is carved out: after
+  //   the first install that directory belongs to the user, mirroring the
+  //   copyRepoFiles rule.
   const shippedFiles = collectShippedFiles(repoDir);
+  const prevVer = getInstalledVersion(targetDir);
+  if (prevVer) {
+    const versionsDir = path.join(repoDir, 'install', 'versions');
+    let historicalFiles: Set<string> | null = null;
+    if (fs.existsSync(versionsDir)) {
+      for (const entry of fs.readdirSync(versionsDir)) {
+        if (!entry.endsWith('.manifest.txt')) continue;
+        const v = entry.slice(0, -'.manifest.txt'.length);
+        // Skip both installed.version (baseline) and curVersion (what we're
+        // shipping now). Everything else is "historical, possibly stale".
+        if (v === prevVer || v === curVersion) continue;
+        const files = readManifest(path.join(versionsDir, entry)) ?? [];
+        if (files.length === 0) continue;
+        if (!historicalFiles) historicalFiles = new Set();
+        for (const f of files) historicalFiles.add(f);
+      }
+    }
+    if (historicalFiles && historicalFiles.size > 0) {
+      const curSet = new Set(shippedFiles);
+      const userOwnsProviders = fs.existsSync(path.join(targetDir, 'installed.version'));
+      let staleRemoved = 0;
+      for (const rel of historicalFiles) {
+        if (curSet.has(rel)) continue;
+        if (userOwnsProviders && rel.startsWith('providers/') && rel.endsWith('.json')) continue;
+        const p = path.join(targetDir, rel);
+        if (fs.existsSync(p)) {
+          fs.rmSync(p, { force: true, recursive: true });
+          staleRemoved++;
+        }
+      }
+      if (staleRemoved > 0) {
+        console.log(`Pruned ${staleRemoved} stale file(s) (shipped in some prior version, absent in v${curVersion}).`);
+      }
+    }
+  }
+
+  // 4. Copy files
   const installedCount = copyRepoFiles(repoDir, targetDir, shippedFiles);
 
   // 5. Merge configuration
   mergeConfig(repoDir, targetDir, effectiveOptions, preserveBag);
+  mergeTuiConfig(repoDir, targetDir);
 
   // 6. Write installed version
   fs.writeFileSync(path.join(targetDir, 'installed.version'), curVersion + '\n', 'utf8');
 
   // 7. Tool diagnostics
-  checkExternalTools(effectiveOptions);
+  checkExternalTools(repoDir, effectiveOptions);
 
   // 8. Provision CLIs for enabled MCP servers missing from PATH
   provisionMcpCli(repoDir, effectiveOptions);
+
+  // 9. Provision optional tools declared in install/tools.jsonc
+  provisionTools(repoDir, effectiveOptions);
+
+  // 10. Deploy the bundled herdr config to ~/.config/herdr/ — only when herdr
+  //     is enabled. Non-destructive: if the user already has a config, we
+  //     leave it alone (they can run `ocp herdr-config install --force`).
+  if (effectiveOptions.tools?.herdr !== false) {
+    const herdrCfg = deployHerdrConfig(repoDir, false);
+    if (herdrCfg.action === 'installed') {
+      console.log(`✓ [herdr-config] ${herdrCfg.message}`);
+    } else if (herdrCfg.action === 'skipped') {
+      console.log(`ℹ [herdr-config] ${herdrCfg.message}`);
+    } else if (herdrCfg.action === 'failed') {
+      console.log(`⚠ [herdr-config] ${herdrCfg.message}`);
+    }
+  }
 
   return {
     success: true,
@@ -383,7 +653,13 @@ export function executeUninstall(
     return { targetDir, removedCount: 0 };
   }
 
-  const manifest = readManifest(getManifestPath(repoDir, getCurrentRepoVersion(repoDir))) || collectShippedFiles(repoDir);
+  // Prefer the *installed* version's manifest so uninstall removes exactly
+  // what was shipped, not whatever the repo happens to contain now (a
+  // user who hasn't run `ocp update` since pulling should still be able to
+  // uninstall cleanly).
+  const installedVer = getInstalledVersion(targetDir);
+  const manifestVer = installedVer ?? getCurrentRepoVersion(repoDir);
+  const manifest = readManifest(getManifestPath(repoDir, manifestVer)) ?? collectShippedFiles(repoDir);
 
   let count = 0;
   for (const rel of manifest) {

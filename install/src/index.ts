@@ -18,7 +18,8 @@ import { generateManifest } from './manifest';
 import { unregisterShim, runGlobalRegistration } from './shim';
 import { runInteractiveWizard } from './wizard';
 import { runTuiDashboard } from './dashboard';
-import { launchTui, launchServe, launchWeb, launchDesktop } from './launcher';
+import { launchTui, launchServe, launchWeb, launchDesktop, launchHerdr } from './launcher';
+import { deployHerdrConfig, herdrUserConfigPath, HERDR_CONFIG_TEMPLATE } from './herdr-config';
 import { ensureOpenChamber } from './openchamber';
 import { executeUpdate, executeUpgrade } from './updater';
 import { executeClean } from './session-clean';
@@ -43,6 +44,42 @@ function ensureAuthFile(): void {
   if (fs.existsSync(AUTH_FILE)) return;
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
   fs.writeFileSync(AUTH_FILE, '{}\n', { encoding: 'utf-8', mode: 0o600 });
+}
+
+/**
+ * `ocp herdr-config install` — deploy the bundled config to
+ * the user's herdr config dir. Non-destructive by default: if the target
+ * already exists, the existing file is left untouched (and the user is
+ * told so). Pass `args.force = true` to overwrite.
+ */
+function executeHerdrConfigInstall(repoDir: string, force: boolean | undefined): number {
+  const result = deployHerdrConfig(repoDir, !!force);
+  if (result.action === 'failed') {
+    console.error(`✗ ${result.message}`);
+    return 1;
+  } else if (result.action === 'skipped') {
+    console.log(`ℹ ${result.message}`);
+    console.log(`  To compare, see the bundled template at ${path.join(repoDir, HERDR_CONFIG_TEMPLATE)}.`);
+  } else {
+    console.log(`✓ ${result.message}`);
+    if (force) console.log('  (overwrote existing file because --force was set)');
+  }
+  return 0;
+}
+
+/**
+ * `ocp herdr-config status` — report whether the user has a herdr config,
+ * and where the bundled template lives (so the user can diff them).
+ */
+function executeHerdrConfigStatus(): number {
+  const dest = herdrUserConfigPath();
+  if (fs.existsSync(dest)) {
+    console.log(`✓ herdr config installed: ${dest}`);
+  } else {
+    console.log(`ℹ No herdr config found at ${dest}`);
+    console.log(`  Run \`ocp herdr-config install\` to deploy the bundled template.`);
+  }
+  return 0;
 }
 
 async function openAuthFile(): Promise<{ ok: boolean; message: string }> {
@@ -180,6 +217,35 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
         printHelp();
         process.exit(0);
       }
+    } else if (arg === 'herdr' || arg === 'hr') {
+      // `hr` is a short alias for `herdr` — same UX, 5 fewer chars.
+      // Picked over `hd` for mnemonic clarity (first two letters of herdr).
+      args.action = 'herdr';
+      args.passthrough = rawArgs.slice(i + 1);
+      hasExplicitAction = true;
+      break;
+    } else if (arg === 'herdr-config') {
+      // `herdr-config` namespace — install / path / status helpers for the
+      // bundled herdr config template.
+      const next = rawArgs[i + 1];
+      if (next === 'install') {
+        args.action = 'herdr-config-install';
+        i++; // consume 'install'
+        hasExplicitAction = true;
+      } else if (next === 'path') {
+        args.action = 'herdr-config-path';
+        i++; // consume 'path'
+        hasExplicitAction = true;
+      } else if (next === 'status') {
+        args.action = 'herdr-config-status';
+        i++; // consume 'status'
+        hasExplicitAction = true;
+      } else {
+        printHelp();
+        process.exit(0);
+      }
+    } else if (arg === '--force') {
+      args.force = true;
     } else if (arg === '--days' || arg === '-d') {
       const n = parseInt(rawArgs[++i], 10);
       if (!Number.isNaN(n) && n > 0) args.cleanDays = n;
@@ -236,7 +302,11 @@ Usage:
 Actions:
   (default)    Interactive setup wizard (in TTY) or install (in non-interactive)
   wizard       Launch the interactive TUI setup wizard
-  tui          Launch the OpenCode terminal UI (exec opencode)
+  tui          Launch the OpenCode terminal UI (exec opencode). With
+                 tui_mode=herdr in options.jsonc, launches a herdr workspace
+                 rooted at cwd instead (equivalent to 'ocp herdr'). Default
+                 tui_mode is 'direct'. Pass --herdr / --direct to override
+                 the config for this invocation
   serve        Launch the headless opencode server (opencode serve; all args pass through)
   web          Launch the OpenChamber web UI (auto-picks a free port unless --port is given)
                Subcommands: 'ocp web stop' stops; 'ocp web restart' restarts; '--daemon' runs in background
@@ -254,6 +324,15 @@ Actions:
                otherwise) and re-apply the installer
   session        Manage sessions: list, delete (passthrough), clean
   auth           Open OpenCode's auth.json: 'auth open' (creates the file if missing)
+  herdr          Launch Herdr (https://herdr.dev) and open the current directory
+                 as a focused workspace (label = directory basename); passthrough
+                 args (e.g. --session, --no-session) are forwarded to the TUI
+                 (short alias: hr)
+  herdr-config   Manage the bundled herdr config:
+                   install   deploy to ~/.config/herdr/config.toml (non-destructive
+                             unless --force is passed)
+                   status    report whether the user's herdr config exists
+                   path      print the path of the bundled template
   status         Check installed version and comparison with current repo
   generate     Generate manifest for current repo VERSION
   init         Backup and reset the target configuration directory
@@ -428,7 +507,24 @@ async function main() {
   const args = parseCliArgs(rawArgs);
 
   if (args.action === 'tui') {
-    process.exit(launchTui(args.passthrough ?? []));
+    // Mode resolution: tui_mode config is the default; --herdr / --direct
+    // on the command line override it for this invocation. The flags are
+    // stripped from passthrough before forwarding to the launcher so
+    // opencode / herdr don't see unknown args.
+    const effectiveOptions = loadEffectiveOptions(repoDir, getDefaultTargetDir());
+    const overridePassthrough = (args.passthrough ?? []).filter(
+      (a) => a !== '--herdr' && a !== '--direct'
+    );
+    const cliMode = (args.passthrough ?? []).includes('--herdr')
+      ? 'herdr'
+      : (args.passthrough ?? []).includes('--direct')
+        ? 'direct'
+        : null;
+    const mode = cliMode ?? effectiveOptions.tui_mode ?? 'direct';
+    if (mode === 'herdr') {
+      process.exit(launchHerdr(overridePassthrough));
+    }
+    process.exit(launchTui(overridePassthrough));
   }
 
   if (args.action === 'serve') {
@@ -493,6 +589,21 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
 
+  if (args.action === 'herdr') {
+    process.exit(launchHerdr(args.passthrough ?? []));
+  }
+
+  if (args.action === 'herdr-config-install') {
+    process.exit(executeHerdrConfigInstall(repoDir, args.force));
+  }
+  if (args.action === 'herdr-config-path') {
+    process.stdout.write(`${repoDir}/install/herdr-config/config.toml\n`);
+    process.exit(0);
+  }
+  if (args.action === 'herdr-config-status') {
+    process.exit(executeHerdrConfigStatus());
+  }
+
   if (args.action === 'wizard') {
     await runInteractiveWizard(repoDir);
     return;
@@ -552,7 +663,7 @@ async function main() {
         console.log(reg.pathMessage);
       }
 
-      if (effectiveOptions.openchamber !== false) {
+      if (effectiveOptions.tools?.openchamber !== false) {
         console.log(ensureOpenChamber().message);
       }
       break;

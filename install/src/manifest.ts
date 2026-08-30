@@ -9,7 +9,7 @@ const SHIPPED_DIRS = ['agents', 'instructions', 'plugins', 'profiles', 'provider
 const SHIPPED_FILES = [
   'opencode.template.jsonc', //  core config template — merged into the target opencode.jsonc by installer/merger.ts (never copied verbatim)
   'tiers.json',     //  agent→tier map — merged by installer/merger.ts
-  'tui.json',       //  TUI config + plugin registration, read by opencode at runtime
+  'tui.template.jsonc', //  TUI plugin registration — merged with user's tui.jsonc by installer/merger.ts (preserves user-added plugins; never copied verbatim)
   // Runtime script referenced by opencode.jsonc MCP config (serena command):
   //   node -e "import(... .config/opencode/scripts/serena-workspace-daemon.mjs)"
   'scripts/serena-workspace-daemon.mjs',

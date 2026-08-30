@@ -29,24 +29,19 @@ export interface DynamicSchema {
     hint: string;
     choices: string[];
   };
-  rtk: {
-    value: boolean;
-    hint: string;
-  };
   globalCommandsDefault: boolean;
-  openChamberDefault: boolean;
   mcpItems: DynamicOptionItem[];
   pluginItems: DynamicOptionItem[];
+  toolItems: DynamicOptionItem[];
 }
 
 export function parseDynamicOptionsSchema(content: string, repoDir?: string): DynamicSchema {
   const schema: DynamicSchema = {
     defaultAgent: { value: 'code', hint: 'Default active agent', choices: [] },
-    rtk: { value: true, hint: 'Rust Token Killer proxy & plugin' },
     globalCommandsDefault: true,
-    openChamberDefault: true,
     mcpItems: [],
     pluginItems: [],
+    toolItems: [],
   };
 
   if (repoDir) {
@@ -58,7 +53,7 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
   }
 
   const lines = content.split(/\r?\n/);
-  let currentSection: 'root' | 'mcp' | 'plugin' | '' = 'root';
+  let currentSection: 'root' | 'mcp' | 'plugin' | 'tools' | '' = 'root';
   let pendingComments: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -88,6 +83,11 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
       pendingComments = [];
       continue;
     }
+    if (/"tools"\s*:\s*\{/.test(trimmed)) {
+      currentSection = 'tools';
+      pendingComments = [];
+      continue;
+    }
     if (trimmed === '}' || trimmed === '},') {
       currentSection = 'root';
       pendingComments = [];
@@ -104,26 +104,9 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
       continue;
     }
 
-    const rtkMatch = trimmed.match(/"rtk"\s*:\s*(true|false)/);
-    if (rtkMatch) {
-      schema.rtk.value = rtkMatch[1] === 'true';
-      if (pendingComments.length > 0) {
-        schema.rtk.hint = pendingComments.join(' ');
-      }
-      pendingComments = [];
-      continue;
-    }
-
     const globalCommandsMatch = trimmed.match(/"global_commands"\s*:\s*(true|false)/);
     if (globalCommandsMatch) {
       schema.globalCommandsDefault = globalCommandsMatch[1] === 'true';
-      pendingComments = [];
-      continue;
-    }
-
-    const openChamberMatch = trimmed.match(/"openchamber"\s*:\s*(true|false)/);
-    if (openChamberMatch) {
-      schema.openChamberDefault = openChamberMatch[1] === 'true';
       pendingComments = [];
       continue;
     }
@@ -138,6 +121,8 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
         schema.mcpItems.push({ key, value: val, hint });
       } else if (currentSection === 'plugin') {
         schema.pluginItems.push({ key, value: val, hint });
+      } else if (currentSection === 'tools') {
+        schema.toolItems.push({ key, value: val, hint });
       }
       pendingComments = [];
       continue;
@@ -151,9 +136,9 @@ export function updateOptionsJsoncInPlace(
   filePath: string,
   updates: {
     defaultAgent?: string;
-    rtk?: boolean;
     globalCommands?: boolean;
-    openChamber?: boolean;
+    tuiMode?: 'direct' | 'herdr';
+    tools?: Record<string, boolean>;
     mcps?: Record<string, boolean>;
     plugins?: Record<string, boolean>;
   }
@@ -174,9 +159,11 @@ export function updateOptionsJsoncInPlace(
   }
 
   if (updates.defaultAgent !== undefined) current.default_agent = updates.defaultAgent;
-  if (updates.rtk !== undefined) current.rtk = updates.rtk;
   if (updates.globalCommands !== undefined) current.global_commands = updates.globalCommands;
-  if (updates.openChamber !== undefined) current.openchamber = updates.openChamber;
+  if (updates.tuiMode !== undefined) current.tui_mode = updates.tuiMode;
+  if (updates.tools) {
+    current.tools = { ...(current.tools || {}), ...updates.tools };
+  }
   if (updates.mcps) {
     current.mcp = { ...(current.mcp || {}), ...updates.mcps };
   }
@@ -331,6 +318,9 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
       if (result.action === 'back') {
         // Stay in sync with language switches made inside the dashboard
         currentLocaleCode = result.locale;
+        // The dashboard always pauses stdin on exit; re-arm it so the next
+        // clack prompt receives keystrokes again.
+        process.stdin.resume();
         continue;
       }
       break;
@@ -389,7 +379,7 @@ export async function runInteractiveWizard(repoDir: string): Promise<void> {
         applyGlobalRegistration(repoDir, t);
       }
 
-      if (effectiveOptions.openchamber !== false) {
+      if (effectiveOptions.tools?.openchamber !== false) {
         p.log.step(ensureOpenChamber().message);
       }
 

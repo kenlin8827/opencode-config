@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import readline from 'node:readline';
 import {
   executeInstall,
   executeStatus,
@@ -16,7 +15,6 @@ import {
 } from './wizard';
 import { runGlobalRegistration } from './shim';
 import { ensureOpenChamber } from './openchamber';
-import { readTierMap } from './merger';
 import { CliArgs, InstallOptions } from './types';
 import { loadLocale, getAvailableLocales, detectDefaultLocaleCode } from './i18n';
 
@@ -28,8 +26,6 @@ const C = {
   cyan: '\x1b[36m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
   red: '\x1b[31m',
   bgBlue: '\x1b[44m',
   bgCyan: '\x1b[46m',
@@ -40,14 +36,19 @@ const C = {
   showCursor: '\x1b[?25h',
 };
 
-const AVAILABLE_TIERS = ['flash', 'standard', 'pro', 'max', 'vision'];
-
 interface RowItem {
   id: string;
-  type: 'lang' | 'agent' | 'tui_mode' | 'tool' | 'global_commands' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
+  type: 'lang' | 'agent' | 'tui_mode' | 'tool' | 'global_commands' | 'mcp' | 'plugin' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
   key?: string;
   label: string;
   hint?: string;
+}
+
+interface InputKey {
+  name?: string;
+  sequence?: string;
+  ctrl?: boolean;
+  meta?: boolean;
 }
 
 /**
@@ -153,17 +154,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
   const initialMcpState = { ...mcpState };
   const initialPluginState = { ...pluginState };
 
-  // Load effective tiers map from repo and override it with valid user tiers.
-  const defaultTiers = readTierMap(repoDir);
-  const userTiers = Object.fromEntries(
-    Object.entries(readTierMap(targetDir)).filter(([, tier]) => AVAILABLE_TIERS.includes(tier))
-  );
-
-  const tiersState: Record<string, string> = {
-    ...defaultTiers,
-    ...userTiers,
-  };
-
   // Available agent candidates
   const availableAgents = schema.defaultAgent.choices.length > 0
     ? schema.defaultAgent.choices
@@ -241,19 +231,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       });
     }
 
-    // 5. Agent Tier Mappings (Purely dynamic directly from tiers.json / tiersState)
-    for (const [agentName, tierValue] of Object.entries(tiersState)) {
-      if (typeof tierValue === 'string') {
-        r.push({
-          id: `tier:${agentName}`,
-          type: 'tier',
-          key: agentName,
-          label: `@${agentName}`,
-          hint: `${agentName} -> tier: ${tierValue} (${t.tiersHint})`,
-        });
-      }
-    }
-
     // 6. Target Directory
     r.push({
       id: 'target',
@@ -293,10 +270,32 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
 
   let rows = buildRows();
   let selectedIndex = 0;
-  let statusMessage = '';
+  let inputMode: 'dashboard' | 'target' | 'confirm' = 'dashboard';
+  let targetInput = '';
+  let confirmAction: 'back' | 'exit' | null = null;
 
   const render = () => {
     const t = loadLocale(repoDir, currentLocaleCode);
+    if (inputMode === 'confirm') {
+      process.stdout.write(
+        C.clear + C.hideCursor +
+        `\n  ${C.bold}${t.unsavedChangesPrompt}${C.reset}\n` +
+        `  ${C.dim}s = save, d = discard, c/Esc = cancel${C.reset}\n`
+      );
+      return;
+    }
+
+    if (inputMode === 'target') {
+      const prompt = t.targetDirectoryPrompt.replace('{target}', targetDir);
+      process.stdout.write(
+        C.clear + C.showCursor +
+        `\n  ${C.bold}${prompt}${C.reset}\n` +
+        `  ${C.yellow}${targetInput}${C.reset}\n` +
+        `  ${C.dim}Enter = confirm, Esc = cancel, Backspace = delete${C.reset}\n`
+      );
+      return;
+    }
+
     const termWidth = process.stdout.columns || 100;
     const width = Math.max(76, Math.min(termWidth, 110));
     const line = '─'.repeat(width - 2);
@@ -334,8 +333,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         buf += `\n${C.bold}${C.cyan}  ${t.mcpSectionHeader}${C.reset}\n`;
       } else if (row.type === 'plugin' && lastType !== 'plugin') {
         buf += `\n${C.bold}${C.cyan}  ${t.pluginSectionHeader}${C.reset}\n`;
-      } else if (row.type === 'tier' && lastType !== 'tier') {
-        buf += `\n${C.bold}${C.cyan}  ${t.tiersSectionHeader}${C.reset}\n`;
       } else if (row.type === 'target' && lastType !== 'target') {
         buf += `\n${C.bold}${C.cyan}  ${t.targetSectionHeader}${C.reset}\n`;
       } else if (row.type.startsWith('action_') && !lastType.startsWith('action_')) {
@@ -384,33 +381,22 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         const maxHintLen = Math.max(10, width - 58);
         const safeHint = truncateText(row.hint || '', maxHintLen);
         buf += `  ${cursor}${switchBadge}  ${nameBadge}  ${C.dim}${safeHint}${C.reset}\n`;
-      } else if (row.type === 'tier' && row.key) {
-        const curTier = tiersState[row.key] || 'standard';
-        const tierColor = curTier === 'max' ? C.magenta : curTier === 'pro' ? C.green : curTier === 'flash' ? C.yellow : curTier === 'vision' ? C.blue : C.cyan;
-        const tierBadge = `[ ${tierColor}${C.bold}${curTier.padEnd(8)}${C.reset} ]`;
-        const nameBadge = isSelected ? `${C.bold}${C.yellow}${row.label.padEnd(18)}${C.reset}` : `${C.bold}${row.label.padEnd(18)}${C.reset}`;
-        buf += `  ${cursor}${nameBadge} : ${tierBadge}  ${C.dim}(${t.cycleTierHint})${C.reset}\n`;
       } else if (row.type === 'target') {
         valueDisplay = `${C.yellow}${C.bold}${targetDir}${C.reset}`;
         buf += `  ${cursor}${row.label.padEnd(18)}: ${valueDisplay}\n`;
       } else if (row.type === 'action_install') {
-        const btn = isSelected ? `${C.bgCyan}${C.bold}  ${row.label}  ${C.reset}` : `${C.bold}${C.green}  ${row.label}${C.reset}`;
+        const btn = isSelected ? `${C.bgCyan}${C.bold}${row.label}  ${C.reset}` : `${C.bold}${C.green}${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
       } else if (row.type === 'action_save') {
-        const btn = isSelected ? `${C.bgBlue}${C.bold}  ${row.label}  ${C.reset}` : `${C.cyan}  ${row.label}${C.reset}`;
+        const btn = isSelected ? `${C.bgBlue}${C.bold}${row.label}  ${C.reset}` : `${C.cyan}${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
       } else if (row.type === 'action_back') {
-        const btn = isSelected ? `${C.bgDark}${C.bold}  ${row.label}  ${C.reset}` : `${C.bold}${C.yellow}  ${row.label}${C.reset}`;
+        const btn = isSelected ? `${C.bgDark}${C.bold}${row.label}  ${C.reset}` : `${C.bold}${C.yellow}${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
       } else if (row.type === 'action_exit') {
-        const btn = isSelected ? `${C.red}${C.bold}  ▶ ${row.label}${C.reset}` : `${C.dim}  ${row.label}${C.reset}`;
+        const btn = isSelected ? `${C.red}${C.bold}${row.label}${C.reset}` : `${C.dim}${row.label}${C.reset}`;
         buf += `  ${cursor}${btn}\n`;
       }
-    }
-
-    // Status Message / Notification
-    if (statusMessage) {
-      buf += `\n  ${C.bold}${C.yellow}ℹ ${statusMessage}${C.reset}\n`;
     }
 
     buf += `  ${C.dim}${t.footerHelp}${C.reset}\n`;
@@ -422,14 +408,16 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
-    readline.emitKeypressEvents(process.stdin);
     process.stdin.resume();
 
+    // Always leave stdin fully quiesced: no handlers, cooked mode, paused.
+    // Callers re-arm with resume() before opening the next prompt — a paused
+    // stream is the only deterministic hand-off between raw-mode TUIs.
     const cleanup = () => {
       process.stdout.write(C.clear + C.showCursor);
-      // Detach our own keypress handler; otherwise a "ghost" dashboard keeps
+      // Detach our raw data handler; otherwise a "ghost" dashboard keeps
       // consuming keys behind the wizard/clack menu after returning.
-      process.stdin.removeListener('keypress', handleKey);
+      process.stdin.removeListener('data', handleInput);
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
       }
@@ -448,7 +436,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         mcps: mcpState,
         plugins: pluginState,
       });
-      console.log(`Options saved to: ${userOptionsPath}`);
     };
 
     let settled = false;
@@ -474,7 +461,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           global_commands: currentGlobalCommands,
           mcp: mcpState,
           plugin: pluginState,
-          tiers: tiersState,
         };
 
         const args: CliArgs = {
@@ -528,46 +514,103 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       return false;
     };
 
-    const resumeAfterPrompt = () => {
-      if (process.stdin.isTTY) process.stdin.setRawMode(true);
-      process.stdin.resume();
-      // Guard against duplicate keypress listeners after returning from a
-      // readline prompt; remove our own first, then re-register exactly one.
-      process.stdin.removeListener('keypress', handleKey);
-      process.stdin.on('keypress', handleKey);
-      render();
+    const saveWithoutExit = () => {
+      const t = loadLocale(repoDir, currentLocaleCode);
+      try {
+        saveOptions();
+        console.log(`${C.green}✓ ${t.saveOptionsSuccess}${C.reset}`);
+      } catch (err) {
+        console.error(`${C.red}✗ Save failed: ${(err as Error).message}${C.reset}`);
+      }
+    };
+
+    const resetToInitial = () => {
+      currentAgent = initialAgent;
+      currentGlobalCommands = initialGlobalCommands;
+      currentTuiMode = initialTuiMode;
+      targetDir = initialTargetDir;
+      Object.assign(toolState, initialToolState);
+      Object.assign(mcpState, initialMcpState);
+      Object.assign(pluginState, initialPluginState);
+      rows = buildRows();
     };
 
     const promptUnsavedChanges = (finalAction: 'back' | 'exit') => {
-      cleanup();
-      process.stdout.write('\n');
-      const t = loadLocale(repoDir, currentLocaleCode);
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      rl.question(t.unsavedChangesPrompt, (answer) => {
-        const lower = answer.trim().toLowerCase();
-        rl.close();
+      confirmAction = finalAction;
+      inputMode = 'confirm';
+      render();
+    };
+
+    const handleKey = (str: string, key: InputKey) => {
+      if (!key.name || settled) return;
+
+      if (inputMode === 'confirm') {
+        const lower = (str || '').toLowerCase();
+        const action = confirmAction ?? 'back';
+
+        if (key.name === 'escape' || lower === 'c' || key.name === 'return') {
+          inputMode = 'dashboard';
+          confirmAction = null;
+          render();
+          return;
+        }
+
         if (lower === 's') {
+          const t = loadLocale(repoDir, currentLocaleCode);
           try {
             saveOptions();
+            cleanup();
             console.log(`${C.green}✓ ${t.saveOptionsSuccess}${C.reset}\n`);
-            settle({ action: finalAction, locale: currentLocaleCode });
+            settle({ action, locale: currentLocaleCode });
           } catch (err) {
+            inputMode = 'dashboard';
+            confirmAction = null;
             console.error(`${C.red}✗ Save failed: ${(err as Error).message}${C.reset}`);
-            resumeAfterPrompt();
+            render();
           }
           return;
         }
+
         if (lower === 'd') {
-          settle({ action: finalAction, locale: currentLocaleCode });
+          cleanup();
+          settle({ action, locale: currentLocaleCode });
           return;
         }
-        // Any other input (including 'c' or empty) cancels and returns to dashboard.
-        resumeAfterPrompt();
-      });
-    };
 
-    const handleKey = (str: string, key: readline.Key) => {
-      if (!key || settled) return;
+        inputMode = 'dashboard';
+        confirmAction = null;
+        render();
+        return;
+      }
+
+      if (inputMode === 'target') {
+        if (key.name === 'escape') {
+          inputMode = 'dashboard';
+          render();
+          return;
+        }
+
+        if (key.name === 'return') {
+          if (targetInput.trim()) {
+            targetDir = path.resolve(targetInput.trim());
+          }
+          inputMode = 'dashboard';
+          render();
+          return;
+        }
+
+        if (key.name === 'backspace' || key.name === 'delete') {
+          targetInput = targetInput.slice(0, -1);
+          render();
+          return;
+        }
+
+        if (!key.ctrl && !key.meta && str && str.length === 1) {
+          targetInput += str;
+          render();
+        }
+        return;
+      }
 
       // Toggle Language: cycle available locales
       if ((str === 'l' || str === 'L') && rows[selectedIndex].type !== 'target') {
@@ -575,8 +618,35 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         const nextIdx = (curIdx + 1) % availableLocales.length;
         currentLocaleCode = availableLocales[nextIdx].code;
         rows = buildRows();
-        statusMessage = loadLocale(repoDir, currentLocaleCode).switchLangHint;
         render();
+        return;
+      }
+
+      // Quick shortcuts: save without exiting, reset, install, and quit.
+      if (key.ctrl && key.name === 's') {
+        saveWithoutExit();
+        render();
+        return;
+      }
+      if (key.ctrl && key.name === 'z') {
+        resetToInitial();
+        rows = buildRows();
+        render();
+        return;
+      }
+      if (key.ctrl && key.name === 'a') {
+        executeAndExit(true);
+        return;
+      }
+      if (key.ctrl && key.name === 'q') {
+        if (hasChanges()) {
+          promptUnsavedChanges('exit');
+        } else {
+          const t = loadLocale(repoDir, currentLocaleCode);
+          cleanup();
+          console.log(t.exitedDashboard);
+          settle({ action: 'exit', locale: currentLocaleCode });
+        }
         return;
       }
 
@@ -607,14 +677,12 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       // Navigation
       if (key.name === 'up' || str === 'k') {
         selectedIndex = (selectedIndex - 1 + rows.length) % rows.length;
-        statusMessage = '';
         render();
         return;
       }
 
       if (key.name === 'down' || str === 'j') {
         selectedIndex = (selectedIndex + 1) % rows.length;
-        statusMessage = '';
         render();
         return;
       }
@@ -629,58 +697,30 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           const nextIdx = (curIdx + 1) % availableLocales.length;
           currentLocaleCode = availableLocales[nextIdx].code;
           rows = buildRows();
-          statusMessage = loadLocale(repoDir, currentLocaleCode).switchLangHint;
           render();
           return;
         } else if (currentRow.type === 'agent') {
           const curIdx = availableAgents.indexOf(currentAgent);
           const nextIdx = (curIdx + 1) % availableAgents.length;
           currentAgent = availableAgents[nextIdx];
-          statusMessage = t.agentSetMsg.replace('{agent}', currentAgent);
         } else if (currentRow.type === 'tui_mode') {
           currentTuiMode = currentTuiMode === 'direct' ? 'herdr' : 'direct';
           // herdr mode implies tools.herdr=true — flip it here so the
           // panorama shows the dependency, and undo it on switch back.
           if (currentTuiMode === 'herdr') toolState.herdr = true;
           else toolState.herdr = false;
-          statusMessage = t.tuiModeSetMsg.replace('{mode}', currentTuiMode);
         } else if (currentRow.type === 'tool' && currentRow.key) {
           toolState[currentRow.key] = !toolState[currentRow.key];
-          statusMessage = `Tool "${currentRow.key}" ${toolState[currentRow.key] ? t.enabled : t.disabled}`;
         } else if (currentRow.type === 'global_commands') {
           currentGlobalCommands = !currentGlobalCommands;
-          statusMessage = currentGlobalCommands ? t.onCmdRegAdded : t.onCmdRegSkipped;
         } else if (currentRow.type === 'mcp' && currentRow.key) {
           mcpState[currentRow.key] = !mcpState[currentRow.key];
-          statusMessage = `MCP "${currentRow.key}" ${mcpState[currentRow.key] ? t.enabled : t.disabled}`;
         } else if (currentRow.type === 'plugin' && currentRow.key) {
           pluginState[currentRow.key] = !pluginState[currentRow.key];
-          statusMessage = `Plugin "${currentRow.key}" ${pluginState[currentRow.key] ? t.enabled : t.disabled}`;
-        } else if (currentRow.type === 'tier' && currentRow.key) {
-          const curTier = tiersState[currentRow.key] || 'default';
-          const curIdx = AVAILABLE_TIERS.indexOf(curTier);
-          const nextIdx = (curIdx + 1) % AVAILABLE_TIERS.length;
-          tiersState[currentRow.key] = AVAILABLE_TIERS[nextIdx];
-          statusMessage = t.tierSetMsg.replace('{agent}', currentRow.key).replace('{tier}', tiersState[currentRow.key]);
         } else if (currentRow.type === 'target') {
-          cleanup();
-          process.stdout.write('\n');
-          const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-          });
-          const prompt = t.targetDirectoryPrompt.replace('{target}', targetDir);
-          rl.question(prompt, (answer) => {
-            if (answer && answer.trim()) {
-              targetDir = path.resolve(answer.trim());
-            }
-            rl.close();
-            if (process.stdin.isTTY) process.stdin.setRawMode(true);
-            process.stdin.resume();
-            process.stdin.on('keypress', handleKey);
-            statusMessage = t.targetModified.replace('{target}', targetDir);
-            render();
-          });
+          inputMode = 'target';
+          targetInput = targetDir;
+          render();
           return;
         } else if (currentRow.type === 'action_install') {
           executeAndExit(true);
@@ -711,7 +751,26 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       }
     };
 
-    process.stdin.on('keypress', handleKey);
+    const handleInput = (chunk: Buffer | string) => {
+      const input = String(chunk);
+      if (input === '\x1b[A') return handleKey('', { name: 'up', sequence: input });
+      if (input === '\x1b[B') return handleKey('', { name: 'down', sequence: input });
+      if (input === '\r' || input === '\n') return handleKey(input, { name: 'return', sequence: input });
+      if (input === ' ') return handleKey(input, { name: 'space', sequence: input });
+      if (input === '\x1b') return handleKey(input, { name: 'escape', sequence: input });
+      if (input === '\x03') return handleKey(input, { name: 'c', sequence: input, ctrl: true });
+      if (input === '\x13') return handleKey(input, { name: 's', sequence: input, ctrl: true });
+      if (input === '\x1a') return handleKey(input, { name: 'z', sequence: input, ctrl: true });
+      if (input === '\x01') return handleKey(input, { name: 'a', sequence: input, ctrl: true });
+      if (input === '\x11') return handleKey(input, { name: 'q', sequence: input, ctrl: true });
+      if (input === '\x7f' || input === '\b') return handleKey(input, { name: 'backspace', sequence: input });
+
+      for (const ch of input) {
+        handleKey(ch, { name: ch, sequence: ch });
+      }
+    };
+
+    process.stdin.on('data', handleInput);
     render();
   });
 }

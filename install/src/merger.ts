@@ -4,13 +4,16 @@ import os from 'node:os';
 import { InstallOptions, PreserveBag } from './types';
 
 /**
- * Strips comments from JSONC content and parses it into an object.
+ * Strips JSONC extensions from content and parses it into an object:
+ *   - block comments (slash-star ... star-slash)
+ *   - line comments starting with slash-slash
+ *   - trailing commas before } or ]
  */
 export function parseJsonc<T = any>(content: string): T {
-  // Strip block comments /* ... */ and single-line comments // ...
   const cleaned = content
     .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/,(\s*[}\]])/g, '$1');
   return JSON.parse(cleaned);
 }
 
@@ -229,6 +232,62 @@ export function mergeTiersJson(
 }
 
 /**
+ * Merges the repo's tui.template.jsonc with the user's existing tui.jsonc
+ * (if any) and writes the result to the target tui.jsonc.
+ *
+ * Merge rules:
+ *   - `plugin[]` is the union of template + existing, deduped by string path,
+ *     template-first so OCP plugins keep their canonical order.
+ *   - Scalar fields (display_thinking, theme, keybinds, ...) win for the
+ *     existing target where present, and fall back to template defaults.
+ *   - `$schema` always comes from the template (it's a pointer, not user state).
+ *
+ * First install (no existing target): writes the template directly.
+ */
+export function mergeTuiConfig(repoDir: string, targetDir: string): void {
+  const templatePath = path.join(repoDir, 'tui.template.jsonc');
+  const targetPath = path.join(targetDir, 'tui.jsonc');
+
+  const template = readJsoncFile<Record<string, any>>(templatePath);
+  if (!template || Object.keys(template).length === 0) {
+    // No template — nothing to seed; leave target alone (or absent).
+    return;
+  }
+
+  const existing = fs.existsSync(targetPath)
+    ? readJsoncFile<Record<string, any>>(targetPath) || {}
+    : {};
+
+  // Plugin union: template-first, then any user-added plugins not already
+  // present. Filter to strings only so a malformed existing file can't
+  // crash the merge with a non-array.
+  const templatePlugins = Array.isArray(template.plugin)
+    ? template.plugin.filter((p) => typeof p === 'string')
+    : [];
+  const existingPlugins = Array.isArray(existing.plugin)
+    ? existing.plugin.filter((p) => typeof p === 'string')
+    : [];
+  const seen = new Set(templatePlugins);
+  const mergedPlugins = [
+    ...templatePlugins,
+    ...existingPlugins.filter((p) => !seen.has(p)),
+  ];
+
+  // Scalar fields: existing wins, template fills gaps. `$schema` is
+  // special — always template (just a URL pointer, not user state).
+  const merged: Record<string, any> = {
+    ...template,
+    ...existing,
+    plugin: mergedPlugins,
+  };
+  delete merged.$schema;
+  merged.$schema = template.$schema;
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+}
+
+/**
  * Merges the repo's opencode.template.jsonc, preserve bag, and options.jsonc,
  * then writes the result to the target opencode.jsonc
  */
@@ -308,7 +367,7 @@ export function mergeConfig(
   }
 
   // 8. Apply RTK option
-  if (options.rtk === false) {
+  if (options.tools?.rtk === false) {
     // If RTK is disabled, remove openrtk bundled plugin references if any
     const rtkPluginPath = path.join(targetDir, 'plugins', 'openrtk.ts');
     const rtkPluginDir = path.join(targetDir, 'plugins', 'openrtk');

@@ -21,7 +21,7 @@ bin/             # OCP CLI dispatchers (opencode-prime, ocp) — installer wrapp
 tests/           # Structural + prompt test suites (see tests/README.md)
 scripts/         # Packaging scripts for releases
 opencode.template.jsonc  # Root config template merged into ~/.config/opencode/opencode.jsonc
-tui.json         # TUI config template (registers TUI plugins)
+tui.template.jsonc  # TUI config template (registers TUI plugins; merged with user tui.jsonc on install so user-added plugins survive)
 tiers.json       # Tier definitions sidecar (consumed by profile-wizard)
 ```
 
@@ -67,7 +67,7 @@ User
  └── Plugins (runtime enforcement & workflows — see "Plugin system")
      ├── npm plugins via `opencode.jsonc:plugin` (ponytail, qoder-bridge, …)
      ├── auto-discovered entries in `plugins/*.ts` (guards, collectors, barrels)
-     └── TUI plugins via `tui.json:plugin` (provider-wizard, profile-wizard, queue-manager)
+     └── TUI plugins via `tui.template.jsonc:plugin` (provider-wizard, profile-wizard, queue-manager)
 ```
 
 Design invariants:
@@ -270,7 +270,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 ### Discovery & layout
 
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
-- **TUI plugins**: registered explicitly in `tui.json:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
+- **TUI plugins**: registered explicitly in `tui.template.jsonc:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
 - **npm plugins**: default active plugins are listed in `opencode.template.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
 - **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
 
