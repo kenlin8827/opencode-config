@@ -8,6 +8,7 @@ import {
   getCurrentRepoVersion,
   getInstalledVersion,
   loadEffectiveOptions,
+  loadToolRegistry,
 } from './installer';
 import {
   parseDynamicOptionsSchema,
@@ -43,7 +44,7 @@ const AVAILABLE_TIERS = ['flash', 'standard', 'pro', 'max', 'vision'];
 
 interface RowItem {
   id: string;
-  type: 'lang' | 'agent' | 'rtk' | 'global_commands' | 'openchamber' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
+  type: 'lang' | 'agent' | 'tui_mode' | 'tool' | 'global_commands' | 'mcp' | 'plugin' | 'tier' | 'target' | 'action_install' | 'action_save' | 'action_back' | 'action_exit';
   key?: string;
   label: string;
   hint?: string;
@@ -57,6 +58,43 @@ function truncateText(str: string, maxLen: number): string {
   if (maxLen <= 3) return str.slice(0, Math.max(0, maxLen));
   const single = str.replace(/[\r\n]+/g, ' ').replace(/\s*\|\s*/g, ' — ').trim();
   return single.length > maxLen ? single.slice(0, maxLen - 3) + '...' : single;
+}
+
+/**
+ * Approximate display width for terminal alignment. Most CJK characters
+ * (Unified Ideographs, Hiragana, Katakana, Hangul, fullwidth forms) render
+ * as two columns; everything else is one column. This is enough to keep
+ * labels and colons aligned across Chinese/English mixes.
+ */
+function displayWidth(str: string): number {
+  let width = 0;
+  for (const ch of str) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
+      (code >= 0x3400 && code <= 0x4dbf) || // CJK Extension A
+      (code >= 0x3000 && code <= 0x303f) || // CJK Symbols and Punctuation
+      (code >= 0xff00 && code <= 0xff60) || // Fullwidth ASCII
+      (code >= 0xffe0 && code <= 0xffee) || // Fullwidth symbols
+      (code >= 0x3040 && code <= 0x309f) || // Hiragana
+      (code >= 0x30a0 && code <= 0x30ff) || // Katakana
+      (code >= 0xac00 && code <= 0xd7af) || // Hangul Syllables
+      (code >= 0x1100 && code <= 0x11ff) || // Hangul Jamo
+      (code >= 0x1f000 && code <= 0x1ffff) || // Emoji + supplementary symbols (usually 2-col)
+      (code >= 0x2600 && code <= 0x27bf)    // Misc symbols / dingbats
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+function padDisplayEnd(str: string, targetWidth: number): string {
+  const w = displayWidth(str);
+  if (w >= targetWidth) return str;
+  return str + ' '.repeat(targetWidth - w);
 }
 
 export interface DashboardResult {
@@ -80,9 +118,19 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
   // so the dashboard reflects what the next install would actually use.
   const effective = loadEffectiveOptions(repoDir, targetDir);
   let currentAgent = effective.default_agent ?? schema.defaultAgent.value;
-  let currentRtk = effective.rtk ?? schema.rtk.value;
   let currentGlobalCommands = effective.global_commands ?? schema.globalCommandsDefault;
-  let currentOpenChamber = effective.openchamber ?? schema.openChamberDefault;
+  let currentTuiMode: 'direct' | 'herdr' = effective.tui_mode ?? 'direct';
+
+  // Tool opt-ins come from install/tools.jsonc. Defaults: enabled; the user
+  // can flip any of them. We seed from `effective.tools.<name>` so a saved
+  // user override wins on the next install.
+  const toolRegistry = loadToolRegistry(repoDir);
+  const toolState: Record<string, boolean> = {};
+  for (const name of Object.keys(toolRegistry?.tools ?? {})) {
+    const userVal = effective.tools?.[name];
+    toolState[name] = userVal !== false; // default-true
+  }
+
   const mcpState: Record<string, boolean> = {};
   for (const item of schema.mcpItems) {
     mcpState[item.key] = (effective.mcp && typeof effective.mcp === 'object' && item.key in effective.mcp)
@@ -95,6 +143,15 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       ? Boolean(effective.plugin[item.key])
       : item.value;
   }
+
+  // Snapshot of the initial state so we can detect unsaved changes on Esc/Exit/Back.
+  const initialAgent = currentAgent;
+  const initialGlobalCommands = currentGlobalCommands;
+  const initialTuiMode = currentTuiMode;
+  const initialTargetDir = targetDir;
+  const initialToolState = { ...toolState };
+  const initialMcpState = { ...mcpState };
+  const initialPluginState = { ...pluginState };
 
   // Load effective tiers map from repo and override it with valid user tiers.
   const defaultTiers = readTierMap(repoDir);
@@ -134,13 +191,25 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       hint: t.primaryAgentHint,
     });
 
-    // 2. RTK
+    // 1b. TUI mode (direct | herdr) — how `ocp tui` launches
     r.push({
-      id: 'rtk',
-      type: 'rtk',
-      label: t.rtkLabel,
-      hint: t.rtkHint,
+      id: 'tui_mode',
+      type: 'tui_mode',
+      label: t.tuiModeLabel,
+      hint: t.tuiModeHint,
     });
+
+    // 2. Tools (declared in install/tools.jsonc — fully data-driven)
+    for (const [name, def] of Object.entries(toolRegistry?.tools ?? {})) {
+      const labels = (t as any).toolLabels?.[name] || {};
+      r.push({
+        id: `tool:${name}`,
+        type: 'tool',
+        key: name,
+        label: labels.label || def.description || name,
+        hint: labels.hint || def.url || def.description || '',
+      });
+    }
 
     // 2b. Global Commands (ocp / opencode-prime)
     r.push({
@@ -148,14 +217,6 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       type: 'global_commands',
       label: t.globalCommandsLabel,
       hint: t.globalCommandsHint,
-    });
-
-    // 2c. OpenChamber web UI CLI (powers `ocp web`)
-    r.push({
-      id: 'openchamber',
-      type: 'openchamber',
-      label: t.openChamberLabel || 'OpenChamber Web UI',
-      hint: t.openChamberHint || 'Install the OpenChamber web UI CLI powering `ocp web`',
     });
 
     // 3. MCP Servers
@@ -287,25 +348,24 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       if (row.type === 'lang') {
         const curMeta = availableLocales.find((l) => l.code === currentLocaleCode) || { name: currentLocaleCode };
         valueDisplay = ` [ ${C.bold}${C.green}${curMeta.name}${C.reset} ]   ${C.dim}(Space / L to switch)${C.reset}`;
-        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+        buf += `  ${cursor}${padDisplayEnd(row.label, 20)}  ${valueDisplay}\n`;
       } else if (row.type === 'agent') {
         valueDisplay = ` [ ${C.bold}${C.yellow}${currentAgent}${C.reset} ]   ${C.dim}(${t.cycleAgentHint})${C.reset}`;
-        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
-      } else if (row.type === 'rtk') {
-        valueDisplay = currentRtk
+        buf += `  ${cursor}${padDisplayEnd(row.label, 20)}  ${valueDisplay}\n`;
+      } else if (row.type === 'tui_mode') {
+        valueDisplay = ` [ ${C.bold}${C.yellow}${currentTuiMode}${C.reset} ]   ${C.dim}(${t.cycleAgentHint})${C.reset}`;
+        buf += `  ${cursor}${padDisplayEnd(row.label, 20)}  ${valueDisplay}\n`;
+      } else if (row.type === 'tool' && row.key) {
+        const enabled = toolState[row.key] !== false;
+        valueDisplay = enabled
           ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
           : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
-        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+        buf += `  ${cursor}${padDisplayEnd(row.label, 20)}  ${valueDisplay}\n`;
       } else if (row.type === 'global_commands') {
         valueDisplay = currentGlobalCommands
           ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
           : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
-        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
-      } else if (row.type === 'openchamber') {
-        valueDisplay = currentOpenChamber
-          ? ` [ ${C.green}${C.bold}✓ ${t.enabled}${C.reset} ]`
-          : ` [ ${C.dim}  ${t.disabled}${C.reset} ]`;
-        buf += `  ${cursor}${row.label.padEnd(20)}: ${valueDisplay}\n`;
+        buf += `  ${cursor}${padDisplayEnd(row.label, 20)}  ${valueDisplay}\n`;
       } else if (row.type === 'mcp' && row.key) {
         const active = mcpState[row.key];
         const switchBadge = active
@@ -382,9 +442,9 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
       const userOptionsPath = path.join(targetDir, 'options.jsonc');
       updateOptionsJsoncInPlace(userOptionsPath, {
         defaultAgent: currentAgent,
-        rtk: currentRtk,
+        tuiMode: currentTuiMode,
+        tools: toolState,
         globalCommands: currentGlobalCommands,
-        openChamber: currentOpenChamber,
         mcps: mcpState,
         plugins: pluginState,
       });
@@ -409,9 +469,9 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
         console.log(`🚀 ${t.installingTo.replace('{target}', targetDir)}`);
         const latestOptions: InstallOptions = {
           default_agent: currentAgent,
-          rtk: currentRtk,
+          tui_mode: currentTuiMode,
+          tools: toolState,
           global_commands: currentGlobalCommands,
-          openchamber: currentOpenChamber,
           mcp: mcpState,
           plugin: pluginState,
           tiers: tiersState,
@@ -441,13 +501,69 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           console.log(`    ${reg.pathMessage}`);
         }
 
-        if (currentOpenChamber) {
+        if (toolState.openchamber !== false) {
           const oc = ensureOpenChamber();
           console.log(`  • ${(t.openChamberLabel || 'OpenChamber').padEnd(16)}: ${oc.message}`);
         }
       }
 
       settle({ action: 'exit', locale: currentLocaleCode });
+    };
+
+    const recordsEqual = (a: Record<string, boolean>, b: Record<string, boolean>): boolean => {
+      const keysA = Object.keys(a);
+      const keysB = Object.keys(b);
+      if (keysA.length !== keysB.length) return false;
+      return keysA.every((k) => a[k] === b[k]);
+    };
+
+    const hasChanges = (): boolean => {
+      if (currentAgent !== initialAgent) return true;
+      if (currentGlobalCommands !== initialGlobalCommands) return true;
+      if (currentTuiMode !== initialTuiMode) return true;
+      if (targetDir !== initialTargetDir) return true;
+      if (!recordsEqual(toolState, initialToolState)) return true;
+      if (!recordsEqual(mcpState, initialMcpState)) return true;
+      if (!recordsEqual(pluginState, initialPluginState)) return true;
+      return false;
+    };
+
+    const resumeAfterPrompt = () => {
+      if (process.stdin.isTTY) process.stdin.setRawMode(true);
+      process.stdin.resume();
+      // Guard against duplicate keypress listeners after returning from a
+      // readline prompt; remove our own first, then re-register exactly one.
+      process.stdin.removeListener('keypress', handleKey);
+      process.stdin.on('keypress', handleKey);
+      render();
+    };
+
+    const promptUnsavedChanges = (finalAction: 'back' | 'exit') => {
+      cleanup();
+      process.stdout.write('\n');
+      const t = loadLocale(repoDir, currentLocaleCode);
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      rl.question(t.unsavedChangesPrompt, (answer) => {
+        const lower = answer.trim().toLowerCase();
+        rl.close();
+        if (lower === 's') {
+          try {
+            saveOptions();
+            console.log(`${C.green}✓ ${t.saveOptionsSuccess}${C.reset}\n`);
+            settle({ action: finalAction, locale: currentLocaleCode });
+          } catch (err) {
+            console.error(`${C.red}✗ Save failed: ${(err as Error).message}${C.reset}`);
+            resumeAfterPrompt();
+          }
+          return;
+        }
+        if (lower === 'd') {
+          settle({ action: finalAction, locale: currentLocaleCode });
+          return;
+        }
+        // Any other input (including 'c' or empty) cancels and returns to dashboard.
+        resumeAfterPrompt();
+      });
     };
 
     const handleKey = (str: string, key: readline.Key) => {
@@ -466,17 +582,25 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
 
       // Back shortcut: Esc returns to previous level (wizard main menu)
       if (key.name === 'escape') {
-        cleanup();
-        settle({ action: 'back', locale: currentLocaleCode });
+        if (hasChanges()) {
+          promptUnsavedChanges('back');
+        } else {
+          cleanup();
+          settle({ action: 'back', locale: currentLocaleCode });
+        }
         return;
       }
 
       // Exit shortcuts
       if ((key.ctrl && key.name === 'c') || (str === 'q' && rows[selectedIndex].type !== 'target')) {
-        const t = loadLocale(repoDir, currentLocaleCode);
-        cleanup();
-        console.log(t.exitedDashboard);
-        settle({ action: 'exit', locale: currentLocaleCode });
+        if (hasChanges()) {
+          promptUnsavedChanges('exit');
+        } else {
+          const t = loadLocale(repoDir, currentLocaleCode);
+          cleanup();
+          console.log(t.exitedDashboard);
+          settle({ action: 'exit', locale: currentLocaleCode });
+        }
         return;
       }
 
@@ -513,17 +637,19 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           const nextIdx = (curIdx + 1) % availableAgents.length;
           currentAgent = availableAgents[nextIdx];
           statusMessage = t.agentSetMsg.replace('{agent}', currentAgent);
-        } else if (currentRow.type === 'rtk') {
-          currentRtk = !currentRtk;
-          statusMessage = currentRtk ? t.rtkEnabledMsg : t.rtkDisabledMsg;
+        } else if (currentRow.type === 'tui_mode') {
+          currentTuiMode = currentTuiMode === 'direct' ? 'herdr' : 'direct';
+          // herdr mode implies tools.herdr=true — flip it here so the
+          // panorama shows the dependency, and undo it on switch back.
+          if (currentTuiMode === 'herdr') toolState.herdr = true;
+          else toolState.herdr = false;
+          statusMessage = t.tuiModeSetMsg.replace('{mode}', currentTuiMode);
+        } else if (currentRow.type === 'tool' && currentRow.key) {
+          toolState[currentRow.key] = !toolState[currentRow.key];
+          statusMessage = `Tool "${currentRow.key}" ${toolState[currentRow.key] ? t.enabled : t.disabled}`;
         } else if (currentRow.type === 'global_commands') {
           currentGlobalCommands = !currentGlobalCommands;
           statusMessage = currentGlobalCommands ? t.onCmdRegAdded : t.onCmdRegSkipped;
-        } else if (currentRow.type === 'openchamber') {
-          currentOpenChamber = !currentOpenChamber;
-          statusMessage = currentOpenChamber
-            ? (t.onChamberAdded || 'OpenChamber provisioning enabled')
-            : (t.onChamberSkipped || 'OpenChamber provisioning skipped');
         } else if (currentRow.type === 'mcp' && currentRow.key) {
           mcpState[currentRow.key] = !mcpState[currentRow.key];
           statusMessage = `MCP "${currentRow.key}" ${mcpState[currentRow.key] ? t.enabled : t.disabled}`;
@@ -563,13 +689,21 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
           executeAndExit(false);
           return;
         } else if (currentRow.type === 'action_back') {
-          cleanup();
-          settle({ action: 'back', locale: currentLocaleCode });
+          if (hasChanges()) {
+            promptUnsavedChanges('back');
+          } else {
+            cleanup();
+            settle({ action: 'back', locale: currentLocaleCode });
+          }
           return;
         } else if (currentRow.type === 'action_exit') {
-          cleanup();
-          console.log(t.exitedDashboard);
-          settle({ action: 'exit', locale: currentLocaleCode });
+          if (hasChanges()) {
+            promptUnsavedChanges('exit');
+          } else {
+            cleanup();
+            console.log(t.exitedDashboard);
+            settle({ action: 'exit', locale: currentLocaleCode });
+          }
           return;
         }
 

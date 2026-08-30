@@ -53,6 +53,10 @@ export interface I18nText {
   globalCommandsHint: string;
   openChamberLabel: string;
   openChamberHint: string;
+  tuiModeLabel: string;
+  tuiModeHint: string;
+  tuiModeSetMsg: string;
+  toolLabels: Record<string, { label: string; hint: string }>;
   mcpSectionHeader: string;
   pluginSectionHeader: string;
   targetSectionHeader: string;
@@ -106,6 +110,7 @@ export interface I18nText {
   summaryTarget: string;
   summaryInstalled: string;
   summaryBackup: string;
+  unsavedChangesPrompt: string;
 }
 
 export const FALLBACK_EN: I18nText = {
@@ -146,6 +151,15 @@ export const FALLBACK_EN: I18nText = {
   globalCommandsHint: 'Register ocp / opencode-prime shims into ~/.local/bin and add it to PATH',
   openChamberLabel: 'OpenChamber Web UI',
   openChamberHint: 'Install the OpenChamber web UI CLI powering `ocp web` (desktop app for `ocp desktop` / `ocp ui` is a separate download)',
+  tuiModeLabel: 'TUI Mode',
+  tuiModeHint: 'How `ocp tui` starts: direct (opencode in current shell) or herdr (workspace). Selecting herdr auto-enables tools.herdr',
+  tuiModeSetMsg: 'TUI mode set to "{mode}"',
+  toolLabels: {
+    rtk: { label: 'RTK Tokenizer', hint: 'Rust Token Killer proxy & plugin' },
+    openchamber: { label: 'OpenChamber Web UI', hint: 'Install the OpenChamber web UI CLI powering `ocp web` (desktop app for `ocp desktop` / `ocp ui` is a separate download)' },
+    herdr: { label: 'Herdr', hint: 'Terminal workspace manager for AI coding agents (https://herdr.dev) — `ocp herdr` opens current dir as workspace' },
+    opencode: { label: 'OpenCode', hint: 'AI coding agent — powers `ocp tui`' },
+  },
   mcpSectionHeader: '── 🔌 MCP Servers (Space to toggle) ──',
   pluginSectionHeader: '── 🧩 External Plugins (Space to toggle) ──',
   targetSectionHeader: '── 📁 Installation Target ──',
@@ -199,6 +213,7 @@ export const FALLBACK_EN: I18nText = {
   summaryTarget: 'Target Directory',
   summaryInstalled: 'Files Installed',
   summaryBackup: 'Backup Saved',
+  unsavedChangesPrompt: 'You have unsaved changes. Save before leaving? (s = Save, d = Discard, c = Cancel): ',
 };
 
 const localeCache: Record<string, I18nText> = {};

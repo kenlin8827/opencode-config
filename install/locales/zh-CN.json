@@ -39,6 +39,15 @@
   "primaryAgentHint": "会话启动时默认加载的智能体 (default_agent)",
   "rtkLabel": "RTK 令牌优化器",
   "rtkHint": "Rust Token Killer 代理与代码压缩插件",
+  "tuiModeLabel": "TUI 启动模式",
+  "tuiModeHint": "`ocp tui` 启动方式：direct（当前 shell 起 opencode）或 herdr（工作区）。选 herdr 会自动启用 tools.herdr",
+  "tuiModeSetMsg": "TUI 启动模式已设为 \"{mode}\"",
+  "toolLabels": {
+    "rtk": { "label": "RTK 令牌优化器", "hint": "Rust Token Killer 代理与代码压缩插件" },
+    "openchamber": { "label": "OpenChamber 网页版", "hint": "安装 OpenChamber 网页版 CLI，提供 `ocp web` 命令（`ocp desktop` / `ocp ui` 的桌面应用需另行下载）" },
+    "herdr": { "label": "Herdr", "hint": "面向 AI 编码代理的终端工作空间管理器（https://herdr.dev）—— `ocp herdr` 会把当前目录作为工作空间打开" },
+    "opencode": { "label": "OpenCode", "hint": "AI 编码代理——驱动 `ocp tui`" }
+  },
   "globalCommandsLabel": "全局命令注册",
   "globalCommandsHint": "将 ocp / opencode-prime 快捷脚本注册到 ~/.local/bin 并加入 PATH",
   "openChamberLabel": "OpenChamber 网页版",
@@ -95,5 +104,6 @@
   "summaryVersion": "版本",
   "summaryTarget": "目标路径",
   "summaryInstalled": "安装文件数",
-  "summaryBackup": "备份保存于"
+  "summaryBackup": "备份保存于",
+  "unsavedChangesPrompt": "检测到未保存的变更。离开前是否保存？（s = 保存，d = 不保存，c = 取消）："
 }
