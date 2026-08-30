@@ -187,6 +187,7 @@ $allFiles = @(
     "plugins/project-manager/project-manager-config.ts",
     "plugins/project-manager/project-manager-scaffold.ts",
     "plugins/project-manager/project-manager-command.ts",
+    "plugins/project-manager/project-manager-hooks.ts",
     "plugins/project-manager/project-manager-system-inject.ts",
     "plugins/project-manager/project-manager-tool-guard.ts",
     "plugins/project-manager/templates/opencode.jsonc",

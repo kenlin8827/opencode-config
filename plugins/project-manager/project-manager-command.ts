@@ -10,7 +10,10 @@
  *                     when its CLI is installed + enabled:
  *                     `codegraph init`, `gitnexus analyze` (initial build),
  *                     dbhub.toml scaffold (only when the dbhub MCP is
- *                     enabled AND its CLI is installed)
+ *                     enabled AND its CLI is installed),
+ *                     and sync GitNexus git hooks (post-commit, post-merge,
+ *                     post-checkout) so later commits auto-refresh the index.
+ *                     Hooks are removed when gitnexus is disabled or missing.
  *   /project index  → manual rebuild/refresh for existing indexes:
  *                     `codegraph sync` (incremental catch-up) and
  *                     `gitnexus analyze` when the index is stale
@@ -40,6 +43,7 @@ import {
   runBackends,
   type BackendResult,
 } from "./project-manager-index"
+import { registerGitnexusHooks, type HookResult } from "./project-manager-hooks"
 import { runInit, runSync, type ScaffoldResult, type SyncResult } from "./project-manager-scaffold"
 
 const HELP = `[project-manager] Project scaffolding & configuration manager.
@@ -59,12 +63,15 @@ Usage:
                       gitnexus analyze  initial index build (index missing)
                       dbhub.toml        scaffolded when the dbhub MCP is
                                         enabled and its CLI is installed
+                      gitnexus hooks    post-commit/post-merge/post-checkout
+                                        auto-refresh the GitNexus index when
+                                        gitnexus is enabled; removed when not
 - /project setup  → inspect current project switches & setup options (CLI mode)
 - /project index  → manual rebuild/refresh for EXISTING indexes
 - /project sync   → top up an EXISTING ${CONFIG_REL} with template switches`
 
 /** One report line per target: ✅ created / ♻️ updated / ⏭️ skipped / ⚠️ invalid. */
-function initReport(results: ScaffoldResult[], backends: BackendResult[]): string {
+function initReport(results: ScaffoldResult[], backends: BackendResult[], hooks: HookResult[]): string {
   const lines = results.map((r) => {
     if (r.status === "created") return `  ✅ created ${r.relPath}`
     if (r.status === "updated") return `  ♻️ updated ${r.relPath} (appended new template switches; existing content untouched)`
@@ -74,7 +81,7 @@ function initReport(results: ScaffoldResult[], backends: BackendResult[]): strin
   const created = results.filter((r) => r.status === "created").length
   const updated = results.filter((r) => r.status === "updated").length
   const invalid = results.filter((r) => r.status === "invalid").length
-  return `[project-manager] init done in ${getProjectDir()} — ${created} created, ${updated} updated, ${invalid} invalid, ${results.length - created - updated - invalid} skipped\n${lines.join("\n")}\n${backends.map(backendLine).join("\n")}`
+  return `[project-manager] init done in ${getProjectDir()} — ${created} created, ${updated} updated, ${invalid} invalid, ${results.length - created - updated - invalid} skipped\n${lines.join("\n")}\n${backends.map(backendLine).join("\n")}\n${hooks.map(hookLine).join("\n")}`
 }
 
 /** `/project setup` report (CLI / headless inspection). */
@@ -90,6 +97,14 @@ function backendLine(r: BackendResult): string {
   if (r.status === "ran") return `  ✅ ${r.backend}: ${r.detail}`
   if (r.status === "failed") return `  ❌ ${r.backend}: ${r.detail}`
   return `  ⏭️ ${r.backend}: skipped — ${r.detail}`
+}
+
+/** ✅ registered / ♻️ updated / ⏭️ skipped / ❌ failed — one line per hook result. */
+function hookLine(r: HookResult): string {
+  if (r.status === "registered") return `  ✅ ${r.hook}: ${r.detail}`
+  if (r.status === "updated") return `  ♻️ ${r.hook}: ${r.detail}`
+  if (r.status === "failed") return `  ❌ ${r.hook}: ${r.detail}`
+  return `  ⏭️ ${r.hook}: skipped — ${r.detail}`
 }
 
 /** `/project index` report: rebuild results only. */
@@ -120,13 +135,16 @@ async function reply(client: PluginInput["client"], sessionID: string | undefine
 async function executeInit(client: PluginInput["client"], sessionID?: string): Promise<void> {
   // Scaffold first, then every first-time backend init step — each
   // runs only when its CLI is installed + enabled, and a failed or
-  // absent CLI never blocks the file scaffolding.
+  // absent CLI never blocks the file scaffolding. Finally sync
+  // GitNexus git hooks when gitnexus is active (and remove them
+  // when it is not), so repeated /project init stays idempotent.
   const results = runInit()
   const probe = probeBackends(getProjectDir())
   const backends = await runBackends(planInitBackends(probe), getProjectDir()).catch(
     (e): BackendResult[] => [{ backend: "codegraph", status: "failed", detail: String(e) }],
   )
-  await reply(client, sessionID, initReport(results, backends))
+  const hooks = registerGitnexusHooks(getProjectDir(), probe)
+  await reply(client, sessionID, initReport(results, backends, hooks))
 }
 
 export function makeCommandHook(client: PluginInput["client"], handled: () => never) {

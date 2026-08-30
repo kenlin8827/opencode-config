@@ -122,7 +122,7 @@ OpenChamber's own API never pushes project-list changes to a running UI, which i
 
 | Command | What it does |
 | :--- | :--- |
-| `ocp project init` | Create baseline files when missing, or sync + refresh indexes when already present. Never overwrites existing files. |
+| `ocp project init` | Create baseline files when missing, or sync + refresh indexes when already present. Never overwrites existing files. Also registers GitNexus git hooks (`post-commit`, `post-merge`, `post-checkout`) when gitnexus is enabled; removes them when it is not. |
 | `ocp project index` | Refresh existing code-intelligence indexes (`codegraph sync`, `gitnexus analyze` when stale). |
 | `ocp project sync` | Append newly added template switches to the existing project config (append-only, existing content untouched). |
 

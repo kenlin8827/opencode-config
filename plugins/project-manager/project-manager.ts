@@ -11,6 +11,9 @@
  *                    when its CLI is installed + enabled:
  *                      `codegraph init`    one-time; watcher keeps it fresh
  *                      `gitnexus analyze`  initial build when index missing
+ *                    and sync GitNexus git hooks (post-commit, post-merge,
+ *                    post-checkout) so later commits auto-refresh the index.
+ *                    Hooks are removed when gitnexus is disabled or missing.
  *   /project index — manual rebuild/refresh for existing indexes:
  *                    `codegraph sync` (incremental catch-up) and
  *                    `gitnexus analyze` when the index is stale (a first

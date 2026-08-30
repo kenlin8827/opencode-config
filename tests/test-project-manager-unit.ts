@@ -16,6 +16,9 @@
  *     only when stale), enabled+CLI AND-gate, mcp.enabled JSONC parsing;
  *     dbhub.toml scaffold gated on the dbhub MCP enabled flag AND the
  *     installed CLI (never overwrites, env-var DSN only)
+ *   - gitnexus hooks: register post-commit/post-merge/post-checkout when
+ *     gitnexus is enabled + CLI installed + inside a git repo; remove managed
+ *     block when gitnexus is disabled or CLI missing; preserve user content
  *   - announce: session-created suggestion of `/project init` on
  *     uninitialized projects — subagent silence, once-per-run, initialized
  *     projects stay silent
@@ -23,7 +26,7 @@
  * Run: bun run tests/test-project-manager-unit.ts   (or: npx tsx tests/test-project-manager-unit.ts)
  */
 
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -50,6 +53,7 @@ import {
   probeBackends,
   type BackendProbe,
 } from "../plugins/project-manager/project-manager-index"
+import { registerGitnexusHooks, type HookResult } from "../plugins/project-manager/project-manager-hooks"
 import { makeSystemHook, MARKER } from "../plugins/project-manager/project-manager-system-inject"
 import { makeAnnounceHook, suggestInitMessage } from "../plugins/project-manager/project-manager-announce"
 import { makeCommandHook } from "../plugins/project-manager/project-manager-command"
@@ -509,6 +513,96 @@ function test10_Sync() {
   setProjectDir(projectDir)
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+//  11. GitNexus git hooks — register when active, cleanup when not
+// ═════════════════════════════════════════════════════════════════════════
+
+const MARKER_START = "# >>> OCP-gitnexus-update-hook (managed by /project init; do not edit this block) >>>"
+const MARKER_END = "# <<< OCP-gitnexus-update-hook <<<"
+
+function hookProbe(overrides: Partial<BackendProbe>): BackendProbe {
+  return {
+    codegraphEnabled: true, codegraphCli: true, codegraphIndexed: false,
+    gitnexusEnabled: true, gitnexusCli: true, gitnexusIndex: "missing",
+    dbhubEnabled: true, dbhubCli: true, dbhubToml: false,
+    ...overrides,
+  }
+}
+
+function test11_Hooks() {
+  section("11: gitnexus git hooks — register/cleanup")
+
+  const dir = mkdtempSync(join(tmpdir(), "pm-hooks-"))
+
+  // No .git directory → skipped.
+  const noGit = registerGitnexusHooks(dir, hookProbe({}))
+  assert(noGit.length === 1, "non-git repo reports one summary result")
+  assert(noGit[0].status === "skipped", "non-git repo skips hooks")
+  assert(noGit[0].detail.includes("not a git repository"), "non-git repo states reason")
+
+  mkdirSync(join(dir, ".git"), { recursive: true })
+
+  // gitnexus disabled → skipped and cleans up any old managed block.
+  mkdirSync(join(dir, ".git", "hooks"), { recursive: true })
+  const oldPath = join(dir, ".git", "hooks", "post-commit")
+  writeFileSync(oldPath, `#!/bin/sh\n\n${MARKER_START}\n# old block\n${MARKER_END}\n`, "utf-8")
+  const disabled = registerGitnexusHooks(dir, hookProbe({ gitnexusEnabled: false }))
+  const disabledCommit = disabled.find((h) => h.hook === "post-commit")!
+  assert(disabledCommit.status === "updated", "disabled gitnexus removes existing managed block")
+  assert(!existsSync(oldPath), "managed block removed when disabled")
+
+  // gitnexus CLI missing → skipped.
+  const missingCli = registerGitnexusHooks(dir, hookProbe({ gitnexusCli: false }))
+  assert(missingCli[0].status === "skipped", "missing CLI skips hooks")
+  assert(missingCli[0].detail.includes("CLI not installed"), "missing CLI states reason")
+
+  // Active: creates all three hooks.
+  const active = registerGitnexusHooks(dir, hookProbe({}))
+  assert(active.length === 3, "active gitnexus registers 3 hooks")
+  assert(active.every((h) => h.status === "registered"), "active gitnexus creates hooks")
+  for (const name of ["post-commit", "post-merge", "post-checkout"]) {
+    const p = join(dir, ".git", "hooks", name)
+    assert(existsSync(p), `${name} hook file exists`)
+    const content = readFileSync(p, "utf-8")
+    assert(content.includes("#!/bin/sh"), `${name} has shebang`)
+    assert(content.includes(MARKER_START), `${name} has start marker`)
+    assert(content.includes(MARKER_END), `${name} has end marker`)
+    assert(content.includes("gitnexus analyze"), `${name} runs gitnexus analyze`)
+  }
+
+  // Idempotent re-run: up to date.
+  const rerun = registerGitnexusHooks(dir, hookProbe({}))
+  assert(rerun.every((h) => h.status === "skipped"), "second run skips unchanged hooks")
+
+  // Existing user hook content is preserved.
+  const userPath = join(dir, ".git", "hooks", "post-checkout")
+  writeFileSync(userPath, "#!/bin/sh\necho 'user script'\n", "utf-8")
+  const appended = registerGitnexusHooks(dir, hookProbe({}))
+  const appendedHook = appended.find((h) => h.hook === "post-checkout")!
+  assert(appendedHook.status === "updated", "user hook gets managed block appended")
+  const userContent = readFileSync(userPath, "utf-8")
+  assert(userContent.includes("echo 'user script'"), "user content preserved")
+  assert(userContent.includes(MARKER_START), "managed block appended after user content")
+
+  // Managed block can be refreshed in place.
+  const before = readFileSync(userPath, "utf-8")
+  writeFileSync(userPath, before.replace("gitnexus analyze", "gitnexus --old analyze"), "utf-8")
+  const refreshed = registerGitnexusHooks(dir, hookProbe({}))
+  const refreshedHook = refreshed.find((h) => h.hook === "post-checkout")!
+  assert(refreshedHook.status === "updated", "stale managed block is refreshed")
+  assert(readFileSync(userPath, "utf-8").includes("gitnexus analyze"), "managed block refreshed to current content")
+
+  // Cleanup when disabled: removes managed block, keeps user content.
+  const cleanup = registerGitnexusHooks(dir, hookProbe({ gitnexusEnabled: false }))
+  const cleanupHook = cleanup.find((h) => h.hook === "post-checkout")!
+  assert(cleanupHook.status === "updated", "cleanup updates hook")
+  const afterCleanup = readFileSync(userPath, "utf-8")
+  assert(afterCleanup.includes("echo 'user script'"), "user content survives cleanup")
+  assert(!afterCleanup.includes(MARKER_START), "managed block removed in cleanup")
+
+  rmSync(dir, { recursive: true, force: true })
+}
+
 test01_ValidateMessage()
 await test02_FileAsSwitch()
 await test03_ToolGuard()
@@ -519,6 +613,7 @@ await test07_Injection()
 test08_IndexPlanning()
 await test09_Announce()
 test10_Sync()
+test11_Hooks()
 
 rmSync(projectDir, { recursive: true, force: true })
 
