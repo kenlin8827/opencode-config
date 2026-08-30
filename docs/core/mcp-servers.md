@@ -81,10 +81,20 @@ You don't need to manually tell agents which tool to call. The bundled `project-
 Initialize and maintain project indexes effortlessly with `/project`:
 
 ```text
-/project init       # One-shot scaffolding: runs `codegraph init` and scaffolds `dbhub.toml`
-                    # if respective MCPs and CLIs are ready
-/project index      # Refreshes indexes: runs `codegraph sync` and `gitnexus analyze`
+/project init       # One-shot scaffolding: runs setup steps from project-hooks.jsonc
+                    # for each enabled MCP whose CLI is on PATH
+/project index      # Refreshes indexes: runs index steps from project-hooks.jsonc
 ```
+
+Lifecycle steps are declared in the shipped `plugins/project-manager/project-hooks.jsonc`
+registry instead of being hardcoded. Each backend entry defines `setup`, `index`,
+`teardown`, and `git_hooks` conditions, so adding a new backend only requires a
+registry entry — no plugin code changes.
+
+Managed git hooks are written as `OCP-project-hook:<backend>` blocks inside
+`.git/hooks/post-commit`, `post-merge`, and `post-checkout`. Inactive backends
+have their blocks removed automatically; legacy `OCP-gitnexus-update-hook`
+blocks are also cleaned up.
 
 ### 4. Database Setup Example (`dbhub.toml`)
 

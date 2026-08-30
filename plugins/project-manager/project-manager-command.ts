@@ -11,9 +11,9 @@
  *                     `codegraph init`, `gitnexus analyze` (initial build),
  *                     dbhub.toml scaffold (only when the dbhub MCP is
  *                     enabled AND its CLI is installed),
- *                     and sync GitNexus git hooks (post-commit, post-merge,
+ *                     and sync project git hooks (post-commit, post-merge,
  *                     post-checkout) so later commits auto-refresh the index.
- *                     Hooks are removed when gitnexus is disabled or missing.
+ *                     Hooks are removed when the backend is disabled or missing.
  *   /project index  → manual rebuild/refresh for existing indexes:
  *                     `codegraph sync` (incremental catch-up) and
  *                     `gitnexus analyze` when the index is stale
@@ -43,7 +43,7 @@ import {
   runBackends,
   type BackendResult,
 } from "./project-manager-index"
-import { registerGitnexusHooks, type HookResult } from "./project-manager-hooks"
+import { registerProjectHooks, type HookResult } from "./project-manager-hooks"
 import { runInit, runSync, type ScaffoldResult, type SyncResult } from "./project-manager-scaffold"
 
 const HELP = `[project-manager] Project scaffolding & configuration manager.
@@ -143,7 +143,7 @@ async function executeInit(client: PluginInput["client"], sessionID?: string): P
   const backends = await runBackends(planInitBackends(probe), getProjectDir()).catch(
     (e): BackendResult[] => [{ backend: "codegraph", status: "failed", detail: String(e) }],
   )
-  const hooks = registerGitnexusHooks(getProjectDir(), probe)
+  const hooks = registerProjectHooks(getProjectDir(), probe)
   await reply(client, sessionID, initReport(results, backends, hooks))
 }
 

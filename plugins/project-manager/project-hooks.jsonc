@@ -1,0 +1,71 @@
+{
+  // Project-level MCP lifecycle registry.
+  // Each backend declares setup (run once by `/project init`), index (run by
+  // `/project index`), teardown, and git_hooks managed blocks.
+  //
+  // Condition grammar (all must pass):
+  //   mcp_enabled:<name>      mcp.<name>.enabled is not false in opencode.jsonc
+  //   cli_installed:<name>    the CLI named <name> is on PATH
+  //   indexed:<name>          the backend's index exists (codegraph only)
+  //   toml_present:<name>     the backend's dbhub.toml exists (dbhub only)
+  //   index_missing           gitnexus index directory is absent
+  //   index_stale             gitnexus index is older than HEAD
+  //   index_ready             gitnexus index is up to date
+  //   always                  always passes
+  // Negate any condition with a leading "!".
+  "backends": {
+    "codegraph": {
+      "mcp": "codegraph",
+      "cli": "codegraph",
+      "init": {
+        "command": "codegraph init",
+        "note": "one-time init; watcher keeps it fresh after",
+        "when": ["mcp_enabled:codegraph", "cli_installed:codegraph", "!indexed:codegraph"]
+      },
+      "index": {
+        "command": "codegraph sync",
+        "note": "incremental catch-up (watcher covers live saves)",
+        "when": ["mcp_enabled:codegraph", "cli_installed:codegraph", "indexed:codegraph"]
+      },
+      "teardown": null,
+      "git_hooks": null
+    },
+    "gitnexus": {
+      "mcp": "gitnexus",
+      "cli": "gitnexus",
+      "init": {
+        "command": "gitnexus analyze",
+        "note": "initial index build",
+        "when": ["mcp_enabled:gitnexus", "cli_installed:gitnexus", "index_missing"]
+      },
+      "index": {
+        "command": "gitnexus analyze",
+        "note": "rebuilding stale index",
+        "when": ["mcp_enabled:gitnexus", "cli_installed:gitnexus", "index_stale"]
+      },
+      "teardown": null,
+      "git_hooks": {
+        "post-commit": "gitnexus analyze",
+        "post-merge": "gitnexus analyze",
+        "post-checkout": "gitnexus analyze"
+      }
+    },
+    "dbhub": {
+      "mcp": "dbhub",
+      "cli": "dbhub",
+      "init": {
+        "action": "scaffold",
+        "args": { "template": "dbhub.toml", "target": "dbhub.toml" },
+        "note": "dbhub.toml created (set the DBHUB_DSN env var)",
+        "when": ["mcp_enabled:dbhub", "cli_installed:dbhub", "!toml_present:dbhub"]
+      },
+      "index": {
+        "command": null,
+        "note": "not an index — dbhub.toml is scaffolded by /project init",
+        "when": ["always"]
+      },
+      "teardown": null,
+      "git_hooks": null
+    }
+  }
+}

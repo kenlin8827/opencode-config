@@ -24,13 +24,18 @@
  * missing CLI is reported as skipped — never invoked, never errors.
  *
  * Serena needs no index step (live LSP) and is not handled here.
+ *
+ * Backend commands and lifecycle conditions are driven by `project-hooks.jsonc`
+ * instead of hardcoded strings.
  */
 
 import { execSync, spawn } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { homedir } from "node:os"
-import { DBHUB_TOML_REL, writeDbhubToml } from "./project-manager-scaffold"
+import { DBHUB_TOML_REL, scaffoldFile, writeDbhubToml } from "./project-manager-scaffold"
+import { loadProjectHooks, type BackendAction, type ProjectHooks } from "./project-hooks-loader"
+import { getProjectDir } from "./project-manager-config"
 
 // ─── Probes ──────────────────────────────────────────────────────────
 
@@ -82,6 +87,13 @@ function dbhubCliInstalled(): boolean {
     execSync(probe, { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] })
     return true
   } catch { /* not installed or not on PATH */ }
+  return false
+}
+
+function cliInstalled(name: string): boolean {
+  if (name === "codegraph") return codegraphCliInstalled()
+  if (name === "gitnexus") return gitnexusCliInstalled()
+  if (name === "dbhub") return dbhubCliInstalled()
   return false
 }
 
@@ -138,81 +150,126 @@ export function probeBackends(root: string): BackendProbe {
   }
 }
 
-// ─── Planner (pure — unit-tested) ────────────────────────────────────
+// ─── Registry-driven planner ─────────────────────────────────────────
 
 export type BackendKind = "codegraph" | "gitnexus" | "dbhub"
 
 export interface BackendPlan {
   backend: BackendKind
-  /** Command to run in the project root; null → nothing to run. dbhub has
-   * no CLI step — its init action is scaffolding dbhub.toml (see scaffold). */
+  /** Command to run in the project root; null → nothing to run. */
   command: string | null
+  /** Non-CLI action to perform instead of spawning a command. */
+  action?: "scaffold"
+  /** Action-specific arguments. */
+  args?: Record<string, unknown>
   /** User-visible explanation of the decision. */
   note: string
 }
 
+function evaluateCondition(cond: string, root: string, probe: BackendProbe): boolean {
+  const negated = cond.startsWith("!")
+  const c = negated ? cond.slice(1) : cond
+  let result = false
+
+  if (c === "always") {
+    result = true
+  } else if (c.startsWith("mcp_enabled:")) {
+    const name = c.slice("mcp_enabled:".length)
+    result = name === "codegraph" ? probe.codegraphEnabled
+      : name === "gitnexus" ? probe.gitnexusEnabled
+        : name === "dbhub" ? probe.dbhubEnabled
+          : false
+  } else if (c.startsWith("cli_installed:")) {
+    const name = c.slice("cli_installed:".length)
+    result = name === "codegraph" ? probe.codegraphCli
+      : name === "gitnexus" ? probe.gitnexusCli
+        : name === "dbhub" ? probe.dbhubCli
+          : false
+  } else if (c.startsWith("indexed:")) {
+    const name = c.slice("indexed:".length)
+    result = name === "codegraph" ? probe.codegraphIndexed : false
+  } else if (c.startsWith("toml_present:")) {
+    const name = c.slice("toml_present:".length)
+    result = name === "dbhub" ? probe.dbhubToml : false
+  } else if (c === "index_missing") {
+    result = probe.gitnexusIndex === "missing"
+  } else if (c === "index_stale") {
+    result = probe.gitnexusIndex === "stale"
+  } else if (c === "index_ready") {
+    result = probe.gitnexusIndex === "ready"
+  } else {
+    throw new Error(`Unknown project-hooks condition: ${c}`)
+  }
+
+  return negated ? !result : result
+}
+
+function conditionSkipNote(cond: string, probe: BackendProbe): string {
+  if (cond.startsWith("mcp_enabled:")) return `${cond.slice("mcp_enabled:".length)} disabled in options.jsonc`
+  if (cond.startsWith("cli_installed:")) return `${cond.slice("cli_installed:".length)} CLI not installed`
+  if (cond === "indexed:codegraph") return "no index yet — that's an init step, run /project init"
+  if (cond === "!indexed:codegraph") return "already indexed"
+  if (cond === "toml_present:dbhub") return "no dbhub.toml — that's an init step"
+  if (cond === "!toml_present:dbhub") return "dbhub.toml already present"
+  if (cond === "index_missing") {
+    return probe.gitnexusIndex === "ready" ? "already indexed" : "stale — rebuild via /project index"
+  }
+  if (cond === "index_stale") return "index up to date"
+  if (cond === "index_ready") return "no index yet — that's an init step, run /project init"
+  return `skipped (${cond})`
+}
+
+function planBackendAction(
+  backend: BackendKind,
+  action: BackendAction | null,
+  root: string,
+  probe: BackendProbe,
+): BackendPlan {
+  if (!action) {
+    return { backend, command: null, note: "no action configured" }
+  }
+  for (const cond of action.when) {
+    if (!evaluateCondition(cond, root, probe)) {
+      return { backend, command: null, note: conditionSkipNote(cond, probe) }
+    }
+  }
+  if (action.action === "scaffold") {
+    return { backend, command: null, action: "scaffold", args: action.args, note: action.note ?? "scaffold file" }
+  }
+  return { backend, command: action.command ?? null, note: action.note ?? `${action.command} planned` }
+}
+
+function planBackends(
+  registry: ProjectHooks | null,
+  phase: "init" | "index" | "teardown",
+  root: string,
+  probe: BackendProbe,
+): BackendPlan[] {
+  const names: BackendKind[] = ["codegraph", "gitnexus", "dbhub"]
+  if (!registry) {
+    // Registry missing — every backend is skipped with a safe fallback note.
+    return names.map((backend) => ({ backend, command: null, note: "project-hooks.jsonc not found" }))
+  }
+  return names.map((backend) => {
+    const entry = registry.backends[backend]
+    if (!entry) {
+      return { backend, command: null, note: "not configured in project-hooks.jsonc" }
+    }
+    return planBackendAction(backend, entry[phase], root, probe)
+  })
+}
+
 /** First-time init steps for `/project init` — one plan per backend.
- * codegraph: its own one-time init when not indexed yet.
- * gitnexus: the initial index build ONLY when the index is missing entirely
- * (a stale index is a rebuild, handled by `/project index`).
- * dbhub: scaffold dbhub.toml (never overwrite) when the MCP is enabled AND
- * its CLI is installed — the executor performs the file write, no CLI run. */
-export function planInitBackends(p: BackendProbe): BackendPlan[] {
-  const codegraph: BackendPlan = !p.codegraphEnabled
-    ? { backend: "codegraph", command: null, note: "disabled in options.jsonc" }
-    : !p.codegraphCli
-      ? { backend: "codegraph", command: null, note: "CLI not installed" }
-      : p.codegraphIndexed
-        ? { backend: "codegraph", command: null, note: "already indexed" }
-        : { backend: "codegraph", command: "codegraph init", note: "one-time init; watcher keeps it fresh after" }
-
-  const gitnexus: BackendPlan = !p.gitnexusEnabled
-    ? { backend: "gitnexus", command: null, note: "disabled in options.jsonc" }
-    : !p.gitnexusCli
-      ? { backend: "gitnexus", command: null, note: "CLI not installed" }
-      : p.gitnexusIndex !== "missing"
-        ? { backend: "gitnexus", command: null, note: p.gitnexusIndex === "ready" ? "already indexed" : "stale — rebuild via /project index" }
-        : { backend: "gitnexus", command: "gitnexus analyze", note: "initial index build" }
-
-  const dbhub: BackendPlan = !p.dbhubEnabled
-    ? { backend: "dbhub", command: null, note: "disabled in options.jsonc" }
-    : !p.dbhubCli
-      ? { backend: "dbhub", command: null, note: "CLI not installed" }
-      : p.dbhubToml
-        ? { backend: "dbhub", command: null, note: "dbhub.toml already present" }
-        : { backend: "dbhub", command: null, note: "scaffold dbhub.toml (set the DBHUB_DSN env var)" }
-
-  return [codegraph, gitnexus, dbhub]
+ * Driven by `project-hooks.jsonc`. */
+export function planInitBackends(p: BackendProbe, root = getProjectDir()): BackendPlan[] {
+  return planBackends(loadProjectHooks(), "init", root, p)
 }
 
 /** Rebuild/refresh for `/project index` — only EXISTING indexes are touched
  * here; creating a first index is an init step, not a rebuild.
- * codegraph: `codegraph sync` — incremental catch-up for changes made while
- * the watcher wasn't running (cheap no-op when nothing drifted). The slow
- * full rebuild (`codegraph index`) stays a manual escape hatch.
- * gitnexus: rebuilt only when stale. */
-export function planIndexBackends(p: BackendProbe): BackendPlan[] {
-  const codegraph: BackendPlan = !p.codegraphEnabled
-    ? { backend: "codegraph", command: null, note: "disabled in options.jsonc" }
-    : !p.codegraphCli
-      ? { backend: "codegraph", command: null, note: "CLI not installed" }
-      : !p.codegraphIndexed
-        ? { backend: "codegraph", command: null, note: "no index yet — that's an init step, run /project init" }
-        : { backend: "codegraph", command: "codegraph sync", note: "incremental catch-up (watcher covers live saves)" }
-
-  const gitnexus: BackendPlan = !p.gitnexusEnabled
-    ? { backend: "gitnexus", command: null, note: "disabled in options.jsonc" }
-    : !p.gitnexusCli
-      ? { backend: "gitnexus", command: null, note: "CLI not installed" }
-      : p.gitnexusIndex === "missing"
-        ? { backend: "gitnexus", command: null, note: "no index yet — that's an init step, run /project init" }
-        : p.gitnexusIndex === "ready"
-          ? { backend: "gitnexus", command: null, note: "index up to date" }
-          : { backend: "gitnexus", command: "gitnexus analyze", note: "rebuilding stale index" }
-
-  const dbhub: BackendPlan = { backend: "dbhub", command: null, note: "not an index — dbhub.toml is scaffolded by /project init" }
-
-  return [codegraph, gitnexus, dbhub]
+ * Driven by `project-hooks.jsonc`. */
+export function planIndexBackends(p: BackendProbe, root = getProjectDir()): BackendPlan[] {
+  return planBackends(loadProjectHooks(), "index", root, p)
 }
 
 // ─── Executor ────────────────────────────────────────────────────────
@@ -234,22 +291,28 @@ export function runBackends(plans: BackendPlan[], root: string): Promise<Backend
   )
 }
 
-/** Run one planned backend command (async, never throws). dbhub is special:
- * its init action is a file scaffold (writeDbhubToml), not a CLI command. */
+/** Run one planned backend command (async, never throws). Non-CLI actions
+ * such as "scaffold" are handled here as well. */
 function runBackend(plan: BackendPlan, root: string): Promise<BackendResult> {
-  if (plan.backend === "dbhub") {
-    if (!plan.note.startsWith("scaffold")) {
-      return Promise.resolve({ backend: "dbhub", status: "skipped", detail: plan.note })
+  if (plan.action === "scaffold") {
+    const template = String(plan.args?.template ?? "")
+    const target = String(plan.args?.target ?? "")
+    if (!template || !target) {
+      return Promise.resolve({
+        backend: plan.backend,
+        status: "failed",
+        detail: "scaffold action missing template or target",
+      })
     }
     try {
-      const status = writeDbhubToml(root)
+      const status = scaffoldFile(root, template, target)
       return Promise.resolve({
-        backend: "dbhub",
+        backend: plan.backend,
         status: status === "created" ? "ran" : "skipped",
-        detail: status === "created" ? "dbhub.toml created (set the DBHUB_DSN env var)" : "dbhub.toml already present",
+        detail: status === "created" ? (plan.note ?? `${target} created`) : `${target} already present`,
       })
     } catch (e) {
-      return Promise.resolve({ backend: "dbhub", status: "failed", detail: String(e) })
+      return Promise.resolve({ backend: plan.backend, status: "failed", detail: String(e) })
     }
   }
   if (!plan.command) {

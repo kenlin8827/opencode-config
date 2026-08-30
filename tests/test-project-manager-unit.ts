@@ -53,7 +53,7 @@ import {
   probeBackends,
   type BackendProbe,
 } from "../plugins/project-manager/project-manager-index"
-import { registerGitnexusHooks, type HookResult } from "../plugins/project-manager/project-manager-hooks"
+import { registerProjectHooks } from "../plugins/project-manager/project-manager-hooks"
 import { makeSystemHook, MARKER } from "../plugins/project-manager/project-manager-system-inject"
 import { makeAnnounceHook, suggestInitMessage } from "../plugins/project-manager/project-manager-announce"
 import { makeCommandHook } from "../plugins/project-manager/project-manager-command"
@@ -343,7 +343,7 @@ function test08_IndexPlanning() {
   assert(planFor(planInitBackends(probe({ gitnexusEnabled: false })), "gitnexus").command === null, "gitnexus disabled → no run even with CLI")
 
   // dbhub.toml scaffold — gated on enabled flag + installed CLI, never overwrites.
-  assert(planFor(planInitBackends(probe({})), "dbhub").note.startsWith("scaffold"), "init plans dbhub.toml scaffold when enabled + CLI + missing")
+  assert(planFor(planInitBackends(probe({})), "dbhub").note.includes("dbhub.toml"), "init plans dbhub.toml scaffold when enabled + CLI + missing")
   assert(planFor(planInitBackends(probe({ dbhubEnabled: false })), "dbhub").note.includes("disabled"), "dbhub disabled → no scaffold")
   assert(planFor(planInitBackends(probe({ dbhubCli: false })), "dbhub").note.includes("CLI not installed"), "dbhub CLI missing → skipped silently")
   assert(!planFor(planInitBackends(probe({ dbhubCli: false })), "dbhub").note.startsWith("scaffold"), "dbhub CLI missing → never scaffolds")
@@ -517,8 +517,8 @@ function test10_Sync() {
 //  11. GitNexus git hooks — register when active, cleanup when not
 // ═════════════════════════════════════════════════════════════════════════
 
-const MARKER_START = "# >>> OCP-gitnexus-update-hook (managed by /project init; do not edit this block) >>>"
-const MARKER_END = "# <<< OCP-gitnexus-update-hook <<<"
+const MARKER_START = "# >>> OCP-project-hook:gitnexus (managed by /project init; do not edit this block) >>>"
+const MARKER_END = "# <<< OCP-project-hook:gitnexus <<<"
 
 function hookProbe(overrides: Partial<BackendProbe>): BackendProbe {
   return {
@@ -535,7 +535,7 @@ function test11_Hooks() {
   const dir = mkdtempSync(join(tmpdir(), "pm-hooks-"))
 
   // No .git directory → skipped.
-  const noGit = registerGitnexusHooks(dir, hookProbe({}))
+  const noGit = registerProjectHooks(dir, hookProbe({}))
   assert(noGit.length === 1, "non-git repo reports one summary result")
   assert(noGit[0].status === "skipped", "non-git repo skips hooks")
   assert(noGit[0].detail.includes("not a git repository"), "non-git repo states reason")
@@ -546,18 +546,18 @@ function test11_Hooks() {
   mkdirSync(join(dir, ".git", "hooks"), { recursive: true })
   const oldPath = join(dir, ".git", "hooks", "post-commit")
   writeFileSync(oldPath, `#!/bin/sh\n\n${MARKER_START}\n# old block\n${MARKER_END}\n`, "utf-8")
-  const disabled = registerGitnexusHooks(dir, hookProbe({ gitnexusEnabled: false }))
+  const disabled = registerProjectHooks(dir, hookProbe({ gitnexusEnabled: false }))
   const disabledCommit = disabled.find((h) => h.hook === "post-commit")!
   assert(disabledCommit.status === "updated", "disabled gitnexus removes existing managed block")
   assert(!existsSync(oldPath), "managed block removed when disabled")
 
   // gitnexus CLI missing → skipped.
-  const missingCli = registerGitnexusHooks(dir, hookProbe({ gitnexusCli: false }))
+  const missingCli = registerProjectHooks(dir, hookProbe({ gitnexusCli: false }))
   assert(missingCli[0].status === "skipped", "missing CLI skips hooks")
   assert(missingCli[0].detail.includes("CLI not installed"), "missing CLI states reason")
 
   // Active: creates all three hooks.
-  const active = registerGitnexusHooks(dir, hookProbe({}))
+  const active = registerProjectHooks(dir, hookProbe({}))
   assert(active.length === 3, "active gitnexus registers 3 hooks")
   assert(active.every((h) => h.status === "registered"), "active gitnexus creates hooks")
   for (const name of ["post-commit", "post-merge", "post-checkout"]) {
@@ -571,13 +571,13 @@ function test11_Hooks() {
   }
 
   // Idempotent re-run: up to date.
-  const rerun = registerGitnexusHooks(dir, hookProbe({}))
+  const rerun = registerProjectHooks(dir, hookProbe({}))
   assert(rerun.every((h) => h.status === "skipped"), "second run skips unchanged hooks")
 
   // Existing user hook content is preserved.
   const userPath = join(dir, ".git", "hooks", "post-checkout")
   writeFileSync(userPath, "#!/bin/sh\necho 'user script'\n", "utf-8")
-  const appended = registerGitnexusHooks(dir, hookProbe({}))
+  const appended = registerProjectHooks(dir, hookProbe({}))
   const appendedHook = appended.find((h) => h.hook === "post-checkout")!
   assert(appendedHook.status === "updated", "user hook gets managed block appended")
   const userContent = readFileSync(userPath, "utf-8")
@@ -587,13 +587,13 @@ function test11_Hooks() {
   // Managed block can be refreshed in place.
   const before = readFileSync(userPath, "utf-8")
   writeFileSync(userPath, before.replace("gitnexus analyze", "gitnexus --old analyze"), "utf-8")
-  const refreshed = registerGitnexusHooks(dir, hookProbe({}))
+  const refreshed = registerProjectHooks(dir, hookProbe({}))
   const refreshedHook = refreshed.find((h) => h.hook === "post-checkout")!
   assert(refreshedHook.status === "updated", "stale managed block is refreshed")
   assert(readFileSync(userPath, "utf-8").includes("gitnexus analyze"), "managed block refreshed to current content")
 
   // Cleanup when disabled: removes managed block, keeps user content.
-  const cleanup = registerGitnexusHooks(dir, hookProbe({ gitnexusEnabled: false }))
+  const cleanup = registerProjectHooks(dir, hookProbe({ gitnexusEnabled: false }))
   const cleanupHook = cleanup.find((h) => h.hook === "post-checkout")!
   assert(cleanupHook.status === "updated", "cleanup updates hook")
   const afterCleanup = readFileSync(userPath, "utf-8")

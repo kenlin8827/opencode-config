@@ -46,6 +46,17 @@ function readTemplate(file: string): string {
   return content
 }
 
+// ─── Generic scaffold ─────────────────────────────────────────────────
+
+/** Scaffold `targetRel` in `root` from a template under `templates/`.
+ * Never overwrites. Returns the same status vocabulary as baseline scaffolding. */
+export function scaffoldFile(root: string, templateName: string, targetRel: string): ScaffoldStatus {
+  const absPath = join(root, targetRel)
+  if (existsSync(absPath)) return "skipped"
+  writeFileSync(absPath, readTemplate(templateName), "utf-8")
+  return "created"
+}
+
 // ─── dbhub.toml (conditional — init backend step, not a baseline file) ─
 
 /** Per-project DBHub config — scaffolded by `/project init` only when the
@@ -54,13 +65,9 @@ function readTemplate(file: string): string {
  * never overwrite. */
 export const DBHUB_TOML_REL = "dbhub.toml"
 
-/** Create dbhub.toml in `root` when missing; an existing file is preserved.
- * Returns the report status, same vocabulary as the baseline scaffolding. */
+/** Create dbhub.toml in `root` when missing; an existing file is preserved. */
 export function writeDbhubToml(root: string): ScaffoldStatus {
-  const absPath = join(root, DBHUB_TOML_REL)
-  if (existsSync(absPath)) return "skipped"
-  writeFileSync(absPath, readTemplate("dbhub.toml"), "utf-8")
-  return "created"
+  return scaffoldFile(root, "dbhub.toml", DBHUB_TOML_REL)
 }
 
 // ─── Init ────────────────────────────────────────────────────────────
