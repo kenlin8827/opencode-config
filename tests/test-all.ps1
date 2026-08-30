@@ -44,14 +44,16 @@ Check "plugin includes @dietrichgebert/ponytail" `
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
 # instructions array: output-protocol + test-scope + rfc-keywords + coding-principles
-# + sdd-principles + verification-honesty + comment-strategy + sql-migration
+# + edit-protocol + sdd-principles + verification-honesty + comment-strategy + sql-migration
 # (context-efficiency.md was removed — backend routing + token rules are now
 # injected dynamically by plugins/project-profiler with the session profile)
-Check "instructions count = 8" ($config.instructions.Count -eq 8)
+Check "instructions count = 9" ($config.instructions.Count -eq 9)
 Check "instructions all use absolute ~/ paths" `
     (($config.instructions | Where-Object { $_ -notlike '~/.config/opencode/*' }).Count -eq 0)
 Check "instructions contains sdd-principles.md" `
     ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md" -or $config.instructions -contains "instructions/sdd-principles.md")
+Check "instructions contains edit-protocol.md" `
+    ($config.instructions -contains "~/.config/opencode/instructions/edit-protocol.md")
 Check "instructions does NOT include context-efficiency.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `

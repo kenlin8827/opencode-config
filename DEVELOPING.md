@@ -62,7 +62,8 @@ User
  │   ├── output-protocol.md       — structured output format
  │   ├── test-scope.md            — tiered test scope policy
  │   ├── rfc-keywords.md          — RFC 2119 keyword semantics
- │   └── coding-principles.md     — shared coding principles
+ │   ├── coding-principles.md     — shared coding principles
+ │   └── edit-protocol.md         — search-expression edit discipline (serena replace_content)
  │
  └── Plugins (runtime enforcement & workflows — see "Plugin system")
      ├── npm plugins via `opencode.jsonc:plugin` (ponytail, qoder-bridge, …)
@@ -448,7 +449,8 @@ instructions/
 ├── output-protocol.md        # Shared output format
 ├── test-scope.md             # Tiered test scope policy
 ├── rfc-keywords.md           # RFC 2119 keyword semantics
-└── coding-principles.md      # Shared coding principles
+├── coding-principles.md      # Shared coding principles
+└── edit-protocol.md          # Search-expression edit discipline (serena)
 
 agents/
 ├── build.md                  # Primary: execution coordinator

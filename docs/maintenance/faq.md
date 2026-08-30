@@ -78,6 +78,15 @@ OpenCode's built-in tool is natively named `bash`, so LLMs frequently output POS
 2. **Global Agent Instruction Adaptation**:
    In `instructions/coding-principles.md`, Principle 9 mandates adaptive command execution. Even in pure PowerShell/CMD environments without Git Bash, agents adapt to native PowerShell syntax (e.g. `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`) or cross-platform commands (`git`, `npm`, `node`), and auto-recover if a syntax mismatch occurs.
 
+### Serena `replace_content` fails with "No matches of search expression"
+
+A needle-quality error, not a Serena or Windows bug. Two frequent causes:
+
+1. **Hand-escaped regex needles** — the agent escaped a long verbatim code block into regex and one escape is wrong (e.g. `[]` written as `\(\)\]`). Regex needles should use short anchors + a `[\s\S]*?` wildcard, never full escaping.
+2. **Needle drifted from the file** — the needle was written from memory instead of a fresh read of the target region.
+
+`instructions/edit-protocol.md` injects the editing discipline into all agents: `literal` mode for exact text (auto-escaped, zero escaping surface), short-anchor regex for spans, symbol tools for whole functions, and a mandatory read-before-retry loop on match failures. Line endings are normalized (CRLF→LF) before matching, so Windows line endings are never the cause.
+
 ### How do I use this configuration with the OpenChamber desktop app?
 
 As long as you have completed the installation using this repository's install script, no extra setup is required:
