@@ -9,7 +9,10 @@
     install.ps1's `Register` mode).
 
     Subcommands:
-      install         Apply the current version's manifest to the default target
+      install         Open the interactive TUI wizard (dashboard first; matches
+                      the help text "(default) Interactive setup wizard").
+                      Pass -f / --force / -Force to skip the wizard and run the
+                      headless install (force-reapply even when version unchanged)
       update          Check the suite + companion tools (opencode, openchamber) for
                       updates and apply the selected ones in an interactive TTY
                       (-y = apply all without prompting; --check-only = read-only)
@@ -173,7 +176,20 @@ switch ($Subcommand.ToLowerInvariant()) {
         break
     }
     'install' {
-        & $Install install @Rest
+        # Without -f/--force: open the interactive wizard (dashboard first).
+        # With -f/--force: skip the wizard, run the headless install.
+        # Matches the help text "(default) Interactive setup wizard (in TTY)
+        # or install (in non-interactive)" and the user mental model that -f
+        # means headless.
+        $hasForce = $false
+        foreach ($a in $Rest) {
+            if ($a -in @('-f', '--force', '-Force')) { $hasForce = $true; break }
+        }
+        if ($hasForce) {
+            & $Install install @Rest
+        } else {
+            & $Install wizard @Rest
+        }
         break
     }
     'update' {

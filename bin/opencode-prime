@@ -8,7 +8,10 @@
 # `bin/opencode-prime status`, etc.
 #
 # Subcommands:
-#   install         Apply the current version's manifest to the default target
+#   install         Open the interactive TUI wizard (dashboard first; matches
+#                   the help text "(default) Interactive setup wizard").
+#                   Pass -f / --force / -Force to skip the wizard and run the
+#                   headless install (force-reapply even when version unchanged)
 #   update          Check the suite + companion tools (opencode, openchamber) for
 #                   updates and apply the selected ones in an interactive TTY
 #                   (-y = apply all without prompting; --check-only = read-only)
@@ -76,7 +79,23 @@ case "$sub" in
         print_help
         ;;
     install)
-        exec "$INSTALL" install "$@"
+        # Without -f/--force: open the interactive wizard (dashboard first).
+        # With -f/--force: skip the wizard, run the headless install.
+        # Matches the help text "(default) Interactive setup wizard (in TTY)
+        # or install (in non-interactive)" and the user mental model that -f
+        # means headless.
+        has_force=0
+        for a in "$@"; do
+            if [[ "$a" == "-f" || "$a" == "--force" || "$a" == "-Force" ]]; then
+                has_force=1
+                break
+            fi
+        done
+        if [[ "$has_force" == 1 ]]; then
+            exec "$INSTALL" install "$@"
+        else
+            exec "$INSTALL" wizard "$@"
+        fi
         ;;
     update)
         exec "$INSTALL" update "$@"
