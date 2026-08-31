@@ -131,6 +131,23 @@ $planContent = Get-Content "$PSScriptRoot\..\agents\plan.md" -Raw
 Check "build.md: never routes to @code" ($buildContent -notmatch "@code(?!-)")
 Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 
+# lite agent + lite-mode plugin (L2 layer: near-zero-overhead primary)
+$litePlugin = Get-Content "$PSScriptRoot\..\plugins\lite-mode\lite-mode.ts" -Raw
+Check "opencode.template.jsonc: lite agent registered" ($null -ne $config.agent.lite)
+Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -eq "primary")
+Check "opencode.template.jsonc: lite uses flash model" ($config.agent.lite.model -eq "llm-router/flash")
+Check "opencode.template.jsonc: lite prompt is inline (no {file:})" ($config.agent.lite.prompt -notmatch '\{file:')
+Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
+Check "opencode.template.jsonc: lite keeps native tools (no edit/bash/task deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "task"))
+Check "opencode.template.jsonc: lite denies all skills" ($config.agent.lite.permission.skill.'*' -eq "deny")
+Check "opencode.template.jsonc: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
+Check "lite-mode.ts: exports pure strip function" ($litePlugin -match "export function stripLiteOverhead")
+Check "lite-mode.ts: has system.transform hook" ($litePlugin -match "experimental\.chat\.system\.transform")
+Check "lite-mode.ts: fail-open try/catch" ($litePlugin -match "try \{" -and $litePlugin -match "catch")
+$liteBarrel = Get-Content "$PSScriptRoot\..\plugins\lite-mode.ts" -Raw
+Check "lite-mode.ts: barrel re-exports LiteModePlugin" ($liteBarrel -match "export.*LiteModePlugin")
+Check "routing-index.md: routes lightweight tasks to @lite" ((Get-Content "$PSScriptRoot\..\instructions\routing-index.md" -Raw) -match "@lite")
+
 # File integrity
 $allFiles = @(
     "instructions/output-protocol.md",
@@ -242,6 +259,8 @@ $allFiles = @(
     "plugins/metrics.ts", "plugins/auto-format.ts",
     "plugins/tui/queue-manager.ts",
     "plugins/tui/project-wizard.ts",
+    "plugins/lite-mode.ts",
+    "plugins/lite-mode/lite-mode.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -627,6 +646,8 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-adr-guard-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-adr-hierarchical-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-lite-mode-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)

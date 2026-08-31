@@ -11,7 +11,7 @@ that don't.
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | every step of every agent | iron rules: `rfc-keywords`, `output-protocol`, `verification-honesty`, `routing-index` |
 | **L1** | agent `prompt` field, assembled from `{file:}` markers | while that agent runs | role rules: coding pack, `sql-migration`, review criteria |
-| **L2** | `~/.config/opencode/skills/*/SKILL.md` | only when the agent calls the `skill` tool | scenario rules: `sdd-workflow` |
+| **L2** | `skills/*/SKILL.md` metadata | resident every step, visibility gated by `permission` | scenario rules: `sdd-workflow` |
 | **L3** | your project's `AGENTS.md` (OpenCode native) | when files in that directory are read | your personal / project rules |
 
 L0 is the expensive layer (paid × steps × agents), so it stays under a hard
@@ -26,6 +26,23 @@ token budget enforced by `scripts/measure-prompts.ts` in the release gate.
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope` (no `edit-protocol` — editing is denied) |
 | `architect`, `advisor`, `security` | `coding-principles` only (review criteria) |
 | `build`, `plan`, `explorer`, `researcher`, `tech-writer`, `vision` | none — L0 only |
+
+## Per-step visibility gating
+
+Two resident layers are gated by per-agent permissions instead of disclosure
+(opencode v1.18.25 semantics):
+
+- **Skills block** — `{ "skill": { "name": "deny" } }` drops a skill from the
+  resident skills block; `{ "*": "deny" }` empties the block. `sdd-workflow`
+  stays visible only for `build`, `plan`, `code`, `architect`.
+- **MCP tool surface** — `"<server>_*": { "*": "deny" }` hides both the tools
+  and the `mcp_instructions` block. The code-intel servers (`serena`,
+  `codegraph`) stay only with agents that actually query code.
+- **L0 stripping** — the `lite` primary opts out of L0 entirely: its inline
+  prompt carries the `<!-- lite-mode -->` sentinel and `plugins/lite-mode.ts`
+  strips it plus every `Instructions from:` block from the system prompt.
+
+Quantify any change with `scripts/measure-prompts.ts` before releasing.
 
 ## Guard rails
 

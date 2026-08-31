@@ -9,7 +9,7 @@
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | 每个 Agent 的每一步 | 铁律：`rfc-keywords`、`output-protocol`、`verification-honesty`、`routing-index` |
 | **L1** | Agent 的 `prompt` 字段，经 `{file:}` 标记拼装 | 该 Agent 运行期间 | 角色规则：编码包、`sql-migration`、评审基准 |
-| **L2** | `~/.config/opencode/skills/*/SKILL.md` | Agent 主动调用 `skill` 工具时 | 场景规则：`sdd-workflow` |
+| **L2** | `skills/*/SKILL.md` 元数据 | 每步常驻，可见性由 `permission` 控制 | 场景规则：`sdd-workflow` |
 | **L3** | 你项目的 `AGENTS.md`（OpenCode 原生） | 读取该目录文件时 | 你的个人 / 项目规则 |
 
 L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
@@ -24,6 +24,20 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope`（无 `edit-protocol`——编辑权限已禁用） |
 | `architect`、`advisor`、`security` | 仅 `coding-principles`（评审基准） |
 | `build`、`plan`、`explorer`、`researcher`、`tech-writer`、`vision` | 无——仅吃 L0 |
+
+## 每步可见性控制
+
+两个常驻层改用 Agent 级权限门控而非披露（opencode v1.18.25 语义）：
+
+- **skills 块** —— `{ "skill": { "name": "deny" } }` 从常驻 skills 块中移除单个技能；
+  `{ "*": "deny" }` 清空整个块。`sdd-workflow` 仅对 `build`、`plan`、`code`、
+  `architect` 可见。
+- **MCP 工具面** —— `"<server>_*": { "*": "deny" }` 同时隐藏工具与 `mcp_instructions`
+  块。代码情报服务器（`serena`、`codegraph`）只留给真正查代码的 Agent。
+- **L0 剥离** —— `lite` 主 Agent 完全退出 L0：其内联 prompt 携带 `<!-- lite-mode -->`
+  哨兵，`plugins/lite-mode.ts` 会把它连同所有 `Instructions from:` 块从系统提示中剥离。
+
+任何改动先用 `scripts/measure-prompts.ts` 量化，再发布。
 
 ## 护栏
 
