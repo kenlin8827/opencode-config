@@ -43,21 +43,39 @@ Check "plugin includes @dietrichgebert/ponytail" `
     ($config.plugin -contains "@dietrichgebert/ponytail")
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
-# instructions array: output-protocol + test-scope + rfc-keywords + coding-principles
-# + edit-protocol + sdd-principles + verification-honesty + comment-strategy + sql-migration
-# (context-efficiency.md was removed — backend routing + token rules are now
-# injected dynamically by plugins/project-profiler with the session profile)
-Check "instructions count = 9" ($config.instructions.Count -eq 9)
+# Disclosure-layer rework: L0 (instructions array) keeps only the universal iron
+# rules — rfc-keywords + output-protocol + verification-honesty + routing-index.
+# Role rules moved to L1 (agent prompt {file:} assembly); sdd-principles moved
+# to L2 (skills/sdd-workflow). Removed from L0: test-scope, coding-principles,
+# edit-protocol, sdd-principles, comment-strategy, sql-migration.
+Check "instructions count = 4 (L0 iron rules only)" ($config.instructions.Count -eq 4)
 Check "instructions all use absolute ~/ paths" `
     (($config.instructions | Where-Object { $_ -notlike '~/.config/opencode/*' }).Count -eq 0)
-Check "instructions contains sdd-principles.md" `
-    ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md" -or $config.instructions -contains "instructions/sdd-principles.md")
-Check "instructions contains edit-protocol.md" `
-    ($config.instructions -contains "~/.config/opencode/instructions/edit-protocol.md")
+Check "instructions contains routing-index.md" `
+    ($config.instructions -contains "~/.config/opencode/instructions/routing-index.md")
+Check "L1 rules NOT in L0 array (edit-protocol)" `
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/edit-protocol.md"))
+Check "L1 rules NOT in L0 array (coding-principles)" `
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/coding-principles.md"))
+Check "L2 rules NOT in L0 array (sdd-principles)" `
+    (-not ($config.instructions -contains "~/.config/opencode/instructions/sdd-principles.md"))
 Check "instructions does NOT include context-efficiency.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/context-efficiency.md"))
 Check "instructions does NOT include decision-advisor.md" `
     (-not ($config.instructions -contains "~/.config/opencode/instructions/decision-advisor.md"))
+
+# L1 assembly: coding agents carry the coding pack via {file:} markers;
+# non-coding agents carry zero additions.
+Check "code agent carries coding-principles via {file:}" `
+    ($config.agent.code.prompt -match '\{file:~/.config/opencode/instructions/coding-principles\.md\}')
+Check "dba agent carries sql-migration via {file:}" `
+    ($config.agent.dba.prompt -match '\{file:~/.config/opencode/instructions/sql-migration\.md\}')
+Check "code-review agent has NO edit-protocol (edit denied)" `
+    (-not ($config.agent.'code-review'.prompt -match 'edit-protocol'))
+Check "build agent has zero L1 additions" `
+    ($config.agent.build.prompt -eq '{file:~/.config/opencode/agents/build.md}')
+Check "explorer agent has zero L1 additions" `
+    ($config.agent.explorer.prompt -eq '{file:~/.config/opencode/agents/explorer.md}')
 
 # Ponytail config (official plugin) — environment-dependent: SKIP when the
 # config file doesn't exist (fresh machine / CI), only assert when present.
@@ -217,7 +235,7 @@ $allFiles = @(
     "plugins/sdd/sdd-command.ts",
     "plugins/sdd/sdd-protocol.md",
     "plugins/sdd/sdd-system-inject.ts",
-    "instructions/sdd-principles.md",
+    "skills/sdd-workflow/SKILL.md",
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",

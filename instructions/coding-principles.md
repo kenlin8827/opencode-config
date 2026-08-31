@@ -1,6 +1,6 @@
 # Coding principles — global baseline
 
-> Injected into all agent system prompts via `opencode.jsonc:instructions`. Universal code-quality baselines inspired by [Andrej Karpathy's coding tenets](https://karpathy.bearblog.dev/code-and-tenacity/). Language-specific agents add their own hard rules on top; when a per-agent rule conflicts, the more specific rule wins.
+> Layer L1: attached to coding/review agent prompts via `{file:}` assembly (not injected globally). Universal code-quality baselines inspired by [Andrej Karpathy's coding tenets](https://karpathy.bearblog.dev/code-and-tenacity/). Language-specific agents add their own hard rules on top; when a per-agent rule conflicts, the more specific rule wins.
 
 ## Core tenets
 
@@ -36,7 +36,6 @@
 
 - **Code-writing agents** (`go-dev`, `python-dev`, `node-dev`, `rust-dev`, `java-dev`, `frontend-dev`, `dba`, `devops`, `qa`): These are your baseline. Your language-specific hard rules refine and extend them.
 - **Code-evaluating agents** (`code-review`, `advisor`, `architect`, `security`): Use these as review criteria. Flag violations with the specific principle name.
-- **Non-coding agents** (`explorer`, `researcher`, `tech-writer`, `vision`): Recognize and report code quality issues you encounter, even though you don't write code.
 
 ## What this is NOT
 

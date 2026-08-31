@@ -1,6 +1,6 @@
 # SQL migrations — append-only baseline
 
-> Injected into all agent system prompts via `opencode.jsonc:instructions`. Migration files are **immutable history** — they record how every environment reached its current schema. `@dba` extends these with engine-specific patterns; when a per-agent rule conflicts, the more specific rule wins.
+> Layer L1: attached to the `dba` agent prompt via `{file:}` assembly (not injected globally). Migration files are **immutable history** — they record how every environment reached its current schema. `@dba` extends these with engine-specific patterns; when a per-agent rule conflicts, the more specific rule wins.
 
 ## Baseline rules
 

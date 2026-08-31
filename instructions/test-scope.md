@@ -2,7 +2,7 @@
 
 > **Top principle**: minimize wasted time and resources, find the best balance point with quality. Test depth is matched to change size — full suite and E2E are exceptions, not the baseline.
 
-Injected into all agent system prompts via `opencode.jsonc:instructions` array. Any change to this file automatically propagates to every agent.
+Layer L1: attached to coding/review agent prompts via `{file:}` assembly (not injected globally).
 
 ## Tier table
 

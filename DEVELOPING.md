@@ -12,7 +12,8 @@ Everything you need to modify this repo: architecture, prompt conventions, plugi
 
 ```
 agents/          # Agent prompts: 3 primaries + 17 specialists
-instructions/    # Shared instruction files injected into all agents
+instructions/    # Rule files layered by disclosure: L0 (opencode.jsonc:instructions) vs L1 (agent prompt {file:} assembly)
+skills/          # L2 on-demand skills (opencode skill tool loads them when relevant)
 plugins/         # TypeScript plugins (barrel entries at root, logic in subdirs)
 profiles/        # Model profiles: provider + per-tier model picks
 providers/       # Custom provider definitions (auto-loaded by opencode as presets; /provider → "Add preset" can also import them into opencode.jsonc)
@@ -58,12 +59,13 @@ User
  │    the installer applies it to opencode.jsonc's root `default_agent`
  │    on every install; valid values: code / build / plan)
  │
- ├── Shared instructions (injected into all agents via `opencode.jsonc:instructions`)
- │   ├── output-protocol.md       — structured output format
- │   ├── test-scope.md            — tiered test scope policy
- │   ├── rfc-keywords.md          — RFC 2119 keyword semantics
- │   ├── coding-principles.md     — shared coding principles
- │   └── edit-protocol.md         — search-expression edit discipline (serena replace_content)
+ ├── Disclosure layers (see docs/core/prompt-layers.md)
+ │   ├── L0 `opencode.jsonc:instructions` — every step × every agent:
+ │   │     rfc-keywords, output-protocol, verification-honesty, routing-index
+ │   ├── L1 agent prompt {file:} assembly — role rules:
+ │   │     coding pack (coding-principles, comment-strategy, edit-protocol,
+ │   │     test-scope), sql-migration (dba only)
+ │   └── L2 skills/sdd-workflow — loaded on demand via the skill tool
  │
  └── Plugins (runtime enforcement & workflows — see "Plugin system")
      ├── npm plugins via `opencode.jsonc:plugin` (ponytail, qoder-bridge, …)
@@ -75,7 +77,7 @@ Design invariants:
 
 - **build** = execution coordinator (write code, run tests, deploy); **plan** = read-only analysis coordinator. Separation prevents analysis agents from accidentally modifying code.
 - Specialist agents get only their relevant domain knowledge — no mega-prompt (token cost + context dilution).
-- Cross-cutting protocols live in `instructions/` and are injected via the `instructions` array — never duplicated in agent files.
+- Cross-cutting protocols live in `instructions/` and attach at the cheapest disclosure layer (L0 array or L1 `{file:}` assembly in `opencode.template.jsonc`) — never duplicated in agent files.
 
 ---
 
@@ -203,7 +205,7 @@ Profile mechanics (tier→model rewrite, live apply vs fallback, validation) are
 
 > **Top principle**: minimize wasted time and resources, find the best balance point with quality. Test depth is matched to change size — full suite and E2E are exceptions, not the baseline.
 
-**Single source of truth**: [`instructions/test-scope.md`](instructions/test-scope.md) — injected into all agent system prompts via `opencode.jsonc:instructions`. Applies to `@build` dispatch, `@qa` execution, and `@code-review` reporting. Don't duplicate the table in agent files — they reference the policy file.
+**Single source of truth**: [`instructions/test-scope.md`](instructions/test-scope.md) — attached to coding/review agent prompts at L1 (agent `prompt` `{file:}` assembly). Applies to `@build` dispatch, `@qa` execution, and `@code-review` reporting. Don't duplicate the table in agent files — they reference the policy file.
 
 ### Quick reference (tier table)
 
@@ -243,7 +245,7 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 3. **Add to `plan.md` team table** — if analysis-capable.
 4. **Add to `opencode.template.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — add to `$allFiles` array and relevant content checks.
-6. **Generate manifest** — bump `version` in `install/version.json`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
+6. **Generate manifest** — bump `version` in `install/version.json`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/`, `skills/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
 7. **Test** — run `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 
 ### Checklist for new agent

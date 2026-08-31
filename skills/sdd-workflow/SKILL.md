@@ -1,6 +1,11 @@
+---
+name: sdd-workflow
+description: Specification-Driven Development lifecycle — governs the /prd → /adr → /plan → /impl phases, deliverables, and transitions. Load ONLY when the user invokes /prd, /adr, /plan, /impl, /sdd, or explicitly requests SDD; never force it on ordinary chats.
+---
+
 # SDD Principles — Specification-Driven Development
 
-> Injected into agent system prompts via `opencode.jsonc:instructions`. Governs the specification lifecycle (`/prd` → `/adr` → `/plan` → `/impl`) across all development tasks.
+Governs the specification lifecycle (`/prd` → `/adr` → `/plan` → `/impl`) across all development tasks.
 
 ## Core Tenets
 

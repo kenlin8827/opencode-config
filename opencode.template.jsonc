@@ -6,20 +6,18 @@
   "small_model": "llm-router/flash",
   "permission": "allow",
   "default_agent": "build",
-  // All entries MUST use absolute ~/ paths: opencode resolves relative
-  // instruction paths against the current project directory (globUp from
-  // the working dir), not the config dir — a relative entry would silently
-  // fail to load in any project that lacks a matching instructions/*.md.
+  // L0 disclosure layer — injected into EVERY step of EVERY agent. Entries
+  // MUST use absolute ~/ paths: opencode resolves relative instruction paths
+  // against the current project directory (globUp from the working dir), not
+  // the config dir — a relative entry would silently fail to load in any
+  // project that lacks a matching instructions/*.md. Keep this array small,
+  // static, and ordered (prefix-cache friendly). Role rules live at L1 (agent
+  // prompt {file:} assembly below); scenario rules at L2 (skills/).
   "instructions": [
-    "~/.config/opencode/instructions/output-protocol.md",
-    "~/.config/opencode/instructions/test-scope.md",
     "~/.config/opencode/instructions/rfc-keywords.md",
-    "~/.config/opencode/instructions/coding-principles.md",
-    "~/.config/opencode/instructions/edit-protocol.md",
-    "~/.config/opencode/instructions/sdd-principles.md",
+    "~/.config/opencode/instructions/output-protocol.md",
     "~/.config/opencode/instructions/verification-honesty.md",
-    "~/.config/opencode/instructions/comment-strategy.md",
-    "~/.config/opencode/instructions/sql-migration.md"
+    "~/.config/opencode/instructions/routing-index.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-mem, etc.) are managed and enabled via install/options.jsonc.
@@ -140,6 +138,15 @@
       "enabled": false
     }
   },
+  // L1 disclosure layer: each agent prompt = its own agents/*.md plus the
+  // rule files its role actually needs, assembled via {file:} markers (order
+  // fixed: agent md first, then rules). Routing matrix:
+  //   coding pack (coding-principles + comment-strategy + edit-protocol +
+  //   test-scope): code, coworker, fast-coder, the six language devs, devops, qa
+  //   coding pack + sql-migration: dba
+  //   coding-principles + comment-strategy + test-scope: code-review (edit denied)
+  //   coding-principles only (review criteria): architect, advisor, security
+  //   zero additions: build, plan, explorer, researcher, tech-writer, vision
   "agent": {
     "build": {
       "description": "Build — default entry point for all tasks. Routes every coding task to the right specialist agent (even simple ones); handles only non-coding tasks (exploration, Q&A, git info) directly. Coordinates multi-step workflows across agents.",
@@ -163,7 +170,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/code.md}"
+      "prompt": "{file:~/.config/opencode/agents/code.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "advisor": {
       "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
@@ -172,7 +179,7 @@
       "temperature": 0.3,
       "steps": 25,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/advisor.md}",
+      "prompt": "{file:~/.config/opencode/agents/advisor.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask" }
     },
     "explorer": {
@@ -200,7 +207,7 @@
       "model": "llm-router/max",
       "temperature": 0.4,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/architect.md}",
+      "prompt": "{file:~/.config/opencode/agents/architect.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "permission": { "edit": "deny" }
     },
     "dba": {
@@ -209,7 +216,7 @@
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/dba.md}"
+      "prompt": "{file:~/.config/opencode/agents/dba.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}\n\n{file:~/.config/opencode/instructions/sql-migration.md}"
     },
     "security": {
       "description": "Security engineer — vulnerability assessment, security architecture review, OWASP analysis, dependency scanning, compliance. Invoke for security, vulnerability, OWASP, encryption, or 'is this secure?'",
@@ -217,7 +224,7 @@
       "model": "llm-router/max",
       "temperature": 0.2,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/security.md}",
+      "prompt": "{file:~/.config/opencode/agents/security.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "permission": { "edit": "deny" }
     },
     "java-dev": {
@@ -226,7 +233,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/java-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/java-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "python-dev": {
       "description": "Python engineer — FastAPI, Django, Flask, async Python, pandas/numpy, scripting, pytest. Invoke for Python, FastAPI, Django, Flask, pandas, numpy, or pip tasks.",
@@ -234,7 +241,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/python-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/python-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "go-dev": {
       "description": "Go engineer — Gin, Echo, Fiber, gRPC, protobuf, Cobra, microservices, goroutines. Invoke for Go, Golang, Gin, gRPC, protobuf, or Cobra tasks.",
@@ -242,7 +249,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/go-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/go-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "rust-dev": {
       "description": "Rust engineer — Cargo, Axum, Actix, Tokio, serde, WASM, systems programming. Invoke for Rust, Cargo, Tokio, Axum, Actix, serde, or wasm tasks.",
@@ -250,7 +257,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/rust-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/rust-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "node-dev": {
       "description": "Node.js/TypeScript engineer — NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm. Invoke for Node.js, NestJS, Express, Fastify, Prisma, TypeORM, or npm/pnpm tasks.",
@@ -258,7 +265,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/node-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/node-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "frontend-dev": {
       "description": "Frontend engineer — React/Vue/Svelte/Next.js, TypeScript, CSS/Tailwind, accessibility, performance. Invoke for frontend, React, Vue, Svelte, CSS, Tailwind, UI, or component work.",
@@ -266,7 +273,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}"
+      "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "qa": {
       "description": "QA engineer — test planning, test generation, coverage analysis, E2E strategy, quality gates. Invoke for testing, QA, coverage, E2E, integration tests, or regression.",
@@ -274,7 +281,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/qa.md}",
+      "prompt": "{file:~/.config/opencode/agents/qa.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "webfetch": "ask" }
     },
     "code-review": {
@@ -283,7 +290,7 @@
       "model": "llm-router/max",
       "temperature": 0.3,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/code-review.md}",
+      "prompt": "{file:~/.config/opencode/agents/code-review.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "edit": "deny", "webfetch": "ask", "websearch": "ask" }
     },
     "devops": {
@@ -292,7 +299,7 @@
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/devops.md}"
+      "prompt": "{file:~/.config/opencode/agents/devops.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "tech-writer": {
       "description": "Technical writer — README, API docs, architecture docs, ADRs, changelogs, user guides. Invoke for documentation, README, changelog, ADR, or developer guide tasks.",
@@ -318,7 +325,7 @@
       "model": "llm-router/flash",
       "temperature": 0.2,
       "variant": "low",
-      "prompt": "{file:~/.config/opencode/agents/fast-coder.md}"
+      "prompt": "{file:~/.config/opencode/agents/fast-coder.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     },
     "coworker": {
       "description": "Co-worker — collaborative pair-programming agent that treats every task as a real customer requirement. Uses high-stakes framing ('the customer is watching, don't let them question our competence') and a 'we're in this together' partnership dynamic to elicit top-tier implementations. Ask the co-worker anything unclear; they will relay questions to the customer for you.",
@@ -326,7 +333,7 @@
       "model": "llm-router/pro",
       "temperature": 0.4,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/coworker.md}"
+      "prompt": "{file:~/.config/opencode/agents/coworker.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
     }
   }
 }

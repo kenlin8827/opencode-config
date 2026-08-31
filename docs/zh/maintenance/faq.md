@@ -76,7 +76,7 @@ OpenCode 内置工具原生命名为 `bash`，大语言模型倾向于输出 Uni
    [System.Environment]::SetEnvironmentVariable('SHELL', 'C:\Program Files\Git\bin\bash.exe', [System.EnvironmentVariableTarget]::User)
    ```
 2. **全局指令自适应（Adaptive Shell Execution）**：
-   在 `instructions/coding-principles.md` 中注入了全局自适应执行准则。即使在未安装 Git Bash 的纯 PowerShell/CMD 环境中，所有 Agent 也会自适应使用 PowerShell 原生语法（如 `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`）或跨平台命令（`git`, `npm`, `node`），并在遇到命令语法错误时自动切换语法重试。
+   在 `instructions/coding-principles.md` 中定义了全局自适应执行准则（随编码类 Agent 的提示词注入）。即使在未安装 Git Bash 的纯 PowerShell/CMD 环境中，编码类 Agent 也会自适应使用 PowerShell 原生语法（如 `$env:VAR = "val"`, `Get-ChildItem`, `Remove-Item`）或跨平台命令（`git`, `npm`, `node`），并在遇到命令语法错误时自动切换语法重试。
 
 ### Serena `replace_content` 报错 "No matches of search expression"
 
@@ -85,7 +85,7 @@ OpenCode 内置工具原生命名为 `bash`，大语言模型倾向于输出 Uni
 1. **手工转义的正则 needle** —— Agent 把整段代码逐字符转义成正则，其中一处转义写错（例如把 `[]` 写成 `\(\)\]`），整体零命中。正则 needle 应使用"短锚点 + `[\s\S]*?` 通配符"，绝不做全量转义。
 2. **needle 与文件内容漂移** —— needle 凭记忆编写，而非先读取目标区域。
 
-`instructions/edit-protocol.md` 已向所有 Agent 注入编辑纪律：精确文本用 `literal` 模式（自动转义、零转义面）、长区间用短锚点正则、整函数替换用符号级工具，命中失败后强制"先重读、再重建 needle"。行尾在匹配前已统一归一化（CRLF→LF），Windows 行尾不是原因。
+`instructions/edit-protocol.md` 已随编码类 Agent 的提示词注入编辑纪律（L1 披露层）：精确文本用 `literal` 模式（自动转义、零转义面）、长区间用短锚点正则、整函数替换用符号级工具，命中失败后强制"先重读、再重建 needle"。行尾在匹配前已统一归一化（CRLF→LF），Windows 行尾不是原因。
 
 ### 如何在 OpenChamber 桌面端中使用本配置？
 

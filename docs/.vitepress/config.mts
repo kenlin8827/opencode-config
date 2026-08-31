@@ -41,6 +41,7 @@ export default withMermaid(
                 { text: 'Daily Use & Modes', link: '/core/daily-use' },
                 { text: 'MCP Servers & Code Intelligence', link: '/core/mcp-servers' },
                 { text: 'Configuration & Profiles', link: '/core/profiles' },
+                { text: 'Prompt Disclosure Layers', link: '/core/prompt-layers' },
               ]
             },
             {
@@ -101,6 +102,7 @@ export default withMermaid(
                   { text: '日常使用与工作模式', link: '/zh/core/daily-use' },
                   { text: 'MCP 代码智能与数据库', link: '/zh/core/mcp-servers' },
                   { text: '模型配置与预设 Profiles', link: '/zh/core/profiles' },
+                  { text: '提示词披露分层', link: '/zh/core/prompt-layers' },
                 ]
               },
               {

@@ -6,12 +6,12 @@
 #   2. Runs scripts/pack.sh to build tar.gz + zip archives.
 #   3. Creates a GitHub Release (if it doesn't exist) and uploads both archives.
 #
-# The tag name (e.g. v0.0.7) does NOT need to match install/VERSION — but it
-# SHOULD, to keep the release artifact filename consistent. The pack script
-# reads install/VERSION for the archive filename and embedded manifest.
+# The tag name (e.g. v0.0.7) does NOT need to match install/version.json —
+# but it SHOULD, to keep the release artifact filename consistent. The pack
+# script reads install/version.json for the archive filename and manifest.
 #
 # To release:
-#   1. Bump install/VERSION (e.g. 0.0.7)
+#   1. Bump install/version.json (e.g. 0.0.7)
 #   2. Commit and push
 #   3. git tag v0.0.7 && git push origin v0.0.7
 #   4. The workflow does the rest automatically.
@@ -45,7 +45,15 @@ jobs:
       - name: Read version
         id: version
         run: |
-          VER=$(head -1 install/VERSION | tr -d '\r\n ')
+          # version.json is authoritative; legacy install/VERSION as fallback.
+          VER="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' install/version.json | head -n 1 | tr -d ' \r')"
+          if [[ -z "$VER" && -f install/VERSION ]]; then
+            VER="$(head -1 install/VERSION | tr -d '\r\n ')"
+          fi
+          if [[ -z "$VER" ]]; then
+            echo "::error::could not determine version from install/version.json"
+            exit 1
+          fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "tag=${GITHUB_REF_NAME:-manual}" >> "$GITHUB_OUTPUT"
 

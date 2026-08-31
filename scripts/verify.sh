@@ -39,6 +39,32 @@ fi
 MANIFEST="$INST_DIR/$VER.manifest.txt"
 [[ -f "$MANIFEST" ]] || { echo "missing manifest for version $VER: $MANIFEST" >&2; exit 1; }
 
+# --- prompt budget gate (layered disclosure: L0/L1 sizes) -------------------
+
+if command -v bun >/dev/null 2>&1; then
+    bun run "$REPO_ROOT/scripts/measure-prompts.ts" || { echo "prompt budget gate failed — slim the prompts before releasing" >&2; exit 1; }
+else
+    echo "warn: bun not found — skipping prompt budget gate" >&2
+fi
+
+# --- historical manifest immutability gate --------------------------------
+# Manifests are per-version historical records: `ocp generate` MUST only ever
+# (re)write the CURRENT version's file. Any modification or deletion of a
+# previously committed manifest means generate was run against a stale
+# version.json — restore the file from git before releasing.
+if command -v git >/dev/null 2>&1 && git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    CUR_REL="install/versions/$VER.manifest.txt"
+    # The current version's manifest is the release in progress — it may
+    # legitimately differ from HEAD (or be untracked). Historical ones may not.
+    VIOLATIONS="$( { git -C "$REPO_ROOT" diff --name-only HEAD -- install/versions/; git -C "$REPO_ROOT" ls-files --deleted -- install/versions/; } | grep -v "^$CUR_REL\$" | grep -v '^$' || true)"
+    if [[ -n "$VIOLATIONS" ]]; then
+        while IFS= read -r v; do echo "  IMMUTABILITY VIOLATION: $v" >&2; done <<< "$VIOLATIONS"
+        echo "historical manifest(s) modified relative to HEAD - restore with 'git show HEAD:<file> > <file>' and re-run generate only after bumping version.json" >&2
+        exit 1
+    fi
+    echo "historical manifests: immutable (OK)"
+fi
+
 # manifest entries (skip comments/blank lines)
 manifest_entries() {
     grep -v '^[[:space:]]*#' "$MANIFEST" | sed 's/[[:space:]]*$//' | grep -v '^$' | sort -u

@@ -1,6 +1,6 @@
 # Edit-tool discipline — search-expression replacements
 
-> Injected into all agent system prompts via `opencode.jsonc:instructions`. Governs content-editing tools that take a search expression (serena `replace_content` / `replace_in_files`; same discipline for any find/replace-style tool). A failed match wastes the entire needle plus every retry — these rules make edits land first-try. If the tools referenced below are not in this session's toolset, ignore the selection table and apply Hard Rules 1–4 and 6.
+> Layer L1: attached to coding-agent prompts via `{file:}` assembly (not injected globally). Governs content-editing tools that take a search expression (serena `replace_content` / `replace_in_files`; same discipline for any find/replace-style tool). A failed match wastes the entire needle plus every retry — these rules make edits land first-try. If the tools referenced below are not in this session's toolset, ignore the selection table and apply Hard Rules 1–4 and 6.
 
 ## Tool & mode selection
 

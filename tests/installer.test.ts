@@ -158,6 +158,46 @@ console.log('✓ Re-install dedupes plugins already present in template');
 
 if (fs.existsSync(tuiMergeDir)) fs.rmSync(tuiMergeDir, { recursive: true, force: true });
 
+// 3f. mergeConfig disclosure-layer upgrade propagation:
+//   - `instructions` (L0) always takes the template value — a stale user array
+//     must not block L0 slim-downs.
+//   - Factory agents always follow the template (prompt/model upgrades reach
+//     existing installs); only agents absent from the template are preserved.
+console.log('\nTest 3f: Config Merge — Template-Owned instructions & Factory Agents');
+const cfgMergeDir = path.join(os.tmpdir(), `opencode-cfg-merge-test-${Date.now()}`);
+const cfgRepoDir = path.join(cfgMergeDir, 'repo');
+const cfgTargetDir = path.join(cfgMergeDir, 'target');
+fs.mkdirSync(cfgRepoDir, { recursive: true });
+fs.mkdirSync(cfgTargetDir, { recursive: true });
+fs.writeFileSync(
+  path.join(cfgRepoDir, 'opencode.template.jsonc'),
+  '{\n  "instructions": [\n    "~/.config/opencode/instructions/a.md",\n    "~/.config/opencode/instructions/b.md"\n  ],\n  "agent": {\n    "build": { "prompt": "T_BUILD" },\n    "code": { "prompt": "T_CODE" }\n  }\n}\n',
+  'utf8'
+);
+// Stale installed config: old 9-entry L0 array + a MODIFIED factory agent + one custom agent
+fs.writeFileSync(
+  path.join(cfgTargetDir, 'opencode.jsonc'),
+  '{\n  "instructions": ["old/1.md", "old/2.md", "old/3.md"],\n  "agent": {\n    "build": { "prompt": "OLD_MODIFIED_BUILD" },\n    "my-agent": { "prompt": "CUSTOM_USER_AGENT" }\n  }\n}\n',
+  'utf8'
+);
+const cfgBag = extractPreserveBag(cfgTargetDir);
+mergeConfig(cfgRepoDir, cfgTargetDir, {} as any, cfgBag);
+const cfgMerged = readJsoncFile<Record<string, any>>(path.join(cfgTargetDir, 'opencode.jsonc'));
+if (JSON.stringify(cfgMerged?.instructions) !== JSON.stringify(['~/.config/opencode/instructions/a.md', '~/.config/opencode/instructions/b.md'])) {
+  throw new Error('mergeConfig must take template instructions — stale user array leaked through');
+}
+if (cfgMerged?.agent?.build?.prompt !== 'T_BUILD') {
+  throw new Error('Factory agent "build" must follow the template — stale user copy leaked through');
+}
+if (cfgMerged?.agent?.code?.prompt !== 'T_CODE') {
+  throw new Error('Factory agent "code" missing — template agents must survive the merge');
+}
+if (cfgMerged?.agent?.['my-agent']?.prompt !== 'CUSTOM_USER_AGENT') {
+  throw new Error('User-defined agent "my-agent" must be preserved verbatim');
+}
+console.log('✓ instructions template-owned + factory-agent upgrade propagation + custom-agent preservation');
+if (fs.existsSync(cfgMergeDir)) fs.rmSync(cfgMergeDir, { recursive: true, force: true });
+
 // 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch
 console.log('\nTest 3e: Options File In-Place Update');
 const scratchOptionsDir = path.join(os.tmpdir(), `opencode-options-test-${Date.now()}`);

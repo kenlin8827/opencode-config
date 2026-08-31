@@ -181,6 +181,8 @@ export function extractPreserveBag(targetDir: string): PreserveBag {
   if (!existingConfig) return bag;
 
   if (existingConfig.agent && typeof existingConfig.agent === 'object') {
+    // Captured verbatim; mergeConfig filters out factory agents so template
+    // upgrades propagate — only agents absent from the template stick.
     bag.userAgents = existingConfig.agent;
   }
   if (existingConfig.provider && typeof existingConfig.provider === 'object') {
@@ -331,7 +333,10 @@ export function mergeConfig(
     restoreProfilesPreserve(targetDir, bag.profiles);
   }
 
-  // 2. Merge preserved user-defined env vars
+  // 2. Merge preserved user-defined env vars.
+  // Note: `instructions` is NOT preserved — it always takes the template
+  // value so L0 disclosure-layer upgrades propagate on every install. Personal
+  // rules belong in the project's AGENTS.md (opencode's native path).
   if (bag?.userEnv && Object.keys(bag.userEnv).length > 0) {
     config.env = { ...(config.env || {}), ...bag.userEnv };
   }
@@ -345,9 +350,19 @@ export function mergeConfig(
     config.provider = { ...(config.provider || {}), ...bag.userModels };
   }
 
-  // 4. Merge preserved user custom agents
+  // 4. Merge preserved user custom agents. Factory agents (present in the
+  // template) always follow the template so prompt/model/description upgrades
+  // reach existing installs; only agents absent from the template are treated
+  // as user-defined and preserved verbatim.
   if (bag?.userAgents && Object.keys(bag.userAgents).length > 0) {
-    config.agent = { ...(config.agent || {}), ...bag.userAgents };
+    const templateAgents = config.agent && typeof config.agent === 'object' ? config.agent : {};
+    const customAgents: Record<string, any> = {};
+    for (const [agentName, agentDef] of Object.entries(bag.userAgents)) {
+      if (!(agentName in templateAgents)) customAgents[agentName] = agentDef;
+    }
+    if (Object.keys(customAgents).length > 0) {
+      config.agent = { ...templateAgents, ...customAgents };
+    }
   }
 
   // 5. Apply default_agent from options

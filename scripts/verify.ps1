@@ -51,6 +51,34 @@ $ver = Read-Version
 $manifestPath = Join-Path $InstDir "$ver.manifest.txt"
 if (-not (Test-Path $manifestPath)) { throw "missing manifest for version $ver : $manifestPath" }
 
+# --- prompt budget gate (layered disclosure: L0/L1 sizes) ------------------
+
+& bun run (Join-Path $RepoRoot 'scripts/measure-prompts.ts')
+if ($LASTEXITCODE -ne 0) { throw 'prompt budget gate failed — slim the prompts before releasing' }
+
+# --- historical manifest immutability gate --------------------------------
+# Manifests are per-version historical records: `ocp generate` MUST only ever
+# (re)write the CURRENT version's file. Any modification or deletion of a
+# previously committed manifest means generate was run against a stale
+# version.json — restore the file from git before releasing.
+
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    git -C $RepoRoot rev-parse --git-dir *> $null
+    if ($LASTEXITCODE -eq 0) {
+        $touched = git -C $RepoRoot diff --name-only HEAD -- install/versions/ 2>$null
+        $deleted = git -C $RepoRoot ls-files --deleted -- install/versions/ 2>$null
+        # The current version's manifest is the release in progress — it may
+        # legitimately differ from HEAD (or be untracked). Historical ones may not.
+        $curRel = "install/versions/$ver.manifest.txt"
+        $violations = @($touched) + @($deleted) | Where-Object { $_ -and ($_ -replace '\\', '/') -ne $curRel }
+        if ($violations) {
+            foreach ($v in $violations) { Write-Host "  IMMUTABILITY VIOLATION: $v" }
+            throw 'historical manifest(s) modified relative to HEAD - restore with `git show HEAD:<file> > <file>` and re-run generate only after bumping version.json'
+        }
+        Write-Host 'historical manifests: immutable (OK)'
+    }
+}
+
 $manifest = Get-Content $manifestPath |
     Where-Object { $_ -and $_ -notmatch '^\s*#' } |
     ForEach-Object { $_.Trim() -replace '\\', '/' } |
