@@ -226,12 +226,32 @@ function upgradeToolFromRegistry(repoDir: string, toolName: string): number {
     return 1;
   }
   console.log(`Running: ${cmd}`);
-  const res = spawnSync(cmd, {
+  return runInstallCommand(cmd).status ?? 1;
+}
+
+/**
+ * Run an install/upgrade command string from install/tools.jsonc.
+ *
+ * On Windows the registry stores PowerShell-syntax commands (irm/iwr/iex);
+ * `spawnSync(cmd, { shell: true })` routes through cmd.exe, which doesn't
+ * recognize those aliases. Spawn PowerShell directly — prefer `pwsh` (the
+ * project's default, see executeUpgrade below) but fall back to the
+ * built-in Windows PowerShell 5.1 so this works on machines without
+ * PowerShell 7. Both shells expose irm/iwr/iex and `-useb`, so either
+ * fits the registry's commands.
+ *
+ * On POSIX the commands are POSIX-shell pipelines (`curl | sh`), so let
+ * Node pick a shell.
+ */
+function runInstallCommand(cmd: string) {
+  if (process.platform !== 'win32') {
+    return spawnSync(cmd, { stdio: 'inherit', timeout: 600000, shell: true });
+  }
+  const ps = isBinaryOnPath('pwsh') ? 'pwsh' : 'powershell';
+  return spawnSync(ps, ['-NoProfile', '-Command', cmd], {
     stdio: 'inherit',
     timeout: 600000,
-    shell: process.platform === 'win32',
   });
-  return res.status ?? 1;
 }
 
 /**
@@ -266,12 +286,7 @@ function smartUpgrade(toolName: string, def: ToolEntry): number {
     const fallback = resolveInstallCommand(def?.update_check?.upgrade);
     if (fallback) {
       console.log(`No package manager detected — falling back to: ${fallback}`);
-      const res = spawnSync(fallback, {
-        stdio: 'inherit',
-        timeout: 600000,
-        shell: process.platform === 'win32',
-      });
-      return res.status ?? 1;
+      return runInstallCommand(fallback).status ?? 1;
     }
     console.error(`No package manager detected for "${toolName}" and no static fallback upgrade configured.`);
     return 1;
