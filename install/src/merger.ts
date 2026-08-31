@@ -208,7 +208,8 @@ export function mergeTiersJson(
   repoDir: string,
   targetDir: string,
   customTiers?: Record<string, string>,
-  preservedTiers?: Record<string, string>
+  preservedTiers?: Record<string, string>,
+  removedAgents?: string[]
 ): void {
   const templatePath = path.join(repoDir, 'tiers.json');
   const targetPath = path.join(targetDir, 'tiers.json');
@@ -226,6 +227,7 @@ export function mergeTiersJson(
 
   if (preservedTiers) {
     for (const [k, v] of Object.entries(preservedTiers)) {
+      if (removedAgents?.includes(k)) continue;
       if (typeof v === 'string') {
         effectiveTiers[k] = normalizeTier(v, effectiveTiers[k] || 'standard');
       }
@@ -325,8 +327,17 @@ export function mergeConfig(
     throw new Error(`Config template missing or unreadable: ${templatePath} — refusing to overwrite the target config with an empty merge`);
   }
 
+  // Retirement list of deleted factory agents (installer-only metadata — must
+  // not leak into the merged output; opencode forwards unknown keys to the
+  // provider as model options). Without it, agents removed from the template
+  // survive upgrades because step 4 below misreads them as user-defined.
+  const removedAgents = Array.isArray(config.removed_agents)
+    ? config.removed_agents.filter((n: any) => typeof n === 'string')
+    : [];
+  delete config.removed_agents;
+
   // 0. Merge tiers.json
-  mergeTiersJson(repoDir, targetDir, options.tiers, bag?.userTiers);
+  mergeTiersJson(repoDir, targetDir, options.tiers, bag?.userTiers, removedAgents);
 
   // 1. Merge preserved user profiles
   if (bag?.profiles) {
@@ -353,11 +364,13 @@ export function mergeConfig(
   // 4. Merge preserved user custom agents. Factory agents (present in the
   // template) always follow the template so prompt/model/description upgrades
   // reach existing installs; only agents absent from the template are treated
-  // as user-defined and preserved verbatim.
+  // as user-defined and preserved verbatim — except retired factory agents
+  // (removed_agents), which are dropped so deletions propagate on upgrade.
   if (bag?.userAgents && Object.keys(bag.userAgents).length > 0) {
     const templateAgents = config.agent && typeof config.agent === 'object' ? config.agent : {};
     const customAgents: Record<string, any> = {};
     for (const [agentName, agentDef] of Object.entries(bag.userAgents)) {
+      if (removedAgents.includes(agentName)) continue;
       if (!(agentName in templateAgents)) customAgents[agentName] = agentDef;
     }
     if (Object.keys(customAgents).length > 0) {

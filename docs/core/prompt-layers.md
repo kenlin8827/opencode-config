@@ -21,7 +21,7 @@ token budget enforced by `scripts/measure-prompts.ts` in the release gate.
 
 | Agents | Attached rule files |
 |---|---|
-| `code`, `coworker`, `fast-coder`, `java-dev`, `python-dev`, `go-dev`, `rust-dev`, `node-dev`, `frontend-dev`, `devops`, `qa` | coding pack: `coding-principles` + `comment-strategy` + `edit-protocol` + `test-scope` |
+| `code`, `fast-coder`, `java-dev`, `python-dev`, `go-dev`, `rust-dev`, `node-dev`, `frontend-dev`, `devops`, `qa` | coding pack: `coding-principles` + `comment-strategy` + `edit-protocol` + `test-scope` |
 | `dba` | coding pack + `sql-migration` |
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope` (no `edit-protocol` — editing is denied) |
 | `architect`, `advisor`, `security` | `coding-principles` only (review criteria) |

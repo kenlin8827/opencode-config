@@ -143,7 +143,7 @@ Once configured, launch the OpenCode terminal UI with `ocp` (or `ocp tui`) and s
   <img src="./docs/public/images/opencode-en.webp" alt="OpenCode Terminal UI" width="880"/>
 </p>
 
-The terminal UI provides a chat interface to 21 specialist agents (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, `@fast-coder`, etc.), four working modes (`@code` / `@coworker` / `@build` / `@plan`), workflow slash commands (`/quick-dev` · `/deep-dev` · `/review-fix-loop` · `/sdd` …), and the `/profile` picker for one-shot model tier mapping.
+The terminal UI provides a chat interface to 21 specialist agents (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, `@fast-coder`, etc.), three working modes (`@code` / `@build` / `@plan`), workflow slash commands (`/quick-dev` · `/deep-dev` · `/review-fix-loop` · `/sdd` …), and the `/profile` picker for one-shot model tier mapping.
 
 ---
 

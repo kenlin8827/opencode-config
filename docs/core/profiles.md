@@ -104,7 +104,7 @@ Reassign which tier an agent belongs to — without touching the tier→model si
   │    ...
   │
   │  Changed agents show the pending transition:
-  │    coworker   (pro → max)  ← pending
+  │    dba        (pro → max)  ← pending
   │
   │  ├─ "( Apply changes )"  → write tiers.json + live-apply models
   │  ├─ Pick any agent  ────→ Level 3: tier picker
@@ -134,11 +134,11 @@ Reassign which tier an agent belongs to — without touching the tier→model si
   → pick "code" (currently pro)
   → pick "pro"
   → toast: "code: pro → pro (no change)"
-  → pick "coworker" (currently pro)
+  → pick "dba" (currently pro)
   → pick "max"
-  → toast: "coworker: pro → max (pending)"
+  → toast: "dba: pro → max (pending)"
   → "( Apply changes )"
-  → toast: "1 tier change applied — coworker → max (anthropic/claude-opus). Live, no restart needed."
+  → toast: "1 tier change applied — dba → max (anthropic/claude-opus). Live, no restart needed."
 ```
 
 #### Manage: Profile→Models

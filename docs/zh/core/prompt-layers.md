@@ -19,7 +19,7 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 
 | Agent | 附加规则文件 |
 |---|---|
-| `code`、`coworker`、`fast-coder`、`java-dev`、`python-dev`、`go-dev`、`rust-dev`、`node-dev`、`frontend-dev`、`devops`、`qa` | 编码包：`coding-principles` + `comment-strategy` + `edit-protocol` + `test-scope` |
+| `code`、`fast-coder`、`java-dev`、`python-dev`、`go-dev`、`rust-dev`、`node-dev`、`frontend-dev`、`devops`、`qa` | 编码包：`coding-principles` + `comment-strategy` + `edit-protocol` + `test-scope` |
 | `dba` | 编码包 + `sql-migration` |
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope`（无 `edit-protocol`——编辑权限已禁用） |
 | `architect`、`advisor`、`security` | 仅 `coding-principles`（评审基准） |

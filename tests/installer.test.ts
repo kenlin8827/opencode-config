@@ -163,6 +163,8 @@ if (fs.existsSync(tuiMergeDir)) fs.rmSync(tuiMergeDir, { recursive: true, force:
 //     must not block L0 slim-downs.
 //   - Factory agents always follow the template (prompt/model upgrades reach
 //     existing installs); only agents absent from the template are preserved.
+//   - Retired factory agents (removed_agents) are dropped from the preserved
+//     config and tiers.json, and the marker never leaks into the merged output.
 console.log('\nTest 3f: Config Merge — Template-Owned instructions & Factory Agents');
 const cfgMergeDir = path.join(os.tmpdir(), `opencode-cfg-merge-test-${Date.now()}`);
 const cfgRepoDir = path.join(cfgMergeDir, 'repo');
@@ -171,13 +173,24 @@ fs.mkdirSync(cfgRepoDir, { recursive: true });
 fs.mkdirSync(cfgTargetDir, { recursive: true });
 fs.writeFileSync(
   path.join(cfgRepoDir, 'opencode.template.jsonc'),
-  '{\n  "instructions": [\n    "~/.config/opencode/instructions/a.md",\n    "~/.config/opencode/instructions/b.md"\n  ],\n  "agent": {\n    "build": { "prompt": "T_BUILD" },\n    "code": { "prompt": "T_CODE" }\n  }\n}\n',
+  '{\n  "removed_agents": ["ghost"],\n  "instructions": [\n    "~/.config/opencode/instructions/a.md",\n    "~/.config/opencode/instructions/b.md"\n  ],\n  "agent": {\n    "build": { "prompt": "T_BUILD" },\n    "code": { "prompt": "T_CODE" }\n  }\n}\n',
   'utf8'
 );
-// Stale installed config: old 9-entry L0 array + a MODIFIED factory agent + one custom agent
+fs.writeFileSync(
+  path.join(cfgRepoDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "build": "standard",\n  "code": "pro"\n}\n',
+  'utf8'
+);
+// Stale installed config: old L0 array + a MODIFIED factory agent + a RETIRED
+// factory agent (ghost) + one custom agent
 fs.writeFileSync(
   path.join(cfgTargetDir, 'opencode.jsonc'),
-  '{\n  "instructions": ["old/1.md", "old/2.md", "old/3.md"],\n  "agent": {\n    "build": { "prompt": "OLD_MODIFIED_BUILD" },\n    "my-agent": { "prompt": "CUSTOM_USER_AGENT" }\n  }\n}\n',
+  '{\n  "instructions": ["old/1.md", "old/2.md", "old/3.md"],\n  "agent": {\n    "build": { "prompt": "OLD_MODIFIED_BUILD" },\n    "ghost": { "prompt": "RETIRED_FACTORY_AGENT" },\n    "my-agent": { "prompt": "CUSTOM_USER_AGENT" }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(cfgTargetDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "build": "standard",\n  "ghost": "max"\n}\n',
   'utf8'
 );
 const cfgBag = extractPreserveBag(cfgTargetDir);
@@ -195,7 +208,17 @@ if (cfgMerged?.agent?.code?.prompt !== 'T_CODE') {
 if (cfgMerged?.agent?.['my-agent']?.prompt !== 'CUSTOM_USER_AGENT') {
   throw new Error('User-defined agent "my-agent" must be preserved verbatim');
 }
-console.log('✓ instructions template-owned + factory-agent upgrade propagation + custom-agent preservation');
+if (cfgMerged?.agent?.ghost !== undefined) {
+  throw new Error('Retired factory agent "ghost" must be dropped on upgrade');
+}
+if (cfgMerged?.removed_agents !== undefined) {
+  throw new Error('removed_agents marker must not leak into the merged config');
+}
+const cfgTiers = readJsoncFile<Record<string, any>>(path.join(cfgTargetDir, 'tiers.json'));
+if (cfgTiers?.ghost !== undefined) {
+  throw new Error('Retired factory agent "ghost" must be dropped from tiers.json');
+}
+console.log('✓ instructions template-owned + factory-agent upgrade propagation + custom-agent preservation + retirement cleanup');
 if (fs.existsSync(cfgMergeDir)) fs.rmSync(cfgMergeDir, { recursive: true, force: true });
 
 // 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch

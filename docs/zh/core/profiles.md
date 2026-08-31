@@ -104,7 +104,7 @@
   │    ...
   │
   │  有变更的 agent 显示 pending 状态：
-  │    coworker   (pro → max)  ← pending
+  │    dba        (pro → max)  ← pending
   │
   │  ├─ "( Apply changes )"  → 写入 tiers.json + 热生效模型
   │  ├─ 选中任意 agent  ────→ 第三层：层级选择器
@@ -134,11 +134,11 @@
   → 选 "code"（当前 pro）
   → 选 "pro"
   → toast: "code: pro → pro (no change)"
-  → 选 "coworker"（当前 pro）
+  → 选 "dba"（当前 pro）
   → 选 "max"
-  → toast: "coworker: pro → max (pending)"
+  → toast: "dba: pro → max (pending)"
   → "( Apply changes )"
-  → toast: "1 tier change applied — coworker → max (anthropic/claude-opus). Live, no restart needed."
+  → toast: "1 tier change applied — dba → max (anthropic/claude-opus). Live, no restart needed."
 ```
 
 #### Manage: Profile→Models
