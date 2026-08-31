@@ -102,7 +102,7 @@ After installation, the global command `ocp` (alias: `opencode-prime`) is availa
 | `ocp unregister` | | Remove the global shims |
 | `ocp wizard` | `ocp menu` | Interactive TUI setup wizard (first-run and reconfigure flows) |
 | `ocp dashboard` | `ocp cc`, `ocp matrix` | Single-screen TUI control center — toggle MCP / plugins / tiers |
-| `ocp version` | `ocp -v` | Print the repo's `install/VERSION` |
+| `ocp version` | `ocp -v` | Print the repo's current version (`install/version.json`) |
 | `ocp help` | `ocp -h` | Print the command help |
 
 > 📖 **Full CLI reference**: [OCP CLI — Online Docs](https://kenlin8827.github.io/opencode-prime/maintenance/ocp-cli)

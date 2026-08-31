@@ -16,7 +16,7 @@ instructions/    # Shared instruction files injected into all agents
 plugins/         # TypeScript plugins (barrel entries at root, logic in subdirs)
 profiles/        # Model profiles: provider + per-tier model picks
 providers/       # Custom provider definitions (auto-loaded by opencode as presets; /provider → "Add preset" can also import them into opencode.jsonc)
-install/         # Self-installing engine (TypeScript), manifests, VERSION, options
+install/         # Self-installing engine (TypeScript), manifests, version.json, options
 bin/             # OCP CLI dispatchers (opencode-prime, ocp) — installer wrapper + runtime launcher
 tests/           # Structural + prompt test suites (see tests/README.md)
 scripts/         # Packaging scripts for releases
@@ -243,7 +243,7 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 3. **Add to `plan.md` team table** — if analysis-capable.
 4. **Add to `opencode.template.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — add to `$allFiles` array and relevant content checks.
-6. **Generate manifest** — bump `install/VERSION`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
+6. **Generate manifest** — bump `version` in `install/version.json`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
 7. **Test** — run `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 
 ### Checklist for new agent
@@ -534,7 +534,7 @@ tests/
 
 ## Release workflow
 
-1. Bump `install/VERSION` (e.g. `0.7.0`) and sync `package.json` `version` + `install/README.md` title to match.
+1. Bump `version` in `install/version.json` (e.g. `0.7.0`) and sync `package.json` `version` + `install/README.md` title to match.
 2. Regenerate the manifest: `bun run install/src/index.ts generate` (or `ocp generate`) — the manifest is **always overwritten**, so ensure `SHIPPED_DIRS` / `SHIPPED_FILES` in `install/src/manifest.ts` include every new file (see `AGENTS.md` §4). **Never hand-edit a generated manifest.**
 3. Run structural tests: `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 4. Type-check plugins: `bun install && bunx tsc --noEmit`.

@@ -44,8 +44,8 @@ The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from 
 
 ### Version Bump Steps
 
-1. Bump `install/VERSION` (e.g. `0.7.0`). Sync `package.json` `version` + `install/README.md` title.
-2. Run `bun run install/src/index.ts generate` (or `ocp generate`) to regenerate the manifest.
+1. Bump `version` in `install/version.json` (e.g. `0.7.0`). Raise `minVersion` only when you also want to compact older manifests into `install/versions/history.manifest.txt`. Sync `package.json` `version` + `install/README.md` title.
+2. Run `bun run install/src/index.ts generate` (or `ocp generate`) to regenerate the manifest and compact manifests below `minVersion`.
 3. Pre-release gate: `pwsh scripts/pack.ps1 && pwsh scripts/verify.ps1` (or `.sh` variants).
 
 ### Full Release & Deploy Flow

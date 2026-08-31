@@ -34,7 +34,7 @@
 #   desktop | ui    Launch the OpenChamber native desktop app
 #   session clean   Delete old sessions via `opencode session delete`
 #   auth open       Open OpenCode's auth.json in the default editor (creates it if missing)
-#   version         Print the repo's install/VERSION
+#   version         Print the repo's current version
 #   help            Print this help
 #
 # No arguments = launch the OpenCode terminal UI (same as `tui`).
@@ -308,8 +308,11 @@ case "$sub" in
         exec "$INSTALL" session "$@"
         ;;
     version|--version|-v)
-        cat "$REPO_ROOT/install/VERSION"
-        echo ""
+        if [ -f "$REPO_ROOT/install/version.json" ]; then
+            sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$REPO_ROOT/install/version.json" | head -n 1
+        else
+            cat "$REPO_ROOT/install/VERSION"
+        fi
         ;;
     *)
         exec "$INSTALL" "$sub" "$@"

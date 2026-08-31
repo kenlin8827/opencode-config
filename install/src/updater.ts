@@ -13,6 +13,7 @@ import {
   resolveInstallCommand,
   runInstallCommand,
 } from './installer';
+import { isNewerVersion, parseVersionPayload } from './manifest';
 
 const REPO_BASE = 'https://github.com/kenlin8827/opencode-prime';
 const RELEASE_BASE = `${REPO_BASE}/releases/latest/download`;
@@ -20,7 +21,7 @@ const RELEASE_BASE = `${REPO_BASE}/releases/latest/download`;
 // a lightweight version probe, and it tends to stay reachable even where
 // github.com release downloads are slow or blocked.
 const RAW_VERSION_URL =
-  'https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install/VERSION';
+  'https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install/version.json';
 
 /** A single component covered by the `ocp update` check/upgrade flow. */
 interface ComponentCheck {
@@ -92,7 +93,9 @@ export async function executeUpdate(repoDir: string, passthrough: string[]): Pro
   try {
     const res = await fetch(RAW_VERSION_URL, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-    remoteVersion = (await res.text()).trim();
+    const parsed = parseVersionPayload(await res.text());
+    if (!parsed) throw new Error('Empty version payload');
+    remoteVersion = parsed;
   } catch (err) {
     console.error(`✗ Version check failed: ${(err as Error).message ?? err}`);
     console.error('  Network trouble? Run `ocp upgrade` directly, or update via `git pull`.');
@@ -437,17 +440,7 @@ function resolveTargetDir(passthrough: string[]): string {
   return getDefaultTargetDir();
 }
 
-/** Semver-aware comparison: true when a > b (non-numeric segments sort last). */
-function isNewerVersion(a: string, b: string): boolean {
-  const pa = a.split('.').map((s) => parseInt(s, 10));
-  const pb = b.split('.').map((s) => parseInt(s, 10));
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = Number.isNaN(pa[i]) ? Number.MAX_SAFE_INTEGER : pa[i] ?? 0;
-    const y = Number.isNaN(pb[i]) ? Number.MAX_SAFE_INTEGER : pb[i] ?? 0;
-    if (x !== y) return x > y;
-  }
-  return false;
-}
+/** Semver-aware comparison lives in manifest.ts — shared with the installer. */
 
 /**
  * `ocp upgrade` — fetch the latest release and reinstall, mirroring the
@@ -499,13 +492,26 @@ export async function executeUpgrade(repoDir: string, passthrough: string[]): Pr
         const extracted = fs
           .readdirSync(tmpRoot)
           .map((e) => path.join(tmpRoot, e))
-          .find((p) => fs.statSync(p).isDirectory() && fs.existsSync(path.join(p, 'install', 'VERSION')));
+          .find(
+            (p) =>
+              fs.statSync(p).isDirectory() &&
+              (fs.existsSync(path.join(p, 'install', 'version.json')) ||
+                fs.existsSync(path.join(p, 'install', 'VERSION')))
+          );
         if (!extracted) {
           console.error('✗ The release archive has an unexpected layout.');
           return 1;
         }
 
-        const remoteVersion = fs.readFileSync(path.join(extracted, 'install', 'VERSION'), 'utf8').trim();
+        // version.json is authoritative; install/VERSION covers transitional archives.
+        const vjPath = path.join(extracted, 'install', 'version.json');
+        const remoteVersion = fs.existsSync(vjPath)
+          ? parseVersionPayload(fs.readFileSync(vjPath, 'utf8')) ?? ''
+          : fs.readFileSync(path.join(extracted, 'install', 'VERSION'), 'utf8').trim();
+        if (!remoteVersion) {
+          console.error('✗ Could not determine the release version.');
+          return 1;
+        }
         const repoVersion = getCurrentRepoVersion(repoDir);
         if (isNewerVersion(remoteVersion, repoVersion)) {
           console.log(`Overlaying v${remoteVersion} onto ${repoDir}...`);
@@ -567,7 +573,7 @@ async function probeRemoteVersion(): Promise<string | null> {
   try {
     const res = await fetch(RAW_VERSION_URL, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
-    return (await res.text()).trim() || null;
+    return parseVersionPayload(await res.text());
   } catch {
     return null;
   }

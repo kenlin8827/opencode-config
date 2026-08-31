@@ -1,3 +1,6 @@
+# Deduplicated union of every manifest below the supported floor (minVersion),
+# compacted by `ocp generate`. Per-version attribution is intentionally lost.
+# Do not edit by hand.
 agents/advisor.md
 agents/architect.md
 agents/build.md
@@ -20,6 +23,7 @@ agents/rust-dev.md
 agents/security.md
 agents/tech-writer.md
 agents/vision.md
+dbhub.toml
 instructions/coding-principles.md
 instructions/comment-strategy.md
 instructions/output-protocol.md
@@ -29,6 +33,8 @@ instructions/sql-migration.md
 instructions/test-scope.md
 instructions/verification-honesty.md
 opencode.jsonc
+opencode.template.jsonc
+package.json
 plugins/adr-guard.ts
 plugins/adr-guard/adr-engine.ts
 plugins/adr-guard/adr-guard-announce.ts
@@ -96,6 +102,7 @@ plugins/grill/grill-with-docs.ts
 plugins/handoff.ts
 plugins/handoff/handoff.md
 plugins/handoff/handoff.ts
+plugins/i18n.ts
 plugins/md-to-docx.ts
 plugins/md-to-docx/assets/reference.docx
 plugins/md-to-docx/command.ts
@@ -122,6 +129,7 @@ plugins/ocp/ocp-runtime.ts
 plugins/openrtk.ts
 plugins/openrtk/index.ts
 plugins/openrtk/rewrite.ts
+plugins/profile-wizard.ts
 plugins/project-manager.ts
 plugins/project-manager/project-manager-announce.ts
 plugins/project-manager/project-manager-command.ts
@@ -137,6 +145,9 @@ plugins/project-manager/templates/git-commits.md
 plugins/project-manager/templates/opencode.jsonc
 plugins/project-profiler.ts
 plugins/project-profiler/project-profiler.ts
+plugins/project-wizard.ts
+plugins/provider-wizard.ts
+plugins/queue-manager.ts
 plugins/quick-dev.ts
 plugins/quick-dev/quick-dev.md
 plugins/quick-dev/quick-dev.ts
@@ -151,7 +162,9 @@ plugins/sdd/sdd-system-inject.ts
 plugins/sdd/sdd.ts
 plugins/shared/assets/mermaid.min.js
 plugins/shared/mermaid-renderer.ts
+plugins/shared/opencode-config.ts
 plugins/shared/opencode-prime.ts
+plugins/sidebar-status.ts
 plugins/smart-title.ts
 plugins/smart-title/smart-title.ts
 plugins/tui/i18n.ts
@@ -202,7 +215,10 @@ profiles/zhipuai-coding-plan.json
 providers/antigravity-router.json
 providers/claude-code-router.json
 providers/codex-router.json
+providers/llm-router.json
 providers/qoder-router.json
+scripts/capture-dashboard-screenshot.ts
+scripts/capture-wizard-screenshot.ts
 scripts/serena-workspace-daemon.mjs
 tiers.json
 tui.json

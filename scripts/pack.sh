@@ -6,7 +6,7 @@
 #   opencode-prime-<version>.zip       (for Windows)
 #
 # Each archive contains:
-#   install/VERSION
+#   install/version.json
 #   install/options.jsonc
 #   install/install.sh
 #   install/install.ps1
@@ -30,6 +30,13 @@ INST_DIR="$REPO_ROOT/install/versions"
 # --- read version --------------------------------------------------------
 
 read_version() {
+    # version.json is authoritative; a legacy install/VERSION is tolerated as fallback.
+    local vj="$REPO_ROOT/install/version.json"
+    if [[ -f "$vj" ]]; then
+        local v
+        v="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$vj" | head -n 1 | tr -d ' \r')"
+        if [[ -n "$v" ]]; then echo "$v"; return; fi
+    fi
     if [[ -f "$VERSION_FILE" ]]; then
         head -1 "$VERSION_FILE" | tr -d '\r\n '
     else

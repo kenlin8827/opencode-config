@@ -12,7 +12,7 @@
       2. Content integrity — SHA256 of every manifest file inside the
          archive must match the repository working tree.
 
-    Reads install/VERSION to pick the version, exactly like pack.ps1.
+    Reads install/version.json (falling back to a legacy install/VERSION) to pick the version, exactly like pack.ps1.
     Run this after scripts/pack.ps1 and before publishing a release.
 
 .PARAMETER DistDir
@@ -35,7 +35,15 @@ $InstDir = Join-Path $RepoRoot 'install/versions'
 # --- read version ---------------------------------------------------------
 
 function Read-Version {
-    if (-not (Test-Path $VersionFile)) { throw "missing install/VERSION" }
+    # version.json is authoritative; a legacy install/VERSION is tolerated as fallback.
+    $versionJson = Join-Path $RepoRoot 'install/version.json'
+    if (Test-Path $versionJson) {
+        try {
+            $v = ((Get-Content $versionJson -Raw) | ConvertFrom-Json).version
+            if ($v) { return "$v".Trim() }
+        } catch { }
+    }
+    if (-not (Test-Path $VersionFile)) { throw "missing install/version.json or install/VERSION" }
     ((Get-Content $VersionFile -Raw) -replace '[\r\n\s]', '')
 }
 
@@ -67,6 +75,12 @@ New-Item -ItemType Directory -Path $Work | Out-Null
 
 $failures = 0
 
+# --force-local keeps Windows absolute paths (D:\...) from being parsed as
+# GNU tar remote-host syntax; bsdtar (Windows 10+ system32) rejects the flag,
+# so probe for support instead of hard-coding it.
+$tarCompat = @()
+if ((& tar --help 2>&1 | Out-String) -match 'force-local') { $tarCompat += '--force-local' }
+
 function Verify-Archive([string]$archive, [string]$extractDir) {
     $script:failures += 0
     if (-not (Test-Path $archive)) {
@@ -78,7 +92,7 @@ function Verify-Archive([string]$archive, [string]$extractDir) {
         Expand-Archive -Path $archive -DestinationPath $extractDir -Force
     } else {
         New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-        tar --force-local -xzf $archive -C $extractDir
+        tar @tarCompat -xzf $archive -C $extractDir
         if ($LASTEXITCODE -ne 0) { throw "failed to extract $archive" }
     }
 

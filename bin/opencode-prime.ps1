@@ -33,7 +33,7 @@
       desktop | ui    Launch the OpenChamber native desktop app
       session clean   Delete old sessions via `opencode session delete`
       auth open       Open OpenCode's auth.json in the default editor (creates it if missing)
-      version         Print the repo's install/VERSION
+      version         Print the repo's current version
       help            Print this help
 
     No arguments = launch the OpenCode terminal UI (same as `tui`).
@@ -346,7 +346,12 @@ switch ($Subcommand.ToLowerInvariant()) {
         exit $LASTEXITCODE
     }
     { $_ -in @('version', '--version', '-v') } {
-        Get-Content (Join-Path $RepoRoot 'install/VERSION')
+        $versionJson = Join-Path $RepoRoot 'install/version.json'
+        if (Test-Path $versionJson) {
+            ((Get-Content $versionJson -Raw) | ConvertFrom-Json).version
+        } else {
+            Get-Content (Join-Path $RepoRoot 'install/VERSION')
+        }
         break
     }
     default {

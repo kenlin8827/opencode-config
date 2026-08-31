@@ -19,7 +19,7 @@ After a one-time `register` (or a default install), the repo provisioned two glo
 | `ocp project index` | | Manually refresh existing code-intelligence indexes in the current project |
 | `ocp project sync` | | Append newly added template switches to the existing project config (append-only, never overwrites) |
 | `ocp install` | | Apply the current version's manifest to the target (`~/.config/opencode` by default) |
-| `ocp update` | | Check the suite (newest `install/VERSION` on `main` vs what is installed in `~/.config/opencode`) **and** the companion tools (`opencode`, `openchamber`). Every available update is selected by default — on an interactive terminal press Enter to apply it or `n` to skip it. Add `-y` to apply ALL pending updates without prompting (safe for scripts/cron); add `--check-only` to probe versions and apply nothing (this is also the default when run non-interactively without `-y`) |
+| `ocp update` | | Check the suite (newest `install/version.json` on `main` vs what is installed in `~/.config/opencode`) **and** the companion tools (`opencode`, `openchamber`). Every available update is selected by default — on an interactive terminal press Enter to apply it or `n` to skip it. Add `-y` to apply ALL pending updates without prompting (safe for scripts/cron); add `--check-only` to probe versions and apply nothing (this is also the default when run non-interactively without `-y`) |
 | `ocp upgrade` | | Pull the latest release and re-apply the installer: `git pull --ff-only` for git clones, otherwise download `opencode-prime-latest.{tar.gz,zip}` from GitHub Releases (same source as the one-liner quick install; set `OCP_RELEASE_MIRROR` to a ghproxy-style prefix as fallback). Add `--force` to re-apply even when already up to date |
 | `ocp init` | | Backup + clear the entire target directory for a fresh start |
 | `ocp uninstall` | | Remove the installed version's manifest files from the target |
@@ -33,7 +33,7 @@ After a one-time `register` (or a default install), the repo provisioned two glo
 | `ocp session delete` | | Delete a session by ID (passthrough to `opencode session delete`) |
 | `ocp session clean` | | Delete old sessions via `opencode session delete`. Usage: `ocp session clean --days 7 [--dry-run] [-y] [--project <id|name>] [--directory <path>]` |
 | `ocp auth open` | | Open OpenCode's `auth.json` in the default editor; creates an empty file if it does not exist |
-| `ocp version` | `ocp --version`, `ocp -v` | Print the repo's `install/VERSION` |
+| `ocp version` | `ocp --version`, `ocp -v` | Print the repo's current version (`install/version.json`) |
 | `ocp help` | `ocp -h`, `ocp --help` | Print the command help |
 | *(anything else)* | | Falls through to `install.ps1` / `install.sh`, so unknown flags and future subcommands keep working after an upgrade |
 

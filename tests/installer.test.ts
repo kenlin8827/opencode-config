@@ -13,9 +13,12 @@ import {
   updateOptionsJsoncInPlace,
 } from '../install/src/merger';
 import {
+  collectHistoricalShippedFiles,
   collectShippedFiles,
   generateManifest,
+  getHistoryManifestPath,
   readManifest,
+  readVersionJson,
 } from '../install/src/manifest';
 import {
   executeInstall,
@@ -222,6 +225,19 @@ if (manifestRes.count === 0) throw new Error('Manifest is empty');
 const manifestFiles = readManifest(manifestRes.path);
 if (!manifestFiles || manifestFiles.length === 0) throw new Error('Failed to read manifest');
 console.log(`✓ Manifest generated (${manifestRes.count} files)`);
+
+// 4b. version.json + compacted historical manifest
+const versionInfo = readVersionJson(repoDir);
+if (!versionInfo || versionInfo.version !== version) throw new Error('version.json does not match repo version');
+const histAll = collectHistoricalShippedFiles(repoDir, new Set());
+const histSkipped = collectHistoricalShippedFiles(repoDir, new Set([version]));
+if (histSkipped.length > histAll.length) throw new Error('historical manifest skip logic broken');
+if (fs.existsSync(getHistoryManifestPath(repoDir))) {
+  const historical = readManifest(getHistoryManifestPath(repoDir));
+  if (!historical || historical.length === 0) throw new Error('history.manifest.txt is empty');
+  if (!new Set(histAll).has(historical[0])) throw new Error('history.manifest.txt entries missing from the union');
+}
+console.log(`✓ version.json / history compaction passed (${histAll.length} historical entries)`);
 
 // 5. Execution: Full Install with custom tiers
 console.log('\nTest 5: Full Installation to Isolated Target');

@@ -19,7 +19,7 @@
 | `ocp session delete` | | 按 ID 删除会话（透传 `opencode session delete`） |
 | `ocp session clean` | | 按日期批量清理旧会话。用法：`ocp session clean --days 7 [--dry-run] [-y] [--project <id|name>] [--directory <path>]` |
 | `ocp install` | | 将当前版本的清单应用到目标目录（默认 `~/.config/opencode`） |
-| `ocp update` | | 检查套件本体（`main` 分支最新 `install/VERSION` 对比 `~/.config/opencode` 已安装版本）**和**配套工具（`opencode`、`openchamber`）。所有可用更新默认全部勾选——交互终端中按回车应用、输 `n` 跳过；加 `-y` 可不经确认自动应用全部待更新项（适合脚本/定时任务）；加 `--check-only` 则只探测版本、不做任何修改（非交互运行且未加 `-y` 时默认如此） |
+| `ocp update` | | 检查套件本体（`main` 分支最新 `install/version.json` 对比 `~/.config/opencode` 已安装版本）**和**配套工具（`opencode`、`openchamber`）。所有可用更新默认全部勾选——交互终端中按回车应用、输 `n` 跳过；加 `-y` 可不经确认自动应用全部待更新项（适合脚本/定时任务）；加 `--check-only` 则只探测版本、不做任何修改（非交互运行且未加 `-y` 时默认如此） |
 | `ocp upgrade` | | 拉取最新发布包并重新应用安装器：git 克隆走 `git pull --ff-only`，否则从 GitHub Releases 下载 `opencode-prime-latest.{tar.gz,zip}`（与一键安装同源；官方源失败时可用 `OCP_RELEASE_MIRROR` 设置 ghproxy 类镜像前缀回退）。加 `--force` 可在版本相同时强制重放 |
 | `ocp init` | | 备份并清空整个目标目录，全新开始 |
 | `ocp uninstall` | | 从目标目录移除当前版本清单中的文件 |
@@ -30,7 +30,7 @@
 | `ocp wizard` | `ocp menu` | 交互式 TUI 安装向导（首次安装与重新配置） |
 | `ocp dashboard` | `ocp cc`、`ocp matrix` | 单屏 TUI 全景控制台 —— 切换 MCP 服务 / 插件 / RTK、循环调整 Agent 模型梯队，然后一键安装 |
 | `ocp auth open` | | 用默认编辑器打开 OpenCode 的 `auth.json`；文件不存在时会自动创建一个空文件 |
-| `ocp version` | `ocp --version`、`ocp -v` | 打印仓库的 `install/VERSION` |
+| `ocp version` | `ocp --version`、`ocp -v` | 打印仓库当前版本（`install/version.json`） |
 | `ocp help` | `ocp -h`、`ocp --help` | 打印命令帮助 |
 | *（其他任意输入）* | | 透传给 `install.ps1` / `install.sh`，因此未知参数与未来新增子命令在升级后依然可用 |
 

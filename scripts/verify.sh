@@ -10,7 +10,8 @@
 #   2. Content integrity — sha256 of every manifest file inside the
 #      archive must match the repository working tree.
 #
-# Reads install/VERSION to pick the version, exactly like pack.sh.
+# Reads install/version.json (falling back to install/VERSION) to pick the
+# version, exactly like pack.sh.
 # Run this after scripts/pack.sh and before publishing a release.
 #
 # Usage: bash scripts/verify.sh [dist-dir]
@@ -25,8 +26,16 @@ INST_DIR="$REPO_ROOT/install/versions"
 
 # --- read version ---------------------------------------------------------
 
-[[ -f "$VERSION_FILE" ]] || { echo "missing install/VERSION" >&2; exit 1; }
-VER="$(tr -d '\r\n ' < "$VERSION_FILE")"
+# version.json is authoritative; a legacy install/VERSION is tolerated as fallback.
+VERSION_JSON="$REPO_ROOT/install/version.json"
+VER=""
+if [[ -f "$VERSION_JSON" ]]; then
+    VER="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$VERSION_JSON" | head -n 1 | tr -d ' \r')"
+fi
+if [[ -z "$VER" ]]; then
+    [[ -f "$VERSION_FILE" ]] || { echo "missing install/version.json or install/VERSION" >&2; exit 1; }
+    VER="$(tr -d '\r\n ' < "$VERSION_FILE")"
+fi
 MANIFEST="$INST_DIR/$VER.manifest.txt"
 [[ -f "$MANIFEST" ]] || { echo "missing manifest for version $VER: $MANIFEST" >&2; exit 1; }
 

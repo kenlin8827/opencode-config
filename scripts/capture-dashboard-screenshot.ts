@@ -351,8 +351,16 @@ function getTerminalHtml(lang: 'zh' | 'en', version: string): string {
 
 async function main() {
   const repoDir = process.cwd();
-  const versionFile = path.join(repoDir, 'install', 'VERSION');
-  const version = fs.existsSync(versionFile) ? fs.readFileSync(versionFile, 'utf8').trim() : '1.5.0';
+  const versionJson = path.join(repoDir, 'install', 'version.json');
+  let version = '1.5.0';
+  if (fs.existsSync(versionJson)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(versionJson, 'utf8'));
+      if (parsed && typeof parsed.version === 'string' && parsed.version.trim()) version = parsed.version.trim();
+    } catch {
+      // keep fallback
+    }
+  }
 
   const outDir = path.join(repoDir, 'docs', 'public', 'images');
   fs.mkdirSync(outDir, { recursive: true });

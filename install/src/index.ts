@@ -14,7 +14,7 @@ import {
   getDefaultTargetDir,
   loadEffectiveOptions,
 } from './installer';
-import { generateManifest } from './manifest';
+import { compactHistoricalManifests, generateManifest } from './manifest';
 import { unregisterShim, runGlobalRegistration } from './shim';
 import { runInteractiveWizard } from './wizard';
 import { runTuiDashboard } from './dashboard';
@@ -336,7 +336,8 @@ Actions:
                    status    report whether the user's herdr config exists
                    path      print the path of the bundled template
   status         Check installed version and comparison with current repo
-  generate     Generate manifest for current repo VERSION
+    generate     Generate manifest for the current version.json and compact
+                     manifests below the supported floor into history.manifest.txt
   init         Backup and reset the target configuration directory
   uninstall    Safely remove installed managed configuration files
   register     Register global 'opencode-prime' & 'ocp' command shims into PATH
@@ -491,9 +492,13 @@ function resolveRepoDir(): string {
   // Last resort: cwd
   candidates.push(process.cwd());
 
-  // Return the first candidate that contains install/VERSION
+  // Return the first candidate that contains install/version.json
+  // (a legacy install/VERSION also qualifies, for pre-migration repos)
   for (const c of candidates) {
-    if (fs.existsSync(path.join(c, 'install', 'VERSION'))) {
+    if (
+      fs.existsSync(path.join(c, 'install', 'VERSION')) ||
+      fs.existsSync(path.join(c, 'install', 'version.json'))
+    ) {
       return c;
     }
   }
@@ -626,6 +631,10 @@ async function main() {
     case 'generate': {
       const res = generateManifest(repoDir, curVersion);
       console.log(`Generated manifest for v${curVersion} (${res.count} files) -> ${res.path}`);
+      const compact = compactHistoricalManifests(repoDir);
+      if (compact.archived.length > 0) {
+        console.log(`Compacted ${compact.archived.length} manifest(s) below the supported floor -> ${compact.historyPath}`);
+      }
       break;
     }
     case 'init': {

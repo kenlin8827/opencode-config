@@ -263,22 +263,37 @@ flash  (fastest/cheapest)  <=  standard  (general workhorse)  <=  pro  (stronges
 
 | Path                                  | Role                                |
 | ------------------------------------- | ----------------------------------- |
-| `install/VERSION`                     | Current version string (first line) |
-| `install/versions/<ver>.manifest.txt` | One repo-relative path per line     |
+| `install/version.json`                | Authoritative version info: `version` (current) + `minVersion` (supported floor) |
+| `install/versions/<ver>.manifest.txt` | One repo-relative path per line (loose for versions ≥ `minVersion`) |
+| `install/versions/history.manifest.txt` | Deduplicated union of every manifest below `minVersion` (rebuilt by `ocp generate`) |
 | `<target>/.CONFIG_VERSION`            | Records the active version          |
 
 ### Iron rule: never modify historical manifests
 
 **NEVER edit `install/versions/<ver>.manifest.txt` for any version other than
-the current one** (the version in `install/VERSION`). Historical manifests are
-immutable records of what each version shipped — they are used by the
-upgrade path to clean up old files. Tampering with them breaks uninstall and
-upgrade correctness for users on those older versions.
+the current one** (the `version` field in `install/version.json`), and never
+edit `history.manifest.txt` by hand. Historical manifests — loose or compacted
+— are immutable records of what prior versions shipped; the upgrade path
+uses them to clean up old files. Tampering with them breaks upgrade
+correctness for users on those older versions.
 
 When a file is removed or renamed:
-1. Edit **only** the current version's manifest (or run `install.ps1 generate`).
-2. Bump `install/VERSION`.
+1. Edit **only** the current version's manifest (or run `ocp generate`).
+2. Bump `version` in `install/version.json`.
 3. Leave all prior manifests untouched.
+
+### Manifest compaction (supported floor)
+
+`ocp generate` merges every loose manifest strictly below `minVersion` into a
+single deduplicated `install/versions/history.manifest.txt` and deletes the
+loose copies. Install-time stale-file cleanup unions loose manifests and the
+history file. Per-version attribution below the floor is intentionally
+dropped; uninstalling a below-floor install therefore cleans against the
+history union (a superset of every shipped set — entries absent on disk are
+skipped), falling back to a live repo scan only when `install/versions/` is
+missing entirely. Upgrading from below `minVersion` still works but runs with
+a best-effort warning. Raising `minVersion` only takes effect on the next
+`generate`.
 
 ## What gets shipped
 

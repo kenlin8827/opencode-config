@@ -9,7 +9,7 @@
       opencode-prime-<version>.zip       (for Windows)
 
     Each archive contains:
-      install/VERSION
+      install/version.json
       install/options.jsonc
       install/install.sh
       install/install.ps1
@@ -51,6 +51,14 @@ $InstDir = Join-Path $RepoRoot 'install/versions'
 # --- read version --------------------------------------------------------
 
 function Read-Version {
+    # version.json is authoritative; a legacy install/VERSION is tolerated as fallback.
+    $versionJson = Join-Path $RepoRoot 'install/version.json'
+    if (Test-Path $versionJson) {
+        try {
+            $v = ((Get-Content $versionJson -Raw) | ConvertFrom-Json).version
+            if ($v) { return "$v".Trim() }
+        } catch { }
+    }
     if (Test-Path $VersionFile) {
         return (Get-Content $VersionFile -TotalCount 1).Trim()
     }
@@ -179,10 +187,15 @@ $buildZip = -not $TarOnly
 $primeTarName = "opencode-prime-$ver.tar.gz"
 $primeZipName = "opencode-prime-$ver.zip"
 
+# --force-local keeps Windows absolute paths (D:\...) from being parsed as
+# GNU tar remote-host syntax; bsdtar (Windows 10+ system32) rejects the flag,
+# so probe for support instead of hard-coding it.
+$tarCompat = @()
+if ((& tar --help 2>&1 | Out-String) -match 'force-local') { $tarCompat += '--force-local' }
+
 if ($buildTar) {
     $tarPath = Join-Path $OutDir $primeTarName
-    # --force-local: Windows absolute paths (D:\...) aren't tar remote-host syntax
-    & tar --force-local -czf $tarPath -C $stage.FullName "opencode-prime-$ver"
+    & tar @tarCompat -czf $tarPath -C $stage.FullName "opencode-prime-$ver"
     if ($LASTEXITCODE -ne 0) { throw "tar failed (exit $LASTEXITCODE)" }
     Write-Host "built: $tarPath"
 }

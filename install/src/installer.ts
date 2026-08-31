@@ -5,10 +5,13 @@ import { execSync, spawnSync } from 'node:child_process';
 import { CliArgs, InstallOptions } from './types';
 import { deployHerdrConfig } from './herdr-config';
 import {
+  collectHistoricalShippedFiles,
   collectShippedFiles,
   generateManifest,
   getManifestPath,
+  isNewerVersion,
   readManifest,
+  readVersionJson,
 } from './manifest';
 import {
   extractPreserveBag,
@@ -45,11 +48,17 @@ export function getDefaultTargetDir(): string {
 }
 
 export function getCurrentRepoVersion(repoDir: string): string {
+  // install/version.json is the single source of truth. A legacy single-line
+  // install/VERSION is tolerated as fallback for pre-migration repo layouts.
+  const versionJson = path.join(repoDir, 'install', 'version.json');
+  const info = readVersionJson(repoDir);
+  if (info) return info.version;
   const versionFile = path.join(repoDir, 'install', 'VERSION');
   if (fs.existsSync(versionFile)) {
-    return fs.readFileSync(versionFile, 'utf8').trim();
+    const v = fs.readFileSync(versionFile, 'utf8').trim();
+    if (v) return v;
   }
-  throw new Error(`Missing version file: ${versionFile}`);
+  throw new Error(`Missing version file: ${versionJson}`);
 }
 
 export function getInstalledVersion(targetDir: string): string | null {
@@ -527,9 +536,14 @@ export function executeInstall(
   //   in the current one. Without this, removed agents/instructions/plugins
   //   accumulate in ~/.config/opencode/ across upgrades.
   //
-  //   We union every manifest *other than* the one matching installed.version
-  //   and curVersion — those two define the baseline of "what is currently
-  //   legitimately on disk" and must not be flagged as stale.
+  //   The historical source is the union of every loose manifest plus the
+  //   compacted history.manifest.txt, excluding only curVersion. The
+  //   installed version's manifest is deliberately INCLUDED: entries it
+  //   lists that the current version no longer ships are exactly the stale
+  //   files an upgrade must remove (curSet protects everything still
+  //   shipped). Unioning all versions — rather than a single-prev diff —
+  //   matches reality: the disk is the accumulation of every version ever
+  //   installed, not just the previous one.
   //
   //   This catches the add/remove/re-add/remove sequence (a file shipped in
   //   v0.9.0, dropped in v0.9.1, re-added in v0.9.2, dropped again in
@@ -537,30 +551,19 @@ export function executeInstall(
   //   version" case (installed.version === curVersion) where historical
   //   leftovers from older versions still need cleaning.
   //
-  //   Skipped only when (a) no previous version on disk (first install —
-  //   target is empty), or (b) install/versions/ is missing — same safety
-  //   net as manifest generation. providers/*.json is carved out: after
-  //   the first install that directory belongs to the user, mirroring the
+  //   Skipped only when no previous version is on disk (first install —
+  //   target is empty). providers/*.json is carved out: after the first
+  //   install that directory belongs to the user, mirroring the
   //   copyRepoFiles rule.
   const shippedFiles = collectShippedFiles(repoDir);
   const prevVer = getInstalledVersion(targetDir);
   if (prevVer) {
-    const versionsDir = path.join(repoDir, 'install', 'versions');
-    let historicalFiles: Set<string> | null = null;
-    if (fs.existsSync(versionsDir)) {
-      for (const entry of fs.readdirSync(versionsDir)) {
-        if (!entry.endsWith('.manifest.txt')) continue;
-        const v = entry.slice(0, -'.manifest.txt'.length);
-        // Skip both installed.version (baseline) and curVersion (what we're
-        // shipping now). Everything else is "historical, possibly stale".
-        if (v === prevVer || v === curVersion) continue;
-        const files = readManifest(path.join(versionsDir, entry)) ?? [];
-        if (files.length === 0) continue;
-        if (!historicalFiles) historicalFiles = new Set();
-        for (const f of files) historicalFiles.add(f);
-      }
+    const minVer = readVersionJson(repoDir)?.minVersion;
+    if (minVer && isNewerVersion(minVer, prevVer)) {
+      console.log(`⚠ Installed v${prevVer} is below the supported floor v${minVer} — upgrading on a best-effort basis.`);
     }
-    if (historicalFiles && historicalFiles.size > 0) {
+    const historicalFiles = collectHistoricalShippedFiles(repoDir, new Set([curVersion]));
+    if (historicalFiles.length > 0) {
       const curSet = new Set(shippedFiles);
       const userOwnsProviders = fs.existsSync(path.join(targetDir, 'installed.version'));
       let staleRemoved = 0;
@@ -682,7 +685,16 @@ export function executeUninstall(
   // uninstall cleanly).
   const installedVer = getInstalledVersion(targetDir);
   const manifestVer = installedVer ?? getCurrentRepoVersion(repoDir);
-  const manifest = readManifest(getManifestPath(repoDir, manifestVer)) ?? collectShippedFiles(repoDir);
+  // Exact per-version manifest first. When it has been compacted away (or
+  // never existed), fall back to the union of every historical manifest — a
+  // superset of what any version shipped, so nothing managed survives, and
+  // entries absent on disk are skipped by the loop below. Live repo scan is
+  // the last resort when install/versions/ is missing entirely.
+  let manifest = readManifest(getManifestPath(repoDir, manifestVer));
+  if (!manifest) {
+    const union = collectHistoricalShippedFiles(repoDir, new Set());
+    manifest = union.length > 0 ? union : collectShippedFiles(repoDir);
+  }
 
   let count = 0;
   for (const rel of manifest) {
