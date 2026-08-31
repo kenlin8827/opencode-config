@@ -12,7 +12,6 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `design-token-guard.ts` | Blocks writes with hardcoded colors/spacing/radius — keeps frontend code on design tokens |
 | `ai-slop-scanner.ts` | Warns about AI anti-patterns in frontend files (gradient soup, div soup) |
 | `metrics.ts` | Auto-records tool call metrics (duration, success, agent) as JSONL in `~/.config/opencode/.metrics/` |
-| `smart-title.ts` | Auto-generates concise session titles on idle — candidate chain from your opencode config (smart-title.jsonc override → flash tier `agent.explorer.model` → the session's own model → global model), no env vars; if every candidate fails it uses the first user question as the title, and only then steps back to opencode's built-in titling. Tweak via `~/.config/opencode/smart-title.jsonc` |
 | `auto-format.ts` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edits |
 | `auto-advisor-mode.ts` | `/auto-advisor` command, protocol injection, mode gating, red-team suppression |
 | `quick-dev.ts` | `/quick-dev` (and `/flash-dev`) command & protocol — Zero-review fast track: Direct in-session coding without delegation overhead |

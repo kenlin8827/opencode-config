@@ -291,7 +291,9 @@ function loadTierMap(): Record<string, string> {
 
 // ─── Profile application (same semantics as the former plugin) ──────
 // Validates tier ref format, then rewrites every agent whose tier
-// matches. Mixed providers are allowed. Root `model` tracks tier.standard.
+// matches. Mixed providers are allowed. Root `model` tracks tier.standard;
+// root `small_model` tracks tier.flash so opencode's native title pipeline
+// and other utility calls run on the cheap tier.
 // Also emits a merge patch (agent names → model) so the live path can
 // go through the server's global config API instead of a raw rewrite.
 
@@ -335,8 +337,11 @@ function applyProfile(
         count++
       }
     }
+    // Reserved tiers with no agent mapped yet are kept in the profile but
+    // skipped on apply instead of failing the whole profile.
     if (count === 0) {
-      throw new Error(`no agent currently uses tier ${tier}`)
+      details.push(`tier.${tier} → ${ref} (reserved — no agent assigned)`)
+      continue
     }
     if (tier === "standard") {
       config.model = ref
@@ -344,6 +349,17 @@ function applyProfile(
     }
     details.push(`tier.${tier} → ${ref} (${count} agent${count > 1 ? "s" : ""})`)
     updated += count
+  }
+
+  // Anchor opencode's utility model (small_model) to the flash tier — the
+  // host's native title pipeline (built-in `title` agent) and other small
+  // tasks then run on the cheapest configured model instead of the
+  // session's large one.
+  const smallRef = profile.tiers.flash
+  if (typeof smallRef === "string" && smallRef.includes("/")) {
+    config.small_model = smallRef
+    patch.small_model = smallRef
+    details.push(`small_model → ${smallRef} (tier.flash)`)
   }
 
   return { updated, details, patch }

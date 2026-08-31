@@ -1,4 +1,4 @@
-# install (v0.11.0)
+# install (v0.12.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 

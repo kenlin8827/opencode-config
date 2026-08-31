@@ -12,7 +12,6 @@
 | `design-token-guard.ts` | 阻止写入硬编码的颜色/间距/圆角 —— 让前端代码坚守设计令牌 |
 | `ai-slop-scanner.ts` | 警告前端文件中的 AI 反模式（渐变汤、div 汤等） |
 | `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
-| `smart-title.ts` | 会话空闲时自动生成精简标题 —— 候选链从 opencode 配置解析（smart-title.jsonc 覆盖 → flash 层 `agent.explorer.model` → 会话自身模型 → 全局模型），不依赖环境变量；全部候选失败时降级用首条用户提问作标题，最后才退位给 opencode 官方内置标题机制。可用 `~/.config/opencode/smart-title.jsonc` 微调 |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
 | `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：直接就地改码出结果（零调度中转，零审查等待） |
