@@ -137,7 +137,7 @@
     "idea": {
       "type": "remote",
       "url": "http://127.0.0.1:64342/stream",
-      "enabled": true
+      "enabled": false
     }
   },
   "agent": {

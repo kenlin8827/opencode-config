@@ -96,7 +96,7 @@
     // (IntelliJ / WebStorm / etc.) on 127.0.0.1:64342. No CLI to install;
     // enable the MCP server in the IDE first (Settings → Tools → MCP Server),
     // then flip this switch to connect.
-    "idea": true
+    "idea": false
   },
   // true = in opencode.jsonc's `plugin` array; false = dropped
   "plugin": {
