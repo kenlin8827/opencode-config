@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runTuiDashboard } from '../install/src/dashboard';
+import { readVersionJson } from '../install/src/manifest';
 
 const repoDir = path.resolve(__dirname, '..');
 
@@ -47,7 +48,9 @@ async function withFakeTerminal<T>(fn: (stdin: FakeStdin) => Promise<T>): Promis
   const oldTarget = process.env.OPENCODE_CONFIG_DIR;
   const targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocp-dashboard-input-'));
 
-  fs.writeFileSync(path.join(targetDir, 'installed.version'), fs.readFileSync(path.join(repoDir, 'install', 'VERSION'), 'utf8'));
+  const versionInfo = readVersionJson(repoDir);
+  if (!versionInfo) throw new Error('install/version.json missing or invalid');
+  fs.writeFileSync(path.join(targetDir, 'installed.version'), versionInfo.version + '\n');
   Object.defineProperty(process, 'stdin', { value: stdin, configurable: true });
   Object.defineProperty(process, 'stdout', { value: stdout, configurable: true });
   process.env.OPENCODE_CONFIG_DIR = targetDir;
@@ -64,15 +67,15 @@ async function withFakeTerminal<T>(fn: (stdin: FakeStdin) => Promise<T>): Promis
 }
 
 await withFakeTerminal(async (stdin) => {
-  const first = runTuiDashboard(repoDir, 'zh-CN', true);
+  const first = runTuiDashboard(repoDir, 'zh-CN');
   assert(stdin.listenerCount('keypress') === 0, 'dashboard should not install a readline keypress listener');
   assert(stdin.listenerCount('data') === 1, 'dashboard should listen for raw data input');
   stdin.emit('data', '\x1b');
   assert((await first).action === 'back', 'Esc returns to the wizard main menu');
   assert(stdin.listenerCount('data') === 0, 'dashboard removes its data listener on back');
-  assert(stdin.pauseCount === 0, 'dashboard keeps stdin open when returning to the wizard main menu');
+  assert(stdin.pauseCount === 1, 'dashboard pauses stdin on exit so the caller re-arms it deterministically');
 
-  const second = runTuiDashboard(repoDir, 'zh-CN', true);
+  const second = runTuiDashboard(repoDir, 'zh-CN');
   stdin.emit('data', '\x1b[B');
   stdin.emit('data', 'q');
   assert((await second).action === 'exit', 'dashboard remains responsive after re-entering from the main menu');
