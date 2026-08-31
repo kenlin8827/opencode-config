@@ -251,6 +251,29 @@ export function mcpProvisionPlan(
 }
 
 /**
+ * Run an install command string from install/tools.jsonc or an MCP `install`
+ * field. Shares the PowerShell-vs-POSIX split with `ocp update`:
+ *
+ * On Windows the registry stores PowerShell-syntax commands (`iwr`/`irm`/`iex`);
+ * `spawnSync(cmd, { shell: true })` routes through cmd.exe, which doesn't
+ * recognize those aliases ("'iwr' is not recognized"). Spawn PowerShell
+ * directly — prefer `pwsh` but fall back to the built-in Windows PowerShell
+ * 5.1 so this works on machines without PowerShell 7. Both expose iwr/irm/iex.
+ *
+ * On POSIX the commands are `curl | sh` pipelines, so let Node pick a shell.
+ */
+export function runInstallCommand(cmd: string) {
+  if (process.platform !== 'win32') {
+    return spawnSync(cmd, { stdio: 'inherit', timeout: 600000, shell: true });
+  }
+  const ps = isBinaryOnPath('pwsh') ? 'pwsh' : 'powershell';
+  return spawnSync(ps, ['-NoProfile', '-Command', cmd], {
+    stdio: 'inherit',
+    timeout: 600000,
+  });
+}
+
+/**
  * Provision CLIs for enabled MCP servers that declare an `install` field and
  * are missing from PATH. Never throws — failures are logged with manual
  * instructions so a missing CLI can't fail the config install.
@@ -258,11 +281,7 @@ export function mcpProvisionPlan(
 export function provisionMcpCli(repoDir: string, options: InstallOptions): void {
   for (const { name, install } of mcpProvisionPlan(repoDir, options)) {
     console.log(`🚀 [mcp] ${name} missing from PATH — provisioning via: ${install}`);
-    const res = spawnSync(install, {
-      stdio: 'inherit',
-      timeout: 600000,
-      shell: true,
-    });
+    const res = runInstallCommand(install);
     if (res.status !== 0 || res.error) {
       const detail = res.error ? res.error.message : `exit code ${res.status}`;
       console.log(`⚠ [mcp] ${name} automatic installation failed (${detail}). Install manually: ${install}`);
@@ -390,11 +409,7 @@ export function provisionTools(repoDir: string, options: InstallOptions): void {
       continue;
     }
     console.log(`🚀 [tool] ${name} missing from PATH — provisioning via: ${cmd}`);
-    const res = spawnSync(cmd, {
-      stdio: 'inherit',
-      timeout: 600000,
-      shell: true,
-    });
+    const res = runInstallCommand(cmd);
     if (res.error || res.status !== 0) {
       const detail = res.error ? res.error.message : `exit code ${res.status}`;
       const hint = def.url ? ` Manual install: ${def.url}` : '';

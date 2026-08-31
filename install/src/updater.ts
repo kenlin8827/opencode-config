@@ -11,6 +11,7 @@ import {
   isBinaryOnPath,
   loadToolRegistry,
   resolveInstallCommand,
+  runInstallCommand,
 } from './installer';
 
 const REPO_BASE = 'https://github.com/kenlin8827/opencode-prime';
@@ -227,31 +228,6 @@ function upgradeToolFromRegistry(repoDir: string, toolName: string): number {
   }
   console.log(`Running: ${cmd}`);
   return runInstallCommand(cmd).status ?? 1;
-}
-
-/**
- * Run an install/upgrade command string from install/tools.jsonc.
- *
- * On Windows the registry stores PowerShell-syntax commands (irm/iwr/iex);
- * `spawnSync(cmd, { shell: true })` routes through cmd.exe, which doesn't
- * recognize those aliases. Spawn PowerShell directly — prefer `pwsh` (the
- * project's default, see executeUpgrade below) but fall back to the
- * built-in Windows PowerShell 5.1 so this works on machines without
- * PowerShell 7. Both shells expose irm/iwr/iex and `-useb`, so either
- * fits the registry's commands.
- *
- * On POSIX the commands are POSIX-shell pipelines (`curl | sh`), so let
- * Node pick a shell.
- */
-function runInstallCommand(cmd: string) {
-  if (process.platform !== 'win32') {
-    return spawnSync(cmd, { stdio: 'inherit', timeout: 600000, shell: true });
-  }
-  const ps = isBinaryOnPath('pwsh') ? 'pwsh' : 'powershell';
-  return spawnSync(ps, ['-NoProfile', '-Command', cmd], {
-    stdio: 'inherit',
-    timeout: 600000,
-  });
 }
 
 /**
