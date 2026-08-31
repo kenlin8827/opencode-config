@@ -67,6 +67,13 @@ User
  │   │     test-scope), sql-migration (dba only)
  │   └── L2 skills/sdd-workflow — loaded on demand via the skill tool
  │
+ ├── Per-step visibility gating (agent `permission` denies in the template)
+ │     skills block: sdd-workflow visible only to build/plan/code/architect;
+ │     MCP tool surface (serena_* / codegraph_*, ~10.9k tok/step of tool
+ │     definitions) only to code-querying agents. Quantified by
+ │     scripts/measure-prompts.ts (real MCP handshake snapshot in
+ │     scripts/mcp-instructions.snapshot.json)
+ │
  └── Plugins (runtime enforcement & workflows — see "Plugin system")
      ├── npm plugins via `opencode.jsonc:plugin` (ponytail, qoder-bridge, …)
      ├── auto-discovered entries in `plugins/*.ts` (guards, collectors, barrels)

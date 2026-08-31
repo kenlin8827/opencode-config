@@ -41,13 +41,15 @@ Prompts follow a **disclosure-layer** model (details: `docs/core/prompt-layers.m
 
 ## 3. Release, Manifest & Packaging
 
-The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.**
+The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.** Manifests are **immutable per-version historical records**: `verify.ps1`/`verify.sh` fail if any historical manifest differs from git HEAD (the current version's manifest is exempt — it is the release in progress).
 
 ### Version Bump Steps
 
 1. Bump `version` in `install/version.json` (e.g. `0.7.0`). Raise `minVersion` only when you also want to compact older manifests into `install/versions/history.manifest.txt`. Sync `package.json` `version` + `install/README.md` title.
 2. Run `bun run install/src/index.ts generate` (or `ocp generate`) to regenerate the manifest and compact manifests below `minVersion`.
 3. Pre-release gate: `pwsh scripts/pack.ps1 && pwsh scripts/verify.ps1` (or `.sh` variants).
+
+> **Pitfall**: `generate` names its output file after the CURRENT value of `version.json`. Running it **before** step 1 silently overwrites the old version's manifest with today's file tree. Always bump first; if you spot a polluted historical manifest, restore it from the parent commit (`git show <parent>:<file> > <file>`).
 
 ### Full Release & Deploy Flow
 
