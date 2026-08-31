@@ -330,11 +330,23 @@ async function probeToolFromRegistry(name: string, def: ToolEntry): Promise<Comp
   const local = localBinaryVersion(def.binary);
 
   if (!local) {
+    // Still probe latest so the row shows what the user is missing instead of
+    // two `?` columns. Network blip falls through to the original message.
+    let latest: string | null = null;
+    if (def.update_check?.source) {
+      try {
+        latest = await fetchLatestFromSource(def.update_check.source);
+      } catch {
+        // swallow — original "not found on PATH" status still applies
+      }
+    }
     return {
       ...base,
       local: null,
-      latest: null,
-      status: 'not found on PATH (install via `ocp install` or set tools.' + name + ')',
+      latest,
+      status: latest
+        ? `not installed — latest is v${latest}; run \`ocp install\` or set tools.${name} = false`
+        : `not found on PATH (install via \`ocp install\` or set tools.${name})`,
     };
   }
   if (!def.update_check?.source) {
