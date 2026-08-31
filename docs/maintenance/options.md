@@ -55,6 +55,9 @@ Learn about installer commands, configuration options, token savings, and preser
        "gitnexus": false,
        // DBHub universal database gateway (PostgreSQL / MySQL / SQLite; needs npm)
        "dbhub": true,
+       // Headroom context compression (Apache 2.0; heavy install — uv + Python 3.13,
+       // first run downloads ONNX runtime + Kompress model; see core/mcp-servers)
+       "headroom": false,
        // JetBrains IDE bridge (enable MCP Server in IDE: Settings → Tools → MCP Server)
        "idea": true
      },

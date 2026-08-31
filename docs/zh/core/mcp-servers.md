@@ -43,6 +43,7 @@
 | **CodeGraph** | 代码知识图谱（默认） | MIT | `codegraph_explore` | 架构全貌、“X 是如何工作的”、完整调用链路、修改影响面（Blast radius） | 项目首次运行 `codegraph init`（或 `/project init`），之后由内置文件监控器**自动增量热同步** |
 | **GitNexus** | 深度代码图谱（可选） | PolyForm Noncommercial | Cypher 查询、聚类分析工具 | 复杂多仓库关系、执行任意 Cypher 图查询、流程可视化 | 大规模改动后手动执行 `gitnexus analyze`（或 `/project index`） |
 | **DBHub** | 通用数据库网关 | MIT (Bytebase) | `search_objects`, `execute_sql` | 连接 PostgreSQL / MySQL / SQLite / SQL Server / MariaDB，高效查询与元数据探测 | 按项目放置 `dbhub.toml`，支持 `${ENV_VAR}` 环境变量 |
+| **Headroom** | 上下文压缩（可选） | Apache 2.0 | `headroom_compress`, `headroom_retrieve`, `headroom_stats` | 输入侧省 token：在工具输出 / 日志 / RAG 片段到达 LLM 之前压缩，原文可经 CCR 按需取回 | 默认关闭；安装较重（uv + Python 3.13），首次运行需下载模型（见下文） |
 | **IDE** | JetBrains IDE 桥接 | — | IDE 原生工具 | 实时接入运行中的 IntelliJ / WebStorm 等 —— 文件编辑、代码导航、重构、运行配置 | 需在 IDE 中启用 MCP 服务器（Settings → Tools → MCP Server）；IDE 关闭后端点即失效 |
 
 ---
@@ -63,12 +64,19 @@
     "codegraph": true,  // 代码图谱（启用且本地缺失时，安装器自动通过 npm 全局安装）
     "gitnexus": false,  // 深度 Cypher 图谱（商业使用需注意 PolyForm 许可证）
     "dbhub": true,      // 数据库网关（启用且本地缺失时，安装器自动通过 npm 全局安装）
+    "headroom": false,  // 上下文压缩（安装较重 —— uv + Python 3.13）
     "idea": true        // JetBrains IDE 桥接（需先在 IDE 中启用 MCP 服务器）
   }
 }
 ```
 
 - **CLI 自动拉取**：运行 `pwsh install/install.ps1` 或 `./install/install.sh` 时，安装器检测到某 MCP 处于启用状态且本地 PATH 缺失该命令，会自动根据 `opencode.jsonc` 中声明的 `install` 指令完成 CLI 自动安装。
+
+#### Headroom 说明
+
+- **定位**：Headroom 是套件中唯一的输入侧省 token 机制 —— `rtk` 与 `ponytail` 已覆盖输出侧。MCP 模式下由 agent 按需调用 `headroom_compress`；压缩可逆（`headroom_retrieve` 可在 CCR 有效期内取回原文）。
+- **默认关闭的原因**：provisioning 执行 `uv tool install --python 3.13 "headroom-ai[all]"`，且首次运行还需下载 ONNX 运行时（cdn.pyke.io）与 Kompress 压缩模型（huggingface.co）。仅在接受这些下载的前提下启用。
+- **不要与 `headroom wrap opencode` 或 `headroom proxy` 并用**：二者都会改写由 OCP 管理的 agent / provider 配置（`mergeConfig` / `/profile apply` 管理同一份 `opencode.jsonc`），会互相覆盖。上面的 MCP 条目是受支持的集成面。
 
 ### 2. 运行时智能调度（`project-profiler` 插件）
 

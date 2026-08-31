@@ -55,6 +55,9 @@
        "gitnexus": false,
        // DBHub 通用数据库网关（PostgreSQL / MySQL / SQLite 等；需 npm）
        "dbhub": true,
+       // Headroom 上下文压缩（Apache 2.0；安装较重 —— uv + Python 3.13，
+       // 首次运行下载 ONNX 运行时 + Kompress 模型；详见 core/mcp-servers）
+       "headroom": false,
        // JetBrains IDE 桥接（需先在 IDE 中启用 MCP 服务器：Settings → Tools → MCP Server）
        "idea": true
      },

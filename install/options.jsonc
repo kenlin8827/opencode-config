@@ -90,6 +90,11 @@
     // Still needs per-project dbhub.toml + DSN (see opencode.template.jsonc) —
     // without one, dbhub just fails to connect at session start
     "dbhub": true,
+    // Local context compression (Apache 2.0) — input-side complement to
+    // rtk/ponytail. Heavy install: uv tool + Python 3.13, first run
+    // downloads ONNX runtime + Kompress model. Default off until real-world
+    // savings are proven (see opencode.template.jsonc)
+    "headroom": false,
     // JetBrains IDE MCP bridge — remote server exposed by the running IDE
     // (IntelliJ / WebStorm / etc.) on 127.0.0.1:64342. No CLI to install;
     // enable the MCP server in the IDE first (Settings → Tools → MCP Server),

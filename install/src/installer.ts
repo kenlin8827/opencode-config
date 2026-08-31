@@ -214,6 +214,14 @@ export function checkExternalTools(repoDir: string, options: InstallOptions): vo
       console.log('ℹ [mcp] dbhub tool not found on PATH');
     }
   }
+
+  if (options.mcp?.headroom) {
+    if (isBinaryOnPath('headroom')) {
+      console.log('✓ [mcp] headroom is installed');
+    } else {
+      console.log('ℹ [mcp] headroom tool not found on PATH');
+    }
+  }
 }
 
 /**

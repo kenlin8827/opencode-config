@@ -43,6 +43,7 @@ To eliminate these bottlenecks, this configuration integrates a **tiered Code In
 | **CodeGraph** | Code Knowledge Graph (Default) | MIT | `codegraph_explore` | High-level architecture, "How X works", complete call paths, blast radius / impact analysis | Run `codegraph init` (or `/project init`) once per repo; background watcher **auto-syncs on every save** |
 | **GitNexus** | Deep Graph Analysis (Optional) | PolyForm Noncommercial | Cypher queries, clustering | Multi-repo groups, arbitrary Cypher graph queries, cluster/process visualization | Re-index with `gitnexus analyze` (or `/project index`) after big changes |
 | **DBHub** | Universal DB Gateway | MIT (Bytebase) | `search_objects`, `execute_sql` | Unified gateway for PostgreSQL / MySQL / SQLite / SQL Server / MariaDB | Per-project `dbhub.toml` config supporting `${ENV_VAR}` interpolation |
+| **Headroom** | Context Compression (Optional) | Apache 2.0 | `headroom_compress`, `headroom_retrieve`, `headroom_stats` | Input-side token savings: compress tool outputs / logs / RAG chunks before they reach the LLM; originals retrievable via CCR | Disabled by default; heavy install (uv + Python 3.13) and first-run model download (see below) |
 | **IDE** | JetBrains IDE Bridge | — | IDE-native tools | Live access to the running IntelliJ / WebStorm / etc. — file editing, navigation, refactoring, run configs | IDE must be running with MCP server enabled (Settings → Tools → MCP Server); endpoint dies when IDE closes |
 
 ---
@@ -63,12 +64,19 @@ Manage active MCP servers in `install/options.jsonc`:
     "codegraph": true,  // Code knowledge graph (auto-installed via npm if missing)
     "gitnexus": false,  // Deep Cypher graph (check PolyForm license for commercial use)
     "dbhub": true,      // Universal DB gateway (auto-installed via npm if missing)
+    "headroom": false,  // Context compression (heavy install — uv + Python 3.13)
     "idea": true        // JetBrains IDE bridge (enable MCP Server in IDE first)
   }
 }
 ```
 
 - **Automatic CLI Provisioning**: When running `pwsh install/install.ps1` or `./install/install.sh`, if an enabled MCP CLI is missing from PATH, the installer automatically runs its `install` command (from `opencode.jsonc`) to provision it.
+
+#### Headroom Notes
+
+- **Scope**: Headroom is the only INPUT-side saver in the stack — `rtk` and `ponytail` already compress the output side. In MCP mode the agent calls `headroom_compress` on demand; compression is reversible (`headroom_retrieve` restores originals within the CCR TTL).
+- **Why default-off**: provisioning runs `uv tool install --python 3.13 "headroom-ai[all]"`, and the first run additionally downloads the ONNX runtime (cdn.pyke.io) and the Kompress compression model (huggingface.co). Enable only if you accept those downloads.
+- **Do NOT combine with `headroom wrap opencode` or `headroom proxy`**: both rewrite agent/provider configuration that OCP owns (`mergeConfig` / `/profile apply` manage the same `opencode.jsonc`), so they overwrite each other. The MCP entry above is the supported integration surface.
 
 ### 2. Runtime Profiling & Routing (`project-profiler` plugin)
 

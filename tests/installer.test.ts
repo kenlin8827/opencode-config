@@ -338,8 +338,12 @@ console.log(`✓ Install passed (${installRes.filesInstalled} files written, cus
 
 // 5b. MCP CLI provisioning plan
 console.log('\nTest 5b: MCP CLI Provisioning Plan');
-const provisionPlan = mcpProvisionPlan(repoDir, { mcp: { serena: true, codegraph: true, dbhub: true, gitnexus: false } });
+const provisionPlan = mcpProvisionPlan(repoDir, { mcp: { serena: true, codegraph: true, dbhub: true, gitnexus: false, headroom: false } });
 if (!Array.isArray(provisionPlan)) throw new Error('mcpProvisionPlan did not return an array');
+// Disabled entries must never reach the plan, regardless of install field or PATH state.
+if (provisionPlan.some((item) => item.name === 'headroom')) {
+  throw new Error('mcpProvisionPlan included disabled headroom entry');
+}
 // Serena is installed on this machine (verified by checkExternalTools), so it should not appear.
 // The plan should include only enabled MCPs that declare an install field and whose binary is missing.
 for (const item of provisionPlan) {
