@@ -57,8 +57,9 @@ import {
   readdirSync,
   renameSync,
   unlinkSync,
+  type Dirent,
 } from "node:fs"
-import { join } from "node:path"
+import { join, dirname } from "node:path"
 import { homedir } from "node:os"
 import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG } from "./i18n"
 
@@ -203,26 +204,37 @@ function writeConfigAtomic(path: string, data: OpenCodeConfig): void {
 function loadProfiles(): Map<string, Profile> {
   const profiles = new Map<string, Profile>()
   if (!existsSync(PROFILES_DIR)) return profiles
-  let files: string[]
+  collectProfiles(PROFILES_DIR, "", profiles)
+  return profiles
+}
+
+// Walk PROFILES_DIR recursively so profiles may be grouped into
+// subdirectories (e.g. profiles/opencode-go/deepseek.json). Profile keys
+// are subdir-relative names using "/" separators.
+function collectProfiles(dir: string, prefix: string, out: Map<string, Profile>): void {
+  let entries: Dirent[]
   try {
-    files = readdirSync(PROFILES_DIR)
+    entries = readdirSync(dir, { withFileTypes: true })
   } catch {
-    return profiles
+    return
   }
-  for (const file of files) {
-    if (!file.endsWith(".json")) continue
-    try {
-      const data = JSON.parse(
-        readFileSync(join(PROFILES_DIR, file), "utf-8"),
-      ) as Profile
-      if (data.tiers && typeof data.tiers === "object") {
-        profiles.set(file.replace(/\.json$/, ""), data)
+  for (const entry of entries) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) {
+      collectProfiles(join(dir, entry.name), rel, out)
+    } else if (entry.name.endsWith(".json")) {
+      try {
+        const data = JSON.parse(
+          readFileSync(join(dir, entry.name), "utf-8"),
+        ) as Profile
+        if (data.tiers && typeof data.tiers === "object") {
+          out.set(rel.replace(/\.json$/, ""), data)
+        }
+      } catch {
+        // skip invalid profiles silently
       }
-    } catch {
-      // skip invalid profiles silently
     }
   }
-  return profiles
 }
 
 function getActiveProfile(): string | null {
@@ -237,12 +249,14 @@ function setActiveProfile(name: string): void {
 }
 
 function profilePath(name: string): string {
-  return join(PROFILES_DIR, `${name}.json`)
+  // Nested names ("opencode-go/deepseek") map to subdirectory paths.
+  return join(PROFILES_DIR, ...name.split("/")) + ".json"
 }
 
 function writeProfileAtomic(name: string, profile: Profile): void {
-  if (!existsSync(PROFILES_DIR)) mkdirSync(PROFILES_DIR, { recursive: true })
   const path = profilePath(name)
+  const dir = dirname(path)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   if (existsSync(path)) writeFileSync(path + ".bak", readFileSync(path))
   writeFileSync(path + ".tmp", JSON.stringify(profile, null, 2) + "\n", "utf-8")
   renameSync(path + ".tmp", path)

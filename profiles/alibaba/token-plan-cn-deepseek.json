@@ -1,0 +1,10 @@
+{
+  "description": "Alibaba Token Plan (China) — deepseek-v4-flash-0731 carries both flash and standard tiers, deepseek-v4-pro-0813 handles pro and max tiers. qwen3.7-plus provides vision (image input). Requires ALIBABA_TOKEN_PLAN_API_KEY environment variable.",
+  "tiers": {
+    "flash": "alibaba-token-plan-cn/deepseek-v4-flash-0731",
+    "standard": "alibaba-token-plan-cn/deepseek-v4-flash-0731",
+    "pro": "alibaba-token-plan-cn/deepseek-v4-pro-0813",
+    "max": "alibaba-token-plan-cn/deepseek-v4-pro-0813",
+    "vision": "alibaba-token-plan-cn/qwen3.7-plus"
+  }
+}

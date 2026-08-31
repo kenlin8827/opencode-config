@@ -64,7 +64,12 @@ try {
     }
 
     $fail = 0
-    $profiles = Get-ChildItem $profilesDir -Filter '*.json' | Sort-Object Name
+    $profiles = Get-ChildItem $profilesDir -File -Recurse -Filter '*.json' | Sort-Object FullName
+    # Recursive fetch (profiles may live in vendor subdirectories); show the
+    # subdir-relative name so output stays unambiguous (e.g. opencode-go/deepseek).
+    function Get-ProfileName($p) {
+        return ($p.FullName.Substring($profilesDir.Length).TrimStart('\', '/')).Replace([System.IO.Path]::DirectorySeparatorChar, '/') -replace '\.json$', ''
+    }
     foreach ($pf in $profiles) {
         Copy-Item $template $cfg -Force
         $p = Get-Content -Raw $pf.FullName | ConvertFrom-Json -AsHashtable
@@ -73,7 +78,7 @@ try {
             Apply-ProfileInPlace $obj $p
             $obj | ConvertTo-Json -Depth 10 | Set-Content -Path $cfg -Encoding utf8NoBOM
         } catch {
-            Write-Output "[$($pf.BaseName)] FAIL apply: $_"
+            Write-Output "[$(Get-ProfileName $pf)] FAIL apply: $_"
             $fail++
             continue
         }
@@ -101,9 +106,9 @@ try {
             }
         }
         if ($errors.Count -eq 0) {
-            Write-Output "[$($pf.BaseName)] PASS ($($p.tiers.Count) tiers applied)"
+            Write-Output "[$(Get-ProfileName $pf)] PASS ($($p.tiers.Count) tiers applied)"
         } else {
-            Write-Output "[$($pf.BaseName)] FAIL"
+            Write-Output "[$(Get-ProfileName $pf)] FAIL"
             $errors | ForEach-Object { Write-Output "  - $_" }
             $fail++
         }
@@ -115,7 +120,7 @@ try {
         $p2 = Get-Content -Raw $pf2.FullName | ConvertFrom-Json -AsHashtable
         $missingTiers = @($tplTierRef.Keys | Where-Object { -not $p2.tiers.Contains($_) })
         if ($missingTiers.Count -gt 0) {
-            Write-Output "[$($pf2.BaseName)] FAIL coverage: missing tier(s) $($missingTiers -join ', ')"
+            Write-Output "[$(Get-ProfileName $pf2)] FAIL coverage: missing tier(s) $($missingTiers -join ', ')"
             $fail++
         }
     }
@@ -135,9 +140,9 @@ try {
             $p = Get-Content -Raw $pf.FullName | ConvertFrom-Json -AsHashtable
             $missing = @($p.tiers.Values | Where-Object { $available -notcontains $_ })
             if ($missing.Count -eq 0) {
-                Write-Output "[$($pf.BaseName)] all refs exist"
+                Write-Output "[$(Get-ProfileName $pf)] all refs exist"
             } else {
-                Write-Output "[$($pf.BaseName)] MISSING: $($missing -join ', ')"
+                Write-Output "[$(Get-ProfileName $pf)] MISSING: $($missing -join ', ')"
             }
         }
     }

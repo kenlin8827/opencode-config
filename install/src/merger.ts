@@ -122,15 +122,29 @@ export function readProfilesPreserve(targetDir: string): Record<string, string> 
   const saved: Record<string, string> = {};
   if (!fs.existsSync(pdir)) return saved;
 
-  const entries = fs.readdirSync(pdir);
-  for (const entry of entries) {
-    if (entry.endsWith('.json')) {
-      try {
-        const fullPath = path.join(pdir, entry);
-        saved[entry] = fs.readFileSync(fullPath, 'utf8');
-      } catch {}
+  // Walk recursively so profiles grouped in subdirectories (e.g.
+  // profiles/opencode-go/deepseek.json) are preserved too. Keys are
+  // subdir-relative paths with "/" separators.
+  const walk = (dir: string, prefix: string): void => {
+    let entries: { name: string; isDirectory: () => boolean }[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
     }
-  }
+    for (const entry of entries) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full, rel);
+      } else if (entry.name.endsWith('.json')) {
+        try {
+          saved[rel] = fs.readFileSync(full, 'utf8');
+        } catch {}
+      }
+    }
+  };
+  walk(pdir, '');
   return saved;
 }
 
@@ -143,8 +157,9 @@ export function restoreProfilesPreserve(targetDir: string, saved: Record<string,
 
   let restoredCount = 0;
   for (const [name, content] of Object.entries(saved)) {
-    const targetFile = path.join(pdir, name);
+    const targetFile = path.join(pdir, ...name.split('/'));
     if (!fs.existsSync(targetFile)) {
+      fs.mkdirSync(path.dirname(targetFile), { recursive: true });
       fs.writeFileSync(targetFile, content, 'utf8');
       restoredCount++;
     }
