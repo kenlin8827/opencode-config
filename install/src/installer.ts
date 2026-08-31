@@ -588,11 +588,11 @@ export function executeInstall(
   //     leave it alone (they can run `ocp herdr-config install --force`).
   if (effectiveOptions.tools?.herdr !== false) {
     const herdrCfg = deployHerdrConfig(repoDir, false);
-    if (herdrCfg.action === 'installed') {
+    if (herdrCfg.action === 'installed' || herdrCfg.action === 'merged') {
       console.log(`✓ [herdr-config] ${herdrCfg.message}`);
-    } else if (herdrCfg.action === 'skipped') {
+    } else if (herdrCfg.action === 'uptodate' || herdrCfg.action === 'skipped') {
       console.log(`ℹ [herdr-config] ${herdrCfg.message}`);
-    } else if (herdrCfg.action === 'failed') {
+    } else {
       console.log(`⚠ [herdr-config] ${herdrCfg.message}`);
     }
   }

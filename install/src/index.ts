@@ -47,10 +47,10 @@ function ensureAuthFile(): void {
 }
 
 /**
- * `ocp herdr-config install` — deploy the bundled config to
- * the user's herdr config dir. Non-destructive by default: if the target
- * already exists, the existing file is left untouched (and the user is
- * told so). Pass `args.force = true` to overwrite.
+ * `ocp herdr-config install` — deploy the bundled config to the user's
+ * herdr config dir. Merges on every install: existing keys are preserved,
+ * template keys missing from the user's file are appended. Pass
+ * `force = true` to overwrite with the template verbatim.
  */
 function executeHerdrConfigInstall(repoDir: string, force: boolean | undefined): number {
   const result = deployHerdrConfig(repoDir, !!force);
@@ -60,6 +60,8 @@ function executeHerdrConfigInstall(repoDir: string, force: boolean | undefined):
   } else if (result.action === 'skipped') {
     console.log(`ℹ ${result.message}`);
     console.log(`  To compare, see the bundled template at ${path.join(repoDir, HERDR_CONFIG_TEMPLATE)}.`);
+  } else if (result.action === 'uptodate') {
+    console.log(`ℹ ${result.message}`);
   } else {
     console.log(`✓ ${result.message}`);
     if (force) console.log('  (overwrote existing file because --force was set)');
