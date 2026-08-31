@@ -27,6 +27,12 @@ Minimum: every 3+ sentence response has ≥1 visual element.
 - [Inference] — derived from known info
 - [Assumption] — unverified → own section `## Assumptions (to confirm)`
 
+## Session language
+- **MUST** use the language of the latest substantive user request for responses and generated prose.
+- If the user mixes languages, use the dominant language; if unclear, use English.
+- Handoffs, plans, PRDs, ADRs, reports, and checkpoints **MUST** use that language for prose and headings.
+- Preserve code, paths, commands, frontmatter keys, protocol markers, and fixed machine-readable labels.
+
 > Labels are fixed English tokens (machine-parseable); content after each label **MUST** follow the user's language.
 
 ## Counterargument

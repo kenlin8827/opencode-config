@@ -6,6 +6,10 @@
 
 Produce ONE markdown handoff document and tell the user where it is. No coding work, no dispatching subagents, no follow-up implementation.
 
+## Language
+
+Before writing, determine the language of the latest substantive user request and follow `output-protocol.md` → Session language. Preserve frontmatter keys, paths, commands, agent names, and the paste-ready opener format.
+
 ## Arguments
 
 - Positional arg (optional): what the NEXT session will focus on. When provided, tailor the document — emphasize the relevant state, decisions, files, and next steps; trim everything unrelated.
@@ -79,4 +83,3 @@ suggested_command: "<command to run in next session>"
 ```
 Read <absolute path to handoff doc or .opencode/handoffs/latest.md> and continue from there.
 ```
-

@@ -17,6 +17,8 @@ SDD guarantees software quality and maintainability through a rigorous specifica
    - Got a straightforward fix or pre-approved plan? → Start directly with `/impl <task>`.
 3. **Interactive Stage Transitions (Triggered Phases Only)**: Upon completing an explicitly triggered phase, you **MUST** present the artifact summary and ask the user (using `ask_question` in Antigravity or selectable options in chat) how they want to proceed (Recommended next stage, Jump to another stage, or Finish). Do NOT prompt transition on non-SDD conversations.
 
+4. **Session Language**: Follow `output-protocol.md` → Session language. When a deterministic command creates an English scaffold, rewrite its human-readable prose and headings in that language before completing the artifact.
+
 ---
 
 ## 2. Phase Breakdown & Responsibilities
@@ -126,5 +128,3 @@ When `/sdd handoff [focus]` is invoked:
 3. **Save to Git-Safe Directory**: Write to `.opencode/handoffs/handoff-<project>-<timestamp>.md` (and update `.opencode/handoffs/latest.md`). If workspace is unavailable or not writable, fallback to OS Temp directory (`$env:TEMP` / `$TMPDIR`). Never pollute tracked repo files.
 4. **Output Paste-Ready Opener**: Provide relative/absolute path and a single-line command for the next session to resume effortlessly:
    `"Read .opencode/handoffs/latest.md and resume SDD workflow at /<next-phase>"`
-
-

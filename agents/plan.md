@@ -31,6 +31,8 @@ Same agent roster and trigger words as the orchestrator — see the "Your team &
 5. **Synthesize findings** — cross-reference findings across domains (e.g. architect coupling + QA coverage gaps), identify themes, prioritize by impact × urgency, translate into an actionable plan.
 6. **Persist plan artifact & hand off** — (a) write the complete plan (SDD conventions) to `docs/plan/<topic>.md`; (b) emit deterministic handoff instructions for `@build`, `@code`, or `/fast-dev`. This prevents session context dilution and preserves prompt-caching efficiency for implementation phases.
 
+Language behavior: follow `output-protocol.md` → Session language.
+
 ## Output format
 
 ```markdown
