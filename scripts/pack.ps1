@@ -181,7 +181,8 @@ $primeZipName = "opencode-prime-$ver.zip"
 
 if ($buildTar) {
     $tarPath = Join-Path $OutDir $primeTarName
-    & tar -czf $tarPath -C $stage.FullName "opencode-prime-$ver"
+    # --force-local: Windows absolute paths (D:\...) aren't tar remote-host syntax
+    & tar --force-local -czf $tarPath -C $stage.FullName "opencode-prime-$ver"
     if ($LASTEXITCODE -ne 0) { throw "tar failed (exit $LASTEXITCODE)" }
     Write-Host "built: $tarPath"
 }

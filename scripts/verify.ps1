@@ -78,7 +78,7 @@ function Verify-Archive([string]$archive, [string]$extractDir) {
         Expand-Archive -Path $archive -DestinationPath $extractDir -Force
     } else {
         New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-        tar -xzf $archive -C $extractDir
+        tar --force-local -xzf $archive -C $extractDir
         if ($LASTEXITCODE -ne 0) { throw "failed to extract $archive" }
     }
 
