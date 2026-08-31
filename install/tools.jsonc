@@ -43,7 +43,7 @@
       "url": "https://github.com/rtk-ai/rtk",
       "install": {
         "default": "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh",
-        "win32-x64": "irm https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.ps1 -useb | iex"
+        "win32-x64": "$cmd=Get-Command rtk -ErrorAction SilentlyContinue; $dst=if($cmd){$cmd.Source}else{Join-Path $env:USERPROFILE '.local\\bin\\rtk.exe'}; $dir=Split-Path $dst; if(-not (Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}; $tmp=Join-Path $env:TEMP ([Guid]::NewGuid().ToString('N').Substring(0,8)); New-Item -ItemType Directory -Path $tmp -Force|Out-Null; try{$zip=Join-Path $tmp 'rtk.zip'; Invoke-WebRequest -Uri 'https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-pc-windows-msvc.zip' -OutFile $zip -UseBasicParsing; Expand-Archive -Path $zip -DestinationPath $tmp -Force; Copy-Item -Path (Join-Path $tmp 'rtk.exe') -Destination $dst -Force} finally{Remove-Item -Path $tmp -Recurse -Force -ErrorAction SilentlyContinue}"
       },
       "update_check": {
         "source": {
@@ -52,7 +52,7 @@
         },
         "upgrade": {
           "default": "curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh",
-          "win32-x64": "irm https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.ps1 -useb | iex"
+          "win32-x64": "$cmd=Get-Command rtk -ErrorAction SilentlyContinue; $dst=if($cmd){$cmd.Source}else{Join-Path $env:USERPROFILE '.local\\bin\\rtk.exe'}; $dir=Split-Path $dst; if(-not (Test-Path $dir)){New-Item -ItemType Directory -Path $dir -Force|Out-Null}; $tmp=Join-Path $env:TEMP ([Guid]::NewGuid().ToString('N').Substring(0,8)); New-Item -ItemType Directory -Path $tmp -Force|Out-Null; try{$zip=Join-Path $tmp 'rtk.zip'; Invoke-WebRequest -Uri 'https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-pc-windows-msvc.zip' -OutFile $zip -UseBasicParsing; Expand-Archive -Path $zip -DestinationPath $tmp -Force; Copy-Item -Path (Join-Path $tmp 'rtk.exe') -Destination $dst -Force} finally{Remove-Item -Path $tmp -Recurse -Force -ErrorAction SilentlyContinue}"
         }
       }
     },
