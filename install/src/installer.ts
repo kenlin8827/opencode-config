@@ -440,7 +440,15 @@ function runPostInstall(repoDir: string, name: string, def: ToolRegistry['tools'
     }
 
     console.log(`⚙ [post-install] ${name}: ${stepName}`);
-    const res = spawnSync(command, {
+    // Resolve $OCP_REPO_DIR / %OCP_REPO_DIR% in the command string before
+    // handing it to the shell — spawnSync({shell:true}) on Windows uses
+    // cmd.exe, which only expands %VAR%, not POSIX $VAR. Without this,
+    // herdr plugin link receives literal "$OCP_REPO_DIR/..." and fails
+    // with "system cannot find path" (os error 3) on Windows.
+    const resolvedCommand = command
+      .replace(/\$OCP_REPO_DIR/g, repoDir)
+      .replace(/%OCP_REPO_DIR%/g, repoDir);
+    const res = spawnSync(resolvedCommand, {
       stdio: 'inherit',
       timeout: 300000,
       shell: true,
