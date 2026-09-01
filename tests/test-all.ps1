@@ -146,7 +146,8 @@ Check "template: lite denies all skills" ($config.agent.lite.permission.skill.'*
 Check "template: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
 Check "template: lite denies dbhub/idea surface" (($config.agent.lite.permission.'dbhub_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'idea_*'.'*' -eq "deny"))
 Check "template: lite denies plugin-tool surfaces" (($config.agent.lite.permission.'md_to_pdf'.'*' -eq "deny") -and ($config.agent.lite.permission.'md_to_docx'.'*' -eq "deny") -and ($config.agent.lite.permission.'browser_screenshot'.'*' -eq "deny"))
-Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tools.task -eq $false) -and ($config.agent.lite.tools.question -eq $false) -and ($config.agent.lite.tools.todowrite -eq $false))
+Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tools.question -eq $false) -and ($config.agent.lite.tools.todowrite -eq $false) -and ($config.agent.lite.tools.todoread -eq $false))
+Check "template: lite keeps task enabled for auxiliary assists" ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "task")
 Check "template: lite tools map keeps core coding tools" (($config.agent.lite.tools.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "webfetch"))
 Check "plugin-scope: default policy denies lite, utility and all subagent steps" (($scope.plugins.'*'.deny -contains "lite") -and ($scope.plugins.'*'.deny -contains "utility") -and ($scope.plugins.'*'.deny -contains "subagent:*"))
 $injectorFiles = @(
@@ -274,7 +275,7 @@ $allFiles = @(
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
-    "plugins/metrics.ts", "plugins/auto-format.ts",
+    "plugins/tui/metrics.ts", "plugins/auto-format.ts",
     "plugins/tui/queue-manager.ts",
     "plugins/tui/project-wizard.ts",
     "plugins/lite-mode.ts",
@@ -443,6 +444,14 @@ $tuiTemplateRaw = Get-Content "$PSScriptRoot\..\tui.template.jsonc" -Raw
 # TUI plugin registration paths carry a leading ./ (opencode resolves them
 # relative to the config dir).
 Check "tui.template.jsonc: queue-manager registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/queue-manager\.ts"')
+
+# Metrics plugin checks (plugins/tui/metrics.ts — TUI-only, registered via tui.template.jsonc)
+$mtPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\metrics.ts" -Raw
+Check "metrics.ts: imports TuiPlugin from plugin/tui" ($mtPlugin -match "@opencode-ai/plugin/tui")
+Check "metrics.ts: slash command name is metrics (bare, TUI prepends /)" ($mtPlugin -match 'SLASH_NAME = "metrics"')
+Check "metrics.ts: registers palette command with slashName" ($mtPlugin -match "slashName: SLASH_NAME" -and $mtPlugin -match 'namespace: "palette"')
+Check "metrics.ts: exports default TuiPluginModule with id" ($mtPlugin -match "export default plugin")
+Check "tui.template.jsonc: metrics registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/metrics\.ts"')
 
 # Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw

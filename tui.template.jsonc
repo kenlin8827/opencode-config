@@ -21,5 +21,6 @@
     "./plugins/tui/queue-manager.ts",
     "./plugins/tui/project-wizard.ts",
     "./plugins/tui/sidebar-status.ts",
+    "./plugins/tui/metrics.ts",
   ]
 }

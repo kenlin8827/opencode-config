@@ -11,7 +11,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-profiler.ts` | Detects project languages & active MCP servers at session start; steers agents to LSP/graph queries before grep |
 | `design-token-guard.ts` | Blocks writes with hardcoded colors/spacing/radius — keeps frontend code on design tokens |
 | `ai-slop-scanner.ts` | Warns about AI anti-patterns in frontend files (gradient soup, div soup) |
-| `metrics.ts` | Auto-records tool call metrics (duration, success, agent) as JSONL in `~/.config/opencode/.metrics/` |
+| `metrics.ts` | `/metrics [model]` TUI command shows token usage grouped by session ID (main agent + subagents) via toast notification; records step/compaction metrics as JSONL in `~/.config/opencode/.metrics/` (TUI sessions only) |
 | `auto-format.ts` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edits |
 | `auto-advisor-mode.ts` | `/auto-advisor` command, protocol injection, mode gating, red-team suppression |
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |

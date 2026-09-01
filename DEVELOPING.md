@@ -80,7 +80,7 @@ User
      ├── injection gate: plugin-scope.json → plugins/shared/plugin-scope.ts
      │     (protocol injections denied for lite/utility identities and all
      │     subagent steps; fail-open)
-     └── TUI plugins via `tui.template.jsonc:plugin` (provider-wizard, profile-wizard, queue-manager)
+     └── TUI plugins via `tui.template.jsonc:plugin` (provider-wizard, profile-wizard, queue-manager, metrics)
 ```
 
 Design invariants:
@@ -283,7 +283,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 ### Discovery & layout
 
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
-- **TUI plugins**: registered explicitly in `tui.template.jsonc:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
+- **TUI plugins**: registered explicitly in `tui.template.jsonc:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`, `metrics.ts`) — TUI-only, no headless equivalent.
 - **npm plugins**: default active plugins are listed in `opencode.template.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
 - **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager. `plugins/shared/plugin-scope.ts` — the runtime injection gate: every `system.transform` protocol injector awaits `scoped(input, output.system, "<plugin-id>", client)` before injecting; policy lives in `plugin-scope.json` (repo root, shipped) as `identifiers` (text detection) plus per-plugin `deny`/`allow` lists with scope grammar `x` / `x:*`; the `"*"` entry is the inherited default (deny `lite`, `utility`, `subagent:*`). Fail-open.
 
@@ -293,7 +293,6 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 |--------|------|-------------|
 | `design-token-guard.ts` | `tool.execute.before` | Blocks writes with hardcoded colors/spacing/radius. Throws error. |
 | `ai-slop-scanner.ts` | `event: file.edited` | Scans frontend files for AI anti-patterns (gradient soup, div soup, …). Logs warnings. |
-| `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary in `~/.config/opencode/.metrics/`. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `browser-screenshot.ts` | custom tool | Registers `browser_screenshot` tool (Playwright headless) for `@vision` / `@frontend-dev`. |
 | `lite-mode.ts` (+ `plugins/lite-mode/`) | `system.transform` | Strips the `<!-- lite-mode -->` sentinel and every `Instructions from:` block (L0) from the `@lite` primary's system prompt. |
@@ -309,6 +308,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `profile-wizard.ts` | TUI plugin | `/profile` dialog wizard: tier review, per-tier model override, live apply via server config API with file rewrite on request failure. Announces active profile on session creation. |
 | `provider-wizard.ts` | TUI plugin | `/provider` dialog wizard: baseURL/apiKey prompts, atomic write, model add/remove management. |
 | `queue-manager.ts` | TUI plugin | `/queued` command: list/edit/cancel queued user messages. |
+| `metrics.ts` | TUI plugin | `/metrics [model]` command shows token usage grouped by session ID (main + subagents) via toast, with optional per-session model breakdown. Records step/compaction metrics as JSONL in `~/.config/opencode/.metrics/`. |
 | `project-wizard.ts` | TUI plugin | `/project-wizard` dialog wizard: two-tier interactive wizard (scaffolding init, switch configuration, template sync, index catch-up) with re-entrant echo. |
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
@@ -524,12 +524,12 @@ plugins/
 ├── shared/plugin-scope.ts         # Injection gate (consumes plugin-scope.json)
 ├── design-token-guard.ts          # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts             # Hook: scan for AI anti-patterns
-├── metrics.ts                     # Hook: auto-collect tool metrics
 ├── auto-format.ts                 # Hook: auto-run formatters
 ├── browser-screenshot.ts          # Custom tool: Playwright screenshots
 ├── profile-wizard.ts              # TUI plugin: /profile dialog wizard
 ├── provider-wizard.ts             # TUI plugin: /provider dialog wizard
-└── queue-manager.ts               # TUI plugin: /queued dialog manager
+├── queue-manager.ts               # TUI plugin: /queued dialog manager
+└── metrics.ts                     # TUI plugin: /metrics token usage + JSONL collection
 
 tests/
 ├── test-all.ps1              # Main test runner (structural + prompt tests)
