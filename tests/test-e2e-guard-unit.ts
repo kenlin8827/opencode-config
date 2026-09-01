@@ -105,7 +105,7 @@ assert(isPrimaryAgent({}), "empty input is primary")
 assert(isPrimaryAgent({ agent: "code" }), "code is primary")
 assert(isPrimaryAgent({ agent: "build" }), "build is primary")
 assert(isPrimaryAgent({ agent: "architect" }), "architect is primary")
-assert(!isPrimaryAgent({ agent: "explorer" }), "explorer is not primary")
+assert(!isPrimaryAgent({ agent: "explore" }), "explore is not primary")
 assert(!isPrimaryAgent({ agent: "researcher" }), "researcher is not primary")
 assert(!isPrimaryAgent({ agent: "code", parentID: "parent-123" }), "subagent with parentID is not primary")
 
@@ -125,7 +125,7 @@ assertEq(sysState1.system[0].length, lenBefore, "system hook does not duplicate 
 
 // 3. Subagent session: does NOT inject, strips if present
 const subagentSys = { system: ["You are an assistant." + getGuardPrompt()] }
-await systemHook({ agent: "explorer", parentID: "p1" }, subagentSys)
+await systemHook({ agent: "explore", parentID: "p1" }, subagentSys)
 assert(!subagentSys.system[0].includes(MARKER), "subagent session strips e2e guard marker")
 
 // 4. When switch is flipped OFF: strips marker and protocol

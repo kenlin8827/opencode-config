@@ -27,7 +27,7 @@
         │                  │                       │                       │
 ┌───────┴───────┐  ┌───────┴───────┐       ┌───────┴───────┐       ┌───────┴───────────┐
 │• 调度: 原样直通│  │• 调度: 原样直通│       │• 调度: 原样直通│       │• 调度: 目标拆解  │
-│• 编码: Flash  │  │• 编码: Flash  │       │• 编码: Flash  │       │• 摸底: @explorer │
+│• 编码: Flash  │  │• 编码: Flash  │       │• 编码: Flash  │       │• 摸底: @explore  │
 │• 审查: 无 (跳过)│ │• 审查: 旗舰单审│      │• 审查 A: 需求对齐│     │• 编码: Flash/阶段│
 │• 交付: 即刻交付│  │• 轮次: 最多10轮│      │• 审查 B: 安全防线│     │• 审查: 双审/阶段│
 │               │  │• 交付: 单审通过│       │• 仲裁: Advisor│      │• 阶段: 最多 12  │
@@ -79,7 +79,7 @@ sequenceDiagram
     autonumber
     actor User as 👤 高层目标
     participant Build as 🎯 @build (自主调度主控)
-    participant Explorer as ⚡ @explorer (代码摸底)
+    participant Explorer as ⚡ @explore (代码摸底)
     participant FastCoder as ⚡ @fast-coder (Flash 编码)
     participant Arch as 🧐 @architect (审查A: 需求与契约)
     participant CR as 🧐 @code-review (审查B: 质量与边界)

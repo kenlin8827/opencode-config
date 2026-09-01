@@ -19,7 +19,7 @@ You are now executing the **ultra-dev** workflow — an autonomous, goal-driven,
 stateDiagram-v2
     [*] --> ObjectiveIntake: 1. User enters high-level objective
     ObjectiveIntake --> PlanDecomposition: 2. @build decomposes into phased plan
-    PlanDecomposition --> ExplorationPhase: 3. Dispatch @explorer (if codebase context needed)
+    PlanDecomposition --> ExplorationPhase: 3. Dispatch @explore (if codebase context needed)
     ExplorationPhase --> ExecutionLoop: 4. Enter autonomous execution loop
 
     state "Autonomous Execution Loop (per phase)" as ExecutionLoop {
@@ -70,7 +70,7 @@ DomainCoding --> DualReview: Submit Git Diff + phase spec to dual reviewers
 | Role | Agent | Core Mission |
 | :--- | :--- | :--- |
 | **Orchestrator** | `@build` | Objective decomposition, phase sequencing, autonomous decision-making, state machine loop counting, consensus & arbitration coordination, cross-phase context carrying. |
-| **Explorer** | `@explorer` | Rapid codebase survey before phase execution: architecture overview, file mapping, dependency chains. Dispatched ONCE as phase 0 (pre-execution). |
+| **Explore** | `@explore` | Rapid codebase survey before phase execution: architecture overview, file mapping, dependency chains. Dispatched ONCE as phase 0 (pre-execution). |
 | **Coder** | `@<lang>-dev` (domain-routed) | Reads phase spec and produces professional implementation across all touched layers; executes targeted fixes in subsequent review rounds. |
 | **Reviewer A** | `@architect` | **"Requirement Traceability & Contract Lens"**: Deeply analyzes phase spec against implementation — verifies complete requirement coverage, architectural cohesion, and contract integrity. |
 | **Reviewer B** | `@code-review` | **"Defensive Engineering & Resiliency Lens"**: Audits boundary conditions, concurrency safety, error recovery, and strict typing — evidence-driven quality gate. |
@@ -103,7 +103,7 @@ The orchestrator (`@build`) receives the raw user objective and decomposes it in
 **Example decomposition** for `/ultra-dev Implement QR-code login: session table, polling API, frontend dialog`:
 ```
 ## Execution Plan
-1. **[@explorer]** — Survey existing auth code, session management, and DB schema → architecture map
+1. **[@explore]** — Survey existing auth code, session management, and DB schema → architecture map
 2. **[@dba]** — Design session table schema & indexes → DDL + migration
 3. **[@node-dev]** — Implement backend: QR generation + status polling API → controller + service
 4. **[@frontend-dev]** — Implement frontend: login dialog + QR display + polling → component + page
@@ -119,7 +119,7 @@ If any dispatched agent fails (timeout, error, incomplete output, connection res
    - **Coder (`@<lang>-dev`) fails**: Log the failure, skip this phase (treat as fused), and proceed to the next phase. Note the failed phase in the final report.
    - **Reviewer (`@architect` or `@code-review`) fails**: Proceed with the available reviewer's verdict only. If both reviewers fail, skip the review for this phase and mark it as "review skipped — both reviewers unavailable" in the final report.
    - **Arbitrator (`@advisor`) fails**: The Safety-First principle applies — treat the disagreement as unresolved and fuse the phase. Do NOT silently pick one reviewer's side.
-   - **Explorer (`@explorer`) fails**: Proceed without the codebase survey (blind execution). Warn in the final report that exploration was skipped.
+   - **Explore (`@explore`) fails**: Proceed without the codebase survey (blind execution). Warn in the final report that exploration was skipped.
 3. **Never retry more than once** per agent per phase. Repeated failures indicate a systemic issue — fuse the phase and continue.
 4. **If the orchestrator itself fails** (context overflow, session limit) → the loop cannot proceed. This is an implicit hard stop — whatever partial results exist are delivered as-is.
 
@@ -127,7 +127,7 @@ If any dispatched agent fails (timeout, error, incomplete output, connection res
 
 ### Step 2 — Codebase Exploration (Phase 0)
 
-If the objective touches an existing codebase (not greenfield), dispatch `@explorer` ONCE to survey:
+If the objective touches an existing codebase (not greenfield), dispatch `@explore` ONCE to survey:
 - Architecture overview, key file locations, existing patterns and conventions
 - Dependency chains, import structure, module boundaries
 - Existing test framework and conventions
@@ -138,7 +138,7 @@ Compress findings into a one-line-per-item context map (`file:line` references, 
 
 **Dispatch template**:
 ```markdown
-@explorer
+@explore
 
 Context: Ultra-dev phase 0 — codebase survey for objective: <user's raw objective>.
 Task: Survey the codebase and produce a compressed context map:

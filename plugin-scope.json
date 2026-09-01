@@ -10,6 +10,10 @@
     "*": {
       "$comment": "lite strips its own overhead; utility (title generation, ~30k tok saved per session) and every subagent step are narrow specialists — orchestration protocol text is pure waste there.",
       "deny": ["lite", "utility", "subagent:*"]
+    },
+    "project-profiler": {
+      "$comment": "Backend routing is a subagent's work discipline, not orchestration protocol — explore.md defers backend choice to the session profile, so explore/qa/code-review must receive it. Only lite/utility stay out.",
+      "deny": ["lite", "utility"]
     }
   }
 }

@@ -32,7 +32,7 @@ tiers.json       # Tier definitions sidecar (consumed by profile-wizard)
 User
  │
  ├── @build (primary) ── routes to ──┐
- │                                            ├── @explorer      (read-only explorer, efficient model)
+ │                                            ├── @explore       (read-only explorer, efficient model)
  │                                            ├── @researcher    (tech evaluation)
  │                                            ├── @architect     (system design, ADR)
  │                                            ├── @dba           (schema, SQL, migrations)
@@ -53,7 +53,7 @@ User
  ├── @plan (primary) ── read-only analysis coordinator
  │
  ├── @code (primary, default) ── direct developer, delegation only on request
- │                                (advisor/explorer/code-review/vision)
+ │                                (advisor/explore/code-review/vision)
  │
  │   (default agent is set by install/options.jsonc:default_agent —
  │    the installer applies it to opencode.jsonc's root `default_agent`
@@ -79,7 +79,7 @@ User
      ├── auto-discovered entries in `plugins/*.ts` (guards, collectors, barrels)
      ├── injection gate: plugin-scope.json → plugins/shared/plugin-scope.ts
      │     (protocol injections denied for lite/utility identities and all
-     │     subagent steps; fail-open)
+     │     subagent steps; per-plugin overrides allowed; fail-open)
      └── TUI plugins via `tui.template.jsonc:plugin` (provider-wizard, profile-wizard, queue-manager, metrics)
 ```
 
@@ -199,13 +199,13 @@ Five tiers, each mapped per active profile (`profiles/*.json`):
 | `default` | General purpose, strong reasoning | `medium` | build, plan, code, researcher, tech-writer |
 | `code` | Code generation, implementation | `medium` | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
 | `advisor` | Analysis, review, feedback | `high` | code-review, advisor |
-| `explorer` | Fast, cheap, high-volume | `low` | explorer |
+| `explore` | Fast, cheap, high-volume | `low` | explore |
 | `vision` | Image understanding | `medium` | vision |
 
 **Variant** controls thinking/reasoning effort and must be considered alongside the tier's model strength:
 - `high` = deep reasoning. Use when the model is strong AND the task needs it (architecture, security, review, decision analysis).
 - `medium` = balanced. Default for strong coding models doing routine work (coding, testing, docs, visual analysis, orchestration, research).
-- `low` = fast/lightweight. Only for the cheapest tier doing pure retrieval tasks (explorer). Applying `low` to a weak model on a complex task is a disaster — the matrix ensures this never happens.
+- `low` = fast/lightweight. Only for the cheapest tier doing pure retrieval tasks (explore). Applying `low` to a weak model on a complex task is a disaster — the matrix ensures this never happens.
 
 If the backend model doesn't support a variant, it's silently ignored.
 
@@ -313,7 +313,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
 
-Workflow slash commands (`/deep-dev`, `/goal`, `/handoff`, …) are native opencode command files in `commands/*.md` — thin launchers that instruct the agent to load the matching L2 skill (`skills/<name>/SKILL.md`) on demand. No runtime code, no system-prompt injection; the protocol body enters the conversation exactly once, only when the command is invoked. Runtime-logic plugins (guards, wizards, exporters) still register their commands programmatically via the `config` hook; every `system.transform` injector passes through the `plugin-scope.ts` gate first (see shared plumbing), so injections never land in `@lite`, utility sessions, or subagent steps.
+Workflow slash commands (`/deep-dev`, `/goal`, `/handoff`, …) are native opencode command files in `commands/*.md` — thin launchers that instruct the agent to load the matching L2 skill (`skills/<name>/SKILL.md`) on demand. No runtime code, no system-prompt injection; the protocol body enters the conversation exactly once, only when the command is invoked. Runtime-logic plugins (guards, wizards, exporters) still register their commands programmatically via the `config` hook; every `system.transform` injector passes through the `plugin-scope.ts` gate first (see shared plumbing), so injections never land in `@lite`, utility sessions, or subagent steps unless a per-plugin entry overrides the default (project-profiler does — its backend routing is explore's work discipline, not orchestration protocol).
 
 ### Auto-advisor internals
 
@@ -434,7 +434,7 @@ Output protocol, test scope, RFC keywords, and coding principles apply to ALL ag
 - **code** = direct developer for single-domain tasks (no proactive delegation)
 - Separation prevents analysis agents from accidentally modifying code.
 
-### Why explorer uses the `explorer` tier?
+### Why explore rides the flash tier?
 Exploration is high-volume, low-complexity. Cheaper model + read-only + bounded steps = fast and cheap context gathering before dispatching specialists.
 
 ### Why no `designer` agent?
@@ -468,7 +468,7 @@ prompts/
 ├── code-review.md            # Diff/PR review
 ├── dba.md                    # Database, SQL, migrations
 ├── devops.md                 # Docker, K8s, CI/CD
-├── explorer.md               # Read-only explorer (efficient model)
+├── explore.md                # Read-only explorer (efficient model)
 ├── frontend-dev.md           # Frontend + Design System + AI Slop
 ├── go-dev.md                 # Go/gRPC
 ├── java-dev.md               # Java/Spring Boot

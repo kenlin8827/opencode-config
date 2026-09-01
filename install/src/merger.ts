@@ -256,7 +256,16 @@ function normalizeTier(tier: string, fallback: string): string {
 }
 
 /**
- * Merges repo templates tiers.json with custom user tiers and writes to target
+ * Merges repo template tiers.json with preserved user tiers and explicit
+ * options tiers, then writes to target.
+ *
+ * Preset overwrite rule: factory agents (present in the template) ALWAYS
+ * follow the template — the tier system evolves between releases and stale
+ * installed mappings must not block upgrades (same philosophy as factory
+ * agent prompt/tools in mergeConfig step 4). Preserved tiers only stick for
+ * custom agents absent from the template. Explicit `options.tiers`
+ * (options.jsonc) still win over the template — they are deliberate,
+ * machine-local choices.
  */
 export function mergeTiersJson(
   repoDir: string,
@@ -271,7 +280,9 @@ export function mergeTiersJson(
   const baseMap: Record<string, any> = readJsoncFile<Record<string, any>>(templatePath) || {};
   const comment = baseMap.$comment || 'Agent-to-tier mapping consumed by /profile wizard';
 
-  // Merge template tiers -> preserved user tiers -> explicit custom options tiers
+  // Template presets win for factory agents; preserved tiers only survive
+  // for custom agents, so repo-side tier-system adjustments propagate on
+  // every install.
   const effectiveTiers: Record<string, string> = {};
   for (const [k, v] of Object.entries(baseMap)) {
     if (!k.startsWith('$') && typeof v === 'string') {
@@ -282,8 +293,9 @@ export function mergeTiersJson(
   if (preservedTiers) {
     for (const [k, v] of Object.entries(preservedTiers)) {
       if (removedAgents?.includes(k)) continue;
+      if (k in effectiveTiers) continue; // factory agent — template preset wins
       if (typeof v === 'string') {
-        effectiveTiers[k] = normalizeTier(v, effectiveTiers[k] || 'standard');
+        effectiveTiers[k] = normalizeTier(v, 'standard');
       }
     }
   }
@@ -449,6 +461,14 @@ export function mergeConfig(
   // prompt/tools/permission, but model refs are user state and must survive
   // reinstall. Applied AFTER step 4 so the template's agent block is in place.
   if (bag?.userAgentModels && Object.keys(bag.userAgentModels).length > 0) {
+    // Rename migration: factory agent `explorer` was renamed to `explore`
+    // (capturing the subagent name models are trained on). Move the user's
+    // preserved model pick onto the new key so reinstall doesn't drop it;
+    // the old key's agent block/tier entry are retired via removed_agents.
+    if (bag.userAgentModels['explorer'] && !bag.userAgentModels['explore']) {
+      bag.userAgentModels['explore'] = bag.userAgentModels['explorer'];
+      delete bag.userAgentModels['explorer'];
+    }
     if (config.agent && typeof config.agent === 'object') {
       for (const [agentName, modelRef] of Object.entries(bag.userAgentModels)) {
         if (config.agent[agentName] && typeof config.agent[agentName] === 'object') {

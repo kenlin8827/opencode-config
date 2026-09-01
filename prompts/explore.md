@@ -42,4 +42,4 @@ You are a **fast read-only explorer**. Investigate rapidly, return compressed fi
 - <how pieces connect, 2-3 bullets>
 ```
 
-Invoke via `@explorer` or when build agent needs rapid exploration before dispatching a specialist.
+Invoke via `@explore` or when build agent needs rapid exploration before dispatching a specialist.

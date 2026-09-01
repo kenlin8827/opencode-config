@@ -84,9 +84,21 @@ No arguments — opens the native picker dialog:
   │
   ├─ "Edit: Agent→Tier"  ─────────────── see § Edit: Agent→Tier below
   ├─ "Manage: Profile→Models"  ────────── see § Manage: Profile→Models below
-  └─ "Select: Profile"  ────────────────── see § Select: Profile below
+  ├─ "Select: Profile"  ────────────────── see § Select: Profile below
+  └─ "🧹 Reset: Model refs"  ───────────── confirm dialog → clear all model refs
   │
   → Esc at the main menu closes the wizard
+```
+
+The `reset` subcommand removes every model ref the wizard wrote:
+
+```
+/profile reset
+→ Confirm dialog listing all refs → removes root `model`, `small_model` and
+  every `agent.*.model` from `opencode.jsonc` (keeps a `.bak` backup) and
+  deactivates the profile. opencode falls back to its native model picker.
+  Profile files and `tiers.json` are kept — reset clears the applied state,
+  not the library. Restart to apply.
 ```
 
 #### Edit: Agent→Tier
@@ -100,7 +112,7 @@ Reassign which tier an agent belongs to — without touching the tier→model si
   │  Lists all agents with their current tier and model:
   │    advisor    (max)   — model: anthropic/claude-opus
   │    code       (pro)   — model: anthropic/claude-sonnet
-  │    explorer   (flash) — model: anthropic/claude-haiku
+  │    explore    (flash) — model: anthropic/claude-haiku
   │    ...
   │
   │  Changed agents show the pending transition:
@@ -222,7 +234,7 @@ The system uses 5 model tiers, each mapped to a set of agents:
 
 | Tier | Purpose | Agents |
 |---|---|---|
-| `flash` | Fast, lightweight, exploration, high-throughput | explorer, fast-coder |
+| `flash` | Fast, lightweight, exploration, high-throughput | explore, fast-coder |
 | `standard` | General orchestrator, high-traffic workhorse (root model) | build, plan, researcher, tech-writer |
 | `pro` | Professional engineering, code generation & debugging | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
 | `max` | Deep reasoning, system design, security, red-team review | advisor, architect, security, code-review |

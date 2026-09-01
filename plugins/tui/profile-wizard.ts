@@ -14,6 +14,10 @@ import type {
  *
  * Entry points:
  *   /profile                — slash command (opens the picker)
+ *   /profile reset          — subcommand: remove every model ref the wizard
+ *                             wrote (root model, small_model, agent.*.model)
+ *                             and deactivate the profile (confirm dialog;
+ *                             opencode falls back to its model picker)
  *   command palette (ctrl+p) — "Switch model profile"
  *
  * Main menu entry points (most frequent first):
@@ -32,6 +36,10 @@ import type {
  *      (profile list → tier list with model refs → pick provider →
  *      pick model → Apply/Cancel; add profile from the list, delete
  *      it from its tier review screen with a confirm dialog)
+ *
+ *   5. Reset: Model refs   — remove every model ref from opencode.jsonc
+ *      and deactivate the profile (confirm dialog; profile files and
+ *      tiers.json are kept)
  *
  *   "Add: Profile" also lives in the Actions group (low-frequency —
  *   not pinned on top like the provider wizard's ➕ Add custom provider).
@@ -79,6 +87,7 @@ const EDIT_TIERS = "__edit_tiers__"
 const EDIT_TIER_MODELS = "__edit_tier_models__"
 const MANAGE_MODELS = "__manage_models__"
 const SELECT_PROFILE = "__select_profile__"
+const RESET_MODELS = "__reset_models__"
 
 const VALID_TIERS = ["flash", "standard", "pro", "max", "vision"] as const
 
@@ -289,6 +298,47 @@ function loadTierMap(): Record<string, string> {
   }
 }
 
+// ─── Model-ref reset (inverse of profile application) ───────────────
+// Removes everything the wizard can write into opencode.jsonc: root
+// `model`, `small_model`, and every `agent.<name>.model`. Profile files
+// and tiers.json are untouched — reset clears the applied state, not the
+// library. Exported for unit tests.
+
+/** Read-only: list the model refs a reset would remove ("field → ref"). */
+export function listModelRefs(config: OpenCodeConfig): string[] {
+  const refs: string[] = []
+  if (typeof config.model === "string") refs.push(`model → ${config.model}`)
+  if (typeof config.small_model === "string") refs.push(`small_model → ${config.small_model as string}`)
+  if (config.agent) {
+    for (const [name, agent] of Object.entries(config.agent)) {
+      if (agent && typeof agent.model === "string") refs.push(`agent.${name} → ${agent.model}`)
+    }
+  }
+  return refs
+}
+
+/** Mutating: strip all model refs from the config; returns removed count. */
+export function stripModelRefs(config: OpenCodeConfig): number {
+  let removed = 0
+  if (typeof config.model === "string") {
+    delete config.model
+    removed++
+  }
+  if (typeof config.small_model === "string") {
+    delete config.small_model
+    removed++
+  }
+  if (config.agent) {
+    for (const agent of Object.values(config.agent)) {
+      if (agent && typeof agent.model === "string") {
+        delete agent.model
+        removed++
+      }
+    }
+  }
+  return removed
+}
+
 // ─── Profile application (same semantics as the former plugin) ──────
 // Validates tier ref format, then rewrites every agent whose tier
 // matches. Mixed providers are allowed. Root `model` tracks tier.standard;
@@ -487,6 +537,13 @@ function startWizard(api: TuiPluginApi): void {
           description: tr("profile.addProfileDesc"),
           category: actionsCat,
         },
+        {
+          // destructive + low-frequency — last in the Actions group
+          title: tr("profile.resetModels"),
+          value: RESET_MODELS,
+          description: tr("profile.resetModelsDesc"),
+          category: actionsCat,
+        },
         { ...languageOption(api), category: interfaceCat },
       ],
       onSelect: (option) => {
@@ -512,6 +569,10 @@ function startWizard(api: TuiPluginApi): void {
         }
         if (option.value === ADD_PROFILE) {
           promptAddProfile(api, () => startWizard(api))
+          return
+        }
+        if (option.value === RESET_MODELS) {
+          resetModels(api)
           return
         }
       },
@@ -1485,6 +1546,70 @@ async function applySelection(
 }
 
 // ════════════════════════════════════════════════════════════════════
+// ┌─ Branch 5: Reset: Model refs ──────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+
+function resetModels(api: TuiPluginApi): void {
+  let config: OpenCodeConfig
+  try {
+    config = readConfig(CONFIG_FILE)
+  } catch (err) {
+    toast(api, tr("profile.readConfigFailed", { err: (err as Error).message }), "error")
+    startWizard(api)
+    return
+  }
+  const refs = listModelRefs(config)
+  if (refs.length === 0) {
+    toast(api, tr("profile.resetNothing"), "info")
+    startWizard(api)
+    return
+  }
+  confirmReset(api, refs)
+}
+
+// Destructive — same confirm-gate pattern as confirmApplyProfile /
+// confirmDeleteProfile. The message lists exactly what will be removed
+// and what is kept, so "reset" cannot be misread as restore-defaults.
+function confirmReset(api: TuiPluginApi, refs: string[]): void {
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("profile.resetTitle"),
+        message: tr("profile.resetMsg", { refs: refs.map((r) => `  ${r}`).join("\n") }),
+        onConfirm: () => {
+          navigated = true
+          performReset(api)
+        },
+        onCancel: () => {
+          navigated = true
+          setTimeout(() => startWizard(api), 0)
+        },
+      }),
+    () => {
+      if (!navigated) setTimeout(() => startWizard(api), 0)
+    },
+  )
+}
+
+// File rewrite only — the live PATCH /global/config merge cannot delete
+// keys, so a restart is required (writeConfigAtomic keeps a .bak).
+function performReset(api: TuiPluginApi): void {
+  try {
+    const config = readConfig(CONFIG_FILE)
+    const removed = stripModelRefs(config)
+    writeConfigAtomic(CONFIG_FILE, config)
+    // Deactivate the profile so the sidebar badge clears too.
+    if (existsSync(STATE_FILE)) unlinkSync(STATE_FILE)
+    api.ui.dialog.clear()
+    toast(api, tr("profile.resetDone", { count: removed }), "success")
+  } catch (err) {
+    api.ui.dialog.clear()
+    toast(api, tr("profile.resetFailed", { err: (err as Error).message }), "error")
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
 // ┌─ Catalog (provider/model list for pickers) ─────────────────────────
 // ════════════════════════════════════════════════════════════════════
 
@@ -1556,6 +1681,32 @@ async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
 // ┌─ Plugin entry ──────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════
 
+// Tokens that identify the command itself, not a subcommand. Slash dispatch
+// puts the command NAME ("profile.switch") into ctx.input, so leading name
+// tokens must be skipped when extracting the user's trailing argument
+// (same shape as metrics.ts's parseSubcommand).
+const COMMAND_TOKENS = new Set(["profile.switch", "profile", "/profile"])
+
+/** Extract the subcommand arg from the keymap command context — check
+ * data.args and payload first, ctx.input last; skip leading command-name
+ * tokens in every source. Exported for unit tests. */
+export function parseProfileSubcommand(ctx: unknown): string | null {
+  if (typeof ctx !== "object" || ctx === null) return null
+  const c = ctx as { input?: unknown; payload?: unknown; data?: { args?: unknown } }
+  const sources = [c.data?.args, c.payload, c.input]
+  for (const raw of sources) {
+    const parts = Array.isArray(raw) ? raw : [raw]
+    for (const item of parts) {
+      if (typeof item !== "string" || item.trim() === "") continue
+      const tokens = item.trim().split(/\s+/).map((t) => t.toLowerCase())
+      let i = 0
+      while (i < tokens.length && COMMAND_TOKENS.has(tokens[i])) i++
+      if (i < tokens.length) return tokens[i]
+    }
+  }
+  return null
+}
+
 const tui: TuiPlugin = async (api) => {
   initI18n(api)
   api.keymap.registerLayer({
@@ -1567,7 +1718,16 @@ const tui: TuiPlugin = async (api) => {
         category: "Profile",
         namespace: "palette",
         slashName: "profile",
-        run() {
+        run(ctx: unknown) {
+          const sub = parseProfileSubcommand(ctx)
+          if (sub === "reset") {
+            resetModels(api)
+            return
+          }
+          if (sub) {
+            api.ui.toast({ title: tr("profile.cmdTitle"), message: tr("profile.unknownSub", { sub }), variant: "warning" })
+            return
+          }
           startWizard(api)
         },
       },

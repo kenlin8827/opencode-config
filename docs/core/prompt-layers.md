@@ -32,7 +32,7 @@ the jsonc block (verified v1.18.25). `prompts/` is not auto-discovered.
 | `dba` | coding pack + `sql-migration` |
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope` (no `edit-protocol` — editing is denied) |
 | `architect`, `advisor`, `security` | `coding-principles` only (review criteria) |
-| `build`, `plan`, `explorer`, `researcher`, `tech-writer`, `vision` | none — L0 only |
+| `build`, `plan`, `explore`, `researcher`, `tech-writer`, `vision` | none — L0 only |
 
 ## Per-step visibility gating
 
@@ -68,7 +68,10 @@ detection misses).
 (identity or state) and `x:*` (any identity in state `x`); unspecified
 plugins inherit the `"*"` entry. Shipped default: deny `lite`, `utility`,
 `subagent:*` — injections stay out of stripped primaries and every
-subagent step. Workflow protocols need no gate at all: they live at L2 and
+subagent step. One shipped override: `project-profiler` denies only
+`lite`/`utility` — backend routing is a subagent's work discipline
+(explore.md defers backend choice to the session profile). Workflow
+protocols need no gate at all: they live at L2 and
 load only when their slash command runs.
 - **Fail-open** — any policy error skips the injection rather than breaking
 the step.

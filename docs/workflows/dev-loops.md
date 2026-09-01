@@ -26,7 +26,7 @@ Four-Tier Dev Loops completely decouple **Execution/Writing (high-throughput tas
         │                  │                       │                       │
 ┌───────┴───────┐  ┌───────┴───────┐       ┌───────┴───────┐       ┌───────┴───────────┐
 │• Passthrough  │  │• Passthrough  │       │• Passthrough  │       │• Objective Decompose│
-│• Coding: Flash│  │• Coding: Flash│       │• Coding: Flash│       │• Exploration: @explorer│
+│• Coding: Flash│  │• Coding: Flash│       │• Coding: Flash│       │• Exploration: @explore  │
 │• Review: None │  │• Review: Single│      │• Review A: Arch│      │• Coding: Flash/phase│
 │• Exit: Instant│  │• Rounds: Max 10│      │• Review B: CR  │      │• Review: Dual/phase│
 │               │  │• Exit: Approve│       │• Arbitrate: Adv│      │• Phases: Max 12   │
@@ -78,7 +78,7 @@ sequenceDiagram
     autonumber
     actor User as 👤 High-Level Objective
     participant Build as 🎯 @build (Orchestrator)
-    participant Explorer as ⚡ @explorer (Survey)
+    participant Explorer as ⚡ @explore (Survey)
     participant FastCoder as ⚡ @fast-coder (Flash Coder)
     participant Arch as 🧐 @architect (Review A)
     participant CR as 🧐 @code-review (Review B)

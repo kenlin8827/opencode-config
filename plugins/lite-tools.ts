@@ -23,7 +23,7 @@ const OVERRIDES: Record<string, string> = {
   glob: "Find files by glob pattern, sorted by modification time.",
   websearch: "Search the web; returns result titles, snippets, and URLs.",
   webfetch: "Fetch a URL and extract its main content.",
-  task: "Delegate to an auxiliary subagent; returns its final result. Assists: advisor (second opinion), explorer (codebase search), code-review (diff/PR review), vision (image analysis).",
+  task: "Delegate to a read-only assistant; returns its result. explore: codebase understanding/search. code-review: review diffs or files (only when the user asks). advisor: second opinion (only when the user asks). vision: image/screenshot analysis (when you cannot see it yourself). These four are the only subagents available.",
 }
 
 export async function LiteToolsPlugin() {

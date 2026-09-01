@@ -69,7 +69,7 @@ pwsh -ExecutionPolicy Bypass -File tests/test-anchor-benchmark.ps1 -Quick
 - java/python/node agents mention ecosystem libraries
 - Security rules intact in all coding agents
 - researcher.md has no ponytail rules (non-coding isolation)
-- All 20 agent files exist (including explorer.md)
+- All 20 agent files exist (including explore.md)
 - `profiles/*.json`: each profile applies cleanly to a fresh template
   copy (agent refs, root model, untouched tiers); every profile must cover
   all five tiers

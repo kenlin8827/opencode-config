@@ -13,7 +13,7 @@ OpenCode 多智能体配置提供三种编排工作模式外加近零开销的 `
 > @code 给注册表单加上输入校验
 ```
 
-仍可按需手动委托辅助类 subagent（`@advisor`、`@explorer`、`@code-review`、`@vision`）。如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
+仍可按需手动委托辅助类 subagent（`@advisor`、`@explore`、`@code-review`、`@vision`）。如果任务实际上是跨领域的，`@code` 会建议切换到 `@build`。
 
 ---
 
@@ -59,7 +59,7 @@ OpenCode 多智能体配置提供三种编排工作模式外加近零开销的 `
 > @lite 重命名这个变量并修好所有调用点
 ```
 
-代价：`@lite` 退出指令层、协议注入、skills 块与 MCP 代码智能。它保留全部原生工具（read/edit/bash/…），但不叠加任何工程纪律 —— 真正的工程任务请路由给 `@code` / `@build`。仍可委托辅助子代理（`@advisor`、`@explorer`、`@code-review`、`@vision`）做二次意见、搜索与审查。
+代价：`@lite` 退出指令层、协议注入、skills 块与 MCP 代码智能。它保留全部原生工具（read/edit/bash/…），但不叠加任何工程纪律 —— 真正的工程任务请路由给 `@code` / `@build`。简单代码查找由它自己完成（grep/glob/read —— 比拉起子代理会话更省）；其余场景保留四个只读助手 —— `@explore`（代码理解）、`@code-review`（diff/文件评审）、`@advisor`（阻塞性决策）、`@vision`（图片/截图分析）；重型或多域编码升级给 `@code` 或 `@build`。派发策略：助手仅凭显式要求触发；唯一例外是 vision，遇到 lite 自己看不见的图片时自主补位（省 token）。
 
 ---
 

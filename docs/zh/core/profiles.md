@@ -84,9 +84,20 @@
   │
   ├─ "Edit: Agent→Tier"  ────────── 见下方 § Edit: Agent→Tier
   ├─ "Manage: Profile→Models"  ──── 见下方 § Manage: Profile→Models
-  └─ "Select: Profile"  ─────────── 见下方 § Select: Profile
+  ├─ "Select: Profile"  ─────────── 见下方 § Select: Profile
+  └─ "🧹 Reset: Model refs"  ────── 确认对话框 → 清空所有模型引用
   │
   → 在主菜单按 Esc 关闭向导
+```
+
+`reset` 子命令移除向导写入的全部模型引用：
+
+```
+/profile reset
+→ 确认对话框列出全部引用 → 从 `opencode.jsonc` 移除根 `model`、`small_model`
+  及所有 `agent.*.model`（保留 .bak 备份），并停用当前预设。opencode 回落到
+  原生模型选择器。预设文件与 `tiers.json` 保留 — 重置清的是“已应用状态”，
+  不是“库存”。重启后生效。
 ```
 
 #### Edit: Agent→Tier
@@ -100,7 +111,7 @@
   │  列出全部 agent 及其当前层级和模型：
   │    advisor    (max)   — model: anthropic/claude-opus
   │    code       (pro)   — model: anthropic/claude-sonnet
-  │    explorer   (flash) — model: anthropic/claude-haiku
+  │    explore    (flash) — model: anthropic/claude-haiku
   │    ...
   │
   │  有变更的 agent 显示 pending 状态：
@@ -222,7 +233,7 @@
 
 | 层级 | 用途 | 智能体 |
 |---|---|---|
-| `flash` | 快速，轻量，代码粗筛，高吞吐 | explorer, fast-coder |
+| `flash` | 快速，轻量，代码粗筛，高吞吐 | explore, fast-coder |
 | `standard` | 通用编排中枢，高吞吐主力（根模型） | build, plan, researcher, tech-writer |
 | `pro` | 专业全栈工程，代码生成与实现 | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
 | `max` | 深度推理，系统架构，安全合规，严苛审查 | advisor, architect, security, code-review |

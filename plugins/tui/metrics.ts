@@ -17,7 +17,8 @@ import { homedir } from "node:os"
  *   - message.part.updated step-finish → per-step token economics
  *   - message.part.updated agent/compaction → agent attribution, compaction count
  *   - message.updated → model + agent attribution (info.mode works for subagents)
- *   - session.created → persist then reset state for the new conversation
+ *   - session.created → persist then reset state for a NEW ROOT conversation
+ *     (/new); subagent sessions carry parentID and must not trigger a reset
  *   - session.idle → persist session summary JSON
  *
  * Note: this is a TUI-only module — metrics collection only runs while the
@@ -324,7 +325,11 @@ const tui: TuiPlugin = async (api) => {
   })
 
   // New conversation (/new): persist active sessions then reset state.
-  api.event.on("session.created", () => {
+  // Subagent sessions carry parentID — resetting on them would wipe the
+  // main session's data the moment any task tool spawns a subagent.
+  api.event.on("session.created", (e) => {
+    const info = e.properties?.info as { id?: string; parentID?: string } | undefined
+    if (info?.parentID) return
     for (const [sid, state] of sessionTokenState.entries()) {
       if (state.steps === 0 && state.input === 0) continue
       persistSession(sid)

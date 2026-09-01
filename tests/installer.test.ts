@@ -175,6 +175,9 @@ if (fs.existsSync(tuiMergeDir)) fs.rmSync(tuiMergeDir, { recursive: true, force:
 //     existing installs); only agents absent from the template are preserved.
 //   - Retired factory agents (removed_agents) are dropped from the preserved
 //     config and tiers.json, and the marker never leaks into the merged output.
+//   - tiers.json presets are template-owned for factory agents — stale user
+//     mappings never block repo-side tier-system adjustments; preserved
+//     entries only stick for custom agents.
 console.log('\nTest 3f: Config Merge — Template-Owned instructions & Factory Agents');
 const cfgMergeDir = path.join(os.tmpdir(), `opencode-cfg-merge-test-${Date.now()}`);
 const cfgRepoDir = path.join(cfgMergeDir, 'repo');
@@ -200,7 +203,7 @@ fs.writeFileSync(
 );
 fs.writeFileSync(
   path.join(cfgTargetDir, 'tiers.json'),
-  '{\n  "$comment": "t",\n  "build": "standard",\n  "ghost": "max"\n}\n',
+  '{\n  "$comment": "t",\n  "build": "max",\n  "ghost": "max",\n  "my-agent": "pro"\n}\n',
   'utf8'
 );
 const cfgBag = extractPreserveBag(cfgTargetDir);
@@ -227,6 +230,15 @@ if (cfgMerged?.removed_agents !== undefined) {
 const cfgTiers = readJsoncFile<Record<string, any>>(path.join(cfgTargetDir, 'tiers.json'));
 if (cfgTiers?.ghost !== undefined) {
   throw new Error('Retired factory agent "ghost" must be dropped from tiers.json');
+}
+if (cfgTiers?.build !== 'standard') {
+  throw new Error('tiers.json: stale factory-agent mapping "build: max" must be overwritten by the template preset');
+}
+if (cfgTiers?.code !== 'pro') {
+  throw new Error('tiers.json: template preset for new factory agent "code" must survive the merge');
+}
+if (cfgTiers?.['my-agent'] !== 'pro') {
+  throw new Error('tiers.json: preserved tier entry for custom agent "my-agent" must stick');
 }
 console.log('✓ instructions template-owned + factory-agent upgrade propagation + custom-agent preservation + retirement cleanup');
 if (fs.existsSync(cfgMergeDir)) fs.rmSync(cfgMergeDir, { recursive: true, force: true });
@@ -302,8 +314,8 @@ if (realTemplate?.agent?.lite?.permission?.skill?.['*'] !== 'deny') {
 if (realTemplate?.agent?.lite?.tools?.question !== false) {
   throw new Error('shipped template lost the lite heavy-tools removal');
 }
-if ('task' in (realTemplate?.agent?.lite?.tools ?? {})) {
-  throw new Error('lite must keep task enabled for auxiliary assists');
+if (realTemplate?.agent?.lite?.tools?.task !== false) {
+  throw new Error('lite must keep task disabled — self-contained lookups, escalation to @build');
 }
 const liteTools = realTemplate?.agent?.lite?.tools;
 if (!liteTools || typeof liteTools !== 'object' || Object.values(liteTools).some((v) => v !== false)) {
@@ -377,6 +389,56 @@ if (modelMerged?.agent?.build?.prompt !== 'T_BUILD') {
 }
 console.log('✓ mergeConfig preserves user model picks while template prompt upgrades propagate');
 if (fs.existsSync(modelMergeDir)) fs.rmSync(modelMergeDir, { recursive: true, force: true });
+
+// 3j. Rename migration: factory agent `explorer` → `explore`. The user's
+// preserved model pick must follow the rename; the retired key's agent block
+// and tier entry must be dropped (via removed_agents), not preserved as
+// user-defined leftovers.
+console.log('\nTest 3j: Config Merge — explorer→explore Rename Migration');
+const renameDir = path.join(os.tmpdir(), `opencode-rename-test-${Date.now()}`);
+const renameRepoDir = path.join(renameDir, 'repo');
+const renameTargetDir = path.join(renameDir, 'target');
+fs.mkdirSync(renameRepoDir, { recursive: true });
+fs.mkdirSync(renameTargetDir, { recursive: true });
+fs.writeFileSync(
+  path.join(renameRepoDir, 'opencode.template.jsonc'),
+  '{\n  "removed_agents": ["explorer"],\n  "agent": {\n    "explore": { "prompt": "T_EXPLORE" }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(renameRepoDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "explore": "flash"\n}\n',
+  'utf8'
+);
+// Installed config from before the rename: explorer carries a user model pick
+fs.writeFileSync(
+  path.join(renameTargetDir, 'opencode.jsonc'),
+  '{\n  "agent": {\n    "explorer": { "prompt": "OLD_PROMPT", "model": "prov/flash-model" }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(renameTargetDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "explorer": "flash"\n}\n',
+  'utf8'
+);
+const renameBag = extractPreserveBag(renameTargetDir);
+mergeConfig(renameRepoDir, renameTargetDir, {} as any, renameBag);
+const renameMerged = readJsoncFile<Record<string, any>>(path.join(renameTargetDir, 'opencode.jsonc'));
+if (renameMerged?.agent?.explore?.model !== 'prov/flash-model') {
+  throw new Error(`Rename migration must carry the user's model pick to explore: got ${renameMerged?.agent?.explore?.model}`);
+}
+if (renameMerged?.agent?.explorer !== undefined) {
+  throw new Error('Retired explorer agent block must be dropped on upgrade');
+}
+const renameTiers = readJsoncFile<Record<string, any>>(path.join(renameTargetDir, 'tiers.json'));
+if (renameTiers?.explorer !== undefined) {
+  throw new Error('Retired explorer tier entry must be dropped from tiers.json');
+}
+if (renameTiers?.explore !== 'flash') {
+  throw new Error(`explore tier must follow the template: got ${renameTiers?.explore}`);
+}
+console.log('✓ explorer→explore rename: model pick migrated, retired keys dropped');
+if (fs.existsSync(renameDir)) fs.rmSync(renameDir, { recursive: true, force: true });
 
 // 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch
 console.log('\nTest 3e: Options File In-Place Update');

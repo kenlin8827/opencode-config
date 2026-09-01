@@ -29,7 +29,7 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 | `dba` | 编码包 + `sql-migration` |
 | `code-review` | `coding-principles` + `comment-strategy` + `test-scope`（无 `edit-protocol`——编辑权限已禁用） |
 | `architect`、`advisor`、`security` | 仅 `coding-principles`（评审基准） |
-| `build`、`plan`、`explorer`、`researcher`、`tech-writer`、`vision` | 无——仅吃 L0 |
+| `build`、`plan`、`explore`、`researcher`、`tech-writer`、`vision` | 无——仅吃 L0 |
 
 ## 每步可见性控制
 
@@ -56,7 +56,8 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 - **策略** —— 逐插件 `deny`/`allow` 列表，作用域文法 `x`（身份或态）与 `x:*`
   （态 `x` 的任意身份）；未声明的插件继承 `"*"` 默认条目。出厂默认：拒绝 `lite`、
   `utility`、`subagent:*` —— 注入不进被剥离的主代理，也不进任何子代理步骤。
-  工作流协议无需此门控：它们在 L2，只在斜杠命令触发时加载。
+  出厂有一处覆盖：`project-profiler` 仅拒绝 `lite`/`utility` —— 后端路由是子代理的
+  工作纪律（explore.md 把后端选择委托给会话画像）。工作流协议无需此门控：它们在 L2，只在斜杠命令触发时加载。
 - **失败开** —— 任何策略错误只跳过注入，不破坏步骤。
 
 ## 护栏

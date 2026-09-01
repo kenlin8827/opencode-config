@@ -77,8 +77,8 @@ Check "code-review agent has NO edit-protocol (edit denied)" `
     (-not ($config.agent.'code-review'.prompt -match 'edit-protocol'))
 Check "build agent has zero L1 additions" `
     ($config.agent.build.prompt -eq '{file:~/.config/opencode/prompts/build.md}')
-Check "explorer agent has zero L1 additions" `
-    ($config.agent.explorer.prompt -eq '{file:~/.config/opencode/prompts/explorer.md}')
+Check "explore agent has zero L1 additions" `
+    ($config.agent.explore.prompt -eq '{file:~/.config/opencode/prompts/explore.md}')
 
 # Ponytail config (official plugin) — environment-dependent: SKIP when the
 # config file doesn't exist (fresh machine / CI), only assert when present.
@@ -141,13 +141,14 @@ Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -
 Check "opencode.template.jsonc: lite ships without a model preset (inherits default until /profile)" ($null -eq $config.agent.lite.model)
 Check "opencode.template.jsonc: lite prompt is inline (no {file:})" ($config.agent.lite.prompt -notmatch '\{file:')
 Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
-Check "template: lite keeps native tools (no edit/bash/task deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "task"))
+Check "template: lite keeps native tools (no edit/bash deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash"))
 Check "template: lite denies all skills" ($config.agent.lite.permission.skill.'*' -eq "deny")
 Check "template: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
 Check "template: lite denies dbhub/idea surface" (($config.agent.lite.permission.'dbhub_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'idea_*'.'*' -eq "deny"))
 Check "template: lite denies plugin-tool surfaces" (($config.agent.lite.permission.'md_to_pdf'.'*' -eq "deny") -and ($config.agent.lite.permission.'md_to_docx'.'*' -eq "deny") -and ($config.agent.lite.permission.'browser_screenshot'.'*' -eq "deny"))
 Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tools.question -eq $false) -and ($config.agent.lite.tools.todowrite -eq $false) -and ($config.agent.lite.tools.todoread -eq $false))
-Check "template: lite keeps task enabled for auxiliary assists" ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "task")
+Check "template: lite task whitelist is explore/code-review/advisor/vision" (($config.agent.lite.permission.task.'*' -eq "deny") -and ($config.agent.lite.permission.task.explore -eq "allow") -and ($config.agent.lite.permission.task.'code-review' -eq "allow") -and ($config.agent.lite.permission.task.advisor -eq "allow") -and ($config.agent.lite.permission.task.vision -eq "allow") -and ($config.agent.lite.tools.task -ne $false))
+Check "template: lite prompt hardcodes the on-demand dispatch policy (vision exception)" ($config.agent.lite.prompt -match "explicit user request" -and $config.agent.lite.prompt -notmatch "Boost mode")
 Check "template: lite tools map keeps core coding tools" (($config.agent.lite.tools.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "webfetch"))
 Check "plugin-scope: default policy denies lite, utility and all subagent steps" (($scope.plugins.'*'.deny -contains "lite") -and ($scope.plugins.'*'.deny -contains "utility") -and ($scope.plugins.'*'.deny -contains "subagent:*"))
 $injectorFiles = @(
@@ -180,7 +181,7 @@ Check "routing-index.md: routes lightweight tasks to @lite" ((Get-Content "$PSSc
 $allFiles = @(
     "instructions/output-protocol.md",
     "instructions/test-scope.md",
-    "prompts/build.md", "prompts/plan.md", "prompts/code.md", "prompts/explorer.md",
+    "prompts/build.md", "prompts/plan.md", "prompts/code.md", "prompts/explore.md",
     "prompts/go-dev.md", "prompts/rust-dev.md", "prompts/java-dev.md",
     "prompts/python-dev.md", "prompts/node-dev.md", "prompts/frontend-dev.md",
     "prompts/researcher.md", "prompts/architect.md", "prompts/code-review.md",
@@ -451,7 +452,7 @@ Check "metrics.ts: imports TuiPlugin from plugin/tui" ($mtPlugin -match "@openco
 Check "metrics.ts: slash command name is metrics (bare, TUI prepends /)" ($mtPlugin -match 'SLASH_NAME = "metrics"')
 Check "metrics.ts: registers palette command with slashName" ($mtPlugin -match "slashName: SLASH_NAME" -and $mtPlugin -match 'namespace: "palette"')
 Check "metrics.ts: exports default TuiPluginModule with id" ($mtPlugin -match "export default plugin")
-Check "tui.template.jsonc: metrics registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/metrics\.ts"')
+Check "tui.template.jsonc: metrics registered in plugin array" ($tuiTemplateRaw -match '"\.\/plugins\/tui\/metrics\.ts"')
 
 # Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw
@@ -481,6 +482,9 @@ Check "profile-wizard.ts: has writeTiersFileAtomic function" ($pfPlugin -match "
 Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIERS")
 Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
 Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
+Check "profile-wizard.ts: reset strips model refs and deactivates profile" (($pfPlugin -match "function resetModels") -and ($pfPlugin -match "export function stripModelRefs") -and ($pfPlugin -match "confirmReset"))
+Check "profile-wizard.ts: /profile reset subcommand parses via ctx" ($pfPlugin -match "export function parseProfileSubcommand")
+Check "profile-wizard.ts: reset keeps profiles and tiers.json (confirm gate)" ($pfPlugin -match "profile\.resetMsg")
 Check "profile-wizard.ts: no explicit back items, Esc is the only back nav" (($pfPlugin -notmatch '"__back__"') -and ($pfPlugin -match 'navigated'))
 Check "tui.template.jsonc: profile-wizard registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/profile-wizard\.ts"')
 
@@ -652,6 +656,8 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-lite-tools-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-model-preserve-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-profile-reset-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)

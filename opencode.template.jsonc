@@ -4,7 +4,7 @@
   // config and tiers.json — without this they would be misread as user-added
   // agents and preserved forever. Consumed by install/src/merger.ts and
   // stripped from the merged output; never reaches the opencode runtime.
-  "removed_agents": ["coworker"],
+  "removed_agents": ["coworker", "explorer"],
   "adrMode": "flat",
   "$schema": "https://opencode.ai/config.json",
   "snapshot": true,
@@ -176,7 +176,7 @@
   //   coding pack + sql-migration: dba
   //   coding-principles + comment-strategy + test-scope: code-review (edit denied)
   //   coding-principles only (review criteria): architect, advisor, security
-  //   zero additions: build, plan, explorer, researcher, tech-writer, vision
+  //   zero additions: build, plan, explore, researcher, tech-writer, vision
   //
   // Block field order (convention): description, prompt, then tuning
   // metadata (mode/model/temperature/steps/variant), permission/tools last.
@@ -198,15 +198,28 @@
   // plugins/lite-tools.ts compresses native tool descriptions (measured:
   // stock ≈ 8.4k → ≈ 1.7k tok/step).
   "agent": {
+    // Native subagents disabled: `explore`'s role is owned by the factory
+    // `explore` agent below (the name captures models' training priors —
+    // Claude Code/opencode convention; formerly our agent was `explorer` and
+    // models kept picking the native one instead), and `general` overlaps
+    // the build team. Natives carry no `model` config, so the task tool's
+    // fallback (`next.model ?? parent message model`, verified v1.18.25)
+    // would silently run them on the host's model instead of a tier preset.
+    "general": { "disable": true },
     "lite": {
-      "description": "Lite — minimal-overhead primary for everyday use: lookups, web research, chat, quick tasks. No rule files, no skills, no MCP, no L0 instructions (the lite-mode plugin strips them). Suggest @build for heavy multi-domain coding work.",
-      "prompt": "<!-- lite-mode -->\nYou are lite, a minimal-overhead assistant. Answer directly and concisely. Use websearch/webfetch for lookups. Suggest @build for heavy multi-domain coding work.",
+      "description": "Lite — minimal-overhead primary for everyday use: lookups, web research, chat, quick tasks, light fixes. No rule files, no skills, no MCP, no L0 instructions (the lite-mode plugin strips them). Self-sufficient with four read-only assists (@explore, @code-review, @advisor, @vision); suggest @code or @build for heavy coding work.",
+      "prompt": "<!-- lite-mode -->\nYou are lite, a minimal-overhead assistant. Answer directly and concisely. Use websearch/webfetch for lookups. Simple code lookups: use your own grep/glob/read; light fixes and small edits: do them yourself. Your ONLY subagents (task): explore (codebase understanding), code-review (review diffs/files), advisor (second opinion on blocking decisions), vision (images/screenshots, when you cannot see them yourself). Dispatch a subagent only on explicit user request — except vision, which you may dispatch when an attached image is beyond your own sight. Heavy or multi-domain coding work: suggest @code or @build.",
       "mode": "primary",
       "temperature": 0.3,
-      "variant": "low",
-      // Only denies that actually shrink the prompt: skill "*" empties the resident skills block; each MCP prefix deny removes tool definitions plus <mcp_instructions> (serena/codegraph ~10.9k tok/step); the plugin-tool schemas lite never needs. tools:false entries drop heavy native schemas. task stays ON for auxiliary assists (advisor/explorer/code-review/vision) — lite-tools compresses its stock description to a one-line roster.
+      // No variant pin: lite's slimness comes from prompt surgery (no L0/skills/
+      // MCP, compressed tool schemas), not model quality — it rides the standard
+      // tier and inherits the model's native default (ChatGPT-style auto/standard,
+      // Kimi-style thinking-on). Forcing "low" would demote a user-facing daily
+      // primary; throughput agents (explore, fast-coder) keep their explicit low.
+      // Cost-shrinking denies only: skill "*" empties the resident skills block; each MCP prefix deny removes tool definitions plus <mcp_instructions> (serena/codegraph ~10.9k tok/step); the plugin-tool schemas lite never needs. tools:false entries drop heavy native schemas. task is a whitelist of four read-only assists (last match wins): explore for codebase understanding, code-review for diff/file review, advisor for blocking decisions, vision for images/screenshots (backs up hosts without native multimodality). Dispatch policy is hardcoded in the prompt: assists fire only on explicit user request, sole exception vision for images beyond lite's own sight (zero-alternative path); lite stays a self-sufficient daily loop (look → fix → review → advise → see); light fixes stay on lite itself (it keeps edit/read), only heavy or multi-domain coding escalates to @code or @build.
       "permission": {
         "skill": { "*": "deny" },
+        "task": { "*": "deny", "explore": "allow", "code-review": "allow", "advisor": "allow", "vision": "allow" },
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" },
         "dbhub_*": { "*": "deny" },
@@ -226,14 +239,27 @@
         "question": false
       }
     },
+    "code": {
+      "description": "Code — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explore, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
+      "prompt": "{file:~/.config/opencode/prompts/code.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
+      "mode": "primary",
+      "temperature": 0.3,
+      "variant": "medium"
+    },
     "build": {
       "description": "Build — default entry point for all tasks. Routes every coding task to the right specialist agent (even simple ones); handles only non-coding tasks (exploration, Q&A, git info) directly. Coordinates multi-step workflows across agents.",
       "prompt": "{file:~/.config/opencode/prompts/build.md}",
       "mode": "primary",
       "temperature": 0.3,
       "variant": "medium",
-      // Build routes work, it doesn't do it — hide the MCP tool surface (~10.9k tok/step). sdd-workflow stays: /prd /sdd land here.
-      "permission": { "serena_*": { "*": "deny" }, "codegraph_*": { "*": "deny" } }
+      // Build routes work, it doesn't do it — hide the MCP tool surface (~10.9k tok/step): serena/codegraph when on, plus the optional graph/DB/IDE servers if the user enables them (DB queries belong to @dba). sdd-workflow stays: /prd /sdd land here.
+      "permission": {
+        "serena_*": { "*": "deny" },
+        "codegraph_*": { "*": "deny" },
+        "gitnexus_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" }
+      }
     },
     "plan": {
       "description": "Plan orchestrator — coordinator that dispatches analysis tasks to specialists, persists structured plan artifacts (docs/plan/<topic>.md), and provides clean execution handoffs.",
@@ -241,36 +267,20 @@
       "mode": "primary",
       "temperature": 0.3,
       "variant": "medium",
-      // Plan dispatches analysis to specialists — no direct code-intel calls. SDD stays: /prd /adr /plan /impl run from here.
-      "permission": { "serena_*": { "*": "deny" }, "codegraph_*": { "*": "deny" } }
-    },
-    "code": {
-      "description": "Code — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
-      "prompt": "{file:~/.config/opencode/prompts/code.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
-      "mode": "primary",
-      "temperature": 0.3,
-      "variant": "medium"
+      // Plan dispatches analysis to specialists — no direct code-intel calls; optional graph/DB/IDE servers stay hidden too. SDD stays: /prd /adr /plan /impl run from here.
+      "permission": {
+        "serena_*": { "*": "deny" },
+        "codegraph_*": { "*": "deny" },
+        "gitnexus_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" }
+      }
     },
     // Task delegation policy: subagents are leaf nodes — task:false on every subagent; delegation belongs to the primaries (build/plan/code).
-    "advisor": {
-      "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
-      "prompt": "{file:~/.config/opencode/prompts/advisor.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
-      "mode": "subagent",
-      "temperature": 0.3,
-      "steps": 25,
-      "variant": "high",
-      "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "webfetch": "allow",
-        "websearch": "allow",
-        "skill": { "*": "deny" }
-      },
-      "tools": { "task": false }
-    },
-    "explorer": {
-      "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, symbol outlines) go to Serena MCP tools; multi-hop call paths and impact analysis go to CodeGraph instead.",
-      "prompt": "{file:~/.config/opencode/prompts/explorer.md}",
+    // Ordering = dispatch frequency: explore leads (it opens almost every workflow), so it also heads the task tool's candidate list.
+    "explore": {
+      "description": "Fast read-only codebase explorer. Use for quick code search, file location by pattern, keyword search, codebase Q&A, architecture overviews, and intent & design questions — any thoroughness from targeted lookup to thorough analysis. Structural lookups (definitions, references, symbol outlines) go to Serena MCP tools; multi-hop call paths and impact analysis go to CodeGraph instead.",
+      "prompt": "{file:~/.config/opencode/prompts/explore.md}",
       "mode": "subagent",
       "temperature": 0.2,
       "steps": 40,
@@ -293,18 +303,37 @@
       },
       "tools": { "task": false }
     },
+    "advisor": {
+      "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
+      "prompt": "{file:~/.config/opencode/prompts/advisor.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
+      "mode": "subagent",
+      "temperature": 0.3,
+      "steps": 25,
+      "variant": "high",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "skill": { "*": "deny" }
+      },
+      "tools": { "task": false }
+    },
     "researcher": {
       "description": "Tech researcher — evaluates technologies, compares alternatives, produces feasibility studies and trade-off reports. Invoke for research, compare, evaluate, benchmark, or 'which should we use?' questions.",
       "prompt": "{file:~/.config/opencode/prompts/researcher.md}",
       "mode": "subagent",
       "temperature": 0.3,
       "variant": "medium",
-      // Web/tech research runs outside the codebase — hide the MCP tool surface. bash stays: benchmarks and trial CLIs are core research work.
+      // Web/tech research runs outside the codebase — hide the MCP tool surface (including the optional graph/DB/IDE servers if enabled). bash stays: benchmarks and trial CLIs are core research work.
       "permission": {
         "edit": "deny",
         "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
+        "codegraph_*": { "*": "deny" },
+        "gitnexus_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" }
       },
       "tools": { "task": false }
     },
@@ -314,7 +343,7 @@
       "mode": "subagent",
       "temperature": 0.4,
       "variant": "high",
-      // Advisory role — environment facts arrive via explorer/researcher; no
+      // Advisory role — environment facts arrive via explore/researcher; no
       // direct execution.
       "permission": { "edit": "deny", "bash": "deny" },
       "tools": { "task": false }
@@ -441,11 +470,14 @@
       "mode": "subagent",
       "temperature": 0.3,
       "variant": "medium",
-      // Docs work reads rendered text, not symbol graphs — hide the MCP tool surface.
+      // Docs work reads rendered text, not symbol graphs — hide the MCP tool surface (including the optional graph/DB/IDE servers if enabled).
       "permission": {
         "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
+        "codegraph_*": { "*": "deny" },
+        "gitnexus_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" }
       },
       "tools": { "task": false }
     },
@@ -456,7 +488,7 @@
       "temperature": 0.2,
       "steps": 30,
       "variant": "medium",
-      // Image analysis has no use for code graphs — hide the MCP tool surface.
+      // Image analysis has no use for code graphs or DB/IDE bridges — hide the MCP tool surface.
       "permission": {
         "edit": "deny",
         "bash": "deny",
@@ -464,7 +496,10 @@
         "websearch": "deny",
         "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
+        "codegraph_*": { "*": "deny" },
+        "gitnexus_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" }
       },
       "tools": { "task": false }
     },

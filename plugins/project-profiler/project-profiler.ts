@@ -210,7 +210,7 @@ function recommendation(p: ProjectProfile): string[] {
   if (p.codegraphIndexed || p.gitnexusIndexed) {
     prefs.push("graph queries return dense payloads — SHOULD keep them focused, one query per question")
   }
-  if (cards.length === 0) cards.push("no code-intelligence backend available — grep/glob, then targeted file reads; one @explorer pass for multi-step workflows")
+  if (cards.length === 0) cards.push("no code-intelligence backend available — grep/glob, then targeted file reads; one @explore pass for multi-step workflows")
   const lines = [`- Serena: ${serena} · CodeGraph: ${graph}`,
     "Available backends — pick per question:", ...cards.map((s) => `  - ${s}`)]
   if (prefs.length > 0) lines.push("Preferences when several fit:", ...prefs.map((s) => `  - ${s}`))

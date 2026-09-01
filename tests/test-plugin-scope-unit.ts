@@ -29,6 +29,8 @@ check("identifiers.lite is a contains rule", typeof scope.identifiers.lite?.cont
 check("identifiers.utility is a startsWith rule", typeof scope.identifiers.utility?.startsWith === "string")
 const star = scope.plugins["*"]
 check("default policy denies lite, utility and all subagent steps", Array.isArray(star?.deny) && ["lite", "utility", "subagent:*"].every((e) => star.deny.includes(e)))
+const profiler = scope.plugins["project-profiler"]
+check("project-profiler overrides the default: subagent steps allowed, lite/utility still denied", Array.isArray(profiler?.deny) && !profiler.deny.includes("subagent:*") && ["lite", "utility"].every((e) => profiler.deny.includes(e)))
 
 // --- Public surface ------------------------------------------------------------
 const gateApi = (await import("../plugins/shared/plugin-scope")) as Record<string, unknown>
@@ -59,6 +61,8 @@ let callCount = 0
 const countingClient = { session: { get: async () => { callCount++; return { data: { parentID: "parent-session" } } } } }
 
 check("scoped blocks subagent steps (parentID ground truth)", (await scoped({ sessionID: "sub-1" }, normalSystem, "sdd", subagentClient)) === false)
+check("project-profiler injects into subagent steps via its override", (await scoped({ sessionID: "sub-profiler" }, normalSystem, "project-profiler", subagentClient)) === true)
+check("project-profiler still blocks lite sessions", (await scoped(undefined, liteSystem, "project-profiler")) === false)
 check("scoped allows primary sessions with a client present", (await scoped({ sessionID: "pri-1" }, normalSystem, "sdd", primaryClient)) === true)
 check("scoped falls open without sessionID/client", (await scoped(undefined, normalSystem, "sdd")) === true)
 await scoped({ sessionID: "sub-cache" }, normalSystem, "sdd", countingClient)

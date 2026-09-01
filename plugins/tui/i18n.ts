@@ -139,7 +139,7 @@ const STRINGS = {
   // ── Profile wizard ──────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════
   "profile.cmdTitle": { en: "Switch model profile", "zh-CN": "切换配置方案" },
-  "profile.cmdDesc": { en: "Select a profile, edit agent tiers or live tier models, or manage profile models", "zh-CN": "选择配置方案，编辑 Agent 的模型层级或当前层级的模型，或管理配置方案的模型" },
+  "profile.cmdDesc": { en: "Select a profile, edit agent tiers or live tier models, or manage profile models — /profile reset clears all model refs", "zh-CN": "选择配置方案，编辑 Agent 的模型层级或当前层级的模型，或管理配置方案的模型 — /profile reset 清空所有模型引用" },
 
   // Main menu
   "profile.mainTitle": { en: "Profile wizard", "zh-CN": "配置方案向导" },
@@ -158,6 +158,14 @@ const STRINGS = {
   "profile.selectProfile": { en: "Select: Profile", "zh-CN": "选择: 配置方案" },
   "profile.selectProfileActive": { en: "Select: Profile (active: {active})", "zh-CN": "选择: 配置方案 (当前: {active})" },
   "profile.selectProfileDesc": { en: "Pick a profile, review its mapping, then apply", "zh-CN": "选一个配置方案，确认映射后再应用" },
+  "profile.resetModels": { en: "🧹 Reset: Model refs", "zh-CN": "🧹 重置: 模型引用" },
+  "profile.resetModelsDesc": { en: "Remove every model ref from opencode.jsonc — opencode falls back to its model picker (asks for confirmation)", "zh-CN": "移除 opencode.jsonc 中所有模型引用 — opencode 回落到原生模型选择器（执行前需确认）" },
+  "profile.resetTitle": { en: "Reset model refs", "zh-CN": "重置模型引用" },
+  "profile.resetMsg": { en: "Remove ALL model refs from opencode.jsonc?\n\n{refs}\n\nProfile files and tiers.json are kept; a .bak backup of the config is kept. opencode falls back to its native model picker.", "zh-CN": "移除 opencode.jsonc 中的全部模型引用？\n\n{refs}\n\n配置方案文件与 tiers.json 保留；配置会保留 .bak 备份。opencode 将回落到原生模型选择器。" },
+  "profile.resetNothing": { en: "Nothing to reset — no model refs in the config.", "zh-CN": "无需重置 — 配置中没有模型引用。" },
+  "profile.resetDone": { en: "Removed {count} model ref(s). Restart opencode to apply.", "zh-CN": "已移除 {count} 个模型引用。重启 opencode 后生效。" },
+  "profile.resetFailed": { en: "Reset failed: {err}", "zh-CN": "重置失败: {err}" },
+  "profile.unknownSub": { en: "Unknown subcommand '{sub}'. Usage: /profile [reset]", "zh-CN": "未知子命令 '{sub}'。用法: /profile [reset]" },
 
   // Edit: Agent→Tier
   "profile.editTierTitle": { en: "Edit agent→tier", "zh-CN": "编辑 Agent→模型层级" },

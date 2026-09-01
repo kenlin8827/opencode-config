@@ -8,7 +8,8 @@
  *   - model attribution via message.updated assistant messages
  *   - compaction event recording and counting
  *   - session.idle summary persistence (session-<id>.json) + dedupe
- *   - session.created → persist + clear state
+ *   - session.created → persist + clear state ONLY for root sessions;
+ *     subagent sessions (info.parentID set) must not trigger a reset
  *   - JSONL persistence (kind: step / compaction records)
  *   - /metrics slash command: keymap registration, toast-based output,
  *     subcommand filtering (/metrics model), session-id grouping
@@ -209,9 +210,15 @@ assert(fullText.includes("[s1]"), "full output shows s1 session")
 assert(fullText.includes("[s2]"), "full output shows s2 session")
 assert(fullText.includes("session(s)"), "shows session count")
 
-// --- session.created (/new) → persist + clear state ---
+// --- session.created for a SUBAGENT (parentID set) must NOT clear state ---
 partEvent({ type: "step-finish", sessionID: "s2", messageID: "mm3", cost: 0.005, tokens: { input: 100, output: 10, reasoning: 0, cache: { read: 0, write: 0 } } })
-emit("session.created", { sessionID: "s3" })
+emit("session.created", { info: { id: "sub1", parentID: "s2" } })
+toasts.length = 0
+runMetrics()
+assert(toasts[0].message.includes("[s2]"), "subagent session.created keeps existing data")
+
+// --- session.created (/new, root session) → persist + clear state ---
+emit("session.created", { info: { id: "s3" } })
 files = readdirSync(metricsDir)
 assert(files.includes("session-s2.json"), "session.created persists active session")
 
