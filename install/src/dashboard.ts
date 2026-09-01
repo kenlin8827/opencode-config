@@ -154,10 +154,11 @@ export async function runTuiDashboard(repoDir: string, initialLocale?: string): 
   const initialMcpState = { ...mcpState };
   const initialPluginState = { ...pluginState };
 
-  // Available agent candidates
+  // Available agent candidates — primary agents from opencode.template.jsonc;
+  // fallback mirrors the template order if the template is unreadable.
   const availableAgents = schema.defaultAgent.choices.length > 0
     ? schema.defaultAgent.choices
-    : ['code', 'build', 'plan'];
+    : ['lite', 'build', 'plan', 'code'];
 
   // Build selectable rows
   const buildRows = (): RowItem[] => {

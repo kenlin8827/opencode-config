@@ -67,6 +67,7 @@
     "herdr": false
   },
   // Which primary agent opencode enters by default:
+  //   lite     — minimal-overhead primary for lookups / chat / quick tasks
   //   code     — direct developer; does the coding work itself (daily driver)
   //   build    — orchestrator; routes coding tasks to specialists
   //   plan     — read-only coordinator for analysis / design work

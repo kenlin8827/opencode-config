@@ -69,6 +69,16 @@ const schema = parseDynamicOptionsSchema(fs.readFileSync(optionsPath, 'utf8'), r
 if (!schema.defaultAgent.value || schema.mcpItems.length === 0 || schema.pluginItems.length === 0) {
   throw new Error('Dynamic options parsing failed');
 }
+// Agent candidates must be the template's primary/all agents — never the raw
+// agents/ dir scan, which would offer subagent-only prompts as primaries.
+const tmplAgents = Object.entries(
+  (readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'))?.agent ?? {}) as Record<string, any>
+)
+  .filter(([, def]) => def?.mode === 'primary' || def?.mode === 'all')
+  .map(([name]) => name);
+if (JSON.stringify(schema.defaultAgent.choices) !== JSON.stringify(tmplAgents)) {
+  throw new Error(`defaultAgent.choices must mirror template primary agents — got [${schema.defaultAgent.choices}], expected [${tmplAgents}]`);
+}
 console.log(`✓ Schema passed (Found ${schema.mcpItems.length} MCPs, ${schema.pluginItems.length} Plugins)`);
 
 // 3b. User options merging

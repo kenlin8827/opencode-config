@@ -45,10 +45,19 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
   };
 
   if (repoDir) {
-    const agentsDir = path.join(repoDir, 'agents');
-    if (fs.existsSync(agentsDir)) {
-      const files = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md'));
-      schema.defaultAgent.choices = files.map((f) => path.basename(f, '.md'));
+    // Candidates must come from the template config — it is the source of
+    // truth for what the installer actually writes. Scanning agents/*.md
+    // would list subagent-only prompts (mode: "subagent") that can never be
+    // the primary agent. "all" also qualifies as selectable.
+    const template = readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'));
+    const agentMap = template?.agent;
+    if (agentMap && typeof agentMap === 'object') {
+      schema.defaultAgent.choices = Object.entries(agentMap)
+        .filter(([, def]) => {
+          const mode = (def as Record<string, any>)?.mode;
+          return mode === 'primary' || mode === 'all';
+        })
+        .map(([name]) => name);
     }
   }
 
