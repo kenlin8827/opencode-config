@@ -52,7 +52,8 @@
   // (tray icon / http://localhost:24282/dashboard/) but no UI window pops up
   // per session — without this, every opencode conversation opens one.
   // If serena is not installed, set "enabled": false — agents fall back to
-  // grep/glob/file reads per their prompts.
+  // grep/glob/file reads per their prompts. Default off: 23 tools cost
+  // ~7.7k tok/step; enable when semantic search / refactoring is needed.
   "mcp": {
     "serena": {
       "type": "local",
@@ -62,7 +63,7 @@
         "import(require('url').pathToFileURL(require('path').join(require('os').homedir(), '.config/opencode/scripts/serena-workspace-daemon.mjs')).href)"
       ],
       "install": "uv tool install -p 3.13 serena-agent@latest --prerelease=allow",
-      "enabled": true
+      "enabled": false
     },
     // CodeGraph (default graph backend): pre-indexed code knowledge graph
     // (Tree-sitter → SQLite). Complements Serena: adds structural macro
@@ -259,7 +260,7 @@
         "bash": "deny",
         "webfetch": "ask",
         "websearch": "ask",
-        "skill": { "sdd-workflow": "deny" }
+        "skill": { "*": "deny" }
       }
     },
     "explorer": {
@@ -274,7 +275,7 @@
         "edit": "deny",
         "webfetch": "deny",
         "websearch": "deny",
-        "skill": { "sdd-workflow": "deny" }
+        "skill": { "*": "deny" }
       }
     },
     "researcher": {
@@ -287,7 +288,7 @@
       // Web/tech research runs outside the codebase — hide the MCP tool surface. bash stays: benchmarks and trial CLIs are core research work.
       "permission": {
         "edit": "deny",
-        "skill": { "sdd-workflow": "deny" },
+        "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" }
       }
@@ -308,7 +309,7 @@
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "security": {
       "description": "Security engineer — vulnerability assessment, security architecture review, OWASP analysis, dependency scanning, compliance. Invoke for security, vulnerability, OWASP, encryption, or 'is this secure?'",
@@ -317,7 +318,7 @@
       "model": "llm-router/max",
       "temperature": 0.2,
       "variant": "high",
-      "permission": { "edit": "deny", "skill": { "sdd-workflow": "deny" } }
+      "permission": { "edit": "deny", "skill": { "*": "deny" } }
     },
     "java-dev": {
       "description": "Java/Spring Boot engineer — Java, Spring Boot, Spring Security, JPA/Hibernate, Maven/Gradle, JUnit. Invoke for Java, Spring, JPA, Hibernate, Maven, Gradle, or JVM tasks.",
@@ -326,7 +327,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "python-dev": {
       "description": "Python engineer — FastAPI, Django, Flask, async Python, pandas/numpy, scripting, pytest. Invoke for Python, FastAPI, Django, Flask, pandas, numpy, or pip tasks.",
@@ -335,7 +336,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "go-dev": {
       "description": "Go engineer — Gin, Echo, Fiber, gRPC, protobuf, Cobra, microservices, goroutines. Invoke for Go, Golang, Gin, gRPC, protobuf, or Cobra tasks.",
@@ -344,7 +345,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "rust-dev": {
       "description": "Rust engineer — Cargo, Axum, Actix, Tokio, serde, WASM, systems programming. Invoke for Rust, Cargo, Tokio, Axum, Actix, serde, or wasm tasks.",
@@ -353,7 +354,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "node-dev": {
       "description": "Node.js/TypeScript engineer — NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm. Invoke for Node.js, NestJS, Express, Fastify, Prisma, TypeORM, or npm/pnpm tasks.",
@@ -362,7 +363,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "frontend-dev": {
       "description": "Frontend engineer — React/Vue/Svelte/Next.js, TypeScript, CSS/Tailwind, accessibility, performance. Invoke for frontend, React, Vue, Svelte, CSS, Tailwind, UI, or component work.",
@@ -371,7 +372,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "qa": {
       "description": "QA engineer — test planning, test generation, coverage analysis, E2E strategy, quality gates. Invoke for testing, QA, coverage, E2E, integration tests, or regression.",
@@ -380,7 +381,7 @@
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "permission": { "webfetch": "ask", "skill": { "sdd-workflow": "deny" } }
+      "permission": { "webfetch": "ask", "skill": { "*": "deny" } }
     },
     "code-review": {
       "description": "Code reviewer — reviews git diffs, PRs, staged/unstaged changes, specific files. Invoke for code review, PR review, or feedback on code quality, correctness, security, or best practices.",
@@ -393,7 +394,7 @@
         "edit": "deny",
         "webfetch": "ask",
         "websearch": "ask",
-        "skill": { "sdd-workflow": "deny" }
+        "skill": { "*": "deny" }
       }
     },
     "devops": {
@@ -403,7 +404,7 @@
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     },
     "tech-writer": {
       "description": "Technical writer — README, API docs, architecture docs, ADRs, changelogs, user guides. Invoke for documentation, README, changelog, ADR, or developer guide tasks.",
@@ -414,7 +415,7 @@
       "variant": "medium",
       // Docs work reads rendered text, not symbol graphs — hide the MCP tool surface.
       "permission": {
-        "skill": { "sdd-workflow": "deny" },
+        "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" }
       }
@@ -433,7 +434,7 @@
         "bash": "deny",
         "webfetch": "ask",
         "websearch": "ask",
-        "skill": { "sdd-workflow": "deny" },
+        "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" }
       }
@@ -445,7 +446,7 @@
       "model": "llm-router/flash",
       "temperature": 0.2,
       "variant": "low",
-      "permission": { "skill": { "sdd-workflow": "deny" } }
+      "permission": { "skill": { "*": "deny" } }
     }
   }
 }

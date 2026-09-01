@@ -47,8 +47,9 @@
      "default_agent": "code",
      // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
      "mcp": {
-       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+）
-       "serena": true,
+       // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+；默认关闭，
+       // 23 个工具约 7.7k tok/步；需要时手动开启）
+       "serena": false,
        // CodeGraph AST 代码知识图谱（需 npm）
        "codegraph": true,
        // GitNexus 代码图谱（PolyForm 非商用许可；需自行索引）

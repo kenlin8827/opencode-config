@@ -60,7 +60,7 @@ Manage active MCP servers in `install/options.jsonc`:
 // install/options.jsonc
 {
   "mcp": {
-    "serena": true,     // LSP semantic queries (auto-installed via uv if missing)
+    "serena": false,    // LSP semantic queries (off by default — 23 tools ≈ 7.7k tok/step; enable when needed)
     "codegraph": true,  // Code knowledge graph (auto-installed via npm if missing)
     "gitnexus": false,  // Deep Cypher graph (check PolyForm license for commercial use)
     "dbhub": true,      // Universal DB gateway (auto-installed via npm if missing)

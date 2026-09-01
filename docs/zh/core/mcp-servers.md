@@ -60,7 +60,7 @@
 // install/options.jsonc
 {
   "mcp": {
-    "serena": true,     // LSP 语义检索（启用且本地缺失时，安装器自动通过 uv 安装）
+    "serena": false,    // LSP 语义检索（默认关闭 —— 23 工具约 7.7k tok/步；需要时手动开启）
     "codegraph": true,  // 代码图谱（启用且本地缺失时，安装器自动通过 npm 全局安装）
     "gitnexus": false,  // 深度 Cypher 图谱（商业使用需注意 PolyForm 许可证）
     "dbhub": true,      // 数据库网关（启用且本地缺失时，安装器自动通过 npm 全局安装）

@@ -47,8 +47,9 @@ Learn about installer commands, configuration options, token savings, and preser
      "default_agent": "code",
      // MCP server switches (missing CLIs auto-provisioned on install)
      "mcp": {
-       // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+)
-       "serena": true,
+       // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+;
+       // default off — 23 tools ≈ 7.7k tok/step; enable when needed)
+       "serena": false,
        // CodeGraph AST code knowledge graph (needs npm)
        "codegraph": true,
        // GitNexus code graph (PolyForm Noncommercial license; requires indexing)
