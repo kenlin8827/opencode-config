@@ -103,13 +103,13 @@ Launch with `ocp desktop` (alias `ocp ui`) — native Tauri app with full keyboa
 | Feature | What it means for you |
 |---|---|
 | **Specialist Agent Team** | 21 specialists (`@java-dev`, `@security`, `@dba`, `@frontend-dev`, `@fast-coder`, etc.) tuned with domain-specific prompts, routed automatically |
-| **Three Working Modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis) — switchable in `install/options.jsonc` |
+| **Four Working Modes** | `@code` (direct development, default), `@build` (orchestrated execution), `@plan` (read-only analysis), `@lite` (near-zero overhead for quick everyday tasks) |
 | **Code Intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
 | **Workflow Slash Commands** | `/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` dev loops, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
 | **Optional Guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
 | **One-Command Installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
-| **Token Savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install |
+| **Token Savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install + `@lite` measured ~2k tok/step system prompt where full-config agents carry 13k+ tok/step of overhead |
 | **Second-Opinion Advisor** | `@advisor` for blocking decisions, with an adversarial red-team stance for design review |
 
 ---

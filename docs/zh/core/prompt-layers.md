@@ -39,6 +39,19 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 
 任何改动先用 `scripts/measure-prompts.ts` 量化，再发布。
 
+## 插件注入门控
+
+运行时的协议注入（斜杠命令协议、护栏通告）由 `plugin-scope.json`（仓库根，
+随清单发布）策略门控，唯一消费方为 `plugins/shared/plugin-scope.ts`。每个注入器在
+触碰系统提示前都要 `await scoped(input, output.system, "<plugin-id>", client)`。
+
+- **身份识别** —— 文本 `identifiers`（lite 哨兵、标题生成器前缀）加会话真值：
+  `parentID` 非空即子代理步骤（按会话缓存；仅在文本未命中时查询）。
+- **策略** —— 逐插件 `deny`/`allow` 列表，作用域文法 `x`（身份或态）与 `x:*`
+  （态 `x` 的任意身份）；未声明的插件继承 `"*"` 默认条目。出厂默认：拒绝 `lite`、
+  `utility`、`subagent:*` —— 协议注入不进被剥离的主代理，也不进任何子代理步骤。
+- **失败开** —— 任何策略错误只跳过注入，不破坏步骤。
+
 ## 护栏
 
 - `routing-index.md`（L0）保留所有按需规则的指针，规则降级不会丢失其背后的

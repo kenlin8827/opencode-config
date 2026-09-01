@@ -44,6 +44,26 @@ Two resident layers are gated by per-agent permissions instead of disclosure
 
 Quantify any change with `scripts/measure-prompts.ts` before releasing.
 
+## Plugin injection gating
+
+Runtime protocol injections (slash-command protocols, guardrail notices) are
+policy-gated by `plugin-scope.json` (repo root, shipped), consumed solely by
+`plugins/shared/plugin-scope.ts`. Every injector awaits
+`scoped(input, output.system, "<plugin-id>", client)` before touching the
+system prompt.
+
+- **Identification** — text `identifiers` (the `lite` sentinel, the
+title-generator prefix) plus session ground truth: a non-empty `parentID`
+marks a subagent step (cached per session; consulted only when text
+detection misses).
+- **Policy** — per-plugin `deny`/`allow` lists using the scope grammar `x`
+(identity or state) and `x:*` (any identity in state `x`); unspecified
+plugins inherit the `"*"` entry. Shipped default: deny `lite`, `utility`,
+`subagent:*` — protocol injections stay out of stripped primaries and every
+subagent step.
+- **Fail-open** — any policy error skips the injection rather than breaking
+the step.
+
 ## Guard rails
 
 - `routing-index.md` (L0) keeps pointers to every on-demand rule, so demoting

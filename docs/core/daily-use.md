@@ -1,6 +1,6 @@
 # Daily Use & Modes
 
-OpenCode Multi-Agent provides three primary orchestrator modes and direct access to 17 specialized domain agents.
+OpenCode Multi-Agent provides three orchestrator modes plus the near-zero-overhead `@lite` mode, and direct access to 17 specialized domain agents.
 
 ---
 
@@ -46,7 +46,20 @@ Switch to `@plan` for analysis-only tasks (no code modifications):
   → Aggregates findings into a prioritized report
 ```
 
-Switch between modes via `Tab` or `@code` / `@build` / `@plan`.
+Switch between modes via `Tab` or `@code` / `@build` / `@plan` / `@lite`.
+
+---
+
+## Lite mode (near-zero overhead)
+
+`@lite` is the lightweight mode for everyday quick tasks — lookups, chat, small edits. It is the only mode with **measured near-zero prompt overhead**: 0 L1 tokens, 0 resident skills/MCP definitions, and L0 stripped at runtime. Where a full-config agent carries **13k+ tokens of prompt overhead per step**, `@lite`'s entire system prompt measures **~2k tokens**.
+
+```
+> @lite what does this function do?
+> @lite rename this variable and fix the call sites
+```
+
+Trade-off: `@lite` opts out of instruction layers, protocol injections, the skills block, and MCP code intelligence. It keeps every native tool (read/edit/bash/…) but carries no engineering discipline on top — route real engineering work to `@code` / `@build`.
 
 ---
 

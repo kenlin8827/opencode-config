@@ -77,6 +77,9 @@ User
  └── Plugins (runtime enforcement & workflows — see "Plugin system")
      ├── npm plugins via `opencode.jsonc:plugin` (ponytail, qoder-bridge, …)
      ├── auto-discovered entries in `plugins/*.ts` (guards, collectors, barrels)
+     ├── injection gate: plugin-scope.json → plugins/shared/plugin-scope.ts
+     │     (protocol injections denied for lite/utility identities and all
+     │     subagent steps; fail-open)
      └── TUI plugins via `tui.template.jsonc:plugin` (provider-wizard, profile-wizard, queue-manager)
 ```
 
@@ -282,7 +285,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 - **Auto-discovered**: OpenCode scans the `plugins/` root for `.ts` files. Multi-file plugins therefore use the **barrel pattern**: `plugins/<name>.ts` re-exports from `plugins/<name>/<name>.ts`, keeping implementation, protocol markdown, and helpers in the subdirectory.
 - **TUI plugins**: registered explicitly in `tui.template.jsonc:plugin` (`provider-wizard.ts`, `profile-wizard.ts`, `queue-manager.ts`) — TUI-only, no headless equivalent.
 - **npm plugins**: default active plugins are listed in `opencode.template.jsonc:plugin` (`@dietrichgebert/ponytail`); optional plugins (`opencode-qoder-bridge`, `opencode-mem@2.24.3`) are configured in `install/options.jsonc` and dynamically injected/pre-installed on install.
-- **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager.
+- **Shared plumbing**: `plugins/shared/opencode-prime.ts` — project-dir resolution, JSONC parsing, field upsert, never-throw writes; used by auto-advisor, adr-guard, env-guard, e2e-guard, project-manager. `plugins/shared/plugin-scope.ts` — the runtime injection gate: every `system.transform` protocol injector awaits `scoped(input, output.system, "<plugin-id>", client)` before injecting; policy lives in `plugin-scope.json` (repo root, shipped) as `identifiers` (text detection) plus per-plugin `deny`/`allow` lists with scope grammar `x` / `x:*`; the `"*"` entry is the inherited default (deny `lite`, `utility`, `subagent:*`). Fail-open.
 
 ### Hook inventory
 
@@ -293,6 +296,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `metrics.ts` | `tool.execute.after` + `event: session.idle` | Auto-records tool call metrics (duration, success, agent). JSONL + session summary in `~/.config/opencode/.metrics/`. |
 | `auto-format.ts` | `event: file.edited` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edit. |
 | `browser-screenshot.ts` | custom tool | Registers `browser_screenshot` tool (Playwright headless) for `@vision` / `@frontend-dev`. |
+| `lite-mode.ts` (+ `plugins/lite-mode/`) | `system.transform` | Strips the `<!-- lite-mode -->` sentinel and every `Instructions from:` block (L0) from the `@lite` primary's system prompt. |
 | `project-profiler.ts` (+ `plugins/project-profiler/`) | `session.created` + `system.transform` | Detects project nature at session start (config-driven, zero CLI probing) and injects a compact profile + code-intelligence backend recommendation (Serena vs CodeGraph, GitNexus optional) into the system prompt. |
 | `openrtk.ts` (+ `plugins/openrtk/`) | command rewrite | Vendored rtk integration: rewrites shell commands through the rtk compression proxy transparently. |
 | `auto-advisor-mode.ts` (+ `plugins/auto-advisor/`) | 5 hooks — see below | Advisor modes off/lite/full; protocol injection; full-mode auto-execute; red-team suppression. |
@@ -314,7 +318,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
 
-All slash commands are registered programmatically via the `config` hook — no `commands/*.md` files are needed. Protocol bodies live as markdown next to their plugin and are loaded at runtime, injected via `experimental.chat.system.transform` (LLM-only, not visible in chat UI).
+All slash commands are registered programmatically via the `config` hook — no `commands/*.md` files are needed. Protocol bodies live as markdown next to their plugin and are loaded at runtime, injected via `experimental.chat.system.transform` (LLM-only, not visible in chat UI). Every such injector passes through the `plugin-scope.ts` gate first (see shared plumbing), so protocols never land in `@lite`, utility sessions, or subagent steps.
 
 ### Auto-advisor internals
 
@@ -519,6 +523,9 @@ plugins/
 ├── handoff/                       # Implementation + protocol markdown
 ├── openrtk.ts                     # Barrel: vendored rtk command rewrite
 ├── openrtk/                       # Implementation + rewrite logic
+├── lite-mode.ts                   # Hook: strip L0 from @lite system prompt
+├── lite-mode/                     # Implementation
+├── shared/plugin-scope.ts         # Injection gate (consumes plugin-scope.json)
 ├── design-token-guard.ts          # Hook: block hardcoded design values
 ├── ai-slop-scanner.ts             # Hook: scan for AI anti-patterns
 ├── metrics.ts                     # Hook: auto-collect tool metrics
