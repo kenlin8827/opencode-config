@@ -159,7 +159,7 @@ const hook = plugin["experimental.chat.system.transform"]!
 }
 
 {
-  const original = joinSystem("{file:agents/build.md} expanded build prompt")
+  const original = joinSystem("{file:prompts/build.md} expanded build prompt")
   const output = { system: [original] }
   await hook({ sessionID: "s2", model: {} as any }, output)
   assert(output.system[0] === original, "untouched without sentinel (other agents)")

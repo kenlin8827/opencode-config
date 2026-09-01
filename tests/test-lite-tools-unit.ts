@@ -4,6 +4,7 @@
  * Covers:
  *   - tool.definition rewrites native tool descriptions to short forms
  *   - gating: rewrite applies only after chat.message reports agent=lite
+ *   - chat.params provides redundant agent signal
  *   - unknown tools (MCP etc.) and parameter schemas stay untouched
  *
  * Run: bun tests/test-lite-tools-unit.ts
@@ -32,6 +33,7 @@ function section(title: string): void {
 
 const plugin = await LiteToolsPlugin()
 const onMessage = plugin["chat.message"]!
+const onParams = plugin["chat.params"]!
 const onToolDef = plugin["tool.definition"]!
 
 // ─── Gate closed before any chat.message ─────────────────────────────────
@@ -55,6 +57,12 @@ await onMessage({ sessionID: "s1", agent: "lite" } as any, {} as any)
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length < 300, "bash description compressed for lite")
   assert(output.description.includes("workdir"), "compressed bash keeps the workdir rule")
+}
+
+{
+  const output = { description: "x".repeat(1800), parameters: {} }
+  await onToolDef({ toolID: "task" } as any, output)
+  assert(output.description.includes("code-review"), "task compressed to auxiliary roster for lite")
 }
 
 {
@@ -82,6 +90,18 @@ await onMessage({ sessionID: "s2", agent: "build" } as any, {} as any)
   assert(output.description.length === 4655, "no rewrite for non-lite agents")
 }
 
+// ─── chat.params provides redundant agent signal ─────────────────────────
+
+section("signal: chat.params alone opens the gate")
+
+await onParams({ sessionID: "sp", agent: "lite", model: {}, provider: {}, message: {} } as any, {} as any)
+
+{
+  const output = { description: "x".repeat(4655), parameters: {} }
+  await onToolDef({ toolID: "bash" } as any, output)
+  assert(output.description.length < 300, "chat.params alone activates compression")
+}
+
 // ─── Missing agent field keeps last known agent ──────────────────────────
 
 section("gate: agent-less messages do not reset state")
@@ -91,8 +111,8 @@ await onMessage({ sessionID: "s3" } as any, {} as any)
 
 {
   const output = { description: "x".repeat(2305), parameters: {} }
-  await onToolDef({ toolID: "task" } as any, output)
-  assert(output.description.length < 100, "lite state persists across agent-less messages")
+  await onToolDef({ toolID: "bash" } as any, output)
+  assert(output.description.length < 300, "lite state persists across agent-less messages")
 }
 
 console.log(`\n${"─".repeat(60)}`)

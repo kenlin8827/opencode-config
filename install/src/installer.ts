@@ -95,7 +95,7 @@ export function backupTargetDir(targetDir: string): string | null {
  * Top-level directories managed by the installer. Empty-directory pruning
  * stops at these boundaries — they are never removed themselves.
  */
-const MANAGED_DIRS = new Set(['agents', 'commands', 'instructions', 'plugins', 'profiles', 'providers', 'skills']);
+const MANAGED_DIRS = new Set(['commands', 'instructions', 'plugins', 'profiles', 'prompts', 'providers', 'skills']);
 
 /**
  * Walk up from `startDir`, removing every empty directory until a managed
@@ -571,7 +571,7 @@ export function executeInstall(
   const preserveBag = extractPreserveBag(targetDir);
 
   // 3.5 Remove files shipped in any historical version but no longer shipped
-  //   in the current one. Without this, removed agents/instructions/plugins
+  //   in the current one. Without this, removed prompts/instructions/plugins
   //   accumulate in ~/.config/opencode/ across upgrades.
   //
   //   The historical source is the union of every loose manifest plus the

@@ -49,7 +49,7 @@ A bug fix with zero tests is not a real bug fix. Default to at least the 2–5-f
 
 `@qa` and `@code-review` reports MUST state which tier they ran and why. Silent "all green" without a tier label is a bug in the report.
 
-Coverage tiering is defined in `agents/qa.md` — the agent names the code class (Critical / Business / Other) in the report.
+Coverage tiering is defined in `prompts/qa.md` — the agent names the code class (Critical / Business / Other) in the report.
 
 ## What this policy is NOT
 

@@ -3,7 +3,7 @@
  *
  * Estimates, in tokens (chars / 4), what the shipped template actually costs:
  *   L0 — the `instructions` array: paid on every step of every agent.
- *   L1 — each agent prompt: its agents/*.md plus the rule files assembled
+ *   L1 — each agent prompt: its prompts/*.md plus the rule files assembled
  *        via {file:} markers, paid only while that agent runs.
  *   L2 — skills/: only name+description stay resident; the body loads on demand.
  *   Per-step overhead — what every step pays ON TOP of L0+L1: the resident

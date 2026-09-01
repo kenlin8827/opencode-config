@@ -15,7 +15,7 @@
       install/install.ps1
       install/versions/<ver>.manifest.txt   (auto-generated if missing)
       bin/*                                 (dispatchers: opencode-prime, ocp)
-      <every file listed in the manifest>    (agents/, plugins/, etc.)
+      <every file listed in the manifest>    (prompts/, plugins/, etc.)
 
 .PARAMETER OutDir
     Output directory for archives (default: ./dist).
@@ -78,7 +78,7 @@ function Read-Manifest([string]$path) {
 
 # --- generate manifest if missing ----------------------------------------
 
-$includePrefixes = @('agents/', 'commands/', 'plugins/', 'instructions/', 'opencode.template.jsonc', 'tui.template.jsonc', 'tiers.json', 'profiles/', 'providers/', 'scripts/')
+$includePrefixes = @('commands/', 'plugins/', 'instructions/', 'opencode.template.jsonc', 'tui.template.jsonc', 'tiers.json', 'profiles/', 'prompts/', 'providers/', 'scripts/')
 $excludePatterns = @('^scripts/pack\.', '^scripts/verify\.')
 
 function Generate-Manifest([string]$ver) {

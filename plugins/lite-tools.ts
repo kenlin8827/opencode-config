@@ -7,8 +7,10 @@
  * one-line description; keep parameter schemas untouched (they carry the
  * actual contract and feed permission checks).
  *
- * tool.definition input has no agent field, so gate via chat.message state
- * (fires per user message before the request is assembled).
+ * tool.definition input has no agent field, so gate via chat.message +
+ * chat.params state (both fire per user message before the request is
+ * assembled; dual signals guard against either hook dropping the agent
+ * field in a future opencode version).
  * Loader contract: this module MUST export a function only
  * (getLegacyPlugins drops files with any non-function export).
  */
@@ -21,18 +23,15 @@ const OVERRIDES: Record<string, string> = {
   glob: "Find files by glob pattern, sorted by modification time.",
   websearch: "Search the web; returns result titles, snippets, and URLs.",
   webfetch: "Fetch a URL and extract its main content.",
-  question: "Ask the user a multiple-choice question. Use only when a decision genuinely blocks progress.",
-  task: "Delegate a task to a subagent; returns its final result.",
-  todowrite: "Create or update the task list to track multi-step work.",
-  todoread: "Read the current task list.",
+  task: "Delegate to an auxiliary subagent; returns its final result. Assists: advisor (second opinion), explorer (codebase search), code-review (diff/PR review), vision (image analysis).",
 }
 
 export async function LiteToolsPlugin() {
   let currentAgent = ""
+  const track = (agent?: string) => { if (agent) currentAgent = agent }
   return {
-    "chat.message": async (input: { agent?: string }, _output: unknown) => {
-      if (input.agent) currentAgent = input.agent
-    },
+    "chat.message": async (input: { agent?: string }, _output: unknown) => track(input.agent),
+    "chat.params": async (input: { agent?: string }, _output: unknown) => track(input.agent),
     "tool.definition": async (input: { toolID: string }, output: { description: string }) => {
       if (currentAgent !== "lite") return
       const next = OVERRIDES[input.toolID]

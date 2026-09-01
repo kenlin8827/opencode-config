@@ -15,6 +15,12 @@
 L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 `scripts/measure-prompts.ts` 对其施加硬性 token 预算。
 
+**单一事实来源。** Agent *定义*（mode、model、permission、tools、prompt
+拼装）只存在于 jsonc 的 `agent` 块。`prompts/*.md` 片段是无 frontmatter
+的纯正文，绝不能落在安装后配置的 `agents/` 目录下：opencode 会把
+`agents/*.md` 自动发现为 agent 定义，其 frontmatter/body 会静默覆盖 jsonc
+块（v1.18.25 已实证）。`prompts/` 不会被自动发现。
+
 ## L1 路由矩阵
 
 | Agent | 附加规则文件 |

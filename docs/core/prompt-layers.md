@@ -17,6 +17,13 @@ that don't.
 L0 is the expensive layer (paid × steps × agents), so it stays under a hard
 token budget enforced by `scripts/measure-prompts.ts` in the release gate.
 
+**Single source of truth.** Agent *definitions* (mode, model, permission,
+tools, prompt assembly) live only in the jsonc `agent` block. The
+`prompts/*.md` fragments are pure bodies without frontmatter, and must never
+live under `agents/` in the installed config: opencode auto-discovers
+`agents/*.md` as agent definitions whose frontmatter/body silently override
+the jsonc block (verified v1.18.25). `prompts/` is not auto-discovered.
+
 ## The L1 routing matrix
 
 | Agents | Attached rule files |

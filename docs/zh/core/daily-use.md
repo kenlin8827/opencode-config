@@ -59,7 +59,7 @@ OpenCode 多智能体配置提供三种编排工作模式外加近零开销的 `
 > @lite 重命名这个变量并修好所有调用点
 ```
 
-代价：`@lite` 退出指令层、协议注入、skills 块与 MCP 代码智能。它保留全部原生工具（read/edit/bash/…），但不叠加任何工程纪律 —— 真正的工程任务请路由给 `@code` / `@build`。
+代价：`@lite` 退出指令层、协议注入、skills 块与 MCP 代码智能。它保留全部原生工具（read/edit/bash/…），但不叠加任何工程纪律 —— 真正的工程任务请路由给 `@code` / `@build`。仍可委托辅助子代理（`@advisor`、`@explorer`、`@code-review`、`@vision`）做二次意见、搜索与审查。
 
 ---
 

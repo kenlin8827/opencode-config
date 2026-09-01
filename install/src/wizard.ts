@@ -46,7 +46,7 @@ export function parseDynamicOptionsSchema(content: string, repoDir?: string): Dy
 
   if (repoDir) {
     // Candidates must come from the template config — it is the source of
-    // truth for what the installer actually writes. Scanning agents/*.md
+    // truth for what the installer actually writes. Scanning prompts/*.md
     // would list subagent-only prompts (mode: "subagent") that can never be
     // the primary agent. "all" also qualifies as selectable.
     const template = readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'));

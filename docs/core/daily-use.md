@@ -59,7 +59,7 @@ Switch between modes via `Tab` or `@code` / `@build` / `@plan` / `@lite`.
 > @lite rename this variable and fix the call sites
 ```
 
-Trade-off: `@lite` opts out of instruction layers, protocol injections, the skills block, and MCP code intelligence. It keeps every native tool (read/edit/bash/…) but carries no engineering discipline on top — route real engineering work to `@code` / `@build`.
+Trade-off: `@lite` opts out of instruction layers, protocol injections, the skills block, and MCP code intelligence. It keeps every native tool (read/edit/bash/…) but carries no engineering discipline on top — route real engineering work to `@code` / `@build`. It can still delegate auxiliary assists (`@advisor`, `@explorer`, `@code-review`, `@vision`) for second opinions, searches, and reviews.
 
 ---
 

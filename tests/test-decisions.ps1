@@ -47,10 +47,10 @@ Check "output-protocol: has threshold 8" ($op -match "8")
 # Subagent checks: should NOT have "ask the user" or "ask a question" language
 # (subagents don't have the question tool and would stall)
 $subFiles = @(
-    "agents/java-dev.md", "agents/python-dev.md", "agents/go-dev.md",
-    "agents/rust-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
-    "agents/devops.md", "agents/code-review.md", "agents/researcher.md",
-    "agents/advisor.md"
+    "prompts/java-dev.md", "prompts/python-dev.md", "prompts/go-dev.md",
+    "prompts/rust-dev.md", "prompts/node-dev.md", "prompts/frontend-dev.md",
+    "prompts/devops.md", "prompts/code-review.md", "prompts/researcher.md",
+    "prompts/advisor.md"
 )
 foreach ($f in $subFiles) {
     $c = Get-Content "$base\$f" -Raw
@@ -59,7 +59,7 @@ foreach ($f in $subFiles) {
 }
 
 # build.md checks
-$bc = Get-Content "$base\agents\build.md" -Raw
+$bc = Get-Content "$base\prompts\build.md" -Raw
 Check "build.md exists and readable" ($bc.Length -gt 0)
 Check "build.md: has advisor mode section" ($bc -match "Advisor mode")
 Check "build.md: references @advisor" ($bc -match "@advisor")
@@ -107,7 +107,7 @@ Check "auto-advisor-mode.ts: has tool.execute.before hook" ($am -match "tool.exe
 Check "auto-advisor-mode.ts: has tool.execute.after hook" ($am -match "tool.execute.after")
 
 # plan.md checks
-$pc = Get-Content "$base\agents\plan.md" -Raw
+$pc = Get-Content "$base\prompts\plan.md" -Raw
 Check "plan.md: references question" ($pc -match "question")
 Check "plan.md: read-only rule" ($pc -match "Read-only" -or $pc -match "never modify")
 

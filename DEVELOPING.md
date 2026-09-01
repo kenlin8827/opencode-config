@@ -11,7 +11,7 @@ Everything you need to modify this repo: architecture, prompt conventions, plugi
 ## Repository layout
 
 ```
-agents/          # Agent prompts: 3 primaries + 17 specialists
+prompts/         # Agent prompt fragments: 3 primaries + 17 specialists (pure bodies, no frontmatter; loaded via {file:} — must NOT live under agents/ or opencode auto-discovers them as agent definitions that override the jsonc agent block)
 instructions/    # Rule files layered by disclosure: L0 (opencode.jsonc:instructions) vs L1 (agent prompt {file:} assembly)
 skills/          # L2 on-demand skills (opencode skill tool loads them when relevant)
 plugins/         # TypeScript plugins (barrel entries at root, logic in subdirs)
@@ -250,17 +250,17 @@ Full table including the "User explicitly asks run all tests" row, escalation ru
 
 ## Adding a new agent
 
-1. **Create `agents/<name>.md`** — follow the structural template above.
+1. **Create `prompts/<name>.md`** — pure prompt body, NO frontmatter (follow the structural template above).
 2. **Add to `build.md` routing table** — add row to `## Your team` and trigger words table.
 3. **Add to `plan.md` team table** — if analysis-capable.
 4. **Add to `opencode.template.jsonc`** — `agent.<name>` block with tier, model, mode, etc.
 5. **Add to `tests/test-all.ps1`** — add to `$allFiles` array and relevant content checks.
-6. **Generate manifest** — bump `version` in `install/version.json`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/`, `skills/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
+6. **Generate manifest** — bump `version` in `install/version.json`, then `bun run install/src/index.ts generate` (or `ocp generate`). See `AGENTS.md` §4 for the full shipping rules — files in `prompts/`, `instructions/`, `plugins/`, `profiles/`, `providers/`, `skills/` are auto-discovered; standalone files and `scripts/` runtime scripts must be added to `SHIPPED_FILES` in `install/src/manifest.ts`.
 7. **Test** — run `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`.
 
 ### Checklist for new agent
 
-- [ ] Frontmatter complete (description, mode, variant, temperature, steps, permission)
+- [ ] jsonc agent block complete (description, mode, model, variant, temperature, steps, permission, tools) — md files carry NO frontmatter
 - [ ] `description` field covers trigger keywords for routing
 - [ ] Operating loop (3-5 steps)
 - [ ] Core competencies (domain knowledge)
@@ -459,7 +459,7 @@ instructions/
 ├── coding-principles.md      # Shared coding principles
 └── edit-protocol.md          # Search-expression edit discipline (serena)
 
-agents/
+prompts/
 ├── build.md                  # Primary: execution coordinator
 ├── plan.md                   # Primary: read-only analysis coordinator
 ├── code.md                   # Primary: direct developer (default entry)

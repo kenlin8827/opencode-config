@@ -47,4 +47,4 @@ Legend: ✅ executed+passed · ❌ executed+failed (fix or flag per R3) · ⚠�
 
 ## What this is NOT
 
-Tests to run → `test-scope.md` · Output structure → `output-protocol.md` · Severity levels → `agents/code-review.md`.
+Tests to run → `test-scope.md` · Output structure → `output-protocol.md` · Severity levels → `prompts/code-review.md`.

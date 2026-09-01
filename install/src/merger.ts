@@ -458,12 +458,12 @@ export function mergeConfig(
 
       // New factory agents this template version added: seed them with the ref
       // the user already uses for that tier, so a fresh agent of a
-      // personalized tier doesn't fall back to the shipped default (which may
-      // reference a provider the user never configured). Tier mapping comes
-      // from the tiers.json merged in step 0; a tier's ref is applied only
-      // when every preserved agent of that tier agreed on it — no guessing.
-      // Agents without a template `model` are left alone (they inherit the
-      // root model, which step 3b already preserved).
+      // personalized tier doesn't fall back to the root model. The template
+      // ships no `model` presets by design (fresh installs use opencode's
+      // own default until /profile apply materializes tiers), so every new
+      // agent needs this seeding. Tier mapping comes from the tiers.json
+      // merged in step 0; a tier's ref is applied only when every preserved
+      // agent of that tier agreed on it — no guessing.
       const tierMap = readTierMap(targetDir);
       const tierRefs: Record<string, { ref: string; conflict: boolean }> = {};
       for (const [agentName, modelRef] of Object.entries(bag.userAgentModels)) {
@@ -478,7 +478,6 @@ export function mergeConfig(
         if (bag.userAgentModels[agentName]) continue; // restored above
         const def = agentDef as Record<string, any> | null | undefined;
         if (!def || typeof def !== 'object') continue;
-        if (typeof def.model !== 'string') continue;
         const known = tierRefs[tierMap[agentName] ?? ''];
         if (known && !known.conflict) {
           def.model = known.ref;

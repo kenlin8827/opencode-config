@@ -69,8 +69,8 @@ const schema = parseDynamicOptionsSchema(fs.readFileSync(optionsPath, 'utf8'), r
 if (!schema.defaultAgent.value || schema.mcpItems.length === 0 || schema.pluginItems.length === 0) {
   throw new Error('Dynamic options parsing failed');
 }
-// Agent candidates must be the template's primary/all agents — never the raw
-// agents/ dir scan, which would offer subagent-only prompts as primaries.
+// Agent candidates must be the template's primary/all agents — never a raw
+// prompts/ dir scan, which would offer subagent-only prompts as primaries.
 const tmplAgents = Object.entries(
   (readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'))?.agent ?? {}) as Record<string, any>
 )
@@ -299,8 +299,11 @@ if (realTemplate?.permission !== 'allow') {
 if (realTemplate?.agent?.lite?.permission?.skill?.['*'] !== 'deny') {
   throw new Error('shipped template lost the lite skills-block deny');
 }
-if (realTemplate?.agent?.lite?.tools?.task !== false || realTemplate?.agent?.lite?.tools?.question !== false) {
+if (realTemplate?.agent?.lite?.tools?.question !== false) {
   throw new Error('shipped template lost the lite heavy-tools removal');
+}
+if ('task' in (realTemplate?.agent?.lite?.tools ?? {})) {
+  throw new Error('lite must keep task enabled for auxiliary assists');
 }
 const liteTools = realTemplate?.agent?.lite?.tools;
 if (!liteTools || typeof liteTools !== 'object' || Object.values(liteTools).some((v) => v !== false)) {

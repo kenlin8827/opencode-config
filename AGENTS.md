@@ -16,10 +16,10 @@ This is an open-source project: **every design decision must withstand public sc
 
 ## Ships vs. Dev-Only
 
-- **Ships** (injected into OpenCode agent system prompts): `instructions/*.md`, `agents/*.md`, `skills/*/SKILL.md`, plus all files under `plugins/`, `profiles/`, `providers/`. These are the actual prompts users consume — every line costs tokens on every session, forever.
+- **Ships** (injected into OpenCode agent system prompts): `instructions/*.md`, `prompts/*.md`, `skills/*/SKILL.md`, plus all files under `plugins/`, `profiles/`, `providers/`. These are the actual prompts users consume — every line costs tokens on every session, forever.
 - **Dev-only** (repo tooling, never shipped): `AGENTS.md`, `DEVELOPING.md`, `scripts/`, `docs/`, `install/`, `bin/`. These guide contributors working on this repository and are never injected into a user's OpenCode session.
 
-All rules in this document (token budget, cross-references, release flow) exist to serve the shipped prompts. When you edit `instructions/` or `agents/`, you are editing what every OpenCode session will load.
+All rules in this document (token budget, cross-references, release flow) exist to serve the shipped prompts. When you edit `instructions/` or `prompts/`, you are editing what every OpenCode session will load.
 
 ---
 
@@ -39,10 +39,10 @@ Prompts follow a **disclosure-layer** model (details: `docs/core/prompt-layers.m
 
 0. **Pick the layer first** — any new rule **MUST** be placed at the cheapest layer whose violation cost it tolerates: universal iron rule → L0; role rule → L1 (attach in `opencode.template.jsonc` routing matrix); scenario rule → L2 skill.
 1. **Instruction files** (`instructions/*.md`) — **MUST** stay under **60 lines**. If a rule needs more, split it into a separate file or compress. Tables over prose, rules over explanations.
-2. **Agent prompts** (`agents/*.md`) — **SHOULD** stay under **120 lines**. Competency lists, hard rules, output format. Cut prose, keep structure.
+2. **Agent prompts** (`prompts/*.md`) — **SHOULD** stay under **120 lines**. Competency lists, hard rules, output format. Cut prose, keep structure.
 3. **No redundant explanations** — if a rule says "prefer X over Y", don't follow with 3 sentences explaining why Y is bad. The rule itself is the explanation. RFC 2119 keywords carry weight; trust them.
 4. **Examples** — max 1 concise example per rule. If the rule is clear without an example, omit it.
-5. **Cross-reference, don't duplicate** — in shipped prompt files (`instructions/*.md`, `agents/*.md`), if a rule exists in another shipped file, reference it by shorthand (`cp#3` = `coding-principles.md` row 3) instead of restating it. Shorthand is only valid **within one disclosure unit**: the LLM resolves it at runtime only when both files are attached to the same agent prompt. Never use such shorthand in dev-only files (`AGENTS.md`, `DEVELOPING.md`) — token economy only matters for shipped prompts.
+5. **Cross-reference, don't duplicate** — in shipped prompt files (`instructions/*.md`, `prompts/*.md`), if a rule exists in another shipped file, reference it by shorthand (`cp#3` = `coding-principles.md` row 3) instead of restating it. Shorthand is only valid **within one disclosure unit**: the LLM resolves it at runtime only when both files are attached to the same agent prompt. Never use such shorthand in dev-only files (`AGENTS.md`, `DEVELOPING.md`) — token economy only matters for shipped prompts.
 6. **Review before merge** — any new instruction or agent file **SHOULD** be reviewed for token economy. If a section can be cut without losing normative power, cut it.
 
 > **Principle**: Every line in a prompt file costs money on every single session, forever. A 200-line instruction file that could be 50 lines wastes 150 tokens × every session × every user. Compress ruthlessly.
@@ -77,7 +77,7 @@ After version bump, manifest regeneration, and pre-release gate pass:
 
 ### What Ships
 
-- **Auto-discovered** (`SHIPPED_DIRS`): `agents/`, `instructions/`, `plugins/`, `profiles/`, `providers/`, `skills/` — all files in these dirs ship automatically.
+- **Auto-discovered** (`SHIPPED_DIRS`): `prompts/`, `instructions/`, `plugins/`, `profiles/`, `providers/`, `skills/` — all files in these dirs ship automatically. Agent prompt fragments ship as `prompts/`, never `agents/`: opencode auto-discovers `agents/*.md` as agent definitions whose frontmatter silently overrides the jsonc `agent` block (verified v1.18.25).
 - **Explicit** (`SHIPPED_FILES` in `manifest.ts`): `opencode.template.jsonc`, `tiers.json`, `tui.template.jsonc`, `scripts/serena-workspace-daemon.mjs`.
 - `scripts/` is NOT in `SHIPPED_DIRS` — only the one runtime script above is installed; the rest (`pack.*`, `verify.*`, `capture-*.ts`) stays repo-side. New standalone ship files must be added to `SHIPPED_FILES`.
 - `install/` and `bin/` are auto-mirrored during packaging.

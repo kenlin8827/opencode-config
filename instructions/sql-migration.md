@@ -11,7 +11,7 @@
 | 3 | Fix forward | Wrong or incomplete migration that is applied **or committed** → fix it with a new migration. Editing history desyncs every environment that already ran it. |
 | 4 | Only editable case | A migration may be edited **only** if it was never committed AND never applied to any shared environment. When unsure, ask the user — default to fix-forward. |
 | 5 | Naming & ordering | Follow the project's existing convention (`V<N>__desc.sql`, timestamped, etc.); sequence numbers strictly monotonic, no gaps reuse. |
-| 6 | Rollback path | Every migration **MUST** carry a documented down/rollback path (see `agents/dba.md` hard rules). |
+| 6 | Rollback path | Every migration **MUST** carry a documented down/rollback path (see `prompts/dba.md` hard rules). |
 
 ## Why
 

@@ -12,7 +12,7 @@
 #   install/install.ps1
 #   install/versions/<ver>.manifest.txt   (auto-generated if missing)
 #   bin/*                                 (dispatchers: opencode-prime, ocp)
-#   <every file listed in the manifest>    (agents/, plugins/, etc.)
+#   <every file listed in the manifest>    (prompts/, plugins/, etc.)
 #
 # Usage:
 #   ./scripts/pack.sh                    # build both tar.gz + zip
@@ -56,7 +56,7 @@ read_manifest() {
 
 # --- generate manifest if missing (inline, no dependency on install.sh) --
 
-INCLUDE_PREFIXES=("agents/" "commands/" "plugins/" "instructions/" "opencode.template.jsonc" "tui.template.jsonc" "tiers.json" "profiles/" "providers/" "scripts/")
+INCLUDE_PREFIXES=("commands/" "plugins/" "instructions/" "opencode.template.jsonc" "tui.template.jsonc" "tiers.json" "profiles/" "prompts/" "providers/" "scripts/")
 EXCLUDE_PATTERNS=('^scripts/pack\.' '^scripts/verify\.')
 
 generate_manifest() {

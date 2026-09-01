@@ -76,9 +76,9 @@ Check "dba agent carries sql-migration via {file:}" `
 Check "code-review agent has NO edit-protocol (edit denied)" `
     (-not ($config.agent.'code-review'.prompt -match 'edit-protocol'))
 Check "build agent has zero L1 additions" `
-    ($config.agent.build.prompt -eq '{file:~/.config/opencode/agents/build.md}')
+    ($config.agent.build.prompt -eq '{file:~/.config/opencode/prompts/build.md}')
 Check "explorer agent has zero L1 additions" `
-    ($config.agent.explorer.prompt -eq '{file:~/.config/opencode/agents/explorer.md}')
+    ($config.agent.explorer.prompt -eq '{file:~/.config/opencode/prompts/explorer.md}')
 
 # Ponytail config (official plugin) — environment-dependent: SKIP when the
 # config file doesn't exist (fresh machine / CI), only assert when present.
@@ -101,36 +101,36 @@ $trustedAgents = @(
     @{ file = "node-dev.md";   libs = "Prisma|Zod" }
 )
 foreach ($agent in $trustedAgents) {
-    $content = Get-Content "$PSScriptRoot\..\agents\$($agent.file)" -Raw
+    $content = Get-Content "$PSScriptRoot\..\prompts\$($agent.file)" -Raw
     Check "$($agent.file): mentions ecosystem libs" ($content -match $agent.libs)
 }
 
 # Security rules preserved
-$javaContent = Get-Content "$PSScriptRoot\..\agents\java-dev.md" -Raw
-$pyContent = Get-Content "$PSScriptRoot\..\agents\python-dev.md" -Raw
-$nodeContent = Get-Content "$PSScriptRoot\..\agents\node-dev.md" -Raw
+$javaContent = Get-Content "$PSScriptRoot\..\prompts\java-dev.md" -Raw
+$pyContent = Get-Content "$PSScriptRoot\..\prompts\python-dev.md" -Raw
+$nodeContent = Get-Content "$PSScriptRoot\..\prompts\node-dev.md" -Raw
 Check "java-dev.md: security rules intact" ($javaContent -match "secrets|security|hardcode")
 Check "python-dev.md: security rules intact" ($pyContent -match "bare.*except|security")
 Check "node-dev.md: security rules intact" ($nodeContent -match "Validate all input|security")
 
 # Non-coding agent isolation
-$researcherContent = Get-Content "$PSScriptRoot\..\agents\researcher.md" -Raw
+$researcherContent = Get-Content "$PSScriptRoot\..\prompts\researcher.md" -Raw
 Check "researcher.md: no ponytail rules (non-coding)" ($researcherContent -notmatch "ponytail|lazy coding")
 
 # Coding agent contract (direct developer: codes itself, no proactive
 # delegation, never delegated to; vision is a three-tier cascade)
-$codeContent = Get-Content "$PSScriptRoot\..\agents\code.md" -Raw
+$codeContent = Get-Content "$PSScriptRoot\..\prompts\code.md" -Raw
 Check "opencode.template.jsonc: code agent registered" ($null -ne $config.agent.code)
 Check "opencode.template.jsonc: code mode is primary" ($config.agent.code.mode -eq "primary")
-Check "opencode.template.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "agents/code\.md")
+Check "opencode.template.jsonc: code prompt references code.md" ($config.agent.code.prompt -match "prompts/code\.md")
 Check "code.md: no proactive delegation rule" ($codeContent -match "No proactive delegation")
 Check "code.md: never delegated rule" ($codeContent -match "Never delegated")
 Check "code.md: core coding stays in-house" ($codeContent -match "NEVER hand the core coding task")
 Check "code.md: image three-tier cascade (self first)" ($codeContent -match "Self first")
 Check "code.md: image cascade delegates to @vision only" ($codeContent -match "your own model cannot read")
 Check "code.md: image fallback to user, no guessing" ($codeContent -match "NEVER guess")
-$buildContent = Get-Content "$PSScriptRoot\..\agents\build.md" -Raw
-$planContent = Get-Content "$PSScriptRoot\..\agents\plan.md" -Raw
+$buildContent = Get-Content "$PSScriptRoot\..\prompts\build.md" -Raw
+$planContent = Get-Content "$PSScriptRoot\..\prompts\plan.md" -Raw
 Check "build.md: never routes to @code" ($buildContent -notmatch "@code(?!-)")
 Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 
@@ -138,7 +138,7 @@ Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 $litePlugin = Get-Content "$PSScriptRoot\..\plugins\lite-mode\lite-mode.ts" -Raw
 Check "opencode.template.jsonc: lite agent registered" ($null -ne $config.agent.lite)
 Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -eq "primary")
-Check "opencode.template.jsonc: lite uses flash model" ($config.agent.lite.model -eq "llm-router/flash")
+Check "opencode.template.jsonc: lite ships without a model preset (inherits default until /profile)" ($null -eq $config.agent.lite.model)
 Check "opencode.template.jsonc: lite prompt is inline (no {file:})" ($config.agent.lite.prompt -notmatch '\{file:')
 Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
 Check "template: lite keeps native tools (no edit/bash/task deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "task"))
@@ -180,13 +180,13 @@ Check "routing-index.md: routes lightweight tasks to @lite" ((Get-Content "$PSSc
 $allFiles = @(
     "instructions/output-protocol.md",
     "instructions/test-scope.md",
-    "agents/build.md", "agents/plan.md", "agents/code.md", "agents/explorer.md",
-    "agents/go-dev.md", "agents/rust-dev.md", "agents/java-dev.md",
-    "agents/python-dev.md", "agents/node-dev.md", "agents/frontend-dev.md",
-    "agents/researcher.md", "agents/architect.md", "agents/code-review.md",
-    "agents/advisor.md",
-    "agents/dba.md", "agents/devops.md", "agents/qa.md",
-    "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
+    "prompts/build.md", "prompts/plan.md", "prompts/code.md", "prompts/explorer.md",
+    "prompts/go-dev.md", "prompts/rust-dev.md", "prompts/java-dev.md",
+    "prompts/python-dev.md", "prompts/node-dev.md", "prompts/frontend-dev.md",
+    "prompts/researcher.md", "prompts/architect.md", "prompts/code-review.md",
+    "prompts/advisor.md",
+    "prompts/dba.md", "prompts/devops.md", "prompts/qa.md",
+    "prompts/security.md", "prompts/tech-writer.md", "prompts/vision.md",
     # Commands — thin slash-command launchers (each loads its L2 skill on demand)
     "commands/goal.md", "commands/handoff.md", "commands/grill-me.md", "commands/grill-with-docs.md",
     "commands/grill-improve-loop.md", "commands/fast-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
@@ -514,13 +514,14 @@ Check "auto-advisor: references confidence score" ($advisorCmd -match "confidenc
 Check "auto-advisor: mentions threshold 8" ($advisorCmd -match "8")
 Check "auto-advisor: mentions auto-execute or direct" ($advisorCmd -match "auto-execute" -or $advisorCmd -match "directly")
 
-# Advisor agent checks
-$advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
-Check "advisor.md: has frontmatter mode subagent" ($advisorAgent -match "mode: subagent")
-# Model binding lives in opencode.template.jsonc (agent registry), not in the markdown prompt.
-# advisor maps to the max tier (tiers.json: "advisor": "max").
-Check "opencode.template.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/max")
-Check "advisor.md: read-only (edit deny)" ($advisorAgent -match "edit: deny")
+# Advisor agent checks (frontmatter-free prompts/: mode/permission live in the
+# template — the single source of truth, verified v1.18.25)
+$advisorAgent = Get-Content "$PSScriptRoot\..\prompts\advisor.md" -Raw
+Check "template: advisor mode is subagent" ($config.agent.advisor.mode -eq "subagent")
+# Model binding: the template ships no model presets (fresh installs use opencode's
+# default until /profile apply materializes tiers.json). Tier mapping lives in tiers.json.
+Check "opencode.template.jsonc: advisor ships without a model preset (inherits default until /profile)" ($null -eq $config.agent.advisor.model)
+Check "template: advisor is read-only (edit deny)" ($config.agent.advisor.permission.edit -eq "deny")
 Check "advisor.md: no ask-user language" (-not ($advisorAgent -match "ask the user" -or $advisorAgent -match "ask a focused question"))
 Check "advisor.md: has output format" ($advisorAgent -match "Output format")
 Check "advisor.md: states recommendation requirement" ($advisorAgent -match "ALWAYS state your recommendation")
@@ -561,7 +562,7 @@ Check "auto-advisor-instructions.ts: has fullDirective" ($advisorInstructions -m
 Check "auto-advisor-instructions.ts: PREFERENCE routes to lite flow" ($advisorInstructions -match "PREFERENCE or < 8")
 
 # Red-team stance (optional adversarial mode on @advisor). The stance rules
-# live in agents/advisor.md; auto-advisor-runtime.ts keeps the code-level guard.
+# live in prompts/advisor.md; auto-advisor-runtime.ts keeps the code-level guard.
 Check "advisor.md: has red-team stance section" ($advisorAgent -match "Stance: red-team")
 Check "advisor.md: red-team forbids confidence score" ($advisorAgent -match "NEVER output a confidence score in red-team")
 Check "advisor.md: has verdict vocabulary" `

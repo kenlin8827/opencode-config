@@ -1,4 +1,4 @@
-# install (v0.16.1)
+# install (v0.17.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -301,7 +301,7 @@ The manifest whitelists exactly the paths opencode reads at runtime:
 
 | Path                     | Why                                           |
 | ------------------------ | --------------------------------------------- |
-| `agents/`                | Agent definitions (20 files)                  |
+| `prompts/`               | Agent prompt fragments (21 files; pure bodies, loaded via `{file:}` — never shipped as `agents/`, which opencode auto-discovers as agent definitions) |
 | `commands/`              | Slash commands (4 files)                      |
 | `plugins/`               | TypeScript plugins (12 files)                 |
 | `instructions/`          | Shared protocols injected into all agents     |
@@ -336,6 +336,13 @@ then copies the current manifest and rewrites `.CONFIG_VERSION`.
 
 `.CONFIG_VERSION` itself is never deleted during install (even if an old
 manifest listed it) — it is always rewritten at the end of each install.
+
+**v0.17.0 migration note.** Agent prompt fragments moved from `agents/` to
+`prompts/` (the old path is auto-discovered by opencode as agent definitions
+that silently override the jsonc `agent` block). On upgrade, the stale-file
+cleanup removes the legacy `agents/*.md` automatically (they are listed in
+historical manifests). If you had modified those files, your copies are safe
+in the timestamped `.bak` full backup the installer takes before every apply.
 
 ## Uninstall mode
 

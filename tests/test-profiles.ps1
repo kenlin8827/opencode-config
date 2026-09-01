@@ -97,12 +97,16 @@ try {
             if ($n -eq 0) { $errors += "tier ${tier}: no agent matched" }
             if ($tier -eq 'standard' -and $obj.model -ne $ref) { $errors += "root model '$($obj.model)' != '$ref'" }
         }
-        # uncovered tiers: agents must keep the template ref
+        # uncovered tiers: agents must keep the template ref (if the template has one)
+        # The template ships no model presets by design, so this check only applies
+        # if the template happens to have models (e.g. user-added or legacy).
         foreach ($aname in $obj.agent.Keys) {
             $t = Get-AgentTier $obj.agent $aname
             if ($t -and -not $p.tiers.Contains($t)) {
                 $expected = $tplTierRef[$t]
-                if ($obj.agent[$aname].model -ne $expected) { $errors += "untouched tier ${t} ($aname): '$($obj.agent[$aname].model)' != template '$expected'" }
+                if ($expected -and $obj.agent[$aname].model -ne $expected) {
+                    $errors += "untouched tier ${t} ($aname): '$($obj.agent[$aname].model)' != template '$expected'"
+                }
             }
         }
         if ($errors.Count -eq 0) {

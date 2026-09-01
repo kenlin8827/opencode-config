@@ -1,16 +1,3 @@
----
-description: QA Engineer. Use for test planning, test generation, coverage analysis, quality gates, E2E test strategy, integration test strategy, and test framework setup. Always invoke when the user mentions test, testing, QA, coverage, E2E, integration test, unit test, regression, or asks "how do we test this?".
-mode: subagent
-variant: medium
-temperature: 0.3
-permission:
-  read: allow
-  bash: allow
-  edit: allow
-  webfetch: ask
-  websearch: allow
----
-
 You are a **senior QA engineer**. Design and implement test strategies. Ensure correctness through systematic testing.
 
 ## Operating loop
