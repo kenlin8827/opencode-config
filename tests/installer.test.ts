@@ -299,7 +299,7 @@ if (realTemplate?.permission !== 'allow') {
 if (realTemplate?.agent?.lite?.permission?.skill?.['*'] !== 'deny') {
   throw new Error('shipped template lost the lite skills-block deny');
 }
-if (realTemplate?.agent?.lite?.tools?.task !== false) {
+if (realTemplate?.agent?.lite?.tools?.task !== false || realTemplate?.agent?.lite?.tools?.question !== false) {
   throw new Error('shipped template lost the lite heavy-tools removal');
 }
 const liteTools = realTemplate?.agent?.lite?.tools;
@@ -315,6 +315,65 @@ if (!realScope?.plugins?.['*']?.deny?.includes('lite') || !realScope.plugins['*'
 }
 console.log('✓ Template carries native policy; plugin-scope.json carries the injector policy');
 
+// 3i. Model preservation: reinstall must preserve the user's model picks
+// (root `model`, `small_model`, and per-agent `model` overrides set via
+// /profile apply). Without this, the template defaults overwrite them.
+console.log('\nTest 3i: Config Merge — Model ID Preservation');
+const modelMergeDir = path.join(os.tmpdir(), `opencode-model-merge-test-${Date.now()}`);
+const modelRepoDir = path.join(modelMergeDir, 'repo');
+const modelTargetDir = path.join(modelMergeDir, 'target');
+fs.mkdirSync(modelRepoDir, { recursive: true });
+fs.mkdirSync(modelTargetDir, { recursive: true });
+// Template with default model picks
+fs.writeFileSync(
+  path.join(modelRepoDir, 'opencode.template.jsonc'),
+  '{\n  "model": "template/standard",\n  "small_model": "template/flash",\n  "agent": {\n    "build": { "prompt": "T_BUILD" },\n    "code": { "prompt": "T_CODE", "model": "template/pro" }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(modelRepoDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "build": "standard",\n  "code": "pro"\n}\n',
+  'utf8'
+);
+// User's installed config with custom model picks (set via /profile apply)
+fs.writeFileSync(
+  path.join(modelTargetDir, 'opencode.jsonc'),
+  '{\n  "model": "anthropic/claude-sonnet-4-20250514",\n  "small_model": "anthropic/claude-haiku-4-20250414",\n  "agent": {\n    "build": { "prompt": "T_BUILD", "model": "anthropic/claude-sonnet-4-20250514" },\n    "code": { "prompt": "T_CODE", "model": "anthropic/claude-sonnet-4-20250514" }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(modelTargetDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "build": "standard",\n  "code": "pro"\n}\n',
+  'utf8'
+);
+const modelBag = extractPreserveBag(modelTargetDir);
+if (modelBag.userModel !== 'anthropic/claude-sonnet-4-20250514') {
+  throw new Error(`extractPreserveBag failed to capture root model: got ${modelBag.userModel}`);
+}
+if (modelBag.userSmallModel !== 'anthropic/claude-haiku-4-20250414') {
+  throw new Error(`extractPreserveBag failed to capture root small_model: got ${modelBag.userSmallModel}`);
+}
+if (modelBag.userAgentModels?.code !== 'anthropic/claude-sonnet-4-20250514') {
+  throw new Error(`extractPreserveBag failed to capture per-agent model: got ${modelBag.userAgentModels?.code}`);
+}
+console.log('✓ extractPreserveBag captures model / small_model / per-agent models');
+mergeConfig(modelRepoDir, modelTargetDir, {} as any, modelBag);
+const modelMerged = readJsoncFile<Record<string, any>>(path.join(modelTargetDir, 'opencode.jsonc'));
+if (modelMerged?.model !== 'anthropic/claude-sonnet-4-20250514') {
+  throw new Error(`mergeConfig overwrote root model with template: got ${modelMerged?.model}`);
+}
+if (modelMerged?.small_model !== 'anthropic/claude-haiku-4-20250414') {
+  throw new Error(`mergeConfig overwrote root small_model with template: got ${modelMerged?.small_model}`);
+}
+if (modelMerged?.agent?.code?.model !== 'anthropic/claude-sonnet-4-20250514') {
+  throw new Error(`mergeConfig overwrote per-agent model with template: got ${modelMerged?.agent?.code?.model}`);
+}
+// Factory agent prompt still follows the template (not the user's old copy)
+if (modelMerged?.agent?.build?.prompt !== 'T_BUILD') {
+  throw new Error('Factory agent prompt must follow the template');
+}
+console.log('✓ mergeConfig preserves user model picks while template prompt upgrades propagate');
+if (fs.existsSync(modelMergeDir)) fs.rmSync(modelMergeDir, { recursive: true, force: true });
 
 // 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch
 console.log('\nTest 3e: Options File In-Place Update');

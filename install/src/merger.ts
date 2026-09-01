@@ -4,16 +4,52 @@ import os from 'node:os';
 import { InstallOptions, PreserveBag } from './types';
 
 /**
- * Strips JSONC extensions from content and parses it into an object:
- *   - block comments (slash-star ... star-slash)
- *   - line comments starting with slash-slash
- *   - trailing commas before } or ]
+ * Strips JSONC extensions from content and parses it into an object.
+ *
+ * Comment stripping is string-aware: a single character scan tracks
+ * in-string state (with escape handling) and only removes `//` line
+ * comments and block comments found OUTSIDE string literals.
+ * Regex-based stripping is unsafe here — shipped comments legitimately
+ * contain glob patterns like `instructions/*.md`, and a naive
+ * block-comment regex swallows them plus every line in between.
+ * Trailing commas before } or ] are removed, then plain JSON.parse runs.
  */
 export function parseJsonc<T = any>(content: string): T {
-  const cleaned = content
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '')
-    .replace(/,(\s*[}\]])/g, '$1');
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (inString) {
+      out += ch;
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '/' && content[i + 1] === '/') {
+      // Line comment: skip to end of line (keep the newline itself).
+      const nl = content.indexOf('\n', i);
+      i = nl === -1 ? content.length : nl - 1;
+      continue;
+    }
+    if (ch === '/' && content[i + 1] === '*') {
+      // Block comment: skip past the closing marker; preserve embedded
+      // newlines so error line numbers stay meaningful.
+      const end = content.indexOf('*/', i + 2);
+      const stop = end === -1 ? content.length : end + 2;
+      for (let j = i; j < stop; j++) if (content[j] === '\n') out += '\n';
+      i = stop - 1;
+      continue;
+    }
+    out += ch;
+  }
+  const cleaned = out.replace(/,(\s*[}\]])/g, '$1');
   return JSON.parse(cleaned);
 }
 
@@ -184,12 +220,30 @@ export function extractPreserveBag(targetDir: string): PreserveBag {
     // Captured verbatim; mergeConfig filters out factory agents so template
     // upgrades propagate — only agents absent from the template stick.
     bag.userAgents = existingConfig.agent;
+    // Snapshot per-agent model overrides the user set (e.g. via /profile apply)
+    // so they survive reinstall even on factory agents (whose prompt/tools
+    // follow the template but whose model picks are user-owned).
+    const agentModels: Record<string, string> = {};
+    for (const [name, def] of Object.entries(existingConfig.agent)) {
+      if (def && typeof def === 'object' && typeof def.model === 'string') {
+        agentModels[name] = def.model;
+      }
+    }
+    if (Object.keys(agentModels).length > 0) bag.userAgentModels = agentModels;
   }
   if (existingConfig.provider && typeof existingConfig.provider === 'object') {
     bag.userModels = existingConfig.provider;
   }
   if (existingConfig.env && typeof existingConfig.env === 'object') {
     bag.userEnv = existingConfig.env;
+  }
+  // Root-level model picks: /profile apply writes `model` (tier.standard)
+  // and `small_model` (tier.flash) here — preserve them across reinstalls.
+  if (typeof existingConfig.model === 'string') {
+    bag.userModel = existingConfig.model;
+  }
+  if (typeof existingConfig.small_model === 'string') {
+    bag.userSmallModel = existingConfig.small_model;
   }
 
   return bag;
@@ -361,9 +415,21 @@ export function mergeConfig(
     config.provider = { ...(config.provider || {}), ...bag.userModels };
   }
 
+  // 3b. Restore root-level model picks (/profile apply writes these).
+  // `model` tracks tier.standard; `small_model` tracks tier.flash.
+  // Without this, reinstall resets both to the template defaults and the
+  // user's provider/model selections are lost.
+  if (bag?.userModel) {
+    config.model = bag.userModel;
+  }
+  if (bag?.userSmallModel) {
+    config.small_model = bag.userSmallModel;
+  }
+
   // 4. Merge preserved user custom agents. Factory agents (present in the
-  // template) always follow the template so prompt/model/description upgrades
-  // reach existing installs; only agents absent from the template are treated
+  // template) always follow the template so prompt/tools/description upgrades
+  // reach existing installs (their `model` picks are user-owned and restored
+  // separately in step 4b); only agents absent from the template are treated
   // as user-defined and preserved verbatim — except retired factory agents
   // (removed_agents), which are dropped so deletions propagate on upgrade.
   if (bag?.userAgents && Object.keys(bag.userAgents).length > 0) {
@@ -375,6 +441,49 @@ export function mergeConfig(
     }
     if (Object.keys(customAgents).length > 0) {
       config.agent = { ...templateAgents, ...customAgents };
+    }
+  }
+
+  // 4b. Restore per-agent model picks (/profile apply writes one ref per tier
+  // into every agent block). Factory agents follow the template for
+  // prompt/tools/permission, but model refs are user state and must survive
+  // reinstall. Applied AFTER step 4 so the template's agent block is in place.
+  if (bag?.userAgentModels && Object.keys(bag.userAgentModels).length > 0) {
+    if (config.agent && typeof config.agent === 'object') {
+      for (const [agentName, modelRef] of Object.entries(bag.userAgentModels)) {
+        if (config.agent[agentName] && typeof config.agent[agentName] === 'object') {
+          config.agent[agentName].model = modelRef;
+        }
+      }
+
+      // New factory agents this template version added: seed them with the ref
+      // the user already uses for that tier, so a fresh agent of a
+      // personalized tier doesn't fall back to the shipped default (which may
+      // reference a provider the user never configured). Tier mapping comes
+      // from the tiers.json merged in step 0; a tier's ref is applied only
+      // when every preserved agent of that tier agreed on it — no guessing.
+      // Agents without a template `model` are left alone (they inherit the
+      // root model, which step 3b already preserved).
+      const tierMap = readTierMap(targetDir);
+      const tierRefs: Record<string, { ref: string; conflict: boolean }> = {};
+      for (const [agentName, modelRef] of Object.entries(bag.userAgentModels)) {
+        if (removedAgents.includes(agentName)) continue;
+        const tier = tierMap[agentName];
+        if (!tier) continue;
+        const known = tierRefs[tier];
+        if (!known) tierRefs[tier] = { ref: modelRef, conflict: false };
+        else if (known.ref !== modelRef) known.conflict = true;
+      }
+      for (const [agentName, agentDef] of Object.entries(config.agent)) {
+        if (bag.userAgentModels[agentName]) continue; // restored above
+        const def = agentDef as Record<string, any> | null | undefined;
+        if (!def || typeof def !== 'object') continue;
+        if (typeof def.model !== 'string') continue;
+        const known = tierRefs[tierMap[agentName] ?? ''];
+        if (known && !known.conflict) {
+          def.model = known.ref;
+        }
+      }
     }
   }
 

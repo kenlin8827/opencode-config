@@ -696,6 +696,8 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-lite-tools-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-model-preserve-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)
 # ============================================================================

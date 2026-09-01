@@ -85,4 +85,10 @@ export interface PreserveBag {
   userModels: Record<string, any>;
   userEnv: Record<string, string>;
   userTiers: Record<string, string>;
+  /** Root-level `model` the user picked (e.g. via /profile apply). */
+  userModel?: string;
+  /** Root-level `small_model` the user picked (tracks tier.flash). */
+  userSmallModel?: string;
+  /** Per-agent model overrides the user set on factory agents. */
+  userAgentModels?: Record<string, string>;
 }
