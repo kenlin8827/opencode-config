@@ -14,14 +14,6 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `metrics.ts` | Auto-records tool call metrics (duration, success, agent) as JSONL in `~/.config/opencode/.metrics/` |
 | `auto-format.ts` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edits |
 | `auto-advisor-mode.ts` | `/auto-advisor` command, protocol injection, mode gating, red-team suppression |
-| `quick-dev.ts` | `/quick-dev` (and `/flash-dev`) command & protocol — Zero-review fast track: Direct in-session coding without delegation overhead |
-| `fast-dev.ts` | `/fast-dev` command & protocol — Agile single-review loop: Flash coding (dynamic domain persona) + Flagship review |
-| `deep-dev.ts` | `/deep-dev` command & protocol — Mission-critical dual-review consensus loop: Flash coding + Dual flagship review + Advisor arbitration |
-| `ultra-dev.ts` | `/ultra-dev` command & protocol — Autonomous multi-phase execution track: decomposes large objectives into phases, each running its own `/deep-dev` cycle |
-| `review-fix-loop.ts` | `/review-fix-loop` command and protocol |
-| `grill-improve-loop.ts` | `/grill-improve-loop` command and protocol — score-driven improvement loop |
-| `goal.ts` | `/goal` command and protocol |
-| `handoff.ts` | `/handoff` command and protocol |
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |
 | `adr-guard.ts` | `/adr-guard` command — per-project ADR enforcement |
 | `env-guard.ts` | Per-project secret-file gate |
@@ -31,6 +23,8 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project-wizard` TUI dialog wizards |
 | `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 | `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
+
+> **Workflow commands are not plugins.** `/quick-dev`, `/fast-dev`, `/deep-dev`, `/ultra-dev`, `/review-fix-loop`, `/grill-improve-loop`, `/grill-me`, `/grill-with-docs`, `/goal`, `/handoff` are native opencode command files (`commands/*.md`): thin launchers that load their protocol from an L2 skill (`skills/<name>/SKILL.md`) on demand — paid once per invocation, never resident. See [Workflow Slash Commands](commands.md) and [Four-Tier Dev Loops](dev-loops.md).
 
 ---
 

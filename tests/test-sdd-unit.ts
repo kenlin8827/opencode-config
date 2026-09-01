@@ -7,12 +7,13 @@
  *   3. Slugification
  *   4. Scaffolding (PRD & Plan) and idempotency
  *   5. Artifact discovery (listSddArtifacts)
- *   6. System prompt transform and cache marker idempotency
- *   7. Plugin config hook and command registrations (/sdd, /prd, /plan, /impl)
+ *   6. L2 disclosure: protocol lives in the sdd-workflow skill; /sdd /prd
+ *      /plan /impl are thin command launchers (no system-prompt injection)
+ *   7. Plugin shape (engine-only: command hook, no config/system hooks)
  *   8. Command hook execution (/sdd help, /sdd status, /prd, /plan)
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import {
   getPhaseTransitionOptions,
@@ -23,8 +24,7 @@ import {
   slugify,
   type SddPhase,
 } from "../plugins/sdd/sdd-engine"
-import { injectSddSystemPrompt, SDD_MARKER } from "../plugins/sdd/sdd-system-inject"
-import { makeSddCommandHook, IMPL_COMMAND, PLAN_COMMAND, PRD_COMMAND, SDD_COMMAND } from "../plugins/sdd/sdd-command"
+import { makeSddCommandHook } from "../plugins/sdd/sdd-command"
 import { SddPlugin } from "../plugins/sdd/sdd"
 
 let passed = 0
@@ -131,24 +131,30 @@ try {
 }
 
 // -------------------------------------------------------------
-// 05: System prompt transform & cache idempotency
+// 05: L2 disclosure — skill body + thin command launchers
 // -------------------------------------------------------------
-header("05: System prompt transform & cache idempotency")
+header("05: L2 disclosure — skill body + command launchers")
 
-const output = { system: ["You are a coding assistant."] }
-await injectSddSystemPrompt(undefined, output, undefined)
+const repoRoot = join(process.cwd())
+const skillBody = readFileSync(join(repoRoot, "skills/sdd-workflow/SKILL.md"), "utf-8")
+assert(skillBody.includes("name: sdd-workflow"), "sdd-workflow skill carries its frontmatter name")
+assert(skillBody.includes("SDD Protocol"), "protocol body lives in the skill (on-demand L2)")
+assert(skillBody.includes("/sdd handoff"), "merged protocol keeps the handoff section")
 
-assert(output.system[0].includes(SDD_MARKER), "Marker injected into system prompt")
-assert(output.system[0].includes("SDD Protocol"), "Protocol body injected")
-
-const lengthAfterFirst = output.system[0].length
-await injectSddSystemPrompt(undefined, output, undefined)
-assert(output.system[0].length === lengthAfterFirst, "Second call is a complete no-op (preserves prompt cache)")
+for (const cmd of ["sdd", "prd", "plan", "impl"]) {
+  const launcher = readFileSync(join(repoRoot, `commands/${cmd}.md`), "utf-8")
+  assert(launcher.includes("Load the sdd-workflow skill"), `/${cmd} launcher loads the sdd-workflow skill`)
+  assert(launcher.includes("$ARGUMENTS"), `/${cmd} launcher forwards $ARGUMENTS`)
+}
+const planLauncher = readFileSync(join(repoRoot, "commands/plan.md"), "utf-8")
+const implLauncher = readFileSync(join(repoRoot, "commands/impl.md"), "utf-8")
+assert(planLauncher.includes("agent: plan"), "/plan routes to @plan")
+assert(implLauncher.includes("agent: code"), "/impl routes to @code")
 
 // -------------------------------------------------------------
-// 06: Plugin registration & command hooks
+// 06: Plugin shape — engine-only (no config / system hooks)
 // -------------------------------------------------------------
-header("06: Plugin registration & command hooks")
+header("06: Plugin shape — engine-only")
 
 const mockPluginInput: any = {
   client: {
@@ -160,18 +166,10 @@ const mockPluginInput: any = {
   },
 }
 
-const plugin = await SddPlugin(mockPluginInput)
-const cfg: any = {}
-await plugin.config!(cfg)
-
-assert(Boolean(cfg.command[SDD_COMMAND]), "/sdd command registered")
-assert(Boolean(cfg.command[PRD_COMMAND]), "/prd command registered")
-assert(Boolean(cfg.command[PLAN_COMMAND]), "/plan command registered")
-assert(Boolean(cfg.command[IMPL_COMMAND]), "/impl command registered")
-
-assert(cfg.command[PRD_COMMAND].agent === "build", "/prd routes to @build")
-assert(cfg.command[PLAN_COMMAND].agent === "plan", "/plan routes to @plan")
-assert(cfg.command[IMPL_COMMAND].agent === "code", "/impl routes to @code")
+const plugin: any = await SddPlugin(mockPluginInput)
+assert(typeof plugin["command.execute.before"] === "function", "command.execute.before hook present")
+assert(plugin.config === undefined, "no config hook — commands come from commands/*.md")
+assert(plugin["experimental.chat.system.transform"] === undefined, "no system injection — protocol lives at L2")
 
 // -------------------------------------------------------------
 // 07: Command hook execution

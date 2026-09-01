@@ -11,12 +11,9 @@
 
 import type { PluginInput } from "@opencode-ai/plugin"
 import {
-  getPhaseTransitionOptions,
   listSddArtifacts,
   scaffoldPlan,
   scaffoldPrd,
-  SDD_PHASES,
-  type SddPhase,
 } from "./sdd-engine"
 
 export const SDD_COMMAND = "sdd"

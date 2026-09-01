@@ -76,24 +76,17 @@ Check "build.md: still has Carry context forward" ($bc -match "Carry context for
 Check "build.md: no context sharing header template" ($bc -notmatch "CONTEXT SHARING HEADER")
 Check "build.md: no shared_context placeholder" ($bc -notmatch "\{shared_context\}")
 
-# review-fix-loop: protocol lives in review-fix-loop.md, loaded by review-fix-loop.ts
-$rfl = Get-Content "$base\plugins\review-fix-loop\review-fix-loop.md" -Raw
-Check "review-fix-loop.md: has carry context forward rule" ($rfl -match "Carry context forward")
-Check "review-fix-loop.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
-Check "review-fix-loop.md: passes only P0/P1" ($rfl -match "Fix only.*P0/P1")
+# review-fix-loop: protocol lives at L2 (skills/review-fix-loop/SKILL.md),
+# /review-fix-loop is a thin command launcher (no plugin injection).
+$rfl = Get-Content "$base\skills\review-fix-loop\SKILL.md" -Raw
+Check "review-fix-loop SKILL.md: has carry context forward rule" ($rfl -match "Carry context forward")
+Check "review-fix-loop SKILL.md: has prior round summary" ($rfl -match "Previous rounds found and fixed")
+Check "review-fix-loop SKILL.md: fixes only P0/P1" ($rfl -match "Fix only verified P0/P1")
+Check "review-fix-loop SKILL.md: on-demand frontmatter" ($rfl -match "name: review-fix-loop" -and $rfl -match "Load ONLY")
 
-# review-fix-loop plugin entry checks (command registered via config hook, no .md file)
-# Barrel re-exports from subdirectory — check the actual implementation file.
-$rflPlugin = Get-Content "$base\plugins\review-fix-loop\review-fix-loop.ts" -Raw
-Check "review-fix-loop.ts: has config hook" ($rflPlugin -match "config:")
-Check "review-fix-loop.ts: registers command programmatically" ($rflPlugin -match "cfg.command")
-Check "review-fix-loop.ts: sets agent build" ($rflPlugin -match "agent.*build")
-Check "review-fix-loop.ts: sets template with `$ARGUMENTS" ($rflPlugin -match '\$ARGUMENTS')
-Check "review-fix-loop.ts: has description" ($rflPlugin -match "description:")
-Check "review-fix-loop.ts: has command.execute.before hook" ($rflPlugin -match "command.execute.before")
-Check "review-fix-loop.ts: has system.transform hook" ($rflPlugin -match "experimental.chat.system.transform")
-Check "review-fix-loop.ts: loads review-fix-loop.md" ($rflPlugin -match "review-fix-loop.md")
-Check "review-fix-loop.ts: thin glue (<95 lines)" (($rflPlugin -split "`n").Count -lt 95)
+$rflLauncher = Get-Content "$base\commands\review-fix-loop.md" -Raw
+Check "review-fix-loop launcher: loads its skill and forwards arguments" ($rflLauncher -match "Load the review-fix-loop skill" -and $rflLauncher -match '\$ARGUMENTS')
+Check "review-fix-loop launcher: routes to @build" ($rflLauncher -match "agent: build")
 
 
 # advisor-instructions.ts checks (post-refactor: protocol lives in plugin, not _shared)

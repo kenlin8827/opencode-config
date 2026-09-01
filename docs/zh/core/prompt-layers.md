@@ -9,7 +9,7 @@
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | 每个 Agent 的每一步 | 铁律：`rfc-keywords`、`output-protocol`、`verification-honesty`、`routing-index` |
 | **L1** | Agent 的 `prompt` 字段，经 `{file:}` 标记拼装 | 该 Agent 运行期间 | 角色规则：编码包、`sql-migration`、评审基准 |
-| **L2** | `skills/*/SKILL.md` 元数据 | 每步常驻，可见性由 `permission` 控制 | 场景规则：`sdd-workflow` |
+| **L2** | `skills/*/SKILL.md` 元数据 | 每步常驻，可见性由 `permission` 控制；**正文经 `commands/*.md` 发射器按需加载** | 场景规则：工作流协议（`sdd-workflow`、`deep-dev`、`goal`、`handoff` 等） |
 | **L3** | 你项目的 `AGENTS.md`（OpenCode 原生） | 读取该目录文件时 | 你的个人 / 项目规则 |
 
 L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
@@ -30,8 +30,8 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 两个常驻层改用 Agent 级权限门控而非披露（opencode v1.18.25 语义）：
 
 - **skills 块** —— `{ "skill": { "name": "deny" } }` 从常驻 skills 块中移除单个技能；
-  `{ "*": "deny" }` 清空整个块。`sdd-workflow` 仅对 `build`、`plan`、`code`、
-  `architect` 可见。
+  `{ "*": "deny" }` 清空整个块。工作流技能仅对 `build`、`plan`、`code`
+  主代理可见；所有子代理一律拒绝 `"*"`。
 - **MCP 工具面** —— `"<server>_*": { "*": "deny" }` 同时隐藏工具与 `mcp_instructions`
   块。代码情报服务器（`serena`、`codegraph`）只留给真正查代码的 Agent。
 - **L0 剥离** —— `lite` 主 Agent 完全退出 L0：其内联 prompt 携带 `<!-- lite-mode -->`
@@ -41,7 +41,7 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
 
 ## 插件注入门控
 
-运行时的协议注入（斜杠命令协议、护栏通告）由 `plugin-scope.json`（仓库根，
+运行时的协议注入（护栏通告、作用域协议）由 `plugin-scope.json`（仓库根，
 随清单发布）策略门控，唯一消费方为 `plugins/shared/plugin-scope.ts`。每个注入器在
 触碰系统提示前都要 `await scoped(input, output.system, "<plugin-id>", client)`。
 
@@ -49,7 +49,8 @@ L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用
   `parentID` 非空即子代理步骤（按会话缓存；仅在文本未命中时查询）。
 - **策略** —— 逐插件 `deny`/`allow` 列表，作用域文法 `x`（身份或态）与 `x:*`
   （态 `x` 的任意身份）；未声明的插件继承 `"*"` 默认条目。出厂默认：拒绝 `lite`、
-  `utility`、`subagent:*` —— 协议注入不进被剥离的主代理，也不进任何子代理步骤。
+  `utility`、`subagent:*` —— 注入不进被剥离的主代理，也不进任何子代理步骤。
+  工作流协议无需此门控：它们在 L2，只在斜杠命令触发时加载。
 - **失败开** —— 任何策略错误只跳过注入，不破坏步骤。
 
 ## 护栏

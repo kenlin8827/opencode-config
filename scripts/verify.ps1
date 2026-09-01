@@ -51,6 +51,20 @@ $ver = Read-Version
 $manifestPath = Join-Path $InstDir "$ver.manifest.txt"
 if (-not (Test-Path $manifestPath)) { throw "missing manifest for version $ver : $manifestPath" }
 
+$minVer = $null
+try { $minVer = ((Get-Content (Join-Path $RepoRoot 'install/version.json') -Raw) | ConvertFrom-Json).minVersion } catch { }
+
+function Compare-VersionLt([string]$a, [string]$b) {
+    $pa = $a.Split('.') | ForEach-Object { [int]$_ }
+    $pb = $b.Split('.') | ForEach-Object { [int]$_ }
+    for ($i = 0; $i -lt [Math]::Max($pa.Count, $pb.Count); $i++) {
+        $x = if ($i -lt $pa.Count) { $pa[$i] } else { 0 }
+        $y = if ($i -lt $pb.Count) { $pb[$i] } else { 0 }
+        if ($x -ne $y) { return $x -lt $y }
+    }
+    return $false
+}
+
 # --- prompt budget gate (layered disclosure: L0/L1 sizes) ------------------
 
 & bun run (Join-Path $RepoRoot 'scripts/measure-prompts.ts')
@@ -61,6 +75,8 @@ if ($LASTEXITCODE -ne 0) { throw 'prompt budget gate failed — slim the prompts
 # (re)write the CURRENT version's file. Any modification or deletion of a
 # previously committed manifest means generate was run against a stale
 # version.json — restore the file from git before releasing.
+# Legitimate exceptions: deleting manifests below `minVersion` and rewriting
+# history.manifest.txt — that is the intended compaction flow.
 
 if (Get-Command git -ErrorAction SilentlyContinue) {
     git -C $RepoRoot rev-parse --git-dir *> $null
@@ -70,7 +86,18 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         # The current version's manifest is the release in progress — it may
         # legitimately differ from HEAD (or be untracked). Historical ones may not.
         $curRel = "install/versions/$ver.manifest.txt"
-        $violations = @($touched) + @($deleted) | Where-Object { $_ -and ($_ -replace '\\', '/') -ne $curRel }
+        $legalCompaction = {
+            param($p)
+            $norm = $p -replace '\\', '/'
+            if ($norm -eq 'install/versions/history.manifest.txt') { return $true }
+            if ($minVer -and $norm -match '^install/versions/(\d+(?:\.\d+)+)\.manifest\.txt$') {
+                return (Compare-VersionLt $matches[1] $minVer)
+            }
+            return $false
+        }
+        $violations = @($touched) + @($deleted) | Where-Object {
+            $_ -and ($_ -replace '\\', '/') -ne $curRel -and (-not (& $legalCompaction $_))
+        }
         if ($violations) {
             foreach ($v in $violations) { Write-Host "  IMMUTABILITY VIOLATION: $v" }
             throw 'historical manifest(s) modified relative to HEAD - restore with `git show HEAD:<file> > <file>` and re-run generate only after bumping version.json'

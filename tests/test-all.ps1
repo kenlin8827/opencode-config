@@ -150,16 +150,13 @@ Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tool
 Check "template: lite tools map keeps core coding tools" (($config.agent.lite.tools.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "webfetch"))
 Check "plugin-scope: default policy denies lite, utility and all subagent steps" (($scope.plugins.'*'.deny -contains "lite") -and ($scope.plugins.'*'.deny -contains "utility") -and ($scope.plugins.'*'.deny -contains "subagent:*"))
 $injectorFiles = @(
-  "plugins\handoff\handoff.ts", "plugins\sdd\sdd-system-inject.ts", "plugins\project-profiler\project-profiler.ts",
-  "plugins\quick-dev\quick-dev.ts", "plugins\review-fix-loop\review-fix-loop.ts", "plugins\md-to-pdf\system-inject.ts",
-  "plugins\grill\grill-me.ts", "plugins\grill\grill-with-docs.ts", "plugins\grill-improve-loop\grill-improve-loop.ts",
-  "plugins\goal\goal.ts", "plugins\project-manager\project-manager-system-inject.ts", "plugins\adr-guard\adr-guard-system-inject.ts",
-  "plugins\auto-advisor\auto-advisor-system-inject.ts", "plugins\deep-dev\deep-dev.ts", "plugins\deepseek-anchor\index.ts",
-  "plugins\md-to-docx\system-inject.ts", "plugins\ultra-dev\ultra-dev.ts", "plugins\e2e-guard\e2e-guard-system-inject.ts",
-  "plugins\fast-dev\fast-dev.ts"
+  "plugins\project-profiler\project-profiler.ts", "plugins\md-to-pdf\system-inject.ts",
+  "plugins\project-manager\project-manager-system-inject.ts", "plugins\adr-guard\adr-guard-system-inject.ts",
+  "plugins\auto-advisor\auto-advisor-system-inject.ts", "plugins\deepseek-anchor\index.ts",
+  "plugins\md-to-docx\system-inject.ts", "plugins\e2e-guard\e2e-guard-system-inject.ts"
 )
 $unregisteredInjectors = @($injectorFiles | Where-Object { (Get-Content "$PSScriptRoot\..\$_" -Raw) -notmatch 'await scoped\(input, output\.system, "' })
-Check "plugin-scope: all 19 protocol injectors gate through scoped()" ($unregisteredInjectors.Count -eq 0)
+Check "plugin-scope: all 8 protocol injectors gate through scoped()" ($unregisteredInjectors.Count -eq 0)
 $pluginScope = Get-Content "$PSScriptRoot\..\plugins\shared\plugin-scope.ts" -Raw
 Check "plugin-scope.ts: reads the policy file and fails open" (($pluginScope -match "plugin-scope\.json") -and ($pluginScope -match "catch"))
 Check "lite-mode.ts: exports pure strip function" ($litePlugin -match "export function stripLiteOverhead")
@@ -189,8 +186,16 @@ $allFiles = @(
     "agents/advisor.md",
     "agents/dba.md", "agents/devops.md", "agents/qa.md",
     "agents/security.md", "agents/tech-writer.md", "agents/vision.md",
-    # Commands (auto-advisor command is registered programmatically via config hook — no commands/*.md file needed)
-    # Plugins (auto-advisor-mode + helpers + review-fix-loop + grill + goal + deepseek-anchor)
+    # Commands — thin slash-command launchers (each loads its L2 skill on demand)
+    "commands/goal.md", "commands/handoff.md", "commands/grill-me.md", "commands/grill-with-docs.md",
+    "commands/grill-improve-loop.md", "commands/fast-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
+    "commands/deep-dev.md", "commands/ultra-dev.md", "commands/review-fix-loop.md",
+    "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
+    # Skills — L2 workflow protocols (body loads on demand via the skill tool)
+    "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
+    "skills/grill-improve-loop/SKILL.md", "skills/fast-dev/SKILL.md", "skills/quick-dev/SKILL.md",
+    "skills/deep-dev/SKILL.md", "skills/ultra-dev/SKILL.md", "skills/review-fix-loop/SKILL.md",
+    # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
     "plugins/auto-advisor/auto-advisor-runtime.ts",
@@ -200,26 +205,11 @@ $allFiles = @(
     "plugins/auto-advisor/auto-advisor-tool-guard.ts",
     "plugins/auto-advisor/auto-advisor-full-inject.ts",
     "plugins/auto-advisor/auto-advisor-announce.ts",
-    "plugins/review-fix-loop.ts",
-    "plugins/review-fix-loop/review-fix-loop.ts",
-    "plugins/review-fix-loop/review-fix-loop.md",
-    "plugins/grill-me.ts",
-    "plugins/grill-with-docs.ts",
     "plugins/deepseek-anchor.ts",
     "plugins/deepseek-anchor/index.ts",
     "plugins/deepseek-anchor/deepseek-anchor-config.ts",
     "plugins/deepseek-anchor/deepseek-anchor-command.ts",
     "plugins/deepseek-anchor/deepseek-anchor-announce.ts",
-    "plugins/grill/grill-me.ts",
-    "plugins/grill/grill-me.md",
-    "plugins/grill/grill-with-docs.ts",
-    "plugins/grill/grill-with-docs.md",
-    "plugins/goal.ts",
-    "plugins/goal/goal.ts",
-    "plugins/goal/goal.md",
-    "plugins/handoff.ts",
-    "plugins/handoff/handoff.ts",
-    "plugins/handoff/handoff.md",
     "plugins/project-profiler.ts",
     "plugins/project-profiler/project-profiler.ts",
     "plugins/adr-guard.ts",
@@ -280,8 +270,6 @@ $allFiles = @(
     "plugins/sdd/sdd.ts",
     "plugins/sdd/sdd-engine.ts",
     "plugins/sdd/sdd-command.ts",
-    "plugins/sdd/sdd-protocol.md",
-    "plugins/sdd/sdd-system-inject.ts",
     "skills/sdd-workflow/SKILL.md",
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
@@ -301,79 +289,37 @@ foreach ($f in $allFiles) {
     Check "file exists: $f" (Test-Path "$PSScriptRoot\..\$f")
 }
 
-# Grill plugin checks (plugins/grill/ — registered programmatically, no commands/*.md)
-$grillMePlugin = Get-Content "$PSScriptRoot\..\plugins\grill\grill-me.ts" -Raw
-$grillMeProtocol = Get-Content "$PSScriptRoot\..\plugins\grill\grill-me.md" -Raw
-Check "grill-me.ts: imports Plugin type" ($grillMePlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "grill-me.ts: has config hook registering command" ($grillMePlugin -match "config:" -and $grillMePlugin -match 'COMMAND_NAME')
-Check "grill-me.ts: NO command.execute.before hook" (-not ($grillMePlugin -match '"command\.execute\.before"'))
-Check "grill-me.ts: has system.transform hook" ($grillMePlugin -match "experimental.chat.system.transform")
-Check "grill-me.ts: agent is build" ($grillMePlugin -match 'agent:.*"build"')
+# Workflow protocols live at L2 (skills/<name>/SKILL.md) with thin command
+# launchers (commands/<name>.md) — the old plugin system-prompt injectors were
+# retired in v0.16.0. Content checks below preserve the former protocol anchors.
+function CheckWorkflowSkill($name, $patterns) {
+    $skill = Get-Content "$PSScriptRoot\..\skills\$name\SKILL.md" -Raw
+    $launcher = Get-Content "$PSScriptRoot\..\commands\$name.md" -Raw
+    Check "${name}: SKILL.md frontmatter names the skill" ($skill -match "name: $name")
+    Check "${name}: SKILL.md description is on-demand (Load ONLY)" ($skill -match "Load ONLY")
+    Check "${name}: launcher loads its skill and forwards arguments" ($launcher -match "Load the $name skill" -and $launcher -match '\$ARGUMENTS')
+    Check "${name}: launcher routes to @build" ($launcher -match "agent: build")
+    foreach ($p in $patterns) {
+        Check "${name}: protocol keeps '$p'" ($skill -match [regex]::Escape($p))
+    }
+}
+
 # grill protocol was reworked to batch answering (question tool presents all
 # questions at once) — assertions anchor on the current normative phrases.
-Check "grill-me.md: has batch-question rule" ($grillMeProtocol -match "present all questions to the user at once")
-Check "grill-me.md: has recommendation requirement" ($grillMeProtocol -match "recommended option FIRST")
-Check "grill-me.md: has state machine" ($grillMeProtocol -match "## State machine")
-Check "grill-me.md: has stop conditions" ($grillMeProtocol -match "Stop conditions")
-Check "grill-me.md: has session output format" ($grillMeProtocol -match "Decision Brief")
+CheckWorkflowSkill "grill-me" @("present all questions to the user at once", "recommended option FIRST", "## State machine", "Stop conditions", "Decision Brief")
+CheckWorkflowSkill "grill-with-docs" @("Domain modeling", "CONTEXT.md", "ADR format", "Hard to reverse", "lazily", "Be opinionated", "present all questions to the user at once")
+CheckWorkflowSkill "goal" @("golden template", "audit checklist", "Stop conditions", "Hard rules")
+CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't duplicate", "Redact sensitive information", "Suggested agents", "and continue from there")
 
-$grillWithDocsPlugin = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.ts" -Raw
-$grillWithDocsProtocol = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.md" -Raw
-Check "grill-with-docs.ts: imports Plugin type" ($grillWithDocsPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "grill-with-docs.ts: has config hook registering command" ($grillWithDocsPlugin -match "config:" -and $grillWithDocsPlugin -match 'COMMAND_NAME')
-Check "grill-with-docs.ts: NO command.execute.before hook" (-not ($grillWithDocsPlugin -match '"command\.execute\.before"'))
-Check "grill-with-docs.ts: has system.transform hook" ($grillWithDocsPlugin -match "experimental.chat.system.transform")
-Check "grill-with-docs.ts: agent is build" ($grillWithDocsPlugin -match 'agent:.*"build"')
-Check "grill-with-docs.md: has domain modeling" ($grillWithDocsProtocol -match "Domain modeling")
-Check "grill-with-docs.md: has CONTEXT.md format" ($grillWithDocsProtocol -match "CONTEXT.md")
-Check "grill-with-docs.md: has ADR format" ($grillWithDocsProtocol -match "ADR format")
-Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocsProtocol -match "Hard to reverse")
-Check "grill-with-docs.md: has lazy file creation" ($grillWithDocsProtocol -match "lazily")
-Check "grill-with-docs.md: has glossary rules" ($grillWithDocsProtocol -match "Be opinionated")
-Check "grill-with-docs.md: has batch-question rule" ($grillWithDocsProtocol -match "present all questions to the user at once")
+# Remaining workflow skills: structural checks only (protocol bodies migrated
+# verbatim; shipping is covered by the file-integrity list above).
+foreach ($name in @("grill-improve-loop", "fast-dev", "quick-dev", "deep-dev", "ultra-dev", "review-fix-loop")) {
+    CheckWorkflowSkill $name @()
+}
 
-$grillMeBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-me.ts" -Raw
-Check "grill-me.ts: barrel re-exports GrillMePlugin" ($grillMeBarrel -match "export.*GrillMePlugin")
-
-$grillWithDocsBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-with-docs.ts" -Raw
-Check "grill-with-docs.ts: barrel re-exports GrillWithDocsPlugin" ($grillWithDocsBarrel -match "export.*GrillWithDocsPlugin")
-
-# Goal plugin checks (plugins/goal/ — registered programmatically, no commands/*.md)
-$goalPlugin = Get-Content "$PSScriptRoot\..\plugins\goal\goal.ts" -Raw
-$goalProtocol = Get-Content "$PSScriptRoot\..\plugins\goal\goal.md" -Raw
-Check "goal.ts: imports Plugin type" ($goalPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "goal.ts: has config hook registering command" ($goalPlugin -match "config:" -and $goalPlugin -match 'COMMAND_NAME')
-Check "goal.ts: NO command.execute.before hook" (-not ($goalPlugin -match '"command\.execute\.before"'))
-Check "goal.ts: has system.transform hook" ($goalPlugin -match "experimental.chat.system.transform")
-Check "goal.ts: agent is build" ($goalPlugin -match 'agent:.*"build"')
-Check "goal.md: has golden template" ($goalProtocol -match "golden template")
-Check "goal.md: has 5 sections" ($goalProtocol -match "Objective.*Scope.*Constraints.*Done when.*Stop if" -or ($goalProtocol -match "objective" -and $goalProtocol -match "Scope:" -and $goalProtocol -match "Constraints:" -and $goalProtocol -match "Done when:" -and $goalProtocol -match "Stop if:"))
-Check "goal.md: has audit checklist" ($goalProtocol -match "audit checklist")
-Check "goal.md: has stop conditions" ($goalProtocol -match "Stop conditions")
-Check "goal.md: has scenario skeletons" ($goalProtocol -match "Scenario skeletons" -or $goalProtocol -match "Refactor")
-Check "goal.md: has project-type defaults" ($goalProtocol -match "Project-type defaults" -or $goalProtocol -match "Node.*TypeScript")
-Check "goal.md: has hard rules" ($goalProtocol -match "Hard rules")
-Check "goal.md: has output format" ($goalProtocol -match "Output format" -or $goalProtocol -match "Goal Summary")
-
-$goalBarrel = Get-Content "$PSScriptRoot\..\plugins\goal.ts" -Raw
-Check "goal.ts: barrel re-exports GoalPlugin" ($goalBarrel -match "export.*GoalPlugin")
-
-# Handoff plugin checks (plugins/handoff/ — registered programmatically, no commands/*.md)
-$handoffPlugin = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.ts" -Raw
-$handoffProtocol = Get-Content "$PSScriptRoot\..\plugins\handoff\handoff.md" -Raw
-Check "handoff.ts: imports Plugin type" ($handoffPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "handoff.ts: has config hook registering command" ($handoffPlugin -match "config:" -and $handoffPlugin -match 'COMMAND_NAME')
-Check "handoff.ts: NO command.execute.before hook" (-not ($handoffPlugin -match '"command\.execute\.before"'))
-Check "handoff.ts: has system.transform hook" ($handoffPlugin -match "experimental.chat.system.transform")
-Check "handoff.ts: agent is build" ($handoffPlugin -match 'agent:.*"build"')
-Check "handoff.md: stores in git-safe directory" ($handoffProtocol -match "Git-safe directory only")
-Check "handoff.md: references artifacts instead of duplicating" ($handoffProtocol -match "Reference, don't duplicate")
-Check "handoff.md: redacts sensitive information" ($handoffProtocol -match "Redact sensitive information")
-Check "handoff.md: has suggested agents section" ($handoffProtocol -match "Suggested agents")
-Check "handoff.md: ends with paste-ready opener" ($handoffProtocol -match "and continue from there")
-
-$handoffBarrel = Get-Content "$PSScriptRoot\..\plugins\handoff.ts" -Raw
-Check "handoff.ts: barrel re-exports HandoffPlugin" ($handoffBarrel -match "export.*HandoffPlugin")
+# Alias: /flash-dev launches the quick-dev skill
+$flashLauncher = Get-Content "$PSScriptRoot\..\commands\flash-dev.md" -Raw
+Check "flash-dev: alias launcher loads the quick-dev skill" ($flashLauncher -match "Load the quick-dev skill")
 
 # Shared project-config plumbing (plugins/shared/opencode-prime.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
 $sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-prime.ts" -Raw
@@ -529,17 +475,16 @@ Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPl
 Check "profile-wizard.ts: no explicit back items, Esc is the only back nav" (($pfPlugin -notmatch '"__back__"') -and ($pfPlugin -match 'navigated'))
 Check "tui.template.jsonc: profile-wizard registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/profile-wizard\.ts"')
 
-# SDD plugin checks (plugins/sdd/ — registered programmatically)
+# SDD plugin checks (plugins/sdd/ — engine-only; commands live in commands/*.md,
+# the protocol lives at L2 in skills/sdd-workflow/SKILL.md)
 $sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw
-$sddProtocol = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-protocol.md" -Raw
+$sddSkill = Get-Content "$PSScriptRoot\..\skills\sdd-workflow\SKILL.md" -Raw
 $sddEngine = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-engine.ts" -Raw
 $sddCommand = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-command.ts" -Raw
 Check "sdd.ts: imports Plugin type" ($sddPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-# Commands are registered individually via cfg.command[<NAME>] (the old
-# SLASH_COMMANDS constant was replaced by per-command imports).
-Check "sdd.ts: has config hook registering commands" ($sddPlugin -match "config:" -and $sddPlugin -match 'cfg\.command\[')
-Check "sdd.ts: has system.transform hook" ($sddPlugin -match "experimental\.chat\.system\.transform")
-Check "sdd-protocol.md: specifies PRD -> ADR -> PLAN -> IMPL lifecycle" ($sddProtocol -match "PRD" -and $sddProtocol -match "ADR" -and $sddProtocol -match "PLAN" -and $sddProtocol -match "IMPL")
+Check "sdd.ts: has command.execute.before hook" ($sddPlugin -match '"command\.execute\.before"')
+Check "sdd.ts: engine-only (no config hook, no system injection)" (($sddPlugin -notmatch "config:") -and ($sddPlugin -notmatch "experimental\.chat\.system\.transform"))
+Check "sdd-workflow SKILL.md: specifies PRD -> ADR -> PLAN -> IMPL lifecycle" ($sddSkill -match "PRD" -and $sddSkill -match "ADR" -and $sddSkill -match "PLAN" -and $sddSkill -match "IMPL")
 Check "sdd-engine.ts: has slugify helper" ($sddEngine -match "export function slugify")
 Check "sdd-engine.ts: has scaffoldPrd" ($sddEngine -match "export function scaffoldPrd")
 Check "sdd-engine.ts: has scaffoldPlan" ($sddEngine -match "export function scaffoldPlan")

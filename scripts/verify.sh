@@ -52,13 +52,27 @@ fi
 # (re)write the CURRENT version's file. Any modification or deletion of a
 # previously committed manifest means generate was run against a stale
 # version.json — restore the file from git before releasing.
+# Legitimate exceptions: deleting manifests below `minVersion` and rewriting
+# history.manifest.txt — that is the intended compaction flow.
 if command -v git >/dev/null 2>&1 && git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     CUR_REL="install/versions/$VER.manifest.txt"
+    MIN_VER="$(sed -n 's/.*"minVersion"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$VERSION_JSON" | head -n 1 | tr -d ' \r')"
     # The current version's manifest is the release in progress — it may
     # legitimately differ from HEAD (or be untracked). Historical ones may not.
-    VIOLATIONS="$( { git -C "$REPO_ROOT" diff --name-only HEAD -- install/versions/; git -C "$REPO_ROOT" ls-files --deleted -- install/versions/; } | grep -v "^$CUR_REL\$" | grep -v '^$' || true)"
+    VIOLATIONS=""
+    while IFS= read -r v; do
+        [[ -z "$v" || "$v" == "$CUR_REL" ]] && continue
+        # legal compaction: history manifest rewrite, or deletion below the floor
+        [[ "$v" == "install/versions/history.manifest.txt" ]] && continue
+        if [[ -n "$MIN_VER" && "$v" =~ ^install/versions/([0-9]+(\.[0-9]+)+)\.manifest\.txt$ ]]; then
+            if printf '%s\n%s\n' "${BASH_REMATCH[1]}" "$MIN_VER" | sort -C -V; then
+                [[ "${BASH_REMATCH[1]}" != "$MIN_VER" ]] && continue
+            fi
+        fi
+        VIOLATIONS+="$v"$'\n'
+    done < <({ git -C "$REPO_ROOT" diff --name-only HEAD -- install/versions/; git -C "$REPO_ROOT" ls-files --deleted -- install/versions/; } | sort -u)
     if [[ -n "$VIOLATIONS" ]]; then
-        while IFS= read -r v; do echo "  IMMUTABILITY VIOLATION: $v" >&2; done <<< "$VIOLATIONS"
+        while IFS= read -r v; do [[ -n "$v" ]] && echo "  IMMUTABILITY VIOLATION: $v" >&2; done <<< "$VIOLATIONS"
         echo "historical manifest(s) modified relative to HEAD - restore with 'git show HEAD:<file> > <file>' and re-run generate only after bumping version.json" >&2
         exit 1
     fi

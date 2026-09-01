@@ -14,14 +14,6 @@
 | `metrics.ts` | 自动记录工具调用指标（耗时、成功、智能体），JSONL 格式，存于 `~/.config/opencode/.metrics/` |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
-| `quick-dev.ts` | `/quick-dev` (及 `/flash-dev`) 命令与协议 —— 极速免审直通：直接就地改码出结果（零调度中转，零审查等待） |
-| `fast-dev.ts` | `/fast-dev` 命令与协议 —— 敏捷单审闭环：Flash 极速编码（动态注入领域灵魂） + 旗舰单审证据驱动把关 |
-| `deep-dev.ts` | `/deep-dev` 命令与协议 —— 深度双审共识闭环：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁 |
-| `ultra-dev.ts` | `/ultra-dev` 命令与协议 —— 自主多阶段执行闭环：将大型目标分解为多阶段，每阶段独立 `/deep-dev` 循环 |
-| `review-fix-loop.ts` | `/review-fix-loop` 命令与协议 |
-| `grill-improve-loop.ts` | `/grill-improve-loop` 命令与协议 —— 评分驱动改进闭环 |
-| `goal.ts` | `/goal` 命令与协议 |
-| `handoff.ts` | `/handoff` 命令与协议 |
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |
 | `adr-guard.ts` | `/adr-guard` 命令 —— 按项目的 ADR 强制 |
 | `env-guard.ts` | 按项目的密钥文件门控 |
@@ -31,6 +23,8 @@
 | `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project-wizard` TUI 弹窗向导 |
 | `md-to-pdf.ts` | `/md-to-pdf` 命令与 `md_to_pdf` 工具 —— 将 Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 | `md-to-docx.ts` | `/md-to-docx` 命令与 `md_to_docx` 工具 —— 将 Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
+
+> **工作流命令不是插件。** `/quick-dev`、`/fast-dev`、`/deep-dev`、`/ultra-dev`、`/review-fix-loop`、`/grill-improve-loop`、`/grill-me`、`/grill-with-docs`、`/goal`、`/handoff` 是 opencode 原生命令文件（`commands/*.md`）：薄发射器，按需从 L2 技能（`skills/<name>/SKILL.md`）加载协议正文——每次调用只付费一次，永不常驻。详见[工作流斜杠命令](commands.md)与[四档开发闭环](dev-loops.md)。
 
 ---
 

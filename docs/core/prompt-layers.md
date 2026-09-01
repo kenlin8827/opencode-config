@@ -11,7 +11,7 @@ that don't.
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | every step of every agent | iron rules: `rfc-keywords`, `output-protocol`, `verification-honesty`, `routing-index` |
 | **L1** | agent `prompt` field, assembled from `{file:}` markers | while that agent runs | role rules: coding pack, `sql-migration`, review criteria |
-| **L2** | `skills/*/SKILL.md` metadata | resident every step, visibility gated by `permission` | scenario rules: `sdd-workflow` |
+| **L2** | `skills/*/SKILL.md` metadata | resident every step, visibility gated by `permission`; **body loads on demand** via the slash-command launchers in `commands/*.md` | scenario rules: workflow protocols (`sdd-workflow`, `deep-dev`, `goal`, `handoff`, …) |
 | **L3** | your project's `AGENTS.md` (OpenCode native) | when files in that directory are read | your personal / project rules |
 
 L0 is the expensive layer (paid × steps × agents), so it stays under a hard
@@ -33,8 +33,9 @@ Two resident layers are gated by per-agent permissions instead of disclosure
 (opencode v1.18.25 semantics):
 
 - **Skills block** — `{ "skill": { "name": "deny" } }` drops a skill from the
-  resident skills block; `{ "*": "deny" }` empties the block. `sdd-workflow`
-  stays visible only for `build`, `plan`, `code`, `architect`.
+  resident skills block; `{ "*": "deny" }` empties the block. Workflow skills
+  stay visible only for the `build`, `plan`, `code` primaries; every subagent
+  denies `"*"`.
 - **MCP tool surface** — `"<server>_*": { "*": "deny" }` hides both the tools
   and the `mcp_instructions` block. The code-intel servers (`serena`,
   `codegraph`) stay only with agents that actually query code.
@@ -46,7 +47,7 @@ Quantify any change with `scripts/measure-prompts.ts` before releasing.
 
 ## Plugin injection gating
 
-Runtime protocol injections (slash-command protocols, guardrail notices) are
+Runtime protocol injections (guardrail notices, scoped protocols) are
 policy-gated by `plugin-scope.json` (repo root, shipped), consumed solely by
 `plugins/shared/plugin-scope.ts`. Every injector awaits
 `scoped(input, output.system, "<plugin-id>", client)` before touching the
@@ -59,8 +60,9 @@ detection misses).
 - **Policy** — per-plugin `deny`/`allow` lists using the scope grammar `x`
 (identity or state) and `x:*` (any identity in state `x`); unspecified
 plugins inherit the `"*"` entry. Shipped default: deny `lite`, `utility`,
-`subagent:*` — protocol injections stay out of stripped primaries and every
-subagent step.
+`subagent:*` — injections stay out of stripped primaries and every
+subagent step. Workflow protocols need no gate at all: they live at L2 and
+load only when their slash command runs.
 - **Fail-open** — any policy error skips the injection rather than breaking
 the step.
 
