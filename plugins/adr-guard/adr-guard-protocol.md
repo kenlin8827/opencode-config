@@ -92,7 +92,7 @@ Chosen option: <what we decided>, because <why>.
 ## If the guard blocks your commit
 
 The block message names the missing ADR requirement. Fix it properly: create
-the ADR (or the superseding pair), stage it, re-run the commit. You **MUST
-NOT** bypass the guard by relabeling the commit type (e.g. calling a feat a
-chore) — that corrupts the changelog.
+the ADR (or the superseding pair), stage it, re-run the commit. You **MUST NOT**
+bypass the guard by relabeling the commit type (e.g. calling a feat a chore)
+— that corrupts the changelog.
 

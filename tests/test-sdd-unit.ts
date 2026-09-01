@@ -136,13 +136,13 @@ try {
 header("05: System prompt transform & cache idempotency")
 
 const output = { system: ["You are a coding assistant."] }
-injectSddSystemPrompt(output)
+await injectSddSystemPrompt(undefined, output, undefined)
 
 assert(output.system[0].includes(SDD_MARKER), "Marker injected into system prompt")
 assert(output.system[0].includes("SDD Protocol"), "Protocol body injected")
 
 const lengthAfterFirst = output.system[0].length
-injectSddSystemPrompt(output)
+await injectSddSystemPrompt(undefined, output, undefined)
 assert(output.system[0].length === lengthAfterFirst, "Second call is a complete no-op (preserves prompt cache)")
 
 // -------------------------------------------------------------

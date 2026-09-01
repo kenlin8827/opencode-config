@@ -11,6 +11,7 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 import { isEnabled } from "./adr-guard-config"
 import { getGuardPrompt, MARKER, MARKER_ON } from "./adr-guard-instructions"
 import { makeLogger } from "./adr-guard-runtime"
@@ -56,7 +57,11 @@ function appendPrompt(system: string[], fragment: string): boolean {
 export function makeSystemHook(client: PluginInput["client"]) {
   const log: Log = makeLogger(client, "adr-guard")
 
-  return async (_input: unknown, output: { system: string[] }) => {
+  return async (input: { sessionID?: string } | undefined, output: { system: string[] }) => {
+    // Lite mode: bare-prompt contract — no iron-law protocol for @lite.
+    // (A lite session can never carry a stale block: all injectors skip it.)
+    if (!await scoped(input, output.system, "adr-guard", client)) return
+
     if (!isEnabled()) {
       // Switch off — make sure no stale protocol lingers in the prompt.
       if (hasAnyMarker(output.system)) {

@@ -36,6 +36,9 @@ dist/
 # Code review diff artifact (ephemeral, generated during review sessions)
 .review.diff
 
+# Ephemeral probe/sync scratch files (never meant to be tracked)
+.tmp-*
+
 # uv package cache (ephemeral, created by local tool installs)
 .uv-cache/
 

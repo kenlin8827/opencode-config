@@ -1,6 +1,10 @@
-export function makeSystemHook() {
+import { scoped } from "../shared/plugin-scope"
+
+export function makeSystemHook(client: unknown) {
   return async (input: { sessionID?: string }, output: { system?: string[] }) => {
     output.system ??= []
+    // Lite mode: bare-prompt contract — no capability steering for @lite.
+    if (!await scoped(input, output.system, "md-to-docx", client as never)) return
 
     const instruction = `
 # Markdown to Word (DOCX) Conversion Capability

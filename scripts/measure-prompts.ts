@@ -11,6 +11,8 @@
  *        <mcp_instructions> block. Both honor per-agent permission denies
  *        (v1.18.25 semantics: a rule `"<perm>": { "*": "deny" }` hides the
  *        matching tools/skill entirely; wildcard permission keys allowed).
+ *        Permission policy lives in the template itself (native opencode
+ *        fields: global `permission` + per-agent `permission`/`tools`).
  *        MCP figures come from scripts/mcp-instructions.snapshot.json
  *        (regenerate: bun run scripts/capture-mcp-snapshot.ts).
  *
@@ -90,6 +92,14 @@ function fileTokens(configPath: string): { tokens: number; missing: boolean } {
 const template = readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'));
 if (!template) {
   console.error('measure-prompts: opencode.template.jsonc missing or unparseable');
+  process.exit(1);
+}
+
+// Policy sanity: per-step gating below relies on the template's native
+// permission fields — a policy-free template would silently measure without
+// denies.
+if (typeof template.permission !== 'string' || typeof template.agent !== 'object' || !template.agent) {
+  console.error('measure-prompts: template lost its native permission policy — per-step gating would measure without denies');
   process.exit(1);
 }
 

@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROTOCOL_FILE = join(__dirname, "fast-dev.md")
@@ -28,7 +29,7 @@ function getProtocol(): string {
   return cachedProtocol
 }
 
-export const FastDevPlugin: Plugin = async () => ({
+export const FastDevPlugin: Plugin = async ({ client }) => ({
   config: async (cfg) => {
     cfg.command ??= {}
     cfg.command[COMMAND_NAME] = {
@@ -40,9 +41,12 @@ export const FastDevPlugin: Plugin = async () => ({
   },
 
   "experimental.chat.system.transform": async (
-    _input: unknown,
+    input: { sessionID?: string } | undefined,
     output: { system: string[] },
   ) => {
+    // Lite mode: bare-prompt contract — no protocol overhead for @lite.
+    if (!await scoped(input, output.system, "fast-dev", client)) return
+
     if (output.system.some((s) => typeof s === "string" && s.includes(MARKER))) return
 
     const fragment = `\n\n---\n${MARKER}\n\n${getProtocol()}\n`

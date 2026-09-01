@@ -29,6 +29,7 @@ instructions/sql-migration.md
 instructions/test-scope.md
 instructions/verification-honesty.md
 opencode.template.jsonc
+plugin-scope.json
 plugins/adr-guard.ts
 plugins/adr-guard/adr-engine.ts
 plugins/adr-guard/adr-guard-announce.ts
@@ -98,6 +99,7 @@ plugins/handoff/handoff.md
 plugins/handoff/handoff.ts
 plugins/lite-mode.ts
 plugins/lite-mode/lite-mode.ts
+plugins/lite-tools.ts
 plugins/md-to-docx.ts
 plugins/md-to-docx/assets/reference.docx
 plugins/md-to-docx/command.ts
@@ -152,6 +154,7 @@ plugins/sdd/sdd.ts
 plugins/shared/assets/mermaid.min.js
 plugins/shared/mermaid-renderer.ts
 plugins/shared/opencode-prime.ts
+plugins/shared/plugin-scope.ts
 plugins/tui/i18n.ts
 plugins/tui/profile-wizard.ts
 plugins/tui/project-wizard.ts

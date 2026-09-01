@@ -37,6 +37,9 @@ Write-Host "Structural: config & protocols" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $config = Get-Content "$PSScriptRoot\..\opencode.template.jsonc" -Raw | ConvertFrom-Json
+$scope = Get-Content "$PSScriptRoot\..\plugin-scope.json" -Raw | ConvertFrom-Json
+Check "plugin-scope.json: parses with identifiers and plugins sections" (($null -ne $scope.identifiers) -and ($null -ne $scope.plugins))
+Check "opencode.template.jsonc: carries native permission policy (global + per-agent)" (($config.permission -eq "allow") -and (@($config.agent.PSObject.Properties | Where-Object { $_.Value.permission }).Count -gt 0))
 Check "instructions contains output-protocol.md" `
     ($config.instructions -contains "~/.config/opencode/instructions/output-protocol.md")
 Check "plugin includes @dietrichgebert/ponytail" `
@@ -138,14 +141,41 @@ Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -
 Check "opencode.template.jsonc: lite uses flash model" ($config.agent.lite.model -eq "llm-router/flash")
 Check "opencode.template.jsonc: lite prompt is inline (no {file:})" ($config.agent.lite.prompt -notmatch '\{file:')
 Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
-Check "opencode.template.jsonc: lite keeps native tools (no edit/bash/task deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "task"))
-Check "opencode.template.jsonc: lite denies all skills" ($config.agent.lite.permission.skill.'*' -eq "deny")
-Check "opencode.template.jsonc: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
+Check "template: lite keeps native tools (no edit/bash/task deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "task"))
+Check "template: lite denies all skills" ($config.agent.lite.permission.skill.'*' -eq "deny")
+Check "template: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
+Check "template: lite denies dbhub/idea surface" (($config.agent.lite.permission.'dbhub_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'idea_*'.'*' -eq "deny"))
+Check "template: lite denies plugin-tool surfaces" (($config.agent.lite.permission.'md_to_pdf'.'*' -eq "deny") -and ($config.agent.lite.permission.'md_to_docx'.'*' -eq "deny") -and ($config.agent.lite.permission.'browser_screenshot'.'*' -eq "deny"))
+Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tools.task -eq $false) -and ($config.agent.lite.tools.question -eq $false) -and ($config.agent.lite.tools.todowrite -eq $false))
+Check "template: lite tools map keeps core coding tools" (($config.agent.lite.tools.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "webfetch"))
+Check "plugin-scope: default policy denies lite, utility and all subagent steps" (($scope.plugins.'*'.deny -contains "lite") -and ($scope.plugins.'*'.deny -contains "utility") -and ($scope.plugins.'*'.deny -contains "subagent:*"))
+$injectorFiles = @(
+  "plugins\handoff\handoff.ts", "plugins\sdd\sdd-system-inject.ts", "plugins\project-profiler\project-profiler.ts",
+  "plugins\quick-dev\quick-dev.ts", "plugins\review-fix-loop\review-fix-loop.ts", "plugins\md-to-pdf\system-inject.ts",
+  "plugins\grill\grill-me.ts", "plugins\grill\grill-with-docs.ts", "plugins\grill-improve-loop\grill-improve-loop.ts",
+  "plugins\goal\goal.ts", "plugins\project-manager\project-manager-system-inject.ts", "plugins\adr-guard\adr-guard-system-inject.ts",
+  "plugins\auto-advisor\auto-advisor-system-inject.ts", "plugins\deep-dev\deep-dev.ts", "plugins\deepseek-anchor\index.ts",
+  "plugins\md-to-docx\system-inject.ts", "plugins\ultra-dev\ultra-dev.ts", "plugins\e2e-guard\e2e-guard-system-inject.ts",
+  "plugins\fast-dev\fast-dev.ts"
+)
+$unregisteredInjectors = @($injectorFiles | Where-Object { (Get-Content "$PSScriptRoot\..\$_" -Raw) -notmatch 'await scoped\(input, output\.system, "' })
+Check "plugin-scope: all 19 protocol injectors gate through scoped()" ($unregisteredInjectors.Count -eq 0)
+$pluginScope = Get-Content "$PSScriptRoot\..\plugins\shared\plugin-scope.ts" -Raw
+Check "plugin-scope.ts: reads the policy file and fails open" (($pluginScope -match "plugin-scope\.json") -and ($pluginScope -match "catch"))
 Check "lite-mode.ts: exports pure strip function" ($litePlugin -match "export function stripLiteOverhead")
 Check "lite-mode.ts: has system.transform hook" ($litePlugin -match "experimental\.chat\.system\.transform")
 Check "lite-mode.ts: fail-open try/catch" ($litePlugin -match "try \{" -and $litePlugin -match "catch")
 $liteBarrel = Get-Content "$PSScriptRoot\..\plugins\lite-mode.ts" -Raw
 Check "lite-mode.ts: barrel re-exports LiteModePlugin" ($liteBarrel -match "export.*LiteModePlugin")
+# opencode's getLegacyPlugins drops a file whose exports are not ALL functions —
+# the barrel must contain no const/value exports (the bug that killed lite mode).
+Check "lite-mode.ts: barrel exports functions only (loader contract)" ($liteBarrel -notmatch "export\s+(const|let|var)\s")
+Check "shared/plugin-scope.ts: two-step gate (detectAgent + scoped, no hardcoded match text)" (($pluginScope -match "export function detectAgent") -and ($pluginScope -match "export async function scoped") -and ((Get-Content "$PSScriptRoot\..\plugin-scope.json" -Raw) -match '"identifiers"'))
+Check "lite-mode.ts: identifies lite via detectAgent (no hardcoded sentinel)" (($litePlugin -match "detectAgent") -and ($litePlugin -notmatch "lite-mode -->"))
+$liteTools = Get-Content "$PSScriptRoot\..\plugins\lite-tools.ts" -Raw
+Check "lite-tools.ts: exports functions only (loader contract)" ($liteTools -notmatch "export\s+(const|let|var)\s")
+Check "lite-tools.ts: gates rewrite on chat.message agent" ($liteTools -match '"chat\.message"' -and $liteTools -match 'currentAgent !== "lite"')
+Check "lite-tools.ts: hooks tool.definition" ($liteTools -match '"tool\.definition"')
 Check "routing-index.md: routes lightweight tasks to @lite" ((Get-Content "$PSScriptRoot\..\instructions\routing-index.md" -Raw) -match "@lite")
 
 # File integrity
@@ -261,6 +291,9 @@ $allFiles = @(
     "plugins/tui/project-wizard.ts",
     "plugins/lite-mode.ts",
     "plugins/lite-mode/lite-mode.ts",
+    "plugins/shared/plugin-scope.ts",
+    "plugin-scope.json",
+    "plugins/lite-tools.ts",
     # Config
     "tsconfig.json", "package.json"
 )
@@ -276,11 +309,13 @@ Check "grill-me.ts: has config hook registering command" ($grillMePlugin -match 
 Check "grill-me.ts: NO command.execute.before hook" (-not ($grillMePlugin -match '"command\.execute\.before"'))
 Check "grill-me.ts: has system.transform hook" ($grillMePlugin -match "experimental.chat.system.transform")
 Check "grill-me.ts: agent is build" ($grillMePlugin -match 'agent:.*"build"')
-Check "grill-me.md: has one-question-at-a-time rule" ($grillMeProtocol -match "one at a time")
-Check "grill-me.md: has recommendation requirement" ($grillMeProtocol -match "MUST include your recommended")
-Check "grill-me.md: has facts vs decisions" ($grillMeProtocol -match "Facts vs")
+# grill protocol was reworked to batch answering (question tool presents all
+# questions at once) — assertions anchor on the current normative phrases.
+Check "grill-me.md: has batch-question rule" ($grillMeProtocol -match "present all questions to the user at once")
+Check "grill-me.md: has recommendation requirement" ($grillMeProtocol -match "recommended option FIRST")
+Check "grill-me.md: has state machine" ($grillMeProtocol -match "## State machine")
 Check "grill-me.md: has stop conditions" ($grillMeProtocol -match "Stop conditions")
-Check "grill-me.md: has session output format" ($grillMeProtocol -match "Grilling Summary")
+Check "grill-me.md: has session output format" ($grillMeProtocol -match "Decision Brief")
 
 $grillWithDocsPlugin = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.ts" -Raw
 $grillWithDocsProtocol = Get-Content "$PSScriptRoot\..\plugins\grill\grill-with-docs.md" -Raw
@@ -295,7 +330,7 @@ Check "grill-with-docs.md: has ADR format" ($grillWithDocsProtocol -match "ADR f
 Check "grill-with-docs.md: has ADR three criteria" ($grillWithDocsProtocol -match "Hard to reverse")
 Check "grill-with-docs.md: has lazy file creation" ($grillWithDocsProtocol -match "lazily")
 Check "grill-with-docs.md: has glossary rules" ($grillWithDocsProtocol -match "Be opinionated")
-Check "grill-with-docs.md: has one-question-at-a-time" ($grillWithDocsProtocol -match "one at a time")
+Check "grill-with-docs.md: has batch-question rule" ($grillWithDocsProtocol -match "present all questions to the user at once")
 
 $grillMeBarrel = Get-Content "$PSScriptRoot\..\plugins\grill-me.ts" -Raw
 Check "grill-me.ts: barrel re-exports GrillMePlugin" ($grillMeBarrel -match "export.*GrillMePlugin")
@@ -459,14 +494,16 @@ Check "queue-manager.ts: busy fallback strips via part.update" ($qmPlugin -match
 Check "queue-manager.ts: tombstone for busy-cancelled messages" ($qmPlugin -match "TOMBSTONE")
 Check "queue-manager.ts: exports pure helpers for unit tests" ($qmPlugin -match "export function computeQueued")
 $tuiTemplateRaw = Get-Content "$PSScriptRoot\..\tui.template.jsonc" -Raw
-Check "tui.template.jsonc: queue-manager registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/queue-manager\.ts"')
+# TUI plugin registration paths carry a leading ./ (opencode resolves them
+# relative to the config dir).
+Check "tui.template.jsonc: queue-manager registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/queue-manager\.ts"')
 
 # Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw
 Check "project-wizard.ts: imports TuiPlugin from plugin/tui" ($pwPlugin -match "@opencode-ai/plugin/tui")
 Check "project-wizard.ts: registers palette command with slashName project-wizard" ($pwPlugin -match 'slashName: "project-wizard"' -and $pwPlugin -match 'namespace: "palette"')
 Check "project-wizard.ts: supports re-entrant switch detection" ($pwPlugin -match "detectCurrentSwitches")
-Check "tui.template.jsonc: project-wizard registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/project-wizard\.ts"')
+Check "tui.template.jsonc: project-wizard registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/project-wizard\.ts"')
 
 # Profile wizard plugin checks (plugins/tui/profile-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pfPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\profile-wizard.ts" -Raw
@@ -490,7 +527,7 @@ Check "profile-wizard.ts: has VALID_TIERS constant" ($pfPlugin -match "VALID_TIE
 Check "profile-wizard.ts: tier editor writes tiers.json atomically" ($pfPlugin -match "writeTiersFileAtomic")
 Check "profile-wizard.ts: tier editor live-applies via global config API" ($pfPlugin -match "applyLive")
 Check "profile-wizard.ts: no explicit back items, Esc is the only back nav" (($pfPlugin -notmatch '"__back__"') -and ($pfPlugin -match 'navigated'))
-Check "tui.template.jsonc: profile-wizard registered in plugin array" ($tuiTemplateRaw -match '"plugins/tui/profile-wizard\.ts"')
+Check "tui.template.jsonc: profile-wizard registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/profile-wizard\.ts"')
 
 # SDD plugin checks (plugins/sdd/ — registered programmatically)
 $sddPlugin = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd.ts" -Raw
@@ -498,13 +535,15 @@ $sddProtocol = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-protocol.md" -Raw
 $sddEngine = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-engine.ts" -Raw
 $sddCommand = Get-Content "$PSScriptRoot\..\plugins\sdd\sdd-command.ts" -Raw
 Check "sdd.ts: imports Plugin type" ($sddPlugin -match "import type.*Plugin.*from.*@opencode-ai/plugin")
-Check "sdd.ts: has config hook registering commands" ($sddPlugin -match "config:" -and $sddPlugin -match 'SLASH_COMMANDS')
+# Commands are registered individually via cfg.command[<NAME>] (the old
+# SLASH_COMMANDS constant was replaced by per-command imports).
+Check "sdd.ts: has config hook registering commands" ($sddPlugin -match "config:" -and $sddPlugin -match 'cfg\.command\[')
 Check "sdd.ts: has system.transform hook" ($sddPlugin -match "experimental\.chat\.system\.transform")
 Check "sdd-protocol.md: specifies PRD -> ADR -> PLAN -> IMPL lifecycle" ($sddProtocol -match "PRD" -and $sddProtocol -match "ADR" -and $sddProtocol -match "PLAN" -and $sddProtocol -match "IMPL")
 Check "sdd-engine.ts: has slugify helper" ($sddEngine -match "export function slugify")
 Check "sdd-engine.ts: has scaffoldPrd" ($sddEngine -match "export function scaffoldPrd")
 Check "sdd-engine.ts: has scaffoldPlan" ($sddEngine -match "export function scaffoldPlan")
-Check "sdd-engine.ts: has parseHandoffOpener" ($sddEngine -match "export function parseHandoffOpener")
+Check "sdd-engine.ts: has listSddArtifacts" ($sddEngine -match "export function listSddArtifacts")
 Check "sdd-command.ts: supports prd, adr, plan, impl, handoff" ($sddCommand -match "prd" -and $sddCommand -match "adr" -and $sddCommand -match "plan" -and $sddCommand -match "impl" -and $sddCommand -match "handoff")
 
 $sddBarrel = Get-Content "$PSScriptRoot\..\plugins\sdd.ts" -Raw
@@ -525,7 +564,8 @@ Check "auto-advisor: mentions auto-execute or direct" ($advisorCmd -match "auto-
 $advisorAgent = Get-Content "$PSScriptRoot\..\agents\advisor.md" -Raw
 Check "advisor.md: has frontmatter mode subagent" ($advisorAgent -match "mode: subagent")
 # Model binding lives in opencode.template.jsonc (agent registry), not in the markdown prompt.
-Check "opencode.template.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/advisor")
+# advisor maps to the max tier (tiers.json: "advisor": "max").
+Check "opencode.template.jsonc: binds advisor agent to advisor model" ($config.agent.advisor.model -eq "llm-router/max")
 Check "advisor.md: read-only (edit deny)" ($advisorAgent -match "edit: deny")
 Check "advisor.md: no ask-user language" (-not ($advisorAgent -match "ask the user" -or $advisorAgent -match "ask a focused question"))
 Check "advisor.md: has output format" ($advisorAgent -match "Output format")
@@ -562,18 +602,20 @@ Check "auto-advisor-instructions.ts: has MODE_MARKER for 3 modes (off/lite/full)
     (($advisorInstructions -match "lite") -and ($advisorInstructions -match "full") -and ($advisorInstructions -match "off"))
 Check "auto-advisor-instructions.ts: has getAdvisorPrompt" ($advisorInstructions -match "getAdvisorPrompt")
 Check "auto-advisor-instructions.ts: has fullDirective" ($advisorInstructions -match "fullDirective")
-Check "auto-advisor-instructions.ts: question puts recommended option first" ($advisorInstructions -match "recommended option FIRST")
+# Recommended-option-first now lives in output-protocol.md (covered by
+# test-decisions.ps1); instructions.ts keeps the PREFERENCE gate instead.
+Check "auto-advisor-instructions.ts: PREFERENCE routes to lite flow" ($advisorInstructions -match "PREFERENCE or < 8")
 
-# Red-team stance (optional adversarial mode on @advisor)
+# Red-team stance (optional adversarial mode on @advisor). The stance rules
+# live in agents/advisor.md; auto-advisor-runtime.ts keeps the code-level guard.
 Check "advisor.md: has red-team stance section" ($advisorAgent -match "Stance: red-team")
 Check "advisor.md: red-team forbids confidence score" ($advisorAgent -match "NEVER output a confidence score in red-team")
 Check "advisor.md: has verdict vocabulary" `
     (($advisorAgent -match "HOLDS") -and ($advisorAgent -match "FAILS"))
-Check "auto-advisor-instructions.ts: has red-team stance rules" ($advisorInstructions -match "Red-team stance")
-Check "auto-advisor-instructions.ts: red-team never auto-executes" ($advisorInstructions -match "NEVER trigger full-mode auto-execute")
-Check "auto-advisor-instructions.ts: FAILS verdict requires user" ($advisorInstructions -match "FAILS")
-Check "auto-advisor-instructions.ts: FAILS routes rebuttal to design owner" ($advisorInstructions -match "design owner")
-Check "auto-advisor-instructions.ts: no blue team rule" ($advisorInstructions -match "No blue team")
+Check "advisor.md: red-team never auto-executes" ($advisorAgent -match "Adversarial output must never trigger auto-execution")
+Check "advisor.md: FAILS verdict goes back to user" ($advisorAgent -match "only they can override a FAILS")
+Check "advisor.md: FAILS routes rebuttal to design owner" ($advisorAgent -match "Route the rebuttal to the design owner")
+Check "advisor.md: no blue team rule" ($advisorAgent -match "no blue team")
 
 # Red-team auto-execute hard guard (code-level, not prompt-level)
 $advisorRuntime = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-runtime.ts" -Raw
@@ -584,7 +626,7 @@ Check "auto-advisor-runtime.ts: detects verdict marker" ($advisorRuntime -match 
 # PREFERENCE questions always return to the user, in any mode.
 Check "auto-advisor-runtime.ts: has detectQuestionClass gate" ($advisorRuntime -match "detectQuestionClass")
 Check "auto-advisor-instructions.ts: defines question class" ($advisorInstructions -match "FACTUAL")
-Check "auto-advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE questions ALWAYS go back to the user")
+Check "auto-advisor-instructions.ts: PREFERENCE never auto-answered" ($advisorInstructions -match "PREFERENCE")
 Check "auto-advisor-instructions.ts: lite never answers for user" ($advisorInstructions -match "NEVER answers on the user's behalf")
 Check "advisor.md: outputs question class" ($advisorAgent -match "Question class")
 Check "advisor.md: classifies every question" ($advisorAgent -match "ALWAYS classify the question")
@@ -596,9 +638,10 @@ Check "auto-advisor-full-inject.ts: requires FACTUAL class for auto-answer" ($ad
 
 # Session-created announce + /auto-advisor switch feedback (user visibility)
 $advisorAnnounce = Get-Content "$PSScriptRoot\..\plugins\auto-advisor\auto-advisor-announce.ts" -Raw
+# Session announce moved to the TUI sidebar-status slot; announce.ts is now
+# toast-only feedback for /auto-advisor switches.
 Check "auto-advisor-announce.ts: has announceSwitch for /auto-advisor" ($advisorAnnounce -match "announceSwitch")
-Check "auto-advisor-announce.ts: listens on session.created" ($advisorAnnounce -match "session.created")
-Check "auto-advisor-announce.ts: filters subagent sessions via parentID" ($advisorAnnounce -match "parentID")
+Check "auto-advisor-announce.ts: sidebar-status slot replaces session announce" ($advisorAnnounce -match "sidebar-status")
 Check "auto-advisor-announce.ts: full-mode message names auto-answer risk" ($advisorAnnounce -match "answer blocking questions on your")
 Check "auto-advisor-announce.ts: toast via tui.showToast" ($advisorAnnounce -match "showToast")
 Check "auto-advisor-announce.ts: degrades to log without TUI" ($advisorAnnounce -match "no TUI")
@@ -648,6 +691,10 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-adr-hierarchical-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-lite-mode-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-plugin-scope-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-lite-tools-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)

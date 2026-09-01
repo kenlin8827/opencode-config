@@ -4,6 +4,8 @@
  * `md_to_pdf` when the user asks in natural language (e.g. "@path/to/doc.md 转PDF").
  */
 
+import { scoped } from "../shared/plugin-scope"
+
 const MARKER = "[MD-TO-PDF CAPABILITY]"
 
 const SYSTEM_PROMPT_FRAGMENT = `
@@ -31,8 +33,10 @@ function appendPrompt(system: string[], fragment: string): boolean {
   return false
 }
 
-export function makeSystemHook() {
-  return async (_input: unknown, output: { system: string[] }) => {
+export function makeSystemHook(client: unknown) {
+  return async (input: { sessionID?: string } | undefined, output: { system: string[] }) => {
+    // Lite mode: bare-prompt contract — no capability steering for @lite.
+    if (!await scoped(input, output.system, "md-to-pdf", client as never)) return
     if (!output.system || hasMarker(output.system)) return
     appendPrompt(output.system, SYSTEM_PROMPT_FRAGMENT)
   }

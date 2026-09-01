@@ -16,6 +16,7 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 import { isEnabled } from "./e2e-guard-config"
 import { getGuardPrompt, MARKER, MARKER_ON } from "./e2e-guard-instructions"
 
@@ -68,7 +69,11 @@ export function makeSystemHook(client: PluginInput["client"]) {
   const log = (level: "info" | "warn", message: string) =>
     client.app.log({ body: { service: "e2e-guard", level, message } })
 
-  return async (input: { agent?: string; parentID?: string } | undefined, output: { system: string[] }) => {
+  return async (input: { agent?: string; parentID?: string; sessionID?: string } | undefined, output: { system: string[] }) => {
+    // Lite mode: bare-prompt contract — no e2e protocol for @lite.
+    // (A lite session can never carry a stale block: all injectors skip it.)
+    if (!await scoped(input, output.system, "e2e-guard", client)) return
+
     const shouldInject = isEnabled() && isPrimaryAgent(input)
 
     if (!shouldInject) {

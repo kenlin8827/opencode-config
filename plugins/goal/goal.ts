@@ -34,6 +34,7 @@ import { readFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROTOCOL_FILE = join(__dirname, "goal.md")
@@ -48,7 +49,7 @@ function getProtocol(): string {
   return cachedProtocol
 }
 
-export const GoalPlugin: Plugin = async () => ({
+export const GoalPlugin: Plugin = async ({ client }) => ({
   config: async (cfg) => {
     cfg.command ??= {}
     cfg.command[COMMAND_NAME] = {
@@ -60,9 +61,12 @@ export const GoalPlugin: Plugin = async () => ({
   },
 
   "experimental.chat.system.transform": async (
-    _input: unknown,
+    input: { sessionID?: string } | undefined,
     output: { system: string[] },
   ) => {
+    // Lite mode: bare-prompt contract — no protocol overhead for @lite.
+    if (!await scoped(input, output.system, "goal", client)) return
+
     // Cache-friendly: if the marker is already present, the protocol was
     // injected on a previous turn and the content hasn't changed — don't
     // touch output.system at all. This keeps the prompt byte-identical so

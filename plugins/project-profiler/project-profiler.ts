@@ -39,6 +39,7 @@ import { existsSync, readFileSync, readdirSync, type Dirent } from "node:fs"
 import { join, basename } from "node:path"
 import { homedir } from "node:os"
 import type { Plugin } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 
 const MARKER = "[PROJECT PROFILE]"
 const REMIND_EVERY = 16
@@ -271,12 +272,14 @@ export function hasBackend(p: ProjectProfile): boolean {
 // single-shot per message even when it fires repeatedly for one turn.
 const reminded = new WeakSet<object>()
 
-export const ProjectProfilerPlugin: Plugin = async () => ({
+export const ProjectProfilerPlugin: Plugin = async ({ client }) => ({
   "experimental.chat.system.transform": async (
-    _input: unknown,
+    input: { sessionID?: string } | undefined,
     output: { system: string[] },
   ) => {
     try {
+      // Lite mode: bare-prompt contract — no profile block for @lite.
+      if (!await scoped(input, output.system, "project-profiler", client)) return
       // Fast path: block already present → no-op, prompt-cache stays warm.
       // Match the marker only at line start — plain mentions of the marker
       // text (e.g. inside instructions) must NOT count as an injection.

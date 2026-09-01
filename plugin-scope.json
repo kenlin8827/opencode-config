@@ -1,0 +1,15 @@
+{
+  "$comment": "Plugin scope policy — which agent contexts each protocol injector may inject into. Sole consumer: plugins/shared/plugin-scope.ts (opencode has no native plugin-to-agent scoping). Permission/tools policy does NOT live here — those are native opencode fields in opencode.template.jsonc. Keys starting with $ are documentation, ignored by the consumer.",
+  "$semantics": "plugins.<id> holds the policy for one injector; '*' is the default inherited by every plugin without its own entry. Each policy: deny = blacklist of scope entries, allow = whitelist (if present, ONLY listed entries pass); on conflict deny wins. Scope entry grammar: 'x' matches identity or state x; 'x:*' matches state x (any identity); 'x:y' matches state x with identity y (reserved — identity-in-state detection is not wired yet). No match and no detected context = allowed (fail-open).",
+  "$identifiers": "Text detection rules for contexts opencode cannot name (system.transform carries no agent identifier): 'contains' — any system entry contains the string; 'startsWith' — the first system entry starts with it. Keys are scope names used in deny/allow values. The subagent state needs no rule: plugin-scope.ts detects it via session parentID.",
+  "identifiers": {
+    "lite": { "contains": "<!-- lite-mode -->" },
+    "utility": { "startsWith": "You are a title generator" }
+  },
+  "plugins": {
+    "*": {
+      "$comment": "lite strips its own overhead; utility (title generation, ~30k tok saved per session) and every subagent step are narrow specialists — orchestration protocol text is pure waste there.",
+      "deny": ["lite", "utility", "subagent:*"]
+    }
+  }
+}

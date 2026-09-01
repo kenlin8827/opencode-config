@@ -221,6 +221,91 @@ if (cfgTiers?.ghost !== undefined) {
 console.log('✓ instructions template-owned + factory-agent upgrade propagation + custom-agent preservation + retirement cleanup');
 if (fs.existsSync(cfgMergeDir)) fs.rmSync(cfgMergeDir, { recursive: true, force: true });
 
+// 3g. Native policy propagation:
+//   - opencode.template.jsonc carries permission/tools as native opencode
+//     fields; mergeConfig copies them verbatim (no materialization step).
+//   - Factory agents follow the template wholesale: a hand-edited permission
+//     on a factory agent is replaced on upgrade, not merged.
+//   - Custom agents are preserved verbatim and stay policy-free unless the
+//     user gave them policy.
+console.log('\nTest 3g: Config Merge — Native Policy Propagation');
+const surfMergeDir = path.join(os.tmpdir(), `opencode-surface-test-${Date.now()}`);
+const surfRepoDir = path.join(surfMergeDir, 'repo');
+const surfTargetDir = path.join(surfMergeDir, 'target');
+fs.mkdirSync(surfRepoDir, { recursive: true });
+fs.mkdirSync(surfTargetDir, { recursive: true });
+fs.writeFileSync(
+  path.join(surfRepoDir, 'opencode.template.jsonc'),
+  '{\n  "permission": "allow",\n  "agent": {\n    "lite": { "prompt": "T_LITE", "permission": { "skill": { "*": "deny" }, "serena_*": { "*": "deny" } }, "tools": { "task": false, "question": false } },\n    "build": { "prompt": "T_BUILD", "permission": { "serena_*": { "*": "deny" } } }\n  }\n}\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(surfRepoDir, 'tiers.json'),
+  '{\n  "$comment": "t",\n  "lite": "flash",\n  "build": "standard"\n}\n',
+  'utf8'
+);
+// Stale installed config: a user-modified factory permission on lite (factory
+// agents follow the template — hand edits are replaced, not merged) plus a
+// custom agent
+fs.writeFileSync(
+  path.join(surfTargetDir, 'opencode.jsonc'),
+  '{\n  "agent": {\n    "lite": { "prompt": "OLD_LITE", "permission": { "pencil_*": { "*": "deny" } } },\n    "my-agent": { "prompt": "CUSTOM" }\n  }\n}\n',
+  'utf8'
+);
+const surfBag = extractPreserveBag(surfTargetDir);
+mergeConfig(surfRepoDir, surfTargetDir, {} as any, surfBag);
+const surfMerged = readJsoncFile<Record<string, any>>(path.join(surfTargetDir, 'opencode.jsonc'));
+if (surfMerged?.permission !== 'allow') {
+  throw new Error('global permission must pass through from the template');
+}
+if (surfMerged?.agent?.lite?.permission?.skill?.['*'] !== 'deny' || surfMerged?.agent?.lite?.permission?.['serena_*']?.['*'] !== 'deny') {
+  throw new Error('lite permission must propagate from the template');
+}
+if (surfMerged?.agent?.lite?.permission?.['pencil_*'] !== undefined) {
+  throw new Error('factory agents follow the template — hand-edited permission must be replaced, not merged');
+}
+if (surfMerged?.agent?.lite?.tools?.task !== false || surfMerged?.agent?.lite?.tools?.question !== false) {
+  throw new Error('lite tools map must propagate from the template verbatim');
+}
+if (surfMerged?.agent?.build?.permission?.['serena_*']?.['*'] !== 'deny') {
+  throw new Error('build permission must propagate from the template');
+}
+if (surfMerged?.agent?.build?.tools !== undefined) {
+  throw new Error('agents without template tools entries must not gain a tools map');
+}
+if (surfMerged?.agent?.['my-agent']?.permission !== undefined) {
+  throw new Error('custom agents without template entries must stay policy-free');
+}
+if (fs.existsSync(surfMergeDir)) fs.rmSync(surfMergeDir, { recursive: true, force: true });
+console.log('✓ Native policy propagation: global + per-agent permission/tools, factory semantics intact');
+
+// 3h. Real repo regression: the shipped template carries native permission
+// policy (the template is the policy source of truth again), and plugin
+// injection policy lives in plugin-scope.json.
+const realTemplate = readJsoncFile<Record<string, any>>(path.join(repoDir, 'opencode.template.jsonc'));
+if (realTemplate?.permission !== 'allow') {
+  throw new Error('opencode.template.jsonc must carry global permission "allow" — policy lives in the template');
+}
+if (realTemplate?.agent?.lite?.permission?.skill?.['*'] !== 'deny') {
+  throw new Error('shipped template lost the lite skills-block deny');
+}
+if (realTemplate?.agent?.lite?.tools?.task !== false) {
+  throw new Error('shipped template lost the lite heavy-tools removal');
+}
+const liteTools = realTemplate?.agent?.lite?.tools;
+if (!liteTools || typeof liteTools !== 'object' || Object.values(liteTools).some((v) => v !== false)) {
+  throw new Error('lite tools must be a tools:false map');
+}
+if (liteTools && ('bash' in liteTools || 'edit' in liteTools || 'webfetch' in liteTools)) {
+  throw new Error('lite tools map must not touch core coding tools');
+}
+const realScope = readJsoncFile<Record<string, any>>(path.join(repoDir, 'plugin-scope.json'));
+if (!realScope?.plugins?.['*']?.deny?.includes('lite') || !realScope.plugins['*'].deny.includes('subagent:*')) {
+  throw new Error('shipped plugin-scope.json lost the default deny policy');
+}
+console.log('✓ Template carries native policy; plugin-scope.json carries the injector policy');
+
+
 // 3e. updateOptionsJsoncInPlace can create and update a user options file from scratch
 console.log('\nTest 3e: Options File In-Place Update');
 const scratchOptionsDir = path.join(os.tmpdir(), `opencode-options-test-${Date.now()}`);

@@ -29,7 +29,7 @@ Same agent roster and trigger words as the orchestrator — see the "Your team &
 3. **Execute analysis** — dispatch with the canonical dispatch template from `agents/build.md`, adding `Scope: <files/modules/directories>` and making the Task explicitly **read-only, no code changes**. Emphasize: analyze and report, NEVER modify source files.
 4. **Token discipline** — follow the "Token discipline" section of `agents/build.md`: pre-resolve structural lookups, dispatch `@explorer` once, follow-ups read only changed files, never re-read after dispatch.
 5. **Synthesize findings** — cross-reference findings across domains (e.g. architect coupling + QA coverage gaps), identify themes, prioritize by impact × urgency, translate into an actionable plan.
-6. **Persist plan artifact & hand off** — (a) write the complete plan (SDD conventions) to `docs/plan/<topic>.md`; (b) emit deterministic handoff instructions for `@build`, `@code`, or `/fast-dev`. This prevents session context dilution and preserves prompt-caching efficiency for implementation phases.
+6. **Persist plan artifact & hand off** — (a) write the complete plan (SDD conventions) to `docs/plan/<topic>.md`; (b) emit deterministic handoff instructions for `@build` or `/fast-dev`. This prevents session context dilution and preserves prompt-caching efficiency for implementation phases.
 
 Language behavior: follow `output-protocol.md` → Session language.
 
@@ -63,7 +63,7 @@ Each item: <issue> — <why critical> — <action>
 
 ### 🚀 Handoff & Execution Next Steps
 - Plan saved to: `docs/plan/<topic>.md`
-- To implement Phase 1 with clean context & high cache hit-rate, run in @build mode, @code mode, or a fresh session:
+- To implement Phase 1 with clean context & high cache hit-rate, run in @build mode or a fresh session:
   `Execute Phase 1 according to docs/plan/<topic>.md`
 ```
 
@@ -84,7 +84,7 @@ Each item: <issue> — <why critical> — <action>
 - **Synthesize, don't concatenate** — connect findings across domains; every finding needs `file:line`; every recommendation needs an action.
 - **Prioritize** — rank by impact × urgency.
 - **Respect agent boundaries** — match agent to tech stack.
-- **Clean handoff** — provide exact execution commands referencing the persisted plan artifact for `@build` / `@code`.
+- **Clean handoff** — provide exact execution commands referencing the persisted plan artifact for `@build`.
 
 ## Plan vs Build
 

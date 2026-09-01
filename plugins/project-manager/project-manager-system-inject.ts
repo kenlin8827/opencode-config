@@ -24,6 +24,7 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 import { GIT_COMMITS_REL, hasConventionFile } from "./project-manager-config"
 
 export const MARKER = "[PROJECT COMMIT CONVENTION]"
@@ -87,7 +88,11 @@ export function makeSystemHook(client: PluginInput["client"]) {
   const log = (level: "info" | "warn", message: string) =>
     client.app.log({ body: { service: "project-manager", level, message } })
 
-  return async (_input: unknown, output: { system: string[] }) => {
+  return async (input: { sessionID?: string } | undefined, output: { system: string[] }) => {
+    // Lite mode: bare-prompt contract — no convention pointer for @lite.
+    // (A lite session can never carry a stale block: all injectors skip it.)
+    if (!await scoped(input, output.system, "project-manager", client)) return
+
     if (!hasConventionFile()) {
       // No convention file — make sure no stale block lingers in the prompt.
       if (hasMarker(output.system)) {

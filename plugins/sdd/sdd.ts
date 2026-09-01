@@ -50,7 +50,7 @@ export const SddPlugin: Plugin = async (input: PluginInput) => ({
 
   "command.execute.before": makeSddCommandHook(input.client),
 
-  "experimental.chat.system.transform": async (_input: unknown, output: { system: string[] }) => {
-    injectSddSystemPrompt(output)
+  "experimental.chat.system.transform": async (hookInput: { sessionID?: string }, output: { system: string[] }) => {
+    await injectSddSystemPrompt(hookInput, output, input.client)
   },
 })

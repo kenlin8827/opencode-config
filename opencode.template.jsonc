@@ -10,8 +10,8 @@
   "snapshot": true,
   "model": "llm-router/standard",
   "small_model": "llm-router/flash",
-  "permission": "allow",
   "default_agent": "build",
+  "permission": "allow",
   // L0 disclosure layer — injected into EVERY step of EVERY agent. Entries
   // MUST use absolute ~/ paths: opencode resolves relative instruction paths
   // against the current project directory (globUp from the working dir), not
@@ -170,102 +170,121 @@
   //   coding-principles only (review criteria): architect, advisor, security
   //   zero additions: build, plan, explorer, researcher, tech-writer, vision
   //
-  // Per-step visibility matrix (permission denies, opencode v1.18.25
-  // semantics — verified against permission/index.ts): the sdd-workflow skill
-  // stays visible only for build, plan, code, architect; the MCP tool surface
-  // (serena_* / codegraph_* — ~10.9k tok/step of tool definitions) stays only
-  // for agents that actually query code: everything except plan, build,
-  // researcher, tech-writer, vision. A rule `"<prefix>*": { "*": "deny" }`
-  // hides both the tools and the server's <mcp_instructions> block. Quantify
-  // any change with scripts/measure-prompts.ts before releasing.
+  // Block field order (convention): description, prompt, then tuning
+  // metadata (mode/model/temperature/steps/variant), permission/tools last.
   //
-  // L2 layer: `lite` is an overhead-free primary — inline prompt (replaces the
-  // host default), skill "*" deny drops the skills block, MCP surfaces denied,
-  // and plugins/lite-mode.ts strips the L0 instructions when it sees the
-  // <!-- lite-mode --> sentinel in its prompt. Native tools stay fully usable.
+  // Per-step visibility & tool-face policy lives HERE, on the agent blocks
+  // below, as native opencode `permission`/`tools` fields. Semantics
+  // (opencode v1.18.25, verified against permission/index.ts):
+  // `"<prefix>*": { "*": "deny" }` hides MCP tools AND the server's
+  // <mcp_instructions> block; skill "*" deny empties the skills block;
+  // tools <name>:false removes a native tool schema entirely (permission
+  // denies on native tools save zero tokens). Protocol-injector gating (an
+  // opencode gap) lives in plugin-scope.json (repo root), enforced at
+  // runtime by plugins/shared/plugin-scope.ts. Quantify any change with
+  // scripts/measure-prompts.ts before releasing.
+  //
+  // L2 layer: `lite` is an overhead-free primary — inline prompt, no skills,
+  // no MCP, OCP injectors skip it via plugin-scope.json, plugins/lite-mode.ts strips
+  // L0 instructions (keeping the `<!-- lite-mode -->` sentinel), and
+  // plugins/lite-tools.ts compresses native tool descriptions (measured:
+  // stock ≈ 8.4k → ≈ 1.7k tok/step).
   "agent": {
     "lite": {
-      "description": "Lite — minimal-overhead primary for everyday use: lookups, web research, chat, quick tasks. No rule files, no skills, no MCP, no L0 instructions (the lite-mode plugin strips them). Route heavy multi-domain coding work to @build.",
+      "description": "Lite — minimal-overhead primary for everyday use: lookups, web research, chat, quick tasks. No rule files, no skills, no MCP, no L0 instructions (the lite-mode plugin strips them). Suggest @build for heavy multi-domain coding work.",
+      "prompt": "<!-- lite-mode -->\nYou are lite, a minimal-overhead assistant. Answer directly and concisely. Use websearch/webfetch for lookups. Suggest @build for heavy multi-domain coding work.",
       "mode": "primary",
       "model": "llm-router/flash",
       "temperature": 0.3,
       "variant": "low",
-      "prompt": "<!-- lite-mode -->\nYou are lite, a minimal-overhead assistant. Answer directly and concisely. Use websearch/webfetch for lookups. Route heavy multi-domain coding work to @build.",
-      // Only the denies that actually shrink the system prompt: skill "*"
-      // empties the resident skills block, serena/codegraph denies remove
-      // ~10.9k tok/step of tool definitions plus the mcp_instructions block.
-      // edit/bash/task stay allowed — denies on native tools save zero tokens.
+      // Only denies that actually shrink the prompt: skill "*" empties the resident skills block; each MCP prefix deny removes tool definitions plus <mcp_instructions> (serena/codegraph ~10.9k tok/step); the plugin-tool schemas lite never needs. tools:false entries drop heavy native schemas.
       "permission": {
         "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
+        "codegraph_*": { "*": "deny" },
+        "dbhub_*": { "*": "deny" },
+        "idea_*": { "*": "deny" },
+        "md_to_pdf": { "*": "deny" },
+        "md_to_docx": { "*": "deny" },
+        "browser_screenshot": { "*": "deny" }
+      },
+      "tools": {
+        "skill": false,
+        "lsp": false,
+        "todoread": false,
+        "todowrite": false,
+        "apply_patch": false,
+        "question": false,
+        "task": false
       }
     },
     "build": {
       "description": "Build — default entry point for all tasks. Routes every coding task to the right specialist agent (even simple ones); handles only non-coding tasks (exploration, Q&A, git info) directly. Coordinates multi-step workflows across agents.",
+      "prompt": "{file:~/.config/opencode/agents/build.md}",
       "mode": "primary",
       "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/build.md}",
-      // Per-step budget: build routes work, it doesn't do it — hide the MCP
-      // tool surface (~10.9k tok/step). sdd-workflow stays: /prd /sdd land here.
-      "permission": {
-        "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
-      }
+      // Build routes work, it doesn't do it — hide the MCP tool surface (~10.9k tok/step). sdd-workflow stays: /prd /sdd land here.
+      "permission": { "serena_*": { "*": "deny" }, "codegraph_*": { "*": "deny" } }
     },
     "plan": {
       "description": "Plan orchestrator — coordinator that dispatches analysis tasks to specialists, persists structured plan artifacts (docs/plan/<topic>.md), and provides clean execution handoffs.",
+      "prompt": "{file:~/.config/opencode/agents/plan.md}",
       "mode": "primary",
       "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/plan.md}",
-      // Per-step budget: plan dispatches analysis to specialists — no direct
-      // code-intel calls. SDD stays: /prd /adr /plan /impl run from here.
-      "permission": {
-        "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" }
-      }
+      // Plan dispatches analysis to specialists — no direct code-intel calls. SDD stays: /prd /adr /plan /impl run from here.
+      "permission": { "serena_*": { "*": "deny" }, "codegraph_*": { "*": "deny" } }
     },
     "code": {
       "description": "Code — direct developer. Primary agent that does the coding work itself: implement, fix, refactor, test. Never proactively delegates; manual delegation allowed only for assists (advisor, explorer, code-review, vision). For single-domain tasks; suggests @build when multi-domain.",
+      "prompt": "{file:~/.config/opencode/agents/code.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "primary",
       "model": "llm-router/pro",
       "temperature": 0.3,
-      "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/code.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}"
+      "variant": "medium"
     },
     "advisor": {
       "description": "Decision advisor — provides independent second-opinion analysis on blocking decisions. Invoke when the orchestrator needs a second perspective before presenting a blocking decision to the user.",
+      "prompt": "{file:~/.config/opencode/agents/advisor.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "mode": "subagent",
       "model": "llm-router/max",
       "temperature": 0.3,
       "steps": 25,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/advisor.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
-      "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask", "skill": { "sdd-workflow": "deny" } }
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "ask",
+        "websearch": "ask",
+        "skill": { "sdd-workflow": "deny" }
+      }
     },
     "explorer": {
       "description": "Fast read-only codebase explorer. Use for architecture overviews, intent & design questions, and pattern discovery. Structural lookups (definitions, references, symbol outlines) go to Serena MCP tools; multi-hop call paths and impact analysis go to CodeGraph instead.",
+      "prompt": "{file:~/.config/opencode/agents/explorer.md}",
       "mode": "subagent",
       "model": "llm-router/flash",
       "temperature": 0.2,
       "steps": 40,
       "variant": "low",
-      "prompt": "{file:~/.config/opencode/agents/explorer.md}",
-      "permission": { "edit": "deny", "webfetch": "deny", "websearch": "deny", "skill": { "sdd-workflow": "deny" } }
+      "permission": {
+        "edit": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": { "sdd-workflow": "deny" }
+      }
     },
     "researcher": {
       "description": "Tech researcher — evaluates technologies, compares alternatives, produces feasibility studies and trade-off reports. Invoke for research, compare, evaluate, benchmark, or 'which should we use?' questions.",
+      "prompt": "{file:~/.config/opencode/agents/researcher.md}",
       "mode": "subagent",
       "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/researcher.md}",
-      // Per-step budget: web/tech research runs outside the codebase — hide
-      // the MCP tool surface entirely (~10.9k tok/step).
+      // Web/tech research runs outside the codebase — hide the MCP tool surface. bash stays: benchmarks and trial CLIs are core research work.
       "permission": {
         "edit": "deny",
         "skill": { "sdd-workflow": "deny" },
@@ -275,120 +294,125 @@
     },
     "architect": {
       "description": "Tech lead / software architect — system design, ADRs, task decomposition, trade-off analysis, API contract design. Invoke for architecture, system design, task breakdown, or 'how should we design this?'",
+      "prompt": "{file:~/.config/opencode/agents/architect.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "mode": "subagent",
       "model": "llm-router/max",
       "temperature": 0.4,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/architect.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "permission": { "edit": "deny" }
-    },    "dba": {
+    },
+    "dba": {
       "description": "Database architect — schema design, SQL optimization, index strategy, query analysis, migration planning, sharding/partitioning. Invoke for database, SQL, schema, migration, index, or query optimization.",
+      "prompt": "{file:~/.config/opencode/agents/dba.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}\n\n{file:~/.config/opencode/instructions/sql-migration.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/dba.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}\n\n{file:~/.config/opencode/instructions/sql-migration.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "security": {
       "description": "Security engineer — vulnerability assessment, security architecture review, OWASP analysis, dependency scanning, compliance. Invoke for security, vulnerability, OWASP, encryption, or 'is this secure?'",
+      "prompt": "{file:~/.config/opencode/agents/security.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "mode": "subagent",
       "model": "llm-router/max",
       "temperature": 0.2,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/security.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}",
       "permission": { "edit": "deny", "skill": { "sdd-workflow": "deny" } }
     },
     "java-dev": {
       "description": "Java/Spring Boot engineer — Java, Spring Boot, Spring Security, JPA/Hibernate, Maven/Gradle, JUnit. Invoke for Java, Spring, JPA, Hibernate, Maven, Gradle, or JVM tasks.",
+      "prompt": "{file:~/.config/opencode/agents/java-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/java-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "python-dev": {
       "description": "Python engineer — FastAPI, Django, Flask, async Python, pandas/numpy, scripting, pytest. Invoke for Python, FastAPI, Django, Flask, pandas, numpy, or pip tasks.",
+      "prompt": "{file:~/.config/opencode/agents/python-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/python-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "go-dev": {
       "description": "Go engineer — Gin, Echo, Fiber, gRPC, protobuf, Cobra, microservices, goroutines. Invoke for Go, Golang, Gin, gRPC, protobuf, or Cobra tasks.",
+      "prompt": "{file:~/.config/opencode/agents/go-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/go-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "rust-dev": {
       "description": "Rust engineer — Cargo, Axum, Actix, Tokio, serde, WASM, systems programming. Invoke for Rust, Cargo, Tokio, Axum, Actix, serde, or wasm tasks.",
+      "prompt": "{file:~/.config/opencode/agents/rust-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/rust-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "node-dev": {
       "description": "Node.js/TypeScript engineer — NestJS, Express, Fastify, Prisma, TypeORM, npm/pnpm. Invoke for Node.js, NestJS, Express, Fastify, Prisma, TypeORM, or npm/pnpm tasks.",
+      "prompt": "{file:~/.config/opencode/agents/node-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/node-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "frontend-dev": {
       "description": "Frontend engineer — React/Vue/Svelte/Next.js, TypeScript, CSS/Tailwind, accessibility, performance. Invoke for frontend, React, Vue, Svelte, CSS, Tailwind, UI, or component work.",
+      "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/frontend-dev.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "qa": {
       "description": "QA engineer — test planning, test generation, coverage analysis, E2E strategy, quality gates. Invoke for testing, QA, coverage, E2E, integration tests, or regression.",
+      "prompt": "{file:~/.config/opencode/agents/qa.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/qa.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "webfetch": "ask", "skill": { "sdd-workflow": "deny" } }
     },
     "code-review": {
       "description": "Code reviewer — reviews git diffs, PRs, staged/unstaged changes, specific files. Invoke for code review, PR review, or feedback on code quality, correctness, security, or best practices.",
+      "prompt": "{file:~/.config/opencode/agents/code-review.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/max",
       "temperature": 0.3,
       "variant": "high",
-      "prompt": "{file:~/.config/opencode/agents/code-review.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
-      "permission": { "edit": "deny", "webfetch": "ask", "websearch": "ask", "skill": { "sdd-workflow": "deny" } }
+      "permission": {
+        "edit": "deny",
+        "webfetch": "ask",
+        "websearch": "ask",
+        "skill": { "sdd-workflow": "deny" }
+      }
     },
     "devops": {
       "description": "DevOps/SRE engineer — Docker, Kubernetes, CI/CD, Terraform, monitoring, deployment. Invoke for Docker, K8s, deploy, CI/CD, pipeline, Terraform, or infrastructure.",
+      "prompt": "{file:~/.config/opencode/agents/devops.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/pro",
       "temperature": 0.2,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/devops.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     },
     "tech-writer": {
       "description": "Technical writer — README, API docs, architecture docs, ADRs, changelogs, user guides. Invoke for documentation, README, changelog, ADR, or developer guide tasks.",
+      "prompt": "{file:~/.config/opencode/agents/tech-writer.md}",
       "mode": "subagent",
       "model": "llm-router/standard",
       "temperature": 0.3,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/tech-writer.md}",
-      // Per-step budget: docs work reads rendered text, not symbol graphs —
-      // hide the MCP tool surface entirely (~10.9k tok/step).
+      // Docs work reads rendered text, not symbol graphs — hide the MCP tool surface.
       "permission": {
         "skill": { "sdd-workflow": "deny" },
         "serena_*": { "*": "deny" },
@@ -397,23 +421,30 @@
     },
     "vision": {
       "description": "Visual / vision analyst — screenshot analysis, UI critique, OCR, diagram interpretation. Invoke for image, screenshot, OCR, or visual analysis tasks.",
+      "prompt": "{file:~/.config/opencode/agents/vision.md}",
       "mode": "subagent",
       "model": "llm-router/vision",
       "temperature": 0.2,
       "steps": 30,
       "variant": "medium",
-      "prompt": "{file:~/.config/opencode/agents/vision.md}",
-      // Per-step budget: image analysis has no use for code graphs — hide
-      // the MCP tool surface entirely (~10.9k tok/step).
-      "permission": { "edit": "deny", "bash": "deny", "webfetch": "ask", "websearch": "ask", "skill": { "sdd-workflow": "deny" }, "serena_*": { "*": "deny" }, "codegraph_*": { "*": "deny" } }
+      // Image analysis has no use for code graphs — hide the MCP tool surface.
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "ask",
+        "websearch": "ask",
+        "skill": { "sdd-workflow": "deny" },
+        "serena_*": { "*": "deny" },
+        "codegraph_*": { "*": "deny" }
+      }
     },
     "fast-coder": {
       "description": "Flash Coder — agile, high-throughput full-stack coding subagent powered by Flash/Lite model tiers. Dispatched for rapid coding and iterative review loops.",
+      "prompt": "{file:~/.config/opencode/agents/fast-coder.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "model": "llm-router/flash",
       "temperature": 0.2,
       "variant": "low",
-      "prompt": "{file:~/.config/opencode/agents/fast-coder.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "permission": { "skill": { "sdd-workflow": "deny" } }
     }
   }

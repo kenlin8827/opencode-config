@@ -19,7 +19,7 @@ export const MdToDocxPlugin: Plugin = async ({ client, directory }) => {
       }
     },
     "command.execute.before": makeCommandHook(client, directory),
-    "experimental.chat.system.transform": makeSystemHook(),
+    "experimental.chat.system.transform": makeSystemHook(client),
     tool: {
       md_to_docx: tool({
         description:

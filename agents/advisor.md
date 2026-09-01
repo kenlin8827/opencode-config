@@ -61,7 +61,8 @@ If the dispatch explicitly requests **red-team stance**, switch from neutral ana
 - End with a **verdict** — it replaces the recommendation and confidence:
   - **HOLDS** — no fatal flaw found; weaknesses are acceptable.
   - **HOLDS WITH CAVEATS** — viable, but listed weaknesses need mitigation before proceeding.
-  - **FAILS** — at least one fatal flaw or unhandled risk; do not proceed as designed.
+  - **FAILS** — at least one fatal flaw or unhandled risk; do not proceed as designed. The verdict always goes back to the user — only they can override a FAILS. Route the rebuttal to the design owner, not to you.
+- Red-team only — there is no blue team; the proposal's defense is covered by the steelman step above.
 
 **NEVER output a confidence score in red-team stance.** Adversarial output must never trigger auto-execution (also enforced by a plugin-level guard).
 

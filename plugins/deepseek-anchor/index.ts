@@ -49,6 +49,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { HttpServerResponse } from "effect/unstable/http"
 import { isEnabled, COMMAND_NAME } from "./deepseek-anchor-config"
 import { makeCommandHook } from "./deepseek-anchor-command"
+import { scoped } from "../shared/plugin-scope"
 
 // -- System prompt helpers (same pattern as auto-advisor) ----------------
 
@@ -133,6 +134,9 @@ export const DeepSeekAnchorPlugin: Plugin = async ({ client }) => {
       input: { sessionID?: string },
       output: { system: string[] },
     ) => {
+      // Lite mode: bare-prompt contract — no session anchor for @lite.
+      if (!await scoped(input, output.system, "deepseek-anchor", client)) return
+
       // ── Cache-friendly strip: if the plugin is disabled but a stale
       // MARKER from a previous turn is still in the system prompt, strip
       // it so the prompt is clean. This is the only case where we modify

@@ -17,6 +17,7 @@
  */
 
 import type { PluginInput } from "@opencode-ai/plugin"
+import { scoped } from "../shared/plugin-scope"
 import { getMode } from "./auto-advisor-config"
 import { getAdvisorPrompt, MODE_MARKER } from "./auto-advisor-instructions"
 import { makeLogger } from "./auto-advisor-runtime"
@@ -62,7 +63,10 @@ function appendPrompt(system: string[], fragment: string): boolean {
 export function makeSystemHook(client: PluginInput["client"]) {
   const log: Log = makeLogger(client, "auto-advisor-mode")
 
-  return async (_input: unknown, output: { system: string[] }) => {
+  return async (input: { sessionID?: string } | undefined, output: { system: string[] }) => {
+    // Lite mode: bare-prompt contract — no advisor protocol for @lite.
+    if (!await scoped(input, output.system, "auto-advisor", client)) return
+
     const mode = getMode()
     const exactMarker = MODE_MARKER[mode]
 

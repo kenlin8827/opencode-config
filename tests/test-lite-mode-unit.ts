@@ -2,15 +2,23 @@
  * Lite-Mode Plugin — Unit Tests (no opencode runtime dependency)
  *
  * Covers:
- *   - stripLiteOverhead: instruction-block removal, sentinel removal,
- *     non-instruction content preserved, idempotency
+ *   - stripLiteOverhead: instruction-block removal, sentinel KEPT as the
+ *     cross-plugin lite signal, ponytail block trimming, non-instruction
+ *     content preserved, idempotency
  *   - LiteModePlugin hook: strips only when the sentinel is present,
  *     leaves other agents' system prompts untouched
+ *   - shared/plugin-scope: policy-driven agent identification (identifiers)
+ *     and the two-step scoped() gate
  *
  * Run: npx tsx tests/test-lite-mode-unit.ts
  */
 
-import { LiteModePlugin, stripLiteOverhead, isInstructionPath, SENTINEL } from "../plugins/lite-mode/lite-mode"
+import { LiteModePlugin, stripLiteOverhead, isInstructionPath } from "../plugins/lite-mode/lite-mode"
+import { detectAgent, scoped } from "../plugins/shared/plugin-scope"
+import scopeFile from "../plugin-scope.json"
+
+// The lite identifier match text is policy data — fixtures read it directly.
+const SENTINEL = (scopeFile as any).identifiers.lite.contains as string
 
 // ─── Test framework ───────────────────────────────────────────────────────
 
@@ -64,7 +72,7 @@ assert(!stripped.includes("Instructions from:"), "all instruction blocks removed
 assert(!stripped.includes("RFC 2119"), "L0 iron-rule content gone")
 assert(!stripped.includes("@dba"), "content after internal blank line removed too")
 assert(!stripped.includes("Project-specific rules"), "project AGENTS.md block gone")
-assert(!stripped.includes(SENTINEL), "sentinel removed")
+assert(stripped.includes(SENTINEL), "sentinel kept as cross-plugin lite signal")
 assert(stripped.includes("You are lite"), "agent prompt preserved")
 assert(stripped.includes("Working directory"), "env block preserved")
 assert(stripped.includes("<available_skills>"), "skills block preserved")
@@ -84,6 +92,45 @@ assert(gluedOut.includes("<available_skills>"), "tag terminator rescues glued sk
 const prose = `head line\nInstructions from: the docs\ntail line`
 const proseOut = stripLiteOverhead(prose)
 assert(proseOut === prose.replace(/\s+$/, "").trim(), "non-path marker kept verbatim")
+
+// ─── Ponytail trimming ─────────────────────────────────────────────────────
+
+section("stripLiteOverhead — ponytail block")
+
+const PONYTAIL_BLOCK = `PONYTAIL MODE ACTIVE — level: full
+
+# Ponytail
+
+You are a lazy senior developer. Lazy means efficient, not careless.
+
+## The ladder
+
+1. Does this need to exist at all?`
+
+{
+  // Status line first, heading second — the shape ponytail v4 actually emits.
+  const input = `${LITE_PROMPT}\n${ENV_BLOCK}\n\n${PONYTAIL_BLOCK}\n\nThe shortest path to done is the right path.`
+  const out = stripLiteOverhead(input)
+  assert(!out.includes("PONYTAIL MODE ACTIVE"), "status line removed (cut starts at first marker)")
+  assert(!out.includes("# Ponytail"), "ruleset heading removed")
+  assert(!out.includes("lazy senior developer"), "ruleset body removed")
+  assert(!out.includes("shortest path to done"), "tail after the block removed too")
+  assert(out.includes("You are lite") && out.includes(SENTINEL), "prompt + sentinel survive the cut")
+}
+
+{
+  // Heading-only variant (older releases skipped the status line).
+  const input = `${LITE_PROMPT}\n${ENV_BLOCK}\n\n# Ponytail\n\nruleset body here`
+  const out = stripLiteOverhead(input)
+  assert(!out.includes("ruleset body here"), "heading-only variant trimmed")
+  assert(out.includes("Working directory"), "env block survives heading-only trim")
+}
+
+{
+  // No ponytail at all → untouched apart from instruction stripping.
+  const input = `${LITE_PROMPT}\n${ENV_BLOCK}`
+  assert(stripLiteOverhead(input) === input, "no ponytail → no collateral cut")
+}
 
 // ─── isInstructionPath ────────────────────────────────────────────────────
 
@@ -108,7 +155,7 @@ const hook = plugin["experimental.chat.system.transform"]!
   const output = { system: [joinSystem(LITE_PROMPT)] }
   await hook({ sessionID: "s1", model: {} as any }, output)
   assert(!output.system[0].includes("Instructions from:"), "strips when sentinel present")
-  assert(!output.system[0].includes(SENTINEL), "sentinel gone after hook")
+  assert(output.system[0].includes(SENTINEL), "sentinel survives the hook (injectors still need it)")
 }
 
 {
@@ -121,9 +168,29 @@ const hook = plugin["experimental.chat.system.transform"]!
 {
   const output = { system: [joinSystem(LITE_PROMPT), joinSystem("other prompt")] }
   await hook({ sessionID: "s3", model: {} as any }, output)
-  assert(!output.system[0].includes(SENTINEL), "multi-element: sentinel entry stripped")
+  assert(!output.system[0].includes("Instructions from:"), "multi-element: sentinel entry stripped")
   assert(output.system[1].includes("Instructions from:"), "multi-element: other entry intact")
 }
+
+// ─── Policy-driven agent identification ─────────────────────────────────
+
+section("shared/plugin-scope identification")
+
+assert(detectAgent([SENTINEL]) === "lite", "lite sentinel identifies lite via plugin-scope.json")
+assert(!(await scoped(undefined, ["env", `${SENTINEL}\nYou are lite`], "sdd")), "sentinel in any entry blocks injection")
+assert(await scoped(undefined, ["env", "plain build prompt"], "sdd"), "no sentinel → injection allowed")
+assert(await scoped(undefined, [], "sdd"), "empty array → injection allowed")
+assert(await scoped(undefined, undefined, "sdd"), "undefined → injection allowed")
+assert(await scoped(undefined, [42, null] as any, "sdd"), "non-string entries ignored")
+
+// ─── Utility-call gate ─────────────────────────────────────────────
+
+section("shared/plugin-scope utility calls")
+
+const TITLE_SYSTEM = ["You are a title generator. You output ONLY a thread title. Nothing else.", "env info"]
+assert(!(await scoped(undefined, TITLE_SYSTEM, "sdd")), "gate blocks title calls (default policy denies utility)")
+assert(!(await scoped(undefined, [`${SENTINEL}\nlite prompt`], "sdd")), "gate blocks lite sessions (default policy denies lite)")
+assert(await scoped(undefined, ["normal build prompt"], "sdd"), "normal chat passes")
 
 // ─── Summary ──────────────────────────────────────────────────────────────
 
