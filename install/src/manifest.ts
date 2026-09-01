@@ -5,7 +5,7 @@ import path from 'node:path';
 // `scripts/` is intentionally NOT in SHIPPED_DIRS — only the runtime scripts
 // listed in SHIPPED_FILES below are installed (the rest of scripts/ contains
 // release tooling like pack.sh/verify.sh that must stay repo-side).
-const SHIPPED_DIRS = ['agents', 'instructions', 'plugins', 'profiles', 'providers', 'skills'];
+const SHIPPED_DIRS = ['agents', 'commands', 'instructions', 'plugins', 'profiles', 'providers', 'skills'];
 const SHIPPED_FILES = [
   'opencode.template.jsonc', //  core config template — merged into the target opencode.jsonc by installer/merger.ts (never copied verbatim)
   'plugin-scope.json', //  plugin scope policy — runtime gate data for plugins/shared/plugin-scope.ts (permission/tools live in the template instead)

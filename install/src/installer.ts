@@ -92,6 +92,36 @@ export function backupTargetDir(targetDir: string): string | null {
 }
 
 /**
+ * Top-level directories managed by the installer. Empty-directory pruning
+ * stops at these boundaries — they are never removed themselves.
+ */
+const MANAGED_DIRS = new Set(['agents', 'commands', 'instructions', 'plugins', 'profiles', 'providers', 'skills']);
+
+/**
+ * Walk up from `startDir`, removing every empty directory until a managed
+ * top-level dir or `stopAt` (the target root) is reached. Returns the number
+ * of directories actually removed.
+ */
+function pruneEmptyParents(startDir: string, stopAt: string): number {
+  let removed = 0;
+  let dir = startDir;
+  while (dir !== stopAt && dir.length > stopAt.length) {
+    const name = path.basename(dir);
+    if (MANAGED_DIRS.has(name)) break;
+    try {
+      const entries = fs.readdirSync(dir);
+      if (entries.length > 0) break;
+      fs.rmdirSync(dir);
+      removed++;
+    } catch {
+      break;
+    }
+    dir = path.dirname(dir);
+  }
+  return removed;
+}
+
+/**
  * Prune old backup directories ("<targetDir>.bak.<timestamp>" siblings of the
  * target), keeping only the newest `keep` ones. Timestamps in backup names are
  * ISO-like and sort lexicographically, so a plain name sort is enough.
@@ -582,6 +612,7 @@ export function executeInstall(
         if (fs.existsSync(p)) {
           fs.rmSync(p, { force: true, recursive: true });
           staleRemoved++;
+          pruneEmptyParents(path.dirname(p), targetDir);
         }
       }
       if (staleRemoved > 0) {
@@ -705,12 +736,20 @@ export function executeUninstall(
   }
 
   let count = 0;
+  const dirsToCheck = new Set<string>();
   for (const rel of manifest) {
     const p = path.join(targetDir, rel);
     if (fs.existsSync(p)) {
       fs.rmSync(p, { force: true, recursive: true });
       count++;
+      dirsToCheck.add(path.dirname(p));
     }
+  }
+
+  // Prune empty directories left behind after file removal (deepest first).
+  const sortedDirs = [...dirsToCheck].sort((a, b) => b.length - a.length);
+  for (const d of sortedDirs) {
+    pruneEmptyParents(d, targetDir);
   }
 
   const versionFile = path.join(targetDir, 'installed.version');
