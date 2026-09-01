@@ -4,6 +4,16 @@ This repo is **OpenCode Prime (OCP)** — a multi-agent configuration suite for 
 
 ---
 
+## 0. Design Principle — Architectural Legitimacy
+
+This is an open-source project: **every design decision must withstand public scrutiny.** Architectural legitimacy outranks implementation convenience.
+
+- **Native mechanisms first** — prefer the platform's designed extension points (skills for on-demand disclosure, command files for slash commands, hooks for runtime behavior) over ad-hoc workarounds. A hack that "works" but defies the platform's design is a liability that invites criticism.
+- **Refactor over patch** — when a mechanism is structurally wrong (e.g., static prompt injection where on-demand loading belongs), fix the architecture. Do NOT accumulate compensating hacks on top of a flawed foundation.
+- **Defendability gate** — refactoring cost never justifies shipping a design the maintainers themselves cannot defend in public. If it would be embarrassing to explain, redesign it before merging.
+
+---
+
 ## Ships vs. Dev-Only
 
 - **Ships** (injected into OpenCode agent system prompts): `instructions/*.md`, `agents/*.md`, `skills/*/SKILL.md`, plus all files under `plugins/`, `profiles/`, `providers/`. These are the actual prompts users consume — every line costs tokens on every session, forever.
@@ -41,7 +51,7 @@ Prompts follow a **disclosure-layer** model (details: `docs/core/prompt-layers.m
 
 ## 3. Release, Manifest & Packaging
 
-The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.** Manifests are **immutable per-version historical records**: `verify.ps1`/`verify.sh` fail if any historical manifest differs from git HEAD (the current version's manifest is exempt — it is the release in progress).
+The manifest (`install/versions/<VERSION>.manifest.txt`) is auto-generated from `install/src/manifest.ts` (`SHIPPED_DIRS` + `SHIPPED_FILES`). **Never hand-edit it.** Manifests are **immutable per-version historical records**: `verify.ps1`/`verify.sh` fail if any historical manifest differs from git HEAD (the current version's manifest is exempt — it is the release in progress). Deleting manifests below `minVersion` and rewriting `history.manifest.txt` are the legitimate compaction flow — the gate exempts them.
 
 ### Version Bump Steps
 
