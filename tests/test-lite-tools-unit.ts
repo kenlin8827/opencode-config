@@ -2,10 +2,11 @@
  * lite-tools Plugin — Unit Tests (no opencode runtime dependency)
  *
  * Covers:
- *   - tool.definition rewrites native tool descriptions to short forms
+ *   - tool.definition rewrites descriptions for @lite (description only,
+ *     parameters and jsonSchema stay untouched)
  *   - gating: rewrite applies only after chat.message reports agent=lite
  *   - chat.params provides redundant agent signal
- *   - unknown tools (MCP etc.) and parameter schemas stay untouched
+ *   - unknown/MCP tools are left intact (not in OVERRIDES)
  *
  * Run: bun tests/test-lite-tools-unit.ts
  */
@@ -41,40 +42,44 @@ const onToolDef = plugin["tool.definition"]!
 section("gate: closed before chat.message")
 
 {
-  const output = { description: "Execute a shell command " + "x".repeat(4000), parameters: { type: "object" } }
+  const output = { description: "Execute a shell command " + "x".repeat(4000) }
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length > 4000, "no rewrite before an agent is known")
 }
 
 // ─── Gate opens for lite ─────────────────────────────────────────────────
 
-section("gate: rewrites only for @lite")
+section("gate: rewrites only descriptions for @lite")
 
 await onMessage({ sessionID: "s1", agent: "lite" } as any, {} as any)
 
 {
-  const output = { description: "x".repeat(4655), parameters: { type: "object" } }
+  const output = { description: "x".repeat(4655) }
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length < 300, "bash description compressed for lite")
   assert(output.description.includes("workdir"), "compressed bash keeps the workdir rule")
 }
 
 {
-  const output = { description: "x".repeat(1800), parameters: {} }
+  const output = { description: "x".repeat(1800) }
   await onToolDef({ toolID: "task" } as any, output)
   assert(output.description.includes("explore") && output.description.includes("code-review") && output.description.includes("advisor") && output.description.includes("vision"), "task compressed to the four-assist roster for lite")
   assert(!output.description.includes("researcher"), "task roster hides subagents lite cannot dispatch")
 }
 
 {
-  const params = { type: "object", properties: { filePath: { type: "string" } } }
-  const output = { description: "y".repeat(1158), parameters: params }
+  const output = { description: "x".repeat(1158) }
   await onToolDef({ toolID: "read" } as any, output)
-  assert(output.parameters === params, "parameter schema untouched (permission contract)")
+  assert(output.description.length < 200, "read description compressed for lite")
+  assert(output.description.includes("offset"), "compressed read keeps offset mention")
 }
 
+// ─── Unknown/MCP tools left intact ───────────────────────────────────────
+
+section("unknown/MCP tools: left intact (not in OVERRIDES)")
+
 {
-  const output = { description: "Convert markdown to PDF", parameters: {} }
+  const output = { description: "Convert markdown to PDF" }
   await onToolDef({ toolID: "md_to_pdf" } as any, output)
   assert(output.description === "Convert markdown to PDF", "unknown/MCP tools left intact")
 }
@@ -86,7 +91,7 @@ section("gate: other agents keep stock descriptions")
 await onMessage({ sessionID: "s2", agent: "build" } as any, {} as any)
 
 {
-  const output = { description: "x".repeat(4655), parameters: {} }
+  const output = { description: "x".repeat(4655) }
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length === 4655, "no rewrite for non-lite agents")
 }
@@ -98,7 +103,7 @@ section("signal: chat.params alone opens the gate")
 await onParams({ sessionID: "sp", agent: "lite", model: {}, provider: {}, message: {} } as any, {} as any)
 
 {
-  const output = { description: "x".repeat(4655), parameters: {} }
+  const output = { description: "x".repeat(4655) }
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length < 300, "chat.params alone activates compression")
 }
@@ -111,7 +116,7 @@ await onMessage({ sessionID: "s3", agent: "lite" } as any, {} as any)
 await onMessage({ sessionID: "s3" } as any, {} as any)
 
 {
-  const output = { description: "x".repeat(2305), parameters: {} }
+  const output = { description: "x".repeat(2305) }
   await onToolDef({ toolID: "bash" } as any, output)
   assert(output.description.length < 300, "lite state persists across agent-less messages")
 }

@@ -1,4 +1,4 @@
-﻿# Run all tests sequentially
+﻿﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -136,20 +136,18 @@ Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 
 # lite agent + lite-mode plugin (L2 layer: near-zero-overhead primary)
 $litePlugin = Get-Content "$PSScriptRoot\..\plugins\lite-mode\lite-mode.ts" -Raw
+$litePrompt = Get-Content "$PSScriptRoot\..\prompts\lite.md" -Raw
 Check "opencode.template.jsonc: lite agent registered" ($null -ne $config.agent.lite)
 Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -eq "primary")
 Check "opencode.template.jsonc: lite ships without a model preset (inherits default until /profile)" ($null -eq $config.agent.lite.model)
-Check "opencode.template.jsonc: lite prompt is inline (no {file:})" ($config.agent.lite.prompt -notmatch '\{file:')
+Check "opencode.template.jsonc: lite prompt uses {file:} for lite.md" ($config.agent.lite.prompt -match '\{file:.*lite\.md\}')
 Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
-Check "template: lite keeps native tools (no edit/bash deny)" (($config.agent.lite.permission.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.permission.PSObject.Properties.Name -notcontains "bash"))
-Check "template: lite denies all skills" ($config.agent.lite.permission.skill.'*' -eq "deny")
-Check "template: lite denies serena/codegraph surface" (($config.agent.lite.permission.'serena_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'codegraph_*'.'*' -eq "deny"))
-Check "template: lite denies dbhub/idea surface" (($config.agent.lite.permission.'dbhub_*'.'*' -eq "deny") -and ($config.agent.lite.permission.'idea_*'.'*' -eq "deny"))
-Check "template: lite denies plugin-tool surfaces" (($config.agent.lite.permission.'md_to_pdf'.'*' -eq "deny") -and ($config.agent.lite.permission.'md_to_docx'.'*' -eq "deny") -and ($config.agent.lite.permission.'browser_screenshot'.'*' -eq "deny"))
-Check "template: lite tools map removes heavy schemas" (($config.agent.lite.tools.question -eq $false) -and ($config.agent.lite.tools.todowrite -eq $false) -and ($config.agent.lite.tools.todoread -eq $false))
-Check "template: lite task whitelist is explore/code-review/advisor/vision" (($config.agent.lite.permission.task.'*' -eq "deny") -and ($config.agent.lite.permission.task.explore -eq "allow") -and ($config.agent.lite.permission.task.'code-review' -eq "allow") -and ($config.agent.lite.permission.task.advisor -eq "allow") -and ($config.agent.lite.permission.task.vision -eq "allow") -and ($config.agent.lite.tools.task -ne $false))
-Check "template: lite prompt hardcodes the on-demand dispatch policy (vision exception)" ($config.agent.lite.prompt -match "explicit user request" -and $config.agent.lite.prompt -notmatch "Boost mode")
-Check "template: lite tools map keeps core coding tools" (($config.agent.lite.tools.PSObject.Properties.Name -notcontains "bash") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "edit") -and ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "webfetch"))
+Check "template: lite uses wildcard MCP deny" ($config.agent.lite.permission.'*'.'*' -eq "deny")
+Check "template: lite tools map removes question" ($config.agent.lite.tools.question -eq $false)
+Check "template: lite tools whitelist has 11 tools" (($config.agent.lite.tools.read -eq $true) -and ($config.agent.lite.tools.edit -eq $true) -and ($config.agent.lite.tools.write -eq $true) -and ($config.agent.lite.tools.bash -eq $true) -and ($config.agent.lite.tools.grep -eq $true) -and ($config.agent.lite.tools.glob -eq $true) -and ($config.agent.lite.tools.webfetch -eq $true) -and ($config.agent.lite.tools.websearch -eq $true) -and ($config.agent.lite.tools.todowrite -eq $true) -and ($config.agent.lite.tools.task -eq $true))
+Check "template: lite does not whitelist list (not a real opencode tool)" ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "list")
+Check "template: lite tools wildcard false hides everything else" ($config.agent.lite.tools.'*' -eq $false)
+Check "template: lite prompt hardcodes the on-demand dispatch policy (vision exception)" ($litePrompt -match 'explicit user request' -and $litePrompt -notmatch 'Boost mode')
 Check "plugin-scope: default policy denies lite, utility and all subagent steps" (($scope.plugins.'*'.deny -contains "lite") -and ($scope.plugins.'*'.deny -contains "utility") -and ($scope.plugins.'*'.deny -contains "subagent:*"))
 $injectorFiles = @(
   "plugins\project-profiler\project-profiler.ts", "plugins\md-to-pdf\system-inject.ts",

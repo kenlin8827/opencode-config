@@ -13,7 +13,7 @@
   // agent inherits opencode's own default model. `/profile apply` then
   // materializes the tiers.json mapping into per-agent model refs and sets
   // root `model` (tier.standard) + `small_model` (tier.flash).
-  "default_agent": "build",
+  "default_agent": "code",
   "permission": "allow",
   // L0 disclosure layer — injected into EVERY step of EVERY agent. Entries
   // MUST use absolute ~/ paths: opencode resolves relative instruction paths
@@ -138,9 +138,18 @@
     // with Python 3.13, and the first run downloads the ONNX runtime
     // (cdn.pyke.io) + Kompress compression model (huggingface.co). Flip
     // "enabled" to true only if you accept those downloads.
+    // Daemon bridge: uses headroom-proxy-daemon.mjs (same pattern as
+    // serena-workspace-daemon.mjs). Checks whether the headroom proxy backend
+    // (127.0.0.1:8787) is running; if not, spawns `headroom proxy` detached
+    // in the background, waits for readiness, then exec's `headroom mcp serve`.
+    // Makes headroom fully out-of-the-box — no manual `headroom proxy` step.
     "headroom": {
       "type": "local",
-      "command": ["headroom", "mcp", "serve"],
+      "command": [
+        "node",
+        "-e",
+        "import(require('url').pathToFileURL(require('path').join(require('os').homedir(), '.config/opencode/scripts/headroom-proxy-daemon.mjs')).href)"
+      ],
       "install": "uv tool install --python 3.13 \"headroom-ai[all]\"",
       "enabled": false
     },
@@ -192,6 +201,13 @@
   // runtime by plugins/shared/plugin-scope.ts. Quantify any change with
   // scripts/measure-prompts.ts before releasing.
   //
+  // MCP deny set: opencode has no permission inheritance or $ref — each
+  // agent block is independent. The MCP-deny set (serena/codegraph/
+  // gitnexus/dbhub/idea) is duplicated across: build, plan, researcher,
+  // tech-writer, vision (lite uses "*":deny instead — it has a tools
+  // whitelist). Adding/removing an MCP server here → grep "serena_\*"
+  // across this file to update ALL deny blocks in one pass.
+  //
   // L2 layer: `lite` is an overhead-free primary — inline prompt, no skills,
   // no MCP, OCP injectors skip it via plugin-scope.json, plugins/lite-mode.ts strips
   // L0 instructions (keeping the `<!-- lite-mode -->` sentinel), and
@@ -207,8 +223,8 @@
     // would silently run them on the host's model instead of a tier preset.
     "general": { "disable": true },
     "lite": {
-      "description": "Lite — minimal-overhead primary for everyday use: lookups, web research, chat, quick tasks, light fixes. No rule files, no skills, no MCP, no L0 instructions (the lite-mode plugin strips them). Self-sufficient with four read-only assists (@explore, @code-review, @advisor, @vision); suggest @code or @build for heavy coding work.",
-      "prompt": "<!-- lite-mode -->\nYou are lite, a minimal-overhead assistant. Answer directly and concisely. Use websearch/webfetch for lookups. Simple code lookups: use your own grep/glob/read; light fixes and small edits: do them yourself. Your ONLY subagents (task): explore (codebase understanding), code-review (review diffs/files), advisor (second opinion on blocking decisions), vision (images/screenshots, when you cannot see them yourself). Dispatch a subagent only on explicit user request — except vision, which you may dispatch when an attached image is beyond your own sight. Heavy or multi-domain coding work: suggest @code or @build.",
+      "description": "Lite — minimal-overhead primary for quick tasks, lookups, chat, and light fixes. No L0/skills/MCP.",
+      "prompt": "<!-- lite-mode -->\n{file:~/.config/opencode/prompts/lite.md}",
       "mode": "primary",
       "temperature": 0.3,
       // No variant pin: lite's slimness comes from prompt surgery (no L0/skills/
@@ -216,27 +232,35 @@
       // tier and inherits the model's native default (ChatGPT-style auto/standard,
       // Kimi-style thinking-on). Forcing "low" would demote a user-facing daily
       // primary; throughput agents (explore, fast-coder) keep their explicit low.
-      // Cost-shrinking denies only: skill "*" empties the resident skills block; each MCP prefix deny removes tool definitions plus <mcp_instructions> (serena/codegraph ~10.9k tok/step); the plugin-tool schemas lite never needs. tools:false entries drop heavy native schemas. task is a whitelist of four read-only assists (last match wins): explore for codebase understanding, code-review for diff/file review, advisor for blocking decisions, vision for images/screenshots (backs up hosts without native multimodality). Dispatch policy is hardcoded in the prompt: assists fire only on explicit user request, sole exception vision for images beyond lite's own sight (zero-alternative path); lite stays a self-sufficient daily loop (look → fix → review → advise → see); light fixes stay on lite itself (it keeps edit/read), only heavy or multi-domain coding escalates to @code or @build.
+      // Cost-shrinking: "*": { "*": "deny" } hides all MCP tool definitions
+      // plus <mcp_instructions>. tools:false drops every heavy native schema;
+      // the whitelist keeps the minimal capable set lite needs (read/edit/
+      // write/bash/grep/glob/webfetch/websearch/todowrite/task).
+      // No `list` — opencode has no such tool; `read` auto-lists directories.
+      // lite-tools.ts compresses only the description (the bulk — bash's
+      // usage guide alone is ~1.8k tok). Parameters/jsonSchema stay native:
+      // they're already small (~100 tok/tool) and hand-overriding them risks
+      // field-name mismatches that break tool calls at runtime. task whitelists
+      // assists: @explore, @code-review, @advisor, @vision (last match wins).
+      // Dispatch policy is hardcoded in the prompt: assists fire only on
+      // explicit user request, sole exception @vision for images beyond lite's
+      // own sight (zero-alternative path). Lite is a leaf — heavy or
+      // multi-domain coding escalates to @code or @build by the user.
       "permission": {
-        "skill": { "*": "deny" },
-        "task": { "*": "deny", "explore": "allow", "code-review": "allow", "advisor": "allow", "vision": "allow" },
-        "serena_*": { "*": "deny" },
-        "codegraph_*": { "*": "deny" },
-        "dbhub_*": { "*": "deny" },
-        "gitnexus_*": { "*": "deny" },
-        "headroom_*": { "*": "deny" },
-        "idea_*": { "*": "deny" },
-        "md_to_pdf": { "*": "deny" },
-        "md_to_docx": { "*": "deny" },
-        "browser_screenshot": { "*": "deny" }
+        "*": { "*": "deny" }
       },
       "tools": {
-        "skill": false,
-        "lsp": false,
-        "todoread": false,
-        "todowrite": false,
-        "apply_patch": false,
-        "question": false
+        "*": false,
+        "read": true,
+        "edit": true,
+        "write": true,
+        "bash": true,
+        "grep": true,
+        "glob": true,
+        "webfetch": true,
+        "websearch": true,
+        "todowrite": true,
+        "task": true
       }
     },
     "code": {
@@ -252,7 +276,10 @@
       "mode": "primary",
       "temperature": 0.3,
       "variant": "medium",
-      // Build routes work, it doesn't do it — hide the MCP tool surface (~10.9k tok/step): serena/codegraph when on, plus the optional graph/DB/IDE servers if the user enables them (DB queries belong to @dba). sdd-workflow stays: /prd /sdd land here.
+      // Build routes work, it doesn't do it — hide the MCP tool surface
+      // (~10.9k tok/step): serena/codegraph when on, plus the optional
+      // graph/DB/IDE servers if the user enables them (DB queries belong to
+      // @dba). sdd-workflow stays: /prd /sdd land here.
       "permission": {
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" },
@@ -267,7 +294,9 @@
       "mode": "primary",
       "temperature": 0.3,
       "variant": "medium",
-      // Plan dispatches analysis to specialists — no direct code-intel calls; optional graph/DB/IDE servers stay hidden too. SDD stays: /prd /adr /plan /impl run from here.
+      // Plan dispatches analysis to specialists — no direct code-intel calls;
+      // optional graph/DB/IDE servers stay hidden too. SDD stays: /prd /adr
+      // /plan /impl run from here.
       "permission": {
         "serena_*": { "*": "deny" },
         "codegraph_*": { "*": "deny" },
@@ -325,7 +354,9 @@
       "mode": "subagent",
       "temperature": 0.3,
       "variant": "medium",
-      // Web/tech research runs outside the codebase — hide the MCP tool surface (including the optional graph/DB/IDE servers if enabled). bash stays: benchmarks and trial CLIs are core research work.
+      // Web/tech research runs outside the codebase — hide the MCP tool
+      // surface (including the optional graph/DB/IDE servers if enabled).
+      // bash stays: benchmarks and trial CLIs are core research work.
       "permission": {
         "edit": "deny",
         "skill": { "*": "deny" },
@@ -470,7 +501,8 @@
       "mode": "subagent",
       "temperature": 0.3,
       "variant": "medium",
-      // Docs work reads rendered text, not symbol graphs — hide the MCP tool surface (including the optional graph/DB/IDE servers if enabled).
+      // Docs work reads rendered text, not symbol graphs — hide the MCP
+      // tool surface (including the optional graph/DB/IDE servers if enabled).
       "permission": {
         "skill": { "*": "deny" },
         "serena_*": { "*": "deny" },
@@ -488,7 +520,8 @@
       "temperature": 0.2,
       "steps": 30,
       "variant": "medium",
-      // Image analysis has no use for code graphs or DB/IDE bridges — hide the MCP tool surface.
+      // Image analysis has no use for code graphs or DB/IDE bridges —
+      // hide the MCP tool surface.
       "permission": {
         "edit": "deny",
         "bash": "deny",
@@ -508,7 +541,11 @@
       "prompt": "{file:~/.config/opencode/prompts/fast-coder.md}\n\n{file:~/.config/opencode/instructions/coding-principles.md}\n\n{file:~/.config/opencode/instructions/comment-strategy.md}\n\n{file:~/.config/opencode/instructions/edit-protocol.md}\n\n{file:~/.config/opencode/instructions/test-scope.md}",
       "mode": "subagent",
       "temperature": 0.2,
-      "variant": "low",
+      // medium (not low): fast-coder produces production-grade code (zero mocks,
+      // zero unhandled errors per its prompt) — /quick-dev ships with ZERO review,
+      // so low variant on a flash-tier model would silently degrade code quality.
+      // explore keeps low (retrieval, not reasoning); fast-coder needs reasoning.
+      "variant": "medium",
       "permission": { "skill": { "*": "deny" } },
       "tools": { "task": false }
     }

@@ -195,17 +195,19 @@ Five tiers, each mapped per active profile (`profiles/*.json`):
 
 | Tier | Use case | Variant | Agents |
 |----------|----------|---------|--------|
-| `default` | General purpose, strong reasoning | `high` | architect, security |
-| `default` | General purpose, strong reasoning | `medium` | build, plan, code, researcher, tech-writer |
-| `code` | Code generation, implementation | `medium` | java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
-| `advisor` | Analysis, review, feedback | `high` | code-review, advisor |
-| `explore` | Fast, cheap, high-volume | `low` | explore |
+| `max` | Deep reasoning, analysis | `high` | architect, security, advisor, code-review |
+| `standard` | Orchestration, high-traffic | `medium` | build, plan, researcher, tech-writer |
+| `standard` | Daily primary (no pin) | inherited | lite |
+| `pro` | Code generation, implementation | `medium` | code, java/python/go/rust/node-dev, frontend-dev, qa, dba, devops |
+| `flash` | Fast retrieval, high-volume | `low` | explore |
+| `flash` | Rapid coding (zero-review paths) | `medium` | fast-coder |
 | `vision` | Image understanding | `medium` | vision |
 
 **Variant** controls thinking/reasoning effort and must be considered alongside the tier's model strength:
 - `high` = deep reasoning. Use when the model is strong AND the task needs it (architecture, security, review, decision analysis).
-- `medium` = balanced. Default for strong coding models doing routine work (coding, testing, docs, visual analysis, orchestration, research).
+- `medium` = balanced. Default for strong coding models doing routine work (coding, testing, docs, visual analysis, orchestration, research). Also the floor for any coding agent — `low` on a flash-tier model producing production code silently degrades quality (fast-coder lesson).
 - `low` = fast/lightweight. Only for the cheapest tier doing pure retrieval tasks (explore). Applying `low` to a weak model on a complex task is a disaster — the matrix ensures this never happens.
+- `inherited` (no pin) = follow the model's native default. Reserved for lite — its slimness comes from prompt surgery, not model quality.
 
 If the backend model doesn't support a variant, it's silently ignored.
 

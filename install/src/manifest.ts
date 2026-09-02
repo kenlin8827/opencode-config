@@ -17,6 +17,10 @@ const SHIPPED_FILES = [
   // Runtime script referenced by opencode.jsonc MCP config (serena command):
   //   node -e "import(... .config/opencode/scripts/serena-workspace-daemon.mjs)"
   'scripts/serena-workspace-daemon.mjs',
+  // Runtime script referenced by opencode.jsonc MCP config (headroom command):
+  //   node -e "import(... .config/opencode/scripts/headroom-proxy-daemon.mjs)"
+  // Auto-launches `headroom proxy` (127.0.0.1:8787) if not running, then exec's `headroom mcp serve`.
+  'scripts/headroom-proxy-daemon.mjs',
 ];
 
 export function collectShippedFiles(repoDir: string): string[] {

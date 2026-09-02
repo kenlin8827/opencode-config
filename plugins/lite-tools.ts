@@ -1,11 +1,17 @@
 /**
- * lite-tools — compress native tool definitions for @lite only.
+ * lite-tools — compress native tool descriptions for @lite only.
  *
  * opencode ships Claude-Code-derived tool descriptions (~6.5k tok total;
- * bash alone ~1.8k). Frontier models are RL-trained on these schemas, so
- * short descriptions lose almost nothing. Rewrite every native tool to a
- * one-line description; keep parameter schemas untouched (they carry the
- * actual contract and feed permission checks).
+ * bash alone ~1.8k). The bulk is description prose (usage guides, shell
+ * notes, examples), NOT the parameter schema (which is typically ~100 tok).
+ * Frontier models are RL-trained on these schemas, so short descriptions
+ * lose almost nothing.
+ *
+ * Strategy: compress description only. Leave parameters and jsonSchema
+ * untouched — the native Effect Schema is always correct (field names,
+ * validation rules) and costs little. Overriding parameters by hand risks
+ * field-name mismatches (e.g. oldText vs oldString) that break tool calls
+ * at runtime — the exact bug we fixed after the first attempt.
  *
  * tool.definition input has no agent field, so gate via chat.message +
  * chat.params state (both fire per user message before the request is
@@ -14,16 +20,18 @@
  * Loader contract: this module MUST export a function only
  * (getLegacyPlugins drops files with any non-function export).
  */
+
 const OVERRIDES: Record<string, string> = {
-  bash: "Execute a shell command; returns stdout and stderr. Use workdir instead of cd. Prefer dedicated tools for file operations (Read/Grep/Glob/Edit/Write). Quote paths containing spaces.",
-  read: "Read a file, or a line range with offset/limit. Truncated output includes a pointer to the full-content file.",
-  write: "Create or overwrite a file with content.",
-  edit: "Surgical edit: oldText must match exactly, including whitespace. Read the file first; prefer multiple small edits over one large replacement.",
-  grep: "Search file contents with ripgrep-compatible regex. Returns matching lines; combine with Glob for path filtering.",
-  glob: "Find files by glob pattern, sorted by modification time.",
-  websearch: "Search the web; returns result titles, snippets, and URLs.",
-  webfetch: "Fetch a URL and extract its main content.",
-  task: "Delegate to a read-only assistant; returns its result. explore: codebase understanding/search. code-review: review diffs or files (only when the user asks). advisor: second opinion (only when the user asks). vision: image/screenshot analysis (when you cannot see it yourself). These four are the only subagents available.",
+  bash: "Execute a shell command; returns stdout and stderr. Use workdir instead of cd.",
+  read: "Read a file, or a line range with offset/limit. Passing a directory path lists its entries.",
+  edit: "Surgical edit: oldString must match exactly. Empty oldString creates a new file.",
+  grep: "Search file contents with ripgrep-compatible regex.",
+  write: "Write a file, creating or overwriting it.",
+  glob: "Find files matching a glob pattern.",
+  websearch: "Search the web and return results.",
+  todowrite: "Create or update a structured todo list for multi-step tasks.",
+  webfetch: "Fetch a URL and extract its main content as markdown.",
+  task: "Delegate to a read-only assistant. explore: codebase search. code-review: review diffs. advisor: second opinion. vision: image analysis. Only these four available.",
 }
 
 export async function LiteToolsPlugin() {
