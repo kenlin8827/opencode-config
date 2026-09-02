@@ -134,9 +134,10 @@ $planContent = Get-Content "$PSScriptRoot\..\prompts\plan.md" -Raw
 Check "build.md: never routes to @code" ($buildContent -notmatch "@code(?!-)")
 Check "plan.md: never routes to @code" ($planContent -notmatch "@code(?!-)")
 
-# lite agent + lite-mode plugin (L2 layer: near-zero-overhead primary)
+# lite agent + lite-mode plugin (L2 layer: default agent, near-zero-overhead primary)
 $litePlugin = Get-Content "$PSScriptRoot\..\plugins\lite-mode\lite-mode.ts" -Raw
 $litePrompt = Get-Content "$PSScriptRoot\..\prompts\lite.md" -Raw
+Check "opencode.template.jsonc: default agent is lite" ($config.default_agent -eq "lite")
 Check "opencode.template.jsonc: lite agent registered" ($null -ne $config.agent.lite)
 Check "opencode.template.jsonc: lite mode is primary" ($config.agent.lite.mode -eq "primary")
 Check "opencode.template.jsonc: lite ships without a model preset (inherits default until /profile)" ($null -eq $config.agent.lite.model)

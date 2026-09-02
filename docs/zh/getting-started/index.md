@@ -103,7 +103,7 @@ OCP 支持三种界面 —— 均共享同一套 `~/.config/opencode` 配置，�
 | 特性 | 对你的意义 |
 |---|---|
 | **专家智能体团队** | 21 位专家（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等），提示词按领域调优，自动路由 |
-| **四种工作模式** | `@code`（直接开发，默认）、`@build`（编排执行）、`@plan`（只读分析）、`@lite`（近零开销的日常轻量任务） |
+| **四种工作模式** | `@lite`（默认 — 精益日常驱动，约 2k tok/步）、`@code`（直接开发）、`@build`（编排执行）、`@plan`（只读分析） |
 | **代码智能与数据库（MCP）** | 预配置 MCP 服务（Serena LSP、CodeGraph 图谱、GitNexus、DBHub 数据库网关），开箱按需自动装 CLI |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
 | **工作流斜杠命令** | `/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` 开发闭环、`/review-fix-loop`、`/grill-improve-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |

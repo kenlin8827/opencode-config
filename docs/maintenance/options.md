@@ -43,8 +43,8 @@ Learn about installer commands, configuration options, token savings, and preser
      // OpenChamber web UI CLI (auto-installs the `openchamber` CLI when missing;
      // powers `ocp web` — the native desktop app for `ocp desktop` / `ocp ui` is a separate download)
      "openchamber": true,
-     // Primary agent on start: code (direct dev) / build (orchestrator) / plan (read-only)
-     "default_agent": "code",
+     // Primary agent on start: lite (default, lean daily driver) / code (direct dev) / build (orchestrator) / plan (read-only)
+     "default_agent": "lite",
      // MCP server switches (missing CLIs auto-provisioned on install)
      "mcp": {
        // Serena LSP semantic code retrieval & symbol analysis (needs uv / Python 3.13+;

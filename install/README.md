@@ -1,4 +1,4 @@
-# install (v0.18.1)
+# install (v0.18.2)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -437,7 +437,7 @@ on install).
 {
   "rtk": true,
   "openchamber": true,
-  "default_agent": "code",
+  "default_agent": "lite",
   "mcp":    { "serena": false, "codegraph": true, "gitnexus": false, "dbhub": true },
   "plugin": {
     "@dietrichgebert/ponytail": true,

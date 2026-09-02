@@ -43,8 +43,8 @@
      // OpenChamber 网页版 CLI（缺失时自动安装 `openchamber` CLI；
      // 提供 `ocp web` —— `ocp desktop` / `ocp ui` 的原生桌面应用需另行下载）
      "openchamber": true,
-     // 默认主控智能体（code: 直接开发 / build: 编排派发 / plan: 只读分析）
-     "default_agent": "code",
+     // 默认主控智能体（lite: 默认精益日常驱动 / code: 直接开发 / build: 编排派发 / plan: 只读分析）
+     "default_agent": "lite",
      // MCP 服务开关（启用且本地缺失 CLI 时自动拉取安装）
      "mcp": {
        // Serena LSP 语义代码检索与符号分析（需 uv / Python 3.13+；默认关闭，

@@ -67,12 +67,12 @@
     "herdr": false
   },
   // Which primary agent opencode enters by default:
-  //   lite     — minimal-overhead primary for lookups / chat / quick tasks
-  //   code     — direct developer; does the coding work itself (daily driver)
+  //   lite     — default; lean daily driver for quick tasks, Q&A, small edits (~2k tok/step)
+  //   code     — direct developer; does the coding work itself (deep single-domain)
   //   build    — orchestrator; routes coding tasks to specialists
   //   plan     — read-only coordinator for analysis / design work
   // Unknown names are rejected with a warning (template value kept).
-  "default_agent": "code",
+  "default_agent": "lite",
   // How `ocp tui` starts: "direct" launches opencode directly in the current
   // terminal (default); "herdr" launches a herdr workspace rooted at cwd and
   // starts opencode inside it (equivalent to `ocp herdr`). Selecting "herdr"

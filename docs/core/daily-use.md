@@ -1,12 +1,25 @@
 # Daily Use & Modes
 
-OpenCode Multi-Agent provides three orchestrator modes plus the near-zero-overhead `@lite` mode, and direct access to 17 specialized domain agents.
+OpenCode Multi-Agent provides a lean default `@lite` mode, three orchestrator modes (`@code`, `@build`, `@plan`), and direct access to 17 specialized domain agents.
 
 ---
 
-## Code mode (default)
+## Lite mode (default)
 
-`@code` is the default entry point — direct developer; writes, modifies, tests, and verifies code itself without unsolicited delegation:
+`@lite` is the default entry point — lean, capable, and ready for anything: quick fixes, lookups, Q&A, small edits, drafting, analysis. It is the only mode with **measured near-zero prompt overhead**: 0 L1 tokens, 0 resident skills/MCP definitions, and L0 stripped at runtime. Where a full-config agent carries **13k+ tokens of prompt overhead per step**, `@lite`'s entire system prompt measures **~2k tokens**.
+
+```
+> @lite what does this function do?
+> @lite rename this variable and fix the call sites
+```
+
+`@lite` handles 80% of daily work. When a task exceeds its scope, it suggests escalating to `@code` (deep single-domain), `@build` (multi-domain orchestration), `@code-review`, or `@advisor`. Dispatch policy: assists fire only on explicit user request — sole exception is `@vision`, which auto-dispatches for images lite cannot see.
+
+---
+
+## Code mode (direct development)
+
+Switch to `@code` for direct development — writes, modifies, tests, and verifies code itself without unsolicited delegation:
 
 ```
 > @code Fix off-by-one error in pagination logic
@@ -46,20 +59,7 @@ Switch to `@plan` for analysis-only tasks (no code modifications):
   → Aggregates findings into a prioritized report
 ```
 
-Switch between modes via `Tab` or `@code` / `@build` / `@plan` / `@lite`.
-
----
-
-## Lite mode (near-zero overhead)
-
-`@lite` is the lightweight mode for everyday quick tasks — lookups, chat, small edits. It is the only mode with **measured near-zero prompt overhead**: 0 L1 tokens, 0 resident skills/MCP definitions, and L0 stripped at runtime. Where a full-config agent carries **13k+ tokens of prompt overhead per step**, `@lite`'s entire system prompt measures **~2k tokens**.
-
-```
-> @lite what does this function do?
-> @lite rename this variable and fix the call sites
-```
-
-Trade-off: `@lite` opts out of instruction layers, protocol injections, the skills block, and MCP code intelligence. It keeps every native tool (read/edit/bash/…) but carries no engineering discipline on top — route real engineering work to `@code` / `@build`. Simple code lookups it runs itself (grep/glob/read — cheaper than spawning a subagent session); for everything else it keeps a four-agent read-only bench — `@explore` (codebase understanding), `@code-review` (diff/file review), `@advisor` (blocking decisions), `@vision` (images/screenshots); heavy or multi-domain coding escalates to `@code` or `@build`. Dispatch policy: assists fire only on explicit user request — sole exception is vision, which dispatches itself for images lite cannot see (token-friendly).
+Switch between modes via `Tab` or `@lite` / `@code` / `@build` / `@plan`.
 
 ---
 

@@ -13,7 +13,7 @@
   // agent inherits opencode's own default model. `/profile apply` then
   // materializes the tiers.json mapping into per-agent model refs and sets
   // root `model` (tier.standard) + `small_model` (tier.flash).
-  "default_agent": "code",
+  "default_agent": "lite",
   "permission": "allow",
   // L0 disclosure layer — injected into EVERY step of EVERY agent. Entries
   // MUST use absolute ~/ paths: opencode resolves relative instruction paths
@@ -208,11 +208,14 @@
   // whitelist). Adding/removing an MCP server here → grep "serena_\*"
   // across this file to update ALL deny blocks in one pass.
   //
-  // L2 layer: `lite` is an overhead-free primary — inline prompt, no skills,
-  // no MCP, OCP injectors skip it via plugin-scope.json, plugins/lite-mode.ts strips
-  // L0 instructions (keeping the `<!-- lite-mode -->` sentinel), and
-  // plugins/lite-tools.ts compresses native tool descriptions (measured:
-  // stock ≈ 8.4k → ≈ 1.7k tok/step).
+  // L2 layer: `lite` is the default agent — overhead-free primary, inline
+  // prompt, no skills, no MCP, OCP injectors skip it via plugin-scope.json,
+  // plugins/lite-mode.ts strips L0 instructions (keeping the `<!-- lite-mode -->`
+  // sentinel), and plugins/lite-tools.ts compresses native tool descriptions
+  // (measured: stock ≈ 8.4k → ≈ 1.7k tok/step). Lite handles 80% of daily work
+  // (quick fixes, Q&A, lookups, small edits) at ~2.3k tok/step — 62% cheaper
+  // than code's ~5.4k. Escalation table in lite.md routes complex work to
+  // @code/@build/@code-review/@advisor when out of scope.
   "agent": {
     // Native subagents disabled: `explore`'s role is owned by the factory
     // `explore` agent below (the name captures models' training priors —
@@ -223,7 +226,7 @@
     // would silently run them on the host's model instead of a tier preset.
     "general": { "disable": true },
     "lite": {
-      "description": "Lite — minimal-overhead primary for quick tasks, lookups, chat, and light fixes. No L0/skills/MCP.",
+      "description": "Lite — default primary agent. Lean, capable, ready for anything: quick fixes, lookups, Q&A, small edits, drafting, analysis. Escalates to @code/@build when out of scope. No L0/skills/MCP.",
       "prompt": "<!-- lite-mode -->\n{file:~/.config/opencode/prompts/lite.md}",
       "mode": "primary",
       "temperature": 0.3,
