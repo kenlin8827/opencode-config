@@ -1,0 +1,51 @@
+// OCP supplementary — points deduction for subscription coding plans.
+// One block per provider so rates can diverge independently and each carries
+// its own source. Update here when a provider revises its schedule;
+// no plugin release needed (installer copies this file to ~/.config/opencode/
+// models/cost.jsonc on install).
+//
+// Formula (identical across providers at last sync):
+//   points = (input × input + cached × cached + output × output) / divisor
+
+{
+  "$comment": "OCP supplementary — coding-plan points. Add a new top-level provider key to register a new plan; add models under its rates map. Drop the unused provider block to remove support.",
+
+  "providers": {
+    "zhipuai-coding-plan": {
+      "credits": true,
+      "source": "https://docs.bigmodel.cn/cn/coding-plan/overview",
+      "divisor": 10000,
+      "rates": {
+        // GLM-5.3-Flash (含视觉理解 MCP)
+        "glm-5.3-flash":  { "input": 2.3,  "cached": 0.56, "output": 8 },
+        // glm-5-turbo / glm-4.7 auto-switch to GLM-5.3-Flash per official spec
+        "glm-5-turbo":    { "input": 2.3,  "cached": 0.56, "output": 8 },
+        "glm-4.7":        { "input": 2.3,  "cached": 0.56, "output": 8 },
+
+        // GLM-5.3
+        "glm-5.3":        { "input": 6.9,  "cached": 1.7,  "output": 24 },
+        // glm-5.2 / glm-5.1 auto-switch to GLM-5.3 per official spec
+        "glm-5.2":        { "input": 6.9,  "cached": 1.7,  "output": 24 },
+        "glm-5.1":        { "input": 6.9,  "cached": 1.7,  "output": 24 }
+      }
+    },
+
+    "zai-coding-plan": {
+      "credits": true,
+      "source": "https://docs.z.ai/devpack/overview",
+      "divisor": 10000,
+      "rates": {
+        // Identical schedule to zhipuai-coding-plan at last sync (2026-09);
+        // kept as a separate provider entry so future divergence can be
+        // expressed without touching the domestic block.
+        "glm-5.3-flash":  { "input": 2.3,  "cached": 0.56, "output": 8 },
+        "glm-5-turbo":    { "input": 2.3,  "cached": 0.56, "output": 8 },
+        "glm-4.7":        { "input": 2.3,  "cached": 0.56, "output": 8 },
+
+        "glm-5.3":        { "input": 6.9,  "cached": 1.7,  "output": 24 },
+        "glm-5.2":        { "input": 6.9,  "cached": 1.7,  "output": 24 },
+        "glm-5.1":        { "input": 6.9,  "cached": 1.7,  "output": 24 }
+      }
+    }
+  }
+}

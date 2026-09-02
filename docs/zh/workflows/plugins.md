@@ -11,7 +11,7 @@
 | `project-profiler.ts` | 启动时探测语言与激活的 MCP 后端，向系统提示词注入代码智能指引与检索铁律 |
 | `design-token-guard.ts` | 阻止写入硬编码的颜色/间距/圆角 —— 让前端代码坚守设计令牌 |
 | `ai-slop-scanner.ts` | 警告前端文件中的 AI 反模式（渐变汤、div 汤等） |
-| `metrics.ts` | `/metrics [model]` TUI 命令，按会话 ID 分组展示主 agent 与子 agent 的 token 消耗（toast 通知）；将 step/compaction 指标记录为 JSONL，存于 `~/.config/opencode/.metrics/`（仅 TUI 会话） |
+| `usage.ts` | `/usage` TUI 命令打开宽度自适应的弹框，顶部常驻 tab 条：**按会话**（每会话一行 + 总计）、**按 Agent**、**按模型** —— 展示非缓存输入/输出/缓存输入 token、费用、缓存命中率、占比条；`1/2/3` 或 `←→` 实时切换 tab，`Enter` 关闭；`/usage all\|agent\|model` 直接打开对应维度；宿主无弹框 API 时降级为 toast（仅 TUI 会话） |
 | `auto-format.ts` | 文件编辑后自动运行 prettier/eslint/ruff/gofmt/rustfmt |
 | `auto-advisor-mode.ts` | `/auto-advisor` 命令、协议注入、模式门控、red-team 抑制 |
 | `deepseek-anchor.ts` | `/deepseek-anchor` 命令 —— 基于锚点的推理协议与 DeepSeek 模型集成 |

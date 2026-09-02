@@ -2,7 +2,12 @@
  * Shared i18n module for all TUI wizard plugins.
  *
  * Centralizes locale detection, storage, and all translation strings
- * for profile-wizard, provider-wizard, project-wizard, and queue-manager.
+ * for profile-wizard, provider-wizard, project-wizard, queue-manager,
+ * and usage.
+ *
+ * The chosen language is persisted as the "language" key of the shared
+ * user config (~/.config/opencode/ocp.jsonc, via plugins/shared/ocp-config).
+ * A legacy api.kv value is migrated on first init.
  *
  * Usage in plugins:
  *   import { initI18n, tr, registerLangCommand } from "./i18n"
@@ -11,6 +16,7 @@
  */
 
 import type { TuiPluginApi, TuiDialogSelectOption } from "@opencode-ai/plugin/tui"
+import { readOcpField, writeOcpField } from "../shared/ocp-config"
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -72,27 +78,39 @@ function detectLocale(): Locale {
   return FALLBACK_LOCALE
 }
 
-const KV_KEY = "opencode.locale"
+/** "language" key in the shared user config (~/.config/opencode/ocp.jsonc). */
+const CONFIG_KEY = "language"
+/** Pre-ocp-config storage; read once for migration, no longer written. */
+const LEGACY_KV_KEY = "opencode.locale"
 
 let initialized = false
 
 export function initI18n(api: TuiPluginApi): void {
   // Guard against repeated calls from multiple plugins —
-  // only the first call performs detection & KV write.
+  // only the first call performs detection & persistence.
   if (initialized) return
   initialized = true
-  const stored = api.kv.get<Locale>(KV_KEY)
-  if (isRegistered(stored)) {
-    currentLocale = stored
-  } else {
-    currentLocale = detectLocale()
-    api.kv.set(KV_KEY, currentLocale)
+
+  const fromFile = readOcpField<Locale>(CONFIG_KEY)
+  if (isRegistered(fromFile)) {
+    currentLocale = fromFile
+    return
   }
+  // Legacy migration: an api.kv choice made before ocp.jsonc existed.
+  const legacy = api.kv?.get<Locale>(LEGACY_KV_KEY)
+  if (isRegistered(legacy)) {
+    currentLocale = legacy
+    writeOcpField(CONFIG_KEY, currentLocale)
+    return
+  }
+  // Env detection is not a user choice — don't persist it.
+  currentLocale = detectLocale()
 }
 
 export function setLocale(api: TuiPluginApi, locale: Locale): void {
   currentLocale = locale
-  api.kv.set(KV_KEY, locale)
+  // Keep the in-memory value even if the file write fails (read-only home).
+  writeOcpField(CONFIG_KEY, locale)
 }
 
 /** Locale the menu switch would move to (cycles through the registry). */
@@ -113,7 +131,7 @@ export function localeName(locale: Locale): string {
 
 // ─── Translation table ──────────────────────────────────────────────
 // Keys are namespaced: "common.xxx", "profile.xxx", "provider.xxx",
-// "project.xxx", "queue.xxx".  Placeholders use {name} syntax.
+// "project.xxx", "queue.xxx", "usage.xxx".  Placeholders use {name} syntax.
 
 const STRINGS = {
   // ════════════════════════════════════════════════════════════════
@@ -478,6 +496,35 @@ const STRINGS = {
   "queue.stripAllCount": { en: "Strip/delete all {count} queued messages", "zh-CN": "剥离/删除全部 {count} 条排队消息" },
   "queue.textPartCount": { en: "{count} text part(s)", "zh-CN": "{count} 个文本部分" },
   "queue.attachmentCount": { en: "{count} attachment(s)", "zh-CN": "{count} 个附件" },
+
+  // ════════════════════════════════════════════════════════════════
+  // ── Usage (token/cost view — usage.ts) ───────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  "usage.commandTitle": { en: "Show token usage", "zh-CN": "查看 token 用量" },
+  "usage.commandDesc": { en: "Token/cost usage with tabbed dimensions (session / agent / model) — 1/2/3 or ←→ to switch", "zh-CN": "按会话 / Agent / 模型分 tab 查看 token/费用消耗 — 1/2/3 或 ←→ 切换" },
+  "usage.dialogTitle": { en: "Token usage", "zh-CN": "Token 用量" },
+  "usage.dimPrev": { en: "Previous usage tab", "zh-CN": "上一个用量 tab" },
+  "usage.dimNext": { en: "Next usage tab", "zh-CN": "下一个用量 tab" },
+  "usage.dimSession": { en: "By session", "zh-CN": "按会话" },
+  "usage.dimAgent": { en: "By agent", "zh-CN": "按Agent" },
+  "usage.dimModel": { en: "By model", "zh-CN": "按模型" },
+  "usage.totalRow": { en: "total", "zh-CN": "总计" },
+  "usage.hSession": { en: "session", "zh-CN": "会话" },
+  "usage.hAgent": { en: "agent", "zh-CN": "Agent" },
+  "usage.hSessions": { en: "sessions", "zh-CN": "会话数" },
+  "usage.hIn": { en: "in", "zh-CN": "输入" },
+  "usage.hOut": { en: "out", "zh-CN": "输出" },
+  "usage.hCached": { en: "cached", "zh-CN": "缓存" },
+  "usage.hCost": { en: "cost", "zh-CN": "费用" },
+  "usage.hCredits": { en: "credits", "zh-CN": "积分" },
+  "usage.hSteps": { en: "steps", "zh-CN": "步数" },
+  "usage.hHit": { en: "hit", "zh-CN": "命中率" },
+  "usage.hShare": { en: "share", "zh-CN": "占比" },
+  "usage.hModel": { en: "model", "zh-CN": "模型" },
+  "usage.hitCell": { en: "hit {hit}%", "zh-CN": "命中 {hit}%" },
+  "usage.noData": { en: "📊 No token data for the current session yet.", "zh-CN": "📊 当前会话还没有 token 数据。" },
+  "usage.unknownSub": { en: "📊 Unknown subcommand \"{sub}\". Usage: /usage [all|model]", "zh-CN": "📊 未知子命令 \"{sub}\"。用法: /usage [all|model]" },
+  "usage.failed": { en: "📊 Failed to query usage: {err}", "zh-CN": "📊 查询用量失败: {err}" },
 } as const
 
 type StringKey = keyof typeof STRINGS

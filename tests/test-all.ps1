@@ -1,4 +1,4 @@
-﻿﻿# Run all tests sequentially
+﻿# Run all tests sequentially
 # Requires LLM_ROUTER_BASE_URL and LLM_ROUTER_API_KEY in system environment.
 #
 # Usage:
@@ -275,7 +275,7 @@ $allFiles = @(
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
-    "plugins/tui/metrics.ts", "plugins/auto-format.ts",
+    "plugins/tui/usage.ts", "plugins/auto-format.ts",
     "plugins/tui/queue-manager.ts",
     "plugins/tui/project-wizard.ts",
     "plugins/lite-mode.ts",
@@ -445,13 +445,13 @@ $tuiTemplateRaw = Get-Content "$PSScriptRoot\..\tui.template.jsonc" -Raw
 # relative to the config dir).
 Check "tui.template.jsonc: queue-manager registered in plugin array" ($tuiTemplateRaw -match '"\./plugins/tui/queue-manager\.ts"')
 
-# Metrics plugin checks (plugins/tui/metrics.ts — TUI-only, registered via tui.template.jsonc)
-$mtPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\metrics.ts" -Raw
-Check "metrics.ts: imports TuiPlugin from plugin/tui" ($mtPlugin -match "@opencode-ai/plugin/tui")
-Check "metrics.ts: slash command name is metrics (bare, TUI prepends /)" ($mtPlugin -match 'SLASH_NAME = "metrics"')
-Check "metrics.ts: registers palette command with slashName" ($mtPlugin -match "slashName: SLASH_NAME" -and $mtPlugin -match 'namespace: "palette"')
-Check "metrics.ts: exports default TuiPluginModule with id" ($mtPlugin -match "export default plugin")
-Check "tui.template.jsonc: metrics registered in plugin array" ($tuiTemplateRaw -match '"\.\/plugins\/tui\/metrics\.ts"')
+# Usage plugin checks (plugins/tui/usage.ts — TUI-only, registered via tui.template.jsonc)
+$mtPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\usage.ts" -Raw
+Check "usage.ts: imports TuiPlugin from plugin/tui" ($mtPlugin -match "@opencode-ai/plugin/tui")
+Check "usage.ts: slash command name is usage (bare, TUI prepends /)" ($mtPlugin -match 'SLASH_NAME = "usage"')
+Check "usage.ts: registers palette command with slashName" ($mtPlugin -match "slashName: SLASH_NAME" -and $mtPlugin -match 'namespace: "palette"')
+Check "usage.ts: exports default TuiPluginModule with id" ($mtPlugin -match "export default plugin")
+Check "tui.template.jsonc: usage registered in plugin array" ($tuiTemplateRaw -match '"\.\/plugins\/tui\/usage\.ts"')
 
 # Project wizard plugin checks (plugins/tui/project-wizard.ts — TUI-only, registered via tui.template.jsonc)
 $pwPlugin = Get-Content "$PSScriptRoot\..\plugins\tui\project-wizard.ts" -Raw

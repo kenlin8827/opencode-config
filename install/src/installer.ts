@@ -4,6 +4,8 @@ import os from 'node:os';
 import { execSync, spawnSync } from 'node:child_process';
 import { CliArgs, InstallOptions } from './types';
 import { deployHerdrConfig } from './herdr-config';
+import { deployModelsCost } from './models-cost';
+import { colorize } from './color';
 import {
   collectHistoricalShippedFiles,
   collectShippedFiles,
@@ -220,10 +222,10 @@ export function checkExternalTools(repoDir: string, options: InstallOptions): vo
     for (const [name, def] of Object.entries(registry.tools)) {
       if (!toolEnabled(name, options)) continue;
       if (isBinaryOnPath(def.binary)) {
-        console.log(`✓ [tool] ${name} (${def.binary}) is present on PATH`);
+        console.log(colorize.green(`✓ [tool] ${name} (${def.binary}) is present on PATH`));
       } else {
         const hint = def.url ? ` — see ${def.url}` : '';
-        console.log(`ℹ [tool] ${name} not found on PATH${hint}`);
+        console.log(colorize.gray(`ℹ [tool] ${name} not found on PATH${hint}`));
       }
     }
   }
@@ -231,25 +233,25 @@ export function checkExternalTools(repoDir: string, options: InstallOptions): vo
   // Check MCP tools
   if (options.mcp?.serena) {
     if (isBinaryOnPath('serena')) {
-      console.log('✓ [mcp] serena is installed');
+      console.log(colorize.green('✓ [mcp] serena is installed'));
     } else {
-      console.log('ℹ [mcp] serena tool not found on PATH');
+      console.log(colorize.gray('ℹ [mcp] serena tool not found on PATH'));
     }
   }
 
   if (options.mcp?.dbhub) {
     if (isBinaryOnPath('dbhub')) {
-      console.log('✓ [mcp] dbhub is installed');
+      console.log(colorize.green('✓ [mcp] dbhub is installed'));
     } else {
-      console.log('ℹ [mcp] dbhub tool not found on PATH');
+      console.log(colorize.gray('ℹ [mcp] dbhub tool not found on PATH'));
     }
   }
 
   if (options.mcp?.headroom) {
     if (isBinaryOnPath('headroom')) {
-      console.log('✓ [mcp] headroom is installed');
+      console.log(colorize.green('✓ [mcp] headroom is installed'));
     } else {
-      console.log('ℹ [mcp] headroom tool not found on PATH');
+      console.log(colorize.gray('ℹ [mcp] headroom tool not found on PATH'));
     }
   }
 }
@@ -446,25 +448,25 @@ export function provisionTools(repoDir: string, options: InstallOptions): void {
   for (const [name, def] of Object.entries(registry.tools)) {
     if (!toolEnabled(name, options)) continue;
     if (isBinaryOnPath(def.binary)) {
-      console.log(`✓ [tool] ${name} (${def.binary}) is present on PATH`);
+      console.log(colorize.green(`✓ [tool] ${name} (${def.binary}) is present on PATH`));
       continue;
     }
     const cmd = resolveInstallCommand(def.install);
     if (!cmd) {
       const hint = def.url ? ` (${def.url})` : '';
-      console.log(`ℹ [tool] ${name} not installed — no install command for ${process.platform}-${process.arch}${hint}`);
+      console.log(colorize.gray(`ℹ [tool] ${name} not installed — no install command for ${process.platform}-${process.arch}${hint}`));
       continue;
     }
-    console.log(`🚀 [tool] ${name} missing from PATH — provisioning via: ${cmd}`);
+    console.log(colorize.cyan(`🚀 [tool] ${name} missing from PATH — provisioning via: ${cmd}`));
     const res = runInstallCommand(cmd);
     if (res.error || res.status !== 0) {
       const detail = res.error ? res.error.message : `exit code ${res.status}`;
       const hint = def.url ? ` Manual install: ${def.url}` : '';
-      console.log(`⚠ [tool] ${name} automatic installation failed (${detail}).${hint}`);
+      console.log(colorize.yellow(`⚠ [tool] ${name} automatic installation failed (${detail}).${hint}`));
     } else if (isBinaryOnPath(def.binary)) {
-      console.log(`✓ [tool] ${name} installed`);
+      console.log(colorize.green(`✓ [tool] ${name} installed`));
     } else {
-      console.log(`✓ [tool] ${name} install command finished — open a new terminal if the binary is not on PATH yet`);
+      console.log(colorize.green(`✓ [tool] ${name} install command finished — open a new terminal if the binary is not on PATH yet`));
     }
   }
 
@@ -497,11 +499,11 @@ function runPostInstall(repoDir: string, name: string, def: ToolRegistry['tools'
     const guard = typeof step === 'string' ? undefined : step.when;
 
     if (guard && !isBinaryOnPath(guard)) {
-      console.log(`⏭ [post-install] ${name}: skipping "${stepName}" (requires "${guard}" on PATH)`);
+      console.log(colorize.gray(`⏭ [post-install] ${name}: skipping "${stepName}" (requires "${guard}" on PATH)`));
       continue;
     }
 
-    console.log(`⚙ [post-install] ${name}: ${stepName}`);
+    console.log(colorize.cyan(`⚙ [post-install] ${name}: ${stepName}`));
     // Resolve $OCP_REPO_DIR / %OCP_REPO_DIR% in the command string before
     // handing it to the shell — spawnSync({shell:true}) on Windows uses
     // cmd.exe, which only expands %VAR%, not POSIX $VAR. Without this,
@@ -510,19 +512,51 @@ function runPostInstall(repoDir: string, name: string, def: ToolRegistry['tools'
     const resolvedCommand = command
       .replace(/\$OCP_REPO_DIR/g, repoDir)
       .replace(/%OCP_REPO_DIR%/g, repoDir);
+    // Capture stdout (not inherit) so commands that emit JSON — e.g. herdr
+    // plugin link — don't dump raw payloads to the terminal. We parse and
+    // surface a one-line summary instead.
     const res = spawnSync(resolvedCommand, {
-      stdio: 'inherit',
+      stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 300000,
       shell: true,
+      encoding: 'utf8',
       env: { ...process.env, OCP_REPO_DIR: repoDir },
     });
     if (res.error || res.status !== 0) {
-      const detail = res.error ? res.error.message : `exit code ${res.status ?? '?'}`;
-      console.log(`⚠ [post-install] ${name}/${stepName} failed: ${detail}`);
+      const stderr = (res.stderr ?? '').toString().trim();
+      const detail = res.error
+        ? res.error.message
+        : stderr || `exit code ${res.status ?? '?'}`;
+      console.log(colorize.yellow(`⚠ [post-install] ${name}/${stepName} failed: ${detail}`));
     } else {
-      console.log(`✓ [post-install] ${name}/${stepName} ok`);
+      const summary = extractJsonSummary((res.stdout ?? '').toString());
+      const suffix = summary ? ` — ${summary}` : '';
+      console.log(colorize.green(`✓ [post-install] ${name}/${stepName} ok${suffix}`));
     }
   }
+}
+
+/**
+ * Attempt to extract a one-line human-readable summary from a command's stdout
+ * when it returns JSON. Currently handles herdr plugin link output:
+ *   {"result":{"plugin":{"name":"Auto-Start OpenCode on New Tabs",...}}}
+ * Returns null when the output is not JSON or lacks a recognizable field, so
+ * callers can fall back to a bare "ok".
+ */
+function extractJsonSummary(stdout: string): string | null {
+  const text = stdout.trim();
+  if (!text) return null;
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // Not JSON — common for shell commands that print nothing on success.
+    return null;
+  }
+  // herdr cli envelope: { id, result: { plugin: { name } } }
+  const name = json?.result?.plugin?.name ?? json?.result?.name ?? json?.name;
+  if (typeof name === 'string' && name.trim()) return name;
+  return null;
 }
 
 export function executeInstall(
@@ -631,13 +665,13 @@ export function executeInstall(
   // 6. Write installed version
   fs.writeFileSync(path.join(targetDir, 'installed.version'), curVersion + '\n', 'utf8');
 
-  // 7. Tool diagnostics
-  checkExternalTools(repoDir, effectiveOptions);
-
-  // 8. Provision CLIs for enabled MCP servers missing from PATH
+  // 7. Provision CLIs for enabled MCP servers missing from PATH
   provisionMcpCli(repoDir, effectiveOptions);
 
-  // 9. Provision optional tools declared in install/tools.jsonc
+  // 8. Provision optional tools declared in install/tools.jsonc
+  //    Phase 1 reports presence for each enabled tool (✓ [tool] … is present
+  //    on PATH / provisioning / installed); Phase 2 runs post-install steps.
+  //    This subsumes the former standalone checkExternalTools() call.
   provisionTools(repoDir, effectiveOptions);
 
   // 10. Deploy the bundled herdr config to ~/.config/herdr/ — only when herdr
@@ -652,6 +686,18 @@ export function executeInstall(
     } else {
       console.log(`⚠ [herdr-config] ${herdrCfg.message}`);
     }
+  }
+
+  // 11. Deploy the bundled OCP models/cost.jsonc (coding-plan points) to
+  //     ~/.config/opencode/models/. Copy-if-missing — user's edits to the
+  //     rates survive; --force overwrites.
+  const modelsCost = deployModelsCost(repoDir, effectiveOptions.force === true);
+  if (modelsCost.action === 'installed' || modelsCost.action === 'merged') {
+    console.log(`✓ [models-cost] ${modelsCost.message}`);
+  } else if (modelsCost.action === 'uptodate' || modelsCost.action === 'skipped') {
+    console.log(`ℹ [models-cost] ${modelsCost.message}`);
+  } else {
+    console.log(`⚠ [models-cost] ${modelsCost.message}`);
   }
 
   return {

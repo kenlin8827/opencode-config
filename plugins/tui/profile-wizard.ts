@@ -1684,7 +1684,7 @@ async function loadCatalog(api: TuiPluginApi): Promise<Catalog> {
 // Tokens that identify the command itself, not a subcommand. Slash dispatch
 // puts the command NAME ("profile.switch") into ctx.input, so leading name
 // tokens must be skipped when extracting the user's trailing argument
-// (same shape as metrics.ts's parseSubcommand).
+// (same shape as usage.ts's parseSubcommand).
 const COMMAND_TOKENS = new Set(["profile.switch", "profile", "/profile"])
 
 /** Extract the subcommand arg from the keymap command context — check
