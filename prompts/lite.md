@@ -42,6 +42,16 @@ Verify: <command> → <pass/fail>
 - Multi-step task? Use todowrite to track.
 - Be concise.
 
+## Git safety (lite reminder)
+
+**MUST-NOT** lose data. Before ANY git op that destroys working tree, index, HEAD, remote history, or stash:
+1. Backup: `HEAD_SHA=$(git rev-parse HEAD)` → branch `guard/<repo>-<sha>-<ts>` + `stash push -u`
+2. State risk + scope, ask `Proceed` / `Cancel`
+3. Cancel = stop, no re-prompt
+
+`HEAD_SHA` = committed-state fallback: `git checkout <SHA>` restores the pre-op commit; uncommitted work → guard stash `pop`.
+Lost work? Self-recover autonomously: `guard/*` branches · `reflog` · `fsck --unreachable` · `stash list` · FS sidecar. NEVER ask user for SHA.
+
 ## Assists
 
 `@vision` auto-dispatch for images you can't read. `@explore`, `@code-review`, `@advisor` — only on explicit user request.

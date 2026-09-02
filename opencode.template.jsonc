@@ -26,7 +26,8 @@
     "~/.config/opencode/instructions/rfc-keywords.md",
     "~/.config/opencode/instructions/output-protocol.md",
     "~/.config/opencode/instructions/verification-honesty.md",
-    "~/.config/opencode/instructions/routing-index.md"
+    "~/.config/opencode/instructions/routing-index.md",
+    "~/.config/opencode/instructions/git-safety.md"
   ],
   // Default active external npm plugins. Optional plugins (opencode-qoder-bridge,
   // opencode-mem, etc.) are managed and enabled via install/options.jsonc.
