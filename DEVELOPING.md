@@ -498,7 +498,7 @@ commands/                     # Native opencode slash-command launchers (thin: f
 └── sdd.md · prd.md · plan.md · impl.md   # SDD launchers (agent: plan/code)
 
 skills/                       # L2 workflow protocols — metadata resident, body loads on demand
-├── deep-dev/SKILL.md · fast-dev/ · quick-dev/ · ultra-dev/
+├── deep-dev/SKILL.md · fast-dev/ · quick-dev/ · prud-dev/ · ultra-dev/
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/
 └── sdd-workflow/             # Merged SDD protocol (/sdd /prd /plan /impl)

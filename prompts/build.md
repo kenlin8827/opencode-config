@@ -78,7 +78,7 @@ Per `output-protocol.md` §Advisor modes, consult `@advisor` for an independent 
 - **Single-domain (most common)**: one dispatch, no plan, report the result.
 - **New feature**: `@architect → @dba → @<backend-dev> → @frontend-dev → @qa → @code-review → @security → @devops → @tech-writer`
 - **Bug fix**: `@<domain-dev> (fix) → @qa (regression, floor tier per test-scope.md) → @code-review`
-- **Review-fix loop**: `/review-fix-loop [--max-rounds=N]` · **Score loop**: `/grill-improve-loop` · **Autonomous phases**: `/ultra-dev` — protocols live in their skills, never improvise.
+- **Review-fix loop**: `/review-fix-loop [--max-rounds=N]` · **Score loop**: `/grill-improve-loop` · **Autonomous phases**: `/ultra-dev` · **Prudent (register before code)**: `/prud-dev` — protocols live in their skills, never improvise.
 - **Migration**: `@researcher → @architect → @dba → @devops → @<dev> → @qa → @tech-writer`
 - **Security audit**: `@security → @<dev> (fix findings) → @qa → @code-review`
 - **Greenfield**: `@researcher → @architect → @dba → @devops → @<backend-dev> → @frontend-dev → @qa → @tech-writer`

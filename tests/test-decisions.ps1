@@ -23,12 +23,13 @@ $base = "$PSScriptRoot\.."
 $op = Get-Content "$base\instructions\output-protocol.md" -Raw
 Check "output-protocol: two-tier decision strategy" ($op -match "Non-blocking" -and $op -match "Blocking")
 Check "output-protocol: has STOP for blocking" ($op -match "STOP")
-Check "output-protocol: subagents no question tool" ($op -match "no.*question.*tool")
-Check "output-protocol: non-blocking says state assumption" ($op -match "state assumption")
-Check "output-protocol: orchestrator re-dispatches" ($op -match "re-dispatch")
+Check "output-protocol: subagents no question tool" ($op -match '\(no .?question')
+Check "output-protocol: non-blocking says state assumption" ($op -match 'non-blocking.+state')
+# Re-dispatch after a blocking STOP is now implicit: output-protocol.md keeps the
+# subagent contract (STOP + end turn); the orchestrator side lives in build.md.
 Check "output-protocol: skip trivial decisions" ($op -match "skip.*trivial" -or $op -match "NEVER invent")
-Check "output-protocol: recommended option first in question" ($op -match "recommended option FIRST")
-Check "output-protocol: blocking options recommended first" ($op -match "recommended first")
+Check "output-protocol: recommended option first in question" ($op -match 'Recommend first \+ mark')
+Check "output-protocol: blocking options recommended first" ($op -match '\(recommend first\)')
 
 # Decision mode: 3 advisor modes (off/lite/full)
 Check "output-protocol: has decision mode section" ($op -match "3 advisor modes")
@@ -63,6 +64,7 @@ $bc = Get-Content "$base\prompts\build.md" -Raw
 Check "build.md exists and readable" ($bc.Length -gt 0)
 Check "build.md: has advisor mode section" ($bc -match "Advisor mode")
 Check "build.md: references @advisor" ($bc -match "@advisor")
+Check "build.md: subagents STOP on blocking (orchestrator re-dispatches)" ($bc -match "Subagents STOP on blocking")
 Check "build.md: has session toggle" ($bc -match "/auto-advisor" -or $bc -match "/advisor")
 Check "build.md: has full toggle" ($bc -match "/auto-advisor full" -or $bc -match "/advisor full" -or $bc -match "advisor-decisive")
 Check "build.md: has permanent toggle" ($bc -match "instructions" -or $bc -match "opencode.json")

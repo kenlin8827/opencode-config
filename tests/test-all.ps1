@@ -47,11 +47,12 @@ Check "plugin includes @dietrichgebert/ponytail" `
 # decision-advisor.md was removed in the split-into-plugins refactor — protocol
 # now lives embedded in plugins/auto-advisor/auto-advisor-instructions.ts.
 # Disclosure-layer rework: L0 (instructions array) keeps only the universal iron
-# rules — rfc-keywords + output-protocol + verification-honesty + routing-index.
+# rules — rfc-keywords + output-protocol + verification-honesty + routing-index
+# + git-safety (added v0.18.3).
 # Role rules moved to L1 (agent prompt {file:} assembly); sdd-principles moved
 # to L2 (skills/sdd-workflow). Removed from L0: test-scope, coding-principles,
 # edit-protocol, sdd-principles, comment-strategy, sql-migration.
-Check "instructions count = 4 (L0 iron rules only)" ($config.instructions.Count -eq 4)
+Check "instructions count = 5 (L0 iron rules only)" ($config.instructions.Count -eq 5)
 Check "instructions all use absolute ~/ paths" `
     (($config.instructions | Where-Object { $_ -notlike '~/.config/opencode/*' }).Count -eq 0)
 Check "instructions contains routing-index.md" `
@@ -144,7 +145,7 @@ Check "opencode.template.jsonc: lite ships without a model preset (inherits defa
 Check "opencode.template.jsonc: lite prompt uses {file:} for lite.md" ($config.agent.lite.prompt -match '\{file:.*lite\.md\}')
 Check "opencode.template.jsonc: lite prompt carries lite-mode sentinel" ($config.agent.lite.prompt -match '<!-- lite-mode -->')
 Check "template: lite uses wildcard MCP deny" ($config.agent.lite.permission.'*'.'*' -eq "deny")
-Check "template: lite tools map removes question" ($config.agent.lite.tools.question -eq $false)
+Check "template: lite tools whitelist omits question (wildcard deny)" ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "question")
 Check "template: lite tools whitelist has 11 tools" (($config.agent.lite.tools.read -eq $true) -and ($config.agent.lite.tools.edit -eq $true) -and ($config.agent.lite.tools.write -eq $true) -and ($config.agent.lite.tools.bash -eq $true) -and ($config.agent.lite.tools.grep -eq $true) -and ($config.agent.lite.tools.glob -eq $true) -and ($config.agent.lite.tools.webfetch -eq $true) -and ($config.agent.lite.tools.websearch -eq $true) -and ($config.agent.lite.tools.todowrite -eq $true) -and ($config.agent.lite.tools.task -eq $true))
 Check "template: lite does not whitelist list (not a real opencode tool)" ($config.agent.lite.tools.PSObject.Properties.Name -notcontains "list")
 Check "template: lite tools wildcard false hides everything else" ($config.agent.lite.tools.'*' -eq $false)
@@ -191,11 +192,13 @@ $allFiles = @(
     "commands/goal.md", "commands/handoff.md", "commands/grill-me.md", "commands/grill-with-docs.md",
     "commands/grill-improve-loop.md", "commands/fast-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
     "commands/deep-dev.md", "commands/ultra-dev.md", "commands/review-fix-loop.md",
+    "commands/prud-dev.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
     "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
     "skills/grill-improve-loop/SKILL.md", "skills/fast-dev/SKILL.md", "skills/quick-dev/SKILL.md",
     "skills/deep-dev/SKILL.md", "skills/ultra-dev/SKILL.md", "skills/review-fix-loop/SKILL.md",
+    "skills/prud-dev/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
@@ -274,6 +277,8 @@ $allFiles = @(
     "skills/sdd-workflow/SKILL.md",
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
+    "docs/workflows/prud-dev.md",
+    "docs/zh/workflows/prud-dev.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/tui/usage.ts", "plugins/auto-format.ts",
     "plugins/tui/queue-manager.ts",
@@ -317,6 +322,11 @@ CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't dupl
 foreach ($name in @("grill-improve-loop", "fast-dev", "quick-dev", "deep-dev", "ultra-dev", "review-fix-loop")) {
     CheckWorkflowSkill $name @()
 }
+
+# prud-dev: anchors protect the register's core mechanics — surface binding,
+# SEVxPROB tiering, blind-spot write-back, test materialization (@qa), and the
+# non-exhaustive declaration.
+CheckWorkflowSkill "prud-dev" @("Surface model", "SEV", "PROB", "Tier A", "missed-by-enumeration", "not exhaustive", "docs/risk/<topic>.md", "@qa", "test-scope")
 
 # Alias: /flash-dev launches the quick-dev skill
 $flashLauncher = Get-Content "$PSScriptRoot\..\commands\flash-dev.md" -Raw

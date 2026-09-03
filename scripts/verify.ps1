@@ -66,8 +66,18 @@ function Compare-VersionLt([string]$a, [string]$b) {
 }
 
 # --- prompt budget gate (layered disclosure: L0/L1 sizes) ------------------
+# Runtime ladder mirrors install/install.ps1: bun when available, otherwise
+# node + the repo-local tsx.
 
-& bun run (Join-Path $RepoRoot 'scripts/measure-prompts.ts')
+$Measure = Join-Path $RepoRoot 'scripts/measure-prompts.ts'
+$TsxEntry = Join-Path $RepoRoot 'node_modules/tsx/dist/cli.mjs'
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    & bun run $Measure
+} elseif ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $TsxEntry)) {
+    & node $TsxEntry $Measure
+} else {
+    throw 'measure-prompts requires bun, or node with repo-local tsx (run: bun install)'
+}
 if ($LASTEXITCODE -ne 0) { throw 'prompt budget gate failed — slim the prompts before releasing' }
 
 # --- historical manifest immutability gate --------------------------------

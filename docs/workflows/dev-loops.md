@@ -1,65 +1,132 @@
-# Four-Tier Dev Loops (`/quick-dev` & `/fast-dev` & `/deep-dev` & `/ultra-dev`)
+# Five Dev Flows
 
-Four-Tier Dev Loops represent the flagship multi-agent workflow system in OpenCode's production engineering configuration.
+Five Dev Flows represent the flagship multi-agent workflow system in OpenCode's production engineering configuration.
 
-By pioneering the synergy of **"Ultra-fast Flash Model Coding ➕ Evidence-Driven Dual-Review Audit ➕ Dynamic Domain Persona Injection ➕ Consensus Arbitration ➕ Autonomous Goal-Driven Execution"**, it delivers a structured continuum from **Zero-Review direct delivery** to **Single-Review agile loop** to **Dual-Review deep consensus** to **Autonomous multi-phase execution**, achieving **3x faster velocity, an 80% reduction in token costs, and uncompromising production code quality**.
+Each flow embodies a **development philosophy** — a distinct trade-off between speed, depth, autonomy, and risk posture. Choose based on the nature of your task, not a linear "better/worse" hierarchy.
 
 ---
 
-## 1. Why Four-Tier Dev Loops?
+## The Five Flows at a Glance
 
-Traditional AI-assisted coding typically suffers from two core dilemmas:
-1. **Expensive Single-Turn Coding**: Using flagship models directly to write large volumes of boilerplate code is slow and costly;
-2. **Single-Reviewer Blind Spots vs. Review Overhead**: A single reviewer may miss architectural regressions, but enforcing multi-turn review for simple scripts or quick prototypes creates unnecessary friction.
+| Flow | Emoji | Philosophy | When to Use |
+|---|---|---|---|
+| `/quick-dev` | ⚡ | **Zero-friction** — code now, review never | Throwaway scripts, UI tweaks, quick prototypes |
+| `/fast-dev` | 🚀 | **Agile loop** — fast code + single flagship review | 80% of daily tasks: CRUD, components, single-module refactoring |
+| `/prud-dev` | 🛡️ | **Risk-first** — FMEA before code, risk register drives everything | Safety-critical: payments, auth, medical, aviation, anything a bug could harm |
+| `/deep-dev` | 🧠 | **Deep consensus** — dual flagship review + arbitration | 20% mission-critical: distributed transactions, full-stack, security-sensitive |
+| `/ultra-dev` | 🛸 | **Autonomous** — objective in, phases out, zero interaction | Large-scale systems spanning multiple domains and phases |
 
-Four-Tier Dev Loops completely decouple **Execution/Writing (high-throughput task)** from **Quality & Verification (high-reasoning task)** across 4 customizable tiers — from zero-review instant delivery to fully autonomous multi-phase execution:
+---
+
+## Flow Details
+
+### `/quick-dev` — Zero-Review Fast Track
 
 ```
-                ┌──────────────────────────────────────────────────────────────────────┐
-                │                          User Requirement                              │
-                └──────────────────────────────────┬───────────────────────────────────┘
-                                                   │
-        ┌──────────────────┬───────────────────────┼───────────────────────┬──────────────┐
-        │                  │                       │                       │
-  ⚡ /quick-dev        🚀 /fast-dev            🧠 /deep-dev            🛸 /ultra-dev
-【Zero-Review】      【Single-Review】        【Dual-Review】        【Autonomous Multi-Phase】
-        │                  │                       │                       │
-┌───────┴───────┐  ┌───────┴───────┐       ┌───────┴───────┐       ┌───────┴───────────┐
-│• Passthrough  │  │• Passthrough  │       │• Passthrough  │       │• Objective Decompose│
-│• Coding: Flash│  │• Coding: Flash│       │• Coding: Flash│       │• Exploration: @explore  │
-│• Review: None │  │• Review: Single│      │• Review A: Arch│      │• Coding: Flash/phase│
-│• Exit: Instant│  │• Rounds: Max 10│      │• Review B: CR  │      │• Review: Dual/phase│
-│               │  │• Exit: Approve│       │• Arbitrate: Adv│      │• Phases: Max 12   │
-│               │  │               │       │• Exit: Consensus│     │• Stop: Consecutive  │
-│               │  │               │       │               │       │  fuses ≥ 3         │
-│               │  │               │       │               │       │• Exit: All phases  │
-│               │  │               │       │               │       │  done + verify     │
-└───────────────┘  └───────────────┘       └───────────────┘       └───────────────────┘
+User → @build → @fast-coder (Flash) → Done
+```
+
+- **Review**: None
+- **Rounds**: 1 (instant)
+- **Model**: Flash/Lite tier for maximum throughput
+- **Alias**: `/flash-dev`
+
+### `/fast-dev` — Agile Single-Review Loop
+
+```
+User → @build → @fast-coder (Flash) → @code-review → fix loop → Approve
+```
+
+- **Review**: 1 reviewer (`@code-review`)
+- **Rounds**: Max 10 (typically 2–3)
+- **Exit**: Single reviewer approves
+
+### `/prud-dev` — FMEA Risk-First Development
+
+```
+User → Socratic Clarification → FMEA Risk Register → Risk-Driven Plan → Implementation → Register-Audited Verification
+```
+
+- **Core**: Pre-implementation risk enumeration (SEV × PROB ranked, top-N)
+- **Review**: Configurable (0, 1, or 2 reviewers — risk register drives the bar)
+- **Exit**: All top-N risk mitigations verified in register
+- **See**: [Prudent Development](prud-dev.md) for full protocol
+
+### `/deep-dev` — Dual-Review Deep Consensus
+
+```
+User → @build → @fast-coder → @architect (Review A) + @code-review (Review B) → @advisor arbitration → Consensus
+```
+
+- **Review**: 2 reviewers (`@architect` + `@code-review`)
+- **Arbitration**: `@advisor` resolves disagreements under Safety-First principles
+- **Rounds**: Max 10 (typically 3–5)
+- **Exit**: Dual-reviewer consensus
+
+### `/ultra-dev` — Autonomous Multi-Phase Execution
+
+```
+User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1..N: code + dual review] → Final verify
+```
+
+- **Review**: 2 reviewers per phase
+- **Autonomy**: High — user gives objective, orchestrator drives all phases
+- **Phases**: Default 6 (3–6 recommended; compaction extends to 8–10)
+- **Stop**: Consecutive phase fuses ≥ 3, files > 100, external dependency unavailable
+- **Resume**: `--resume` from `.opencode/ultra-dev-state.md`
+
+---
+
+## Selection Guide
+
+```
+                    Is it a large-scale objective
+                    spanning multiple domains?
+                   /                          \
+                 Yes                           No
+                 /                              \
+           🛸 /ultra-dev               Could a bug cause harm
+           (autonomous)                to people or business?
+                                     /                        \
+                                   Yes                           No
+                                   /                              \
+                            🛡️ /prud-dev                  Is it mission-critical
+                            (risk-first)                   (distributed TX, full-stack)?
+                                                           /                      \
+                                                         Yes                         No
+                                                         /                            \
+                                                   🧠 /deep-dev               Is it a throwaway
+                                                   (deep consensus)          script or quick fix?
+                                                                              /              \
+                                                                            Yes                 No
+                                                                            /                    \
+                                                                      ⚡ /quick-dev         🚀 /fast-dev
+                                                                      (zero-friction)      (agile loop)
 ```
 
 ---
 
-## 2. Comparison & Selection Matrix
+## Comparison Matrix
 
-| Dimension | ⚡ `/quick-dev` (Quick Track) | 🚀 `/fast-dev` (Fast Track) | 🧠 `/deep-dev` (Deep Track) | 🛸 `/ultra-dev` (Ultra Track) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping, human-only reviews | 80% of daily tasks: CRUD endpoints, UI components, single-module refactoring | 20% mission-critical tasks: Payments, auth & security, distributed transactions, full-stack | **Large-scale objectives**: Full feature systems, multi-domain projects, end-to-end implementations that span many phases |
-| **Host Agent** | `@build` — orchestrates zero-review fast track | `@build` — orchestrates the review loop | `@build` — orchestrates dual review + arbitration | `@build` — orchestrates multi-phase autonomous loop |
-| **Coder Agent** | `@fast-coder` dispatch | `@fast-coder` dispatch | `@<lang>-dev` dispatch (domain-routed) | `@<lang>-dev` dispatch per phase (domain-routed) |
-| **Review Team** | ❌ **None (Bypassed)** | ⚖️ 1 Reviewer (`@code-review`) | 🏛️ **2 Reviewers (`@architect` ➕ `@code-review`)** | 🏛️ **2 Reviewers per phase (`@architect` ➕ `@code-review`)** |
-| **Consensus & Arbitration** | None | Direct iterative fixes | **Disagreements trigger `@advisor` arbitration under Safety-First principles** | **Per-phase `@advisor` arbitration under Safety-First principles** |
-| **Review Standards** | Basic syntax correctness | Strict lint, correct types, no regressions | **Deep requirement traceability, contract verification, evidence-driven boundary checks** | **Same dual-review standards as `/deep-dev`, applied per phase + cross-phase consistency** |
-| **Convergence** | **1 Round (Instant)** | Max 10 rounds (typically settles in 2–3 rounds) | Max 10 rounds (typically settles in 3–5 rounds) | **Max 10 rounds per phase, default 6 phases (3–6 recommended; compaction extends to 8–10)** |
-| **Autonomy** | None (user drives) | Low (user initiates, loop runs) | Low (user initiates, loop runs) | **High (user gives objective, orchestrator decomposes & drives all phases autonomously)** |
+| Dimension | ⚡ `/quick-dev` | 🚀 `/fast-dev` | 🛡️ `/prud-dev` | 🧠 `/deep-dev` | 🛸 `/ultra-dev` |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Philosophy** | Zero friction | Agile loop | Risk-first FMEA | Deep consensus | Full autonomy |
+| **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping | 80% of daily tasks: CRUD, components, single-module | Safety-critical: payments, auth, medical, aviation | 20% mission-critical: distributed TX, full-stack, security | Large-scale systems spanning multiple domains |
+| **Host Agent** | `@build` | `@build` | `@build` | `@build` | `@build` |
+| **Coder Agent** | `@fast-coder` | `@fast-coder` | `@fast-coder` or `@<lang>-dev` | `@<lang>-dev` (domain-routed) | `@<lang>-dev` per phase |
+| **Review Team** | None | 1 (`@code-review`) | Configurable (risk-driven) | 2 (`@architect` + `@code-review`) | 2 per phase |
+| **Pre-Implementation** | None | None | FMEA Risk Register | None | `@explore` survey |
+| **Arbitration** | None | Direct fixes | Risk-register-driven | `@advisor` (Safety-First) | `@advisor` per phase |
+| **Convergence** | 1 round | Max 10 rounds | Register audit | Max 10 rounds | Max 10 rounds/phase |
+| **Autonomy** | None | Low | Low | Low | High |
 
 ---
 
-## 3. Dynamic Domain Persona Injection
+## Dynamic Domain Persona Injection
 
-A common question is: *"How does a single `@fast-coder` master specialized practices across Frontend, Go, Python, and DBA?"*
+All flows that involve coding (`/quick-dev`, `/fast-dev`, `/prud-dev`, `/deep-dev`, `/ultra-dev`) leverage **Dynamic Domain Persona Injection**:
 
-The system implements **Dynamic Domain Persona Injection**:
-1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput and responsiveness;
+1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput;
 2. **On-the-Fly Persona Enchantment**: Orchestrator `@build` detects the technical stack and injects specialized domain guidelines into the prompt header:
    - **Frontend**: Strict TS (no `any`), atomic Tailwind, no wasteful re-renders, A11y standards;
    - **Go**: Explicit error handling, context propagation, goroutine leak prevention, zero panics in hot paths;
@@ -69,174 +136,54 @@ The system implements **Dynamic Domain Persona Injection**:
 
 ---
 
-## 4. Autonomous Multi-Phase Execution (`/ultra-dev`)
+## Usage & Arguments
 
-For large-scale objectives that span multiple domains and require end-to-end implementation, `/ultra-dev` takes a high-level goal and drives it to completion autonomously:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 👤 High-Level Objective
-    participant Build as 🎯 @build (Orchestrator)
-    participant Explorer as ⚡ @explore (Survey)
-    participant FastCoder as ⚡ @fast-coder (Flash Coder)
-    participant Arch as 🧐 @architect (Review A)
-    participant CR as 🧐 @code-review (Review B)
-
-    User->>Build: /ultra-dev <objective> [--max-rounds=N] [--max-phases=N]
-    Build->>Build: Decompose objective into phased plan
-    Build->>User: Present plan (only user interaction point)
-
-    Build->>Explorer: Phase 0: Survey codebase
-    Explorer-->>Build: Compressed context map
-
-    loop Per Phase (autonomous)
-        Build->>FastCoder: Dispatch phase N spec + context
-        FastCoder-->>Build: Implementation
-        par Dual Review
-            Build->>Arch: Review A: requirement & contract
-            Arch-->>Build: Verdict A
-        and
-            Build->>CR: Review B: quality & defense
-            CR-->>Build: Verdict B
-        end
-        alt Disagreement
-            Build->>Build: @advisor arbitration (Safety-First)
-        end
-        alt REQUEST_CHANGES & round < max
-            Build->>FastCoder: Targeted fixes
-        else APPROVE or max rounds
-            Build->>Build: Phase complete or fused
-        end
-    end
-
-    Build->>Build: Final verification (build + test + lint)
-    Build->>User: 🎉 Completion report with all phases & files
-```
-
-### Stop Conditions (Hard Stops)
-
-Unlike `/deep-dev` which only stops on max-rounds, `/ultra-dev` has additional autonomous safety guards:
-
-| Stop Condition | Rationale |
-|---|---|
-| **Consecutive phase fuses ≥ 3** | Three phases in a row hit max-rounds without convergence — likely the objective is too ambiguous or the approach is wrong |
-| **Business-logic fork with no codebase precedent** | Requires a user-level decision that cannot be resolved by reading code |
-| **Cumulative files changed > 100** | Safety guardrail against uncontrolled large-scale refactoring |
-| **External dependency unavailable** | Required service/API unreachable and cannot be bypassed |
-
-### `/ultra-dev` vs `/deep-dev` — Which One to Pick?
-
-Both support multi-stage, full-stack execution with dual review. The key differentiator is **autonomy and scope**:
-
-| Factor | `/deep-dev` | `/ultra-dev` |
-|---|---|---|
-| **Input** | A specific coding task (e.g. "implement QR login with session table, polling API, dialog") | A high-level objective (e.g. "implement a complete user authentication system") |
-| **Decomposition** | Orchestrator sequences sub-tasks within a single review loop | Orchestrator decomposes into independent phases, each with its own review loop |
-| **Review scope** | One dual-review pass on the full diff | One dual-review pass **per phase**, plus cross-phase consistency checks |
-| **User interaction** | User triggers, loop runs, user gets result | User gives objective, confirms plan, then gets result — zero interaction in between |
-
-**Rule of thumb**: If you can write your request as a single coding task → `/deep-dev`. If you need to say "implement the whole X system" and let the agent figure out the decomposition → `/ultra-dev`.
-
-**Practical limits**: `/ultra-dev` is designed for 3–6 phase objectives. With context compaction (Step 4 in the protocol), it can stretch to 8–10 phases. For objectives beyond 10 phases, split into multiple `/ultra-dev --resume` runs.
-
----
-
-## 5. Full-Stack Multi-Stage Orchestration
-
-For complex tasks spanning database migrations, backend APIs, and frontend UIs, `/deep-dev` handles end-to-end decomposition and synthesis:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 👤 Full-Stack Task
-    participant Build as 🎯 @build (Orchestrator & Synthesizer)
-    participant FastCoder as ⚡ @fast-coder (Flash Coder)
-    participant Arch as 🧐 @architect (Review A: Contract & Spec)
-    participant CR as 🧐 @code-review (Review B: Code Quality)
-
-    User->>Build: Dispatch full-stack requirement (e.g. QR Code Auth)
-    
-    rect rgb(240, 248, 255)
-    Note over Build,FastCoder: 1. Ordered Pipeline Execution (Flash)
-    Build->>FastCoder: [DBA Persona] Design session table & indexes
-    FastCoder-->>Build: Output Migration / SQL
-    Build->>FastCoder: [Backend Persona] Implement business logic & API
-    FastCoder-->>Build: Output Controller & Service
-    Build->>FastCoder: [Frontend Persona] Implement UI modal & integrate API
-    FastCoder-->>Build: Output Page & Component
-    end
-
-    rect rgb(255, 245, 238)
-    Note over Build,CR: 2. Full Synthesis ➡️ Unified Dual Review
-    Note over Build: Aggregate full Git Diff + Frontend/Backend DTO Contract
-    par Review A: Requirements & Contract
-        Build->>Arch: Verify full-loop requirement coverage & API contract integrity
-        Arch-->>Build: Review Report A
-    and Review B: Quality & Defensive Line
-        Build->>CR: Ground-up audit on boundary values, concurrency & error handling
-        CR-->>Build: Review Report B
-    end
-    end
-
-    Build->>User: 🎉 Full-stack double-review approved, delivered as one unit!
-```
-
----
-
-## 6. Usage & Arguments
-
-### 1. `/quick-dev` (Zero-Review High-Velocity Track)
+### `/quick-dev` (Zero-Review)
 
 ```bash
-# Instant script generation or straightforward UI tweak (bypasses all AI reviews)
 /quick-dev Add copy button to code blocks with toast feedback
-
-# Alias command (equivalent)
-/flash-dev Fix off-by-one error in pagination query
+/flash-dev Fix off-by-one error in pagination query  # alias
 ```
 
-### 2. `/fast-dev` (Agile Single-Review Track)
+### `/fast-dev` (Single-Review)
 
 ```bash
-# General features & component development (1 flagship reviewer)
 /fast-dev Implement user avatar upload and crop component
-
-# Custom max rounds
-/fast-dev Optimize order pagination query and add composite index --max-rounds=5
+/fast-dev Optimize order pagination query --max-rounds=5
 ```
 
-### 3. `/deep-dev` (Mission-Critical & Full-Stack Track)
+### `/prud-dev` (Risk-First)
 
 ```bash
-# Mission-critical refactoring
+/prud-dev Implement payment settlement with idempotency guarantees --top=5
+/prud-dev Add OAuth2 PKCE flow for mobile app --top=3 --max-rounds=8
+```
+
+### `/deep-dev` (Dual-Review)
+
+```bash
 /deep-dev Refactor settlement engine with distributed transaction compensation
-
-# Full-stack feature (auto DB ➡️ Backend ➡️ Frontend staging & synthesis)
-/deep-dev Implement QR-code login: session table schema, polling backend API, and frontend dialog component --max-rounds=10
+/deep-dev Implement QR-code login: session table, polling API, dialog --max-rounds=10
 ```
 
-### 4. `/ultra-dev` (Autonomous Multi-Phase Track)
+### `/ultra-dev` (Autonomous Multi-Phase)
 
 ```bash
-# Large-scale objective — orchestrator decomposes and drives all phases autonomously
-/ultra-dev Implement a complete user authentication system with OAuth2, session management, and role-based access control
-
-# Full-stack multi-domain project with custom limits
-/ultra-dev Build a real-time notification service: WebSocket gateway, message queue, client SDK, and admin dashboard --max-rounds=8 --max-phases=10
-
-# Resume from interrupted session (reads .opencode/ultra-dev-state.md)
+/ultra-dev Implement a complete user authentication system with OAuth2, session management, and RBAC
+/ultra-dev Build real-time notification service: WebSocket, queue, SDK, dashboard --max-rounds=8 --max-phases=10
 /ultra-dev --resume
 ```
 
 ---
 
-## 7. Guardrails & Anti-Lock Mechanism
+## Guardrails & Anti-Lock Mechanisms
 
-1. **Safety-First Principle**: When Reviewer A and Reviewer B disagree, `@advisor` arbitration strictly enforces the stricter requirement;
-2. **10-Round Fuse Guard**: If unresolved issues remain after 10 rounds (per phase for `/ultra-dev`), the loop automatically halts and produces an **Unresolved Conflict Report** for human review;
-3. **Consecutive Fuse Stop** (`/ultra-dev` only): 3 consecutive phase fuses trigger a hard stop — the approach is likely wrong;
-4. **Max-Phases Cap** (`/ultra-dev` only): `--max-phases` (default 6, max 20) prevents infinite decomposition. Recommended 3–6; beyond 6 requires context compaction;
-5. **Context Compaction** (`/ultra-dev` only): Every 2 completed phases, write a checkpoint to `.opencode/ultra-dev-state.md` and drop detailed results from active context. Enables `--resume` for interrupted sessions.
-6. **Per-Phase Diff Isolation** (`/ultra-dev` only): Each phase gets its own git commit. Reviewers see only the current phase's diff (`HEAD~1`), not cumulative history.
-7. **Zero Configuration Pollution**: `tiers.json` seamlessly connects with `/profile` across all model providers.
+| Guardrail | Applies To |
+|---|---|
+| **Safety-First Arbitration** | `/deep-dev`, `/ultra-dev`, `/prud-dev` (when dual-review enabled) |
+| **10-Round Fuse** | All flows with review (per phase for `/ultra-dev`) |
+| **Consecutive Fuse Stop** (≥ 3) | `/ultra-dev` |
+| **Max-Phases Cap** (default 6, max 20) | `/ultra-dev` |
+| **Context Compaction** | `/ultra-dev` (every 2 phases) |
+| **Per-Phase Diff Isolation** | `/ultra-dev` (one git commit per phase) |
+| **Risk Register Audit** | `/prud-dev` (all top-N mitigations verified) |
