@@ -1,11 +1,11 @@
 ---
-name: ultra-dev
-description: Ultra-Dev - autonomous goal-driven multi-phase development: decomposition, domain-routed coding, dual review, Advisor arbitration per phase, context compaction, --resume. Load ONLY when the user invokes /ultra-dev.
+name: dev-ultra
+description: Ultra-Dev - autonomous goal-driven multi-phase development: decomposition, domain-routed coding, dual review, Advisor arbitration per phase, context compaction, --resume. Load ONLY when the user invokes /dev-ultra.
 ---
 
 # Ultra-Dev Protocol (Autonomous Goal-Driven Multi-Phase Development)
 
-You are now executing the **ultra-dev** workflow — an autonomous, goal-driven, multi-phase development loop. The orchestrator receives a high-level objective, decomposes it into ordered phases, and drives the entire pipeline to completion with zero user interaction unless a hard stop is triggered.
+You are now executing the **dev-ultra** workflow — an autonomous, goal-driven, multi-phase development loop. The orchestrator receives a high-level objective, decomposes it into ordered phases, and drives the entire pipeline to completion with zero user interaction unless a hard stop is triggered.
 
 ## Core Design Principle: Goal-Driven Autonomous Convergence
 
@@ -56,10 +56,10 @@ DomainCoding --> DualReview: Submit Git Diff + phase spec to dual reviewers
 
 ## Arguments & Options
 
-- **Positional args**: The high-level objective or task description (e.g. `/ultra-dev Implement a complete user authentication system with OAuth2, session management, and role-based access control`).
+- **Positional args**: The high-level objective or task description (e.g. `/dev-ultra Implement a complete user authentication system with OAuth2, session management, and role-based access control`).
 - `--max-rounds=N` (optional): Maximum iteration rounds **per phase**. **Default: 10**, range: 1–99. Non-numeric or missing → fall back to 10. Clamp to [1, 99].
 - `--max-phases=N` (optional): Maximum number of phases the orchestrator may decompose into. **Default: 6**, range: 1–20. Recommended range: 3–6. Phases beyond 6 require context compaction (see Step 4) to avoid orchestrator context overflow. Non-numeric or missing → fall back to 6. Clamp to [1, 20].
-- `--resume` (optional): Resume from the last checkpoint. Reads `.opencode/ultra-dev-state.md` and continues from the first uncompleted phase. If no checkpoint exists, starts fresh.
+- `--resume` (optional): Resume from the last checkpoint. Reads `.opencode/dev-ultra-state.md` and continues from the first uncompleted phase. If no checkpoint exists, starts fresh.
 
 **Parsing rules**: Parse `--max-rounds`, `--max-phases`, and `--resume` from the command arguments (the user request following this protocol). Non-numeric, empty, or missing values → fall back to defaults. Clamp to valid ranges. Example: `--max-rounds=0` → 1; `--max-rounds=abc` → 10; `--max-phases=100` → 20.
 
@@ -82,7 +82,7 @@ DomainCoding --> DualReview: Submit Git Diff + phase spec to dual reviewers
 
 ### Step 1 — Objective Intake & Phase Decomposition
 
-The orchestrator (`@build`) receives the raw user objective and decomposes it into an ordered execution plan. Present the plan to the user as a numbered list **before** executing. This is the **only user interaction point** during ultra-dev — the user may review, modify, reorder, or reject phases in the plan before confirming execution. Once the user confirms, the orchestrator drives all phases autonomously with no further user interaction unless a Stop Condition (Step 5) fires.
+The orchestrator (`@build`) receives the raw user objective and decomposes it into an ordered execution plan. Present the plan to the user as a numbered list **before** executing. This is the **only user interaction point** during dev-ultra — the user may review, modify, reorder, or reject phases in the plan before confirming execution. Once the user confirms, the orchestrator drives all phases autonomously with no further user interaction unless a Stop Condition (Step 5) fires.
 
 **Plan confirmation protocol**:
 1. Present the plan as a numbered list with agent assignments and deliverables.
@@ -98,9 +98,9 @@ The orchestrator (`@build`) receives the raw user objective and decomposes it in
 4. Cap at `--max-phases` (default 6, max 20). If the objective needs more phases, prioritize and merge — do not exceed the cap. Recommend 3–6 phases for best results; beyond 6 requires context compaction to avoid overflow.
 5. Reserve the final phase for verification (build + test + lint) — this is mandatory.
 
-**Resume check**: If `--resume` was specified, read `.opencode/ultra-dev-state.md` before decomposing. If a valid checkpoint exists with completed phases, skip decomposition for those phases and resume from the first uncompleted phase. If the checkpoint is missing or corrupt, start fresh and inform the user.
+**Resume check**: If `--resume` was specified, read `.opencode/dev-ultra-state.md` before decomposing. If a valid checkpoint exists with completed phases, skip decomposition for those phases and resume from the first uncompleted phase. If the checkpoint is missing or corrupt, start fresh and inform the user.
 
-**Example decomposition** for `/ultra-dev Implement QR-code login: session table, polling API, frontend dialog`:
+**Example decomposition** for `/dev-ultra Implement QR-code login: session table, polling API, frontend dialog`:
 ```
 ## Execution Plan
 1. **[@explore]** — Survey existing auth code, session management, and DB schema → architecture map
@@ -168,7 +168,7 @@ Dispatch to the appropriate domain specialist (`@<lang>-dev`) with the phase spe
 You are the full-stack developer. Read the relevant files and 100% implement every requirement for this phase. No fake mocks, no empty TODOs, and no skipped edge cases. Follow existing conventions from the context map above.
 ```
 
-**Domain persona injection**: Domain expertise is native to each `@<lang>-dev` agent — no separate persona injection needed (unlike `/quick-dev`, which uses `@fast-coder`).
+**Domain persona injection**: Domain expertise is native to each `@<lang>-dev` agent — no separate persona injection needed (unlike `/dev-quick`, which uses `@fast-coder`).
 
 #### 3b — Dual Review
 
@@ -238,7 +238,7 @@ Compare the verdicts from Reviewer A and Reviewer B:
   Fix every issue listed above. Do NOT introduce new issues. Do NOT refactor unrelated code. Address each finding at the exact file:line cited. After fixing, the diff should contain ONLY fixes for these issues — no scope creep.
   ```
 
-- If `Round >= Max`: **Phase Fuse** — log unresolved issues for this phase, carry them forward to the final report, and proceed to the next phase. Do NOT abort the entire ultra-dev loop for a single phase fusing — continue with remaining phases and note the fused phase in the final delivery.
+- If `Round >= Max`: **Phase Fuse** — log unresolved issues for this phase, carry them forward to the final report, and proceed to the next phase. Do NOT abort the entire dev-ultra loop for a single phase fusing — continue with remaining phases and note the fused phase in the final delivery.
 
 ### Step 4 — Cross-Phase Context Carrying & Compaction
 
@@ -253,11 +253,11 @@ Between phases, carry context forward as compressed one-line conclusions:
 
 To prevent orchestrator context overflow on long runs, compact the context after every 2 completed phases (i.e. after phase 2, 4, 6, …):
 
-1. **Write checkpoint**: Append the completed phase's summary to `.opencode/ultra-dev-state.md` using the checkpoint format below. This file lives in the workspace root under `.opencode/` (git-ignored, same as handoff files).
+1. **Write checkpoint**: Append the completed phase's summary to `.opencode/dev-ultra-state.md` using the checkpoint format below. This file lives in the workspace root under `.opencode/` (git-ignored, same as handoff files).
 2. **Drop detailed results**: After writing the checkpoint, discard the detailed reviewer reports, coder outputs, and arbitration records from your active context for phases older than the current one. Keep only the one-line conclusions in active context.
 3. **Carry forward what matters**: Active context should contain only: (a) the original objective, (b) the execution plan, (c) one-line conclusions per completed phase, (d) files-changed list, (e) the current phase's working context.
 
-**Checkpoint file format** (`.opencode/ultra-dev-state.md`):
+**Checkpoint file format** (`.opencode/dev-ultra-state.md`):
 ```markdown
 ---
 timestamp: "<YYYY-MM-DDTHH:MM:SSZ>"
@@ -288,7 +288,7 @@ total_phases_planned: <N>
 <running list across all phases>
 ```
 
-**Session recovery**: If the session is interrupted (context overflow, network drop, user closes terminal), the user can resume with `/ultra-dev --resume`. The orchestrator reads `.opencode/ultra-dev-state.md`, reconstructs the one-line conclusions from the checkpoint, and continues from the first uncompleted phase. If the checkpoint is missing or the objective has changed, start fresh.
+**Session recovery**: If the session is interrupted (context overflow, network drop, user closes terminal), the user can resume with `/dev-ultra --resume`. The orchestrator reads `.opencode/dev-ultra-state.md`, reconstructs the one-line conclusions from the checkpoint, and continues from the first uncompleted phase. If the checkpoint is missing or the objective has changed, start fresh.
 
 ---
 
@@ -296,7 +296,7 @@ total_phases_planned: <N>
 
 To ensure each phase's dual review sees a clean, isolated diff (not a cumulative mess of all prior phases):
 
-1. **Commit after each phase**: After the domain specialist (`@<lang>-dev`) completes the phase and before dispatching reviewers, run `git add -A && git commit -m "ultra-dev: phase <N> — <one-line deliverable>"`. This creates a clean commit boundary.
+1. **Commit after each phase**: After the domain specialist (`@<lang>-dev`) completes the phase and before dispatching reviewers, run `git add -A && git commit -m "dev-ultra: phase <N> — <one-line deliverable>"`. This creates a clean commit boundary.
 2. **Review the diff**: Dispatch `@code-review` and `@architect` with `git diff HEAD~1` (the current phase's changes only). This prevents diff bloat across phases.
 3. **Fix commits**: If the review iteration loop produces fixes within the same phase, amend the phase commit (`git commit --amend --no-edit`) after each fix round. The reviewers always see `HEAD~1..HEAD` as the current phase's full changes.
 4. **Final state**: After all phases complete, the git log shows one commit per phase — a clean, auditable history.
@@ -311,7 +311,7 @@ After each phase completes (or fuses), evaluate stop conditions. If ANY of the f
 |---|---|
 | **Consecutive phase fuses ≥ 3** | Three phases in a row hit max-rounds without convergence — likely the objective is too ambiguous or the approach is wrong. |
 | **Business-logic fork with no codebase precedent** | The objective requires a user-level decision (e.g., "JWT vs Session" with no existing pattern to follow) that cannot be resolved by reading code. |
-| **Cumulative files changed > 100** | Safety guardrail against uncontrolled large-scale refactoring. If this fires, the objective likely needs to be broken into smaller ultra-dev runs. |
+| **Cumulative files changed > 100** | Safety guardrail against uncontrolled large-scale refactoring. If this fires, the objective likely needs to be broken into smaller dev-ultra runs. |
 | **External dependency unavailable** | A required external service/API/dependency is unreachable and cannot be bypassed. |
 | **User says "stop"** | Manual override — the user can interrupt at any time. |
 
@@ -392,20 +392,20 @@ After all phases complete (or a stop condition halts execution):
 1. **Safety-First Principle**: When reviewers disagree and `@advisor` arbitrates, always favor the stricter requirement for security, correctness, or data integrity.
 2. **Per-Phase 10-Round Fuse**: If a phase doesn't converge within `--max-rounds`, fuse it and proceed — don't let one phase lock the entire loop.
 3. **Consecutive Fuse Stop**: 3 consecutive phase fuses = hard stop. The approach is likely wrong.
-4. **Max-Phases Cap**: `--max-phases` (default 6, max 20) prevents infinite decomposition. Recommended 3–6 phases; beyond 6 requires context compaction (Step 4) to avoid orchestrator overflow. If the objective needs more, split into multiple `/ultra-dev --resume` runs.
+4. **Max-Phases Cap**: `--max-phases` (default 6, max 20) prevents infinite decomposition. Recommended 3–6 phases; beyond 6 requires context compaction (Step 4) to avoid orchestrator overflow. If the objective needs more, split into multiple `/dev-ultra --resume` runs.
 5. **Zero Configuration Pollution**: `tiers.json` stays clean — no new agents or tiers needed. Ultra-dev reuses the existing multi-agent roster exclusively.
 6. **Token Discipline**: Exploration runs once (phase 0). Cross-phase context is compressed to one-liners. Follow-up phases read only changed files, not the full codebase.
 7. **Single Retry Rule**: Each agent gets at most one retry per phase. Repeated failures fuse the phase — no infinite retry loops.
-8. **Context Compaction**: Every 2 completed phases, write a checkpoint to `.opencode/ultra-dev-state.md` and drop detailed results from active context. Enables session recovery via `--resume` and prevents orchestrator context overflow.
+8. **Context Compaction**: Every 2 completed phases, write a checkpoint to `.opencode/dev-ultra-state.md` and drop detailed results from active context. Enables session recovery via `--resume` and prevents orchestrator context overflow.
 9. **Per-Phase Diff Isolation**: Each phase gets its own git commit. Reviewers see only the current phase's diff (`HEAD~1`), not the cumulative history. Prevents diff bloat and ensures clean, auditable commit history.
 
 ---
 
-## When to use `/ultra-dev` vs `/review-dev`
+## When to use `/dev-ultra` vs `/dev-review`
 
-Both `/review-dev` and `/ultra-dev` support multi-stage, full-stack execution with dual review. The key differentiator is **autonomy and scope**:
+Both `/dev-review` and `/dev-ultra` support multi-stage, full-stack execution with dual review. The key differentiator is **autonomy and scope**:
 
-| Factor | `/review-dev` | `/ultra-dev` |
+| Factor | `/dev-review` | `/dev-ultra` |
 |---|---|---|
 | **Input** | A specific coding task (e.g. "implement QR login with session table, polling API, dialog") | A high-level objective (e.g. "implement a complete user authentication system") |
 | **Decomposition** | The orchestrator sequences sub-tasks within a single review loop | The orchestrator decomposes into independent phases, each with its own review loop |
@@ -413,6 +413,6 @@ Both `/review-dev` and `/ultra-dev` support multi-stage, full-stack execution wi
 | **User interaction** | User triggers, loop runs, user gets result | User gives objective, confirms plan, then gets result — zero interaction in between |
 | **When to pick** | You know exactly what to build and can describe it in one sentence | You have a big-picture goal and want the orchestrator to figure out the phases |
 
-**Rule of thumb**: If you can write your request as a single coding task → `/review-dev`. If you need to say "implement the whole X system" and let the agent figure out the decomposition → `/ultra-dev`.
+**Rule of thumb**: If you can write your request as a single coding task → `/dev-review`. If you need to say "implement the whole X system" and let the agent figure out the decomposition → `/dev-ultra`.
 
-**Practical limits**: `/ultra-dev` is designed for 3–6 phase objectives. With context compaction (Step 4), it can stretch to 8–10 phases. For objectives beyond 10 phases, split into multiple `/ultra-dev --resume` runs. The orchestrator (`@build`, standard tier) has a finite context window — compaction prevents overflow but does not eliminate the ceiling.
+**Practical limits**: `/dev-ultra` is designed for 3–6 phase objectives. With context compaction (Step 4), it can stretch to 8–10 phases. For objectives beyond 10 phases, split into multiple `/dev-ultra --resume` runs. The orchestrator (`@build`, standard tier) has a finite context window — compaction prevents overflow but does not eliminate the ceiling.

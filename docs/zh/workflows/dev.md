@@ -1,6 +1,6 @@
 # `/dev` 组合引擎
 
-`/dev` 是[五档开发流](dev-loops.md)背后的**单趟流水线组合引擎**：通过规格深度、计划评审、代码评审与 QA 标志自由组装开发流水线。预设命令（`/quick-dev`、`/plan-dev`、`/review-dev`）都是该引擎上的固定标志组合。
+`/dev` 是[五档开发流](dev-loops.md)背后的**单趟流水线组合引擎**：通过规格深度、计划评审、代码评审与 QA 标志自由组装开发流水线。预设命令（`/dev-quick`、`/dev-plan`、`/dev-review`）都是该引擎上的固定标志组合。
 
 ---
 
@@ -51,9 +51,9 @@
 
 | 预设 | 等价 `/dev` 标志 | 传统别名翻译 | max-rounds 默认 |
 |---|---|---|---|
-| `/quick-dev`（别名 `/flash-dev`） | *（无）* | `--review` → `--code-review=1` | 3 |
-| `/plan-dev` | `--plan` | `--review` → `--code-review=1` | 5 |
-| `/review-dev` | `--code-review=2` | — | 10 |
+| `/dev-quick`（别名 `/dev-flash`） | *（无）* | `--review` → `--code-review=1` | 3 |
+| `/dev-plan` | `--plan` | `--review` → `--code-review=1` | 5 |
+| `/dev-review` | `--code-review=2` | — | 10 |
 | 裸 `/dev` | 自定义标志 | `--review` → `--code-review=1` | 5 |
 
 ## 用法示例
@@ -84,6 +84,6 @@
 
 ## 边界
 
-`/prud-dev`（FMEA 风险登记册）与 `/ultra-dev`（自主多阶段）仍是**独立协议** —— 拓扑不同（登记册驱动 / 多阶段自主），无法用 `/dev` 标志表达。
+`/dev-prud`（FMEA 风险登记册）与 `/dev-ultra`（自主多阶段）仍是**独立协议** —— 拓扑不同（登记册驱动 / 多阶段自主），无法用 `/dev` 标志表达。
 
 预设优先的总览见[五档开发流](dev-loops.md)。

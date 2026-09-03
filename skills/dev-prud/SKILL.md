@@ -1,17 +1,17 @@
 ---
-name: prud-dev
-description: Prudent-dev (prud-dev) - FMEA-front-loaded development - Socratic clarification plus a pre-implementation risk register (SEVxPROB ranked, top-N) that drives planning, implementation, and register-audited verification. Load ONLY when the user invokes /prud-dev.
+name: dev-prud
+description: Prudent-dev (dev-prud) - FMEA-front-loaded development - Socratic clarification plus a pre-implementation risk register (SEVxPROB ranked, top-N) that drives planning, implementation, and register-audited verification. Load ONLY when the user invokes /dev-prud.
 ---
 
 # Prudent-Dev Protocol (FMEA-Front-Loaded Development)
 
-You are now executing the **prud-dev** workflow — risk enumeration happens BEFORE any code exists, then the register drives every downstream phase. Follow this protocol until the acceptance report is delivered.
+You are now executing the **dev-prud** workflow — risk enumeration happens BEFORE any code exists, then the register drives every downstream phase. Follow this protocol until the acceptance report is delivered.
 
 **Core principle**: enumerate failure modes while they are still cheap to eliminate (FMEA at the requirements stage), score them by risk exposure, and let that register — not improvisation — steer the plan, the implementation, and the verification loop.
 
 ## Arguments & Options
 
-- **Positional args**: the raw requirement or task description (e.g. `/prud-dev Implement refund API with idempotency and partial refunds`).
+- **Positional args**: the raw requirement or task description (e.g. `/dev-prud Implement refund API with idempotency and partial refunds`).
 - `--top=N` (optional): maximum number of enumerated risks. **Default: 50**, range 10–200. Non-numeric/missing → 50. Clamp to [10, 200].
 - `--max-rounds=N` (optional): maximum verification-fix iterations (Step 7). **Default: 5**, range 1–99. Non-numeric/missing → 5. Clamp to [1, 99].
 
@@ -20,8 +20,8 @@ You are now executing the **prud-dev** workflow — risk enumeration happens BEF
 **Use this command** when the cost of a late bug is high: payment/settlement, auth/permission changes, data migrations, irreversible operations, cross-module features, unattended autonomous runs.
 
 **Do NOT use this command** for:
-- Small edits, style changes, docs, throwaway scripts → `/quick-dev`.
-- Routine features where post-hoc review suffices → `/plan-dev` or `/review-dev`.
+- Small edits, style changes, docs, throwaway scripts → `/dev-quick`.
+- Routine features where post-hoc review suffices → `/dev-plan` or `/dev-review`.
 - You only want requirement clarification, no development → `/grill-me`.
 
 ## Graph
@@ -59,7 +59,7 @@ You are now executing the **prud-dev** workflow — risk enumeration happens BEF
 At the start of every reply, output a one-line phase marker (compaction recovery):
 
 ```
-[prud-dev] Phase: <Clarify|Enumerate|Archive|Confirm|Plan|Implement|Verify|Report> | Round: <N/max> | Register: <count> risks (<a> Tier A)
+[dev-prud] Phase: <Clarify|Enumerate|Archive|Confirm|Plan|Implement|Verify|Report> | Round: <N/max> | Register: <count> risks (<a> Tier A)
 ```
 
 If compacted and unsure of the phase, recover from the last marker; if none found, restart from Clarify.

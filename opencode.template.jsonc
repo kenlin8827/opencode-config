@@ -546,7 +546,7 @@
       "mode": "subagent",
       "temperature": 0.2,
       // medium (not low): fast-coder produces production-grade code (zero mocks,
-      // zero unhandled errors per its prompt) — /quick-dev ships with ZERO review,
+      // zero unhandled errors per its prompt) — /dev-quick ships with ZERO review,
       // so low variant on a flash-tier model would silently degrade code quality.
       // explore keeps low (retrieval, not reasoning); fast-coder needs reasoning.
       "variant": "medium",

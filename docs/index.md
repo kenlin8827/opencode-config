@@ -27,7 +27,7 @@ features:
   - title: 🤖 Specialist Swarm & Orchestration
     details: 17 domain specialists (@java-dev, @security, @dba, ...) routed dynamically across @code, @build, and @plan modes.
   - title: 🔄 Five Dev Flows
-    details: /quick-dev zero-friction fast track, /plan-dev plan-first development, /prud-dev risk-first FMEA, /review-dev mission-critical dual-review arbitration, /ultra-dev autonomous multi-phase execution, /dev composable pipelines — up to 90% token compression.
+    details: /dev-quick zero-friction fast track, /dev-plan plan-first development, /dev-prud risk-first FMEA, /dev-review mission-critical dual-review arbitration, /dev-ultra autonomous multi-phase execution, /dev composable pipelines — up to 90% token compression.
   - title: 📐 Specification-Driven Development (SDD)
     details: PRD Requirements → ADR Architecture → PLAN Task Breakdown → IMPL Code & Verification with flexible entry and interactive stage transitions.
   - title: 🎯 One-Shot Model Governance

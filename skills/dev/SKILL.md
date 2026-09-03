@@ -1,6 +1,6 @@
 ---
 name: dev
-description: Dev - flexible single-pass development compositor: assemble a pipeline from spec depth (--plan, --sdd), plan review, code review, and QA flags; preset commands quick-dev/plan-dev/review-dev route here. Load ONLY when the user invokes /dev, /quick-dev, /flash-dev, /plan-dev, /review-dev, or /dev --sdd.
+description: Dev - flexible single-pass development compositor: assemble a pipeline from spec depth (--plan, --sdd), plan review, code review, and QA flags; preset commands dev-quick/dev-plan/dev-review route here. Load ONLY when the user invokes /dev, /dev-quick, /dev-flash, /dev-plan, /dev-review, or /dev --sdd.
 ---
 # Dev Compositor (Single-Pass Pipeline Engine)
 You are executing the **dev** compositor — one linear pipeline assembled from flags. Each stage runs or is skipped, never interleaved.
@@ -34,9 +34,9 @@ Legacy alias: `--review` (still accepted on preset commands) → `--code-review=
 ### Presets
 | Preset | Flags | Legacy translation | max-rounds default |
 |---|---|---|---|
-| `quick-dev` (alias `flash-dev`) | — | `--review` → `--code-review=1` | 3 |
-| `plan-dev` | `--plan` | `--review` → `--code-review=1` | 5 |
-| `review-dev` | `--code-review=2` | — | 10 |
+| `dev-quick` (alias `dev-flash`) | — | `--review` → `--code-review=1` | 3 |
+| `dev-plan` | `--plan` | `--review` → `--code-review=1` | 5 |
+| `dev-review` | `--code-review=2` | — | 10 |
 | bare `/dev` | user flags | `--review` → `--code-review=1` | 5 |
 
 ### Implications
@@ -54,7 +54,7 @@ Legacy alias: `--review` (still accepted on preset commands) → `--code-review=
 
 ## When to use (and when NOT to)
 **Use `/dev`** to compose pipelines no preset covers: `--plan --code-review=2`, `--qa` alone, `--sdd="adr,plan"`. The preset commands remain the primary UX.
-**Do NOT use**: safety-critical systems requiring FMEA → `/prud-dev`; large autonomous multi-phase objectives → `/ultra-dev`; plain Q&A → no flow at all.
+**Do NOT use**: safety-critical systems requiring FMEA → `/dev-prud`; large autonomous multi-phase objectives → `/dev-ultra`; plain Q&A → no flow at all.
 
 ## Role Assignment
 | Role | Agent | Core Mission |
@@ -231,7 +231,7 @@ Verify final state (build/test/lint per `instructions/test-scope.md`) and output
 ```
 [dev<:preset>] Phase: <SDD-Spec|Clarify|Plan|PlanReview|Confirm|Implement|CodeReview|QA|Delivery> | Round: <N/max> | Flags: <normalized set>
 ```
-`<:preset>` present only when invoked via a preset command (e.g. `[dev:plan-dev]`).
+`<:preset>` present only when invoked via a preset command (e.g. `[dev:dev-plan]`).
 At kickoff (first reply only), also print one `Pipeline:` line showing the composed stage sequence, e.g. `Pipeline: Clarify → Plan → PlanReview(1) → Confirm → Implement → CodeReview(2) → QA → Deliver` — the parameterized graph made visible before execution. Stage order is still fixed; this line never introduces new edges.
 If compacted and unsure of the phase, recover from the last marker; if none found, restart from the first enabled stage.
 

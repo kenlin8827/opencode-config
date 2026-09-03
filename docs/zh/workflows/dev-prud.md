@@ -1,6 +1,6 @@
-# 审慎开发（`/prud-dev`）
+# 审慎开发（`/dev-prud`）
 
-Prudent-dev（prud 取自 prudent，审慎）在**任何代码存在之前**前置执行 FMEA 式失效模式枚举，然后让这份风险登记册驱动后续的计划、实现与验证。它是[五档开发流](dev-loops.md)之一——风险优先哲学：其他流关注代码写出后的审查，prud-dev 则在第一行代码写下**之前**就制造好审查弹药。
+Prudent-dev（prud 取自 prudent，审慎）在**任何代码存在之前**前置执行 FMEA 式失效模式枚举，然后让这份风险登记册驱动后续的计划、实现与验证。它是[五档开发流](dev-loops.md)之一——风险优先哲学：其他流关注代码写出后的审查，dev-prud 则在第一行代码写下**之前**就制造好审查弹药。
 
 方法论根基：FMEA（IEC 60812——设计阶段失效模式枚举与 RPN 排序）、ISTQB 基于风险的测试（Risk Exposure = Likelihood × Impact）、Boehm 风险驱动螺旋模型（每圈迭代以风险分析开场）。
 
@@ -54,23 +54,23 @@ Tier A 验收标准不会停留在文字层面：验证循环第 1 轮即派发 
 
 | 场景 | 选择 |
 |---|---|
-| 晚期 bug 代价高昂（支付、鉴权、迁移、不可逆操作） | `/prud-dev` |
+| 晚期 bug 代价高昂（支付、鉴权、迁移、不可逆操作） | `/dev-prud` |
 | 需求含糊，只想澄清、暂不开发 | `/grill-me` |
-| 事后双审足够 | `/review-dev` |
-| 大型自主多阶段目标 | `/ultra-dev` |
-| 小改动、文档、一次性脚本 | `/quick-dev` |
+| 事后双审足够 | `/dev-review` |
+| 大型自主多阶段目标 | `/dev-ultra` |
+| 小改动、文档、一次性脚本 | `/dev-quick` |
 
 ## 用法
 
 ```bash
 # 关键任务功能——默认完整登记册（top 50）
-/prud-dev 实现退款 API，要求幂等与部分退款
+/dev-prud 实现退款 API，要求幂等与部分退款
 
 # 较小变更的聚焦登记册
-/prud-dev 为 webhook 增加指数退避重试 --top=20
+/dev-prud 为 webhook 增加指数退避重试 --top=20
 
 # 大型 diff 的深验证循环
-/prud-dev 用户表迁移到分区表 --top=80 --max-rounds=8
+/dev-prud 用户表迁移到分区表 --top=80 --max-rounds=8
 ```
 
 参数：`--top=N`（枚举上限，默认 50，范围 10–200）、`--max-rounds=N`（验证-修复循环，默认 5，范围 1–99）。

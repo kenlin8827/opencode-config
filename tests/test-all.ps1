@@ -190,15 +190,15 @@ $allFiles = @(
     "prompts/security.md", "prompts/tech-writer.md", "prompts/vision.md",
     # Commands — thin slash-command launchers (each loads its L2 skill on demand)
     "commands/goal.md", "commands/handoff.md", "commands/grill-me.md", "commands/grill-with-docs.md",
-    "commands/grill-improve-loop.md", "commands/dev.md", "commands/plan-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
-    "commands/review-dev.md", "commands/ultra-dev.md", "commands/review-fix-loop.md",
-    "commands/prud-dev.md",
+    "commands/grill-improve-loop.md", "commands/dev.md", "commands/dev-plan.md", "commands/dev-quick.md", "commands/dev-flash.md",
+    "commands/dev-review.md", "commands/dev-ultra.md", "commands/review-fix-loop.md",
+    "commands/dev-prud.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
     "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
     "skills/grill-improve-loop/SKILL.md", "skills/dev/SKILL.md",
-    "skills/ultra-dev/SKILL.md", "skills/review-fix-loop/SKILL.md",
-    "skills/prud-dev/SKILL.md",
+    "skills/dev-ultra/SKILL.md", "skills/review-fix-loop/SKILL.md",
+    "skills/dev-prud/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
@@ -277,8 +277,8 @@ $allFiles = @(
     "skills/sdd-workflow/SKILL.md",
     "docs/workflows/sdd.md",
     "docs/zh/workflows/sdd.md",
-    "docs/workflows/prud-dev.md",
-    "docs/zh/workflows/prud-dev.md",
+    "docs/workflows/dev-prud.md",
+    "docs/zh/workflows/dev-prud.md",
     "plugins/design-token-guard.ts", "plugins/ai-slop-scanner.ts",
     "plugins/tui/usage.ts", "plugins/auto-format.ts",
     "plugins/tui/queue-manager.ts",
@@ -319,31 +319,31 @@ CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't dupl
 
 # Remaining workflow skills: structural checks only (protocol bodies migrated
 # verbatim; shipping is covered by the file-integrity list above).
-# plan-dev/quick-dev/review-dev launchers now route to the dev compositor —
+# dev-plan/dev-quick/dev-review launchers now route to the dev compositor —
 # their protocols live in skills/dev/SKILL.md (checked below).
-foreach ($name in @("grill-improve-loop", "ultra-dev", "review-fix-loop")) {
+foreach ($name in @("grill-improve-loop", "dev-ultra", "review-fix-loop")) {
     CheckWorkflowSkill $name @()
 }
 
-# prud-dev: anchors protect the register's core mechanics — surface binding,
+# dev-prud: anchors protect the register's core mechanics — surface binding,
 # SEVxPROB tiering, blind-spot write-back, test materialization (@qa), and the
 # non-exhaustive declaration.
-CheckWorkflowSkill "prud-dev" @("Surface model", "SEV", "PROB", "Tier A", "missed-by-enumeration", "not exhaustive", "docs/risk/<topic>.md", "@qa", "test-scope")
+CheckWorkflowSkill "dev-prud" @("Surface model", "SEV", "PROB", "Tier A", "missed-by-enumeration", "not exhaustive", "docs/risk/<topic>.md", "@qa", "test-scope")
 
 # dev compositor: anchors protect flag grammar, preset routing, zero-loss
 # passthrough, Safety-First arbitration, and the test-scope tier.
-CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "quick-dev", "plan-dev", "review-dev", "Zero-Loss", "Safety-First", "test-scope", "--auto-advisor")
+CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "dev-quick", "dev-plan", "dev-review", "Zero-Loss", "Safety-First", "test-scope", "--auto-advisor")
 
 # Preset routers: the three dev-flow launchers load the dev skill with their
 # preset expansion.
-foreach ($preset in @("quick-dev", "plan-dev", "review-dev")) {
+foreach ($preset in @("dev-quick", "dev-plan", "dev-review")) {
     $launcher = Get-Content "$PSScriptRoot\..\commands\$preset.md" -Raw
     Check "${preset}: launcher routes to the dev skill" ($launcher -match "Load the dev skill")
 }
 
-# Alias: /flash-dev launches the dev skill with the quick-dev preset
-$flashLauncher = Get-Content "$PSScriptRoot\..\commands\flash-dev.md" -Raw
-Check "flash-dev: alias launcher loads the dev skill with quick-dev preset" (($flashLauncher -match "dev skill") -and ($flashLauncher -match "quick-dev preset"))
+# Alias: /dev-flash launches the dev skill with the dev-quick preset
+$flashLauncher = Get-Content "$PSScriptRoot\..\commands\dev-flash.md" -Raw
+Check "dev-flash: alias launcher loads the dev skill with dev-quick preset" (($flashLauncher -match "dev skill") -and ($flashLauncher -match "dev-quick preset"))
 
 # Shared project-config plumbing (plugins/shared/opencode-prime.ts — used by adr-guard, env-guard, e2e-guard, auto-advisor)
 $sharedConfig = Get-Content "$PSScriptRoot\..\plugins\shared\opencode-prime.ts" -Raw

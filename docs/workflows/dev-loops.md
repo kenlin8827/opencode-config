@@ -4,7 +4,7 @@ Five Dev Flows represent the flagship multi-agent workflow system in OpenCode's 
 
 Each flow embodies a **development philosophy** — a distinct trade-off between speed, depth, autonomy, and risk posture. Choose based on the nature of your task, not a linear "better/worse" hierarchy.
 
-The three linear flows (`/quick-dev`, `/plan-dev`, `/review-dev`) are implemented as **presets over one [`/dev`](dev.md) compositor engine** — each expands to a flag set on `/dev`. `/prud-dev` and `/ultra-dev` remain standalone protocols (different topologies). Invoke `/dev` directly when no preset matches.
+The three linear flows (`/dev-quick`, `/dev-plan`, `/dev-review`) are implemented as **presets over one [`/dev`](dev.md) compositor engine** — each expands to a flag set on `/dev`. `/dev-prud` and `/dev-ultra` remain standalone protocols (different topologies). Invoke `/dev` directly when no preset matches.
 
 ---
 
@@ -12,18 +12,18 @@ The three linear flows (`/quick-dev`, `/plan-dev`, `/review-dev`) are implemente
 
 | Flow | Emoji | Philosophy | When to Use |
 |---|---|---|---|
-| `/quick-dev` | ⚡ | **Zero-friction** — flash-tier coder, code now, review optional | Throwaway scripts, UI tweaks, quick prototypes |
-| `/plan-dev` | 📋 | **Plan-first** — clarify, plan, then implement (review optional) | Daily default: features where you want to approve the plan before coding |
-| `/review-dev` | 🧠 | **Deep consensus** — dual flagship review + arbitration | 20% mission-critical: distributed transactions, full-stack, security-sensitive |
-| `/prud-dev` | 🛡️ | **Risk-first** — FMEA before code, risk register drives everything | Safety-critical: payments, auth, medical, aviation, anything a bug could harm |
-| `/ultra-dev` | 🛸 | **Autonomous** — objective in, phases out, zero interaction | Large-scale systems spanning multiple domains and phases |
+| `/dev-quick` | ⚡ | **Zero-friction** — flash-tier coder, code now, review optional | Throwaway scripts, UI tweaks, quick prototypes |
+| `/dev-plan` | 📋 | **Plan-first** — clarify, plan, then implement (review optional) | Daily default: features where you want to approve the plan before coding |
+| `/dev-review` | 🧠 | **Deep consensus** — dual flagship review + arbitration | 20% mission-critical: distributed transactions, full-stack, security-sensitive |
+| `/dev-prud` | 🛡️ | **Risk-first** — FMEA before code, risk register drives everything | Safety-critical: payments, auth, medical, aviation, anything a bug could harm |
+| `/dev-ultra` | 🛸 | **Autonomous** — objective in, phases out, zero interaction | Large-scale systems spanning multiple domains and phases |
 | [`/dev`](dev.md) | 🧩 | **Composable — bring your own pipeline** | Compositions no preset covers: `--plan --code-review=2 --qa`, `--sdd="adr,plan"` |
 
 ---
 
 ## Flow Details
 
-### `/quick-dev` — Zero-Review Fast Track
+### `/dev-quick` — Zero-Review Fast Track
 
 ```
 User → @build → @fast-coder (Flash) → Done
@@ -33,9 +33,9 @@ User → @build → @fast-coder (Flash) → Done
 - **Rounds**: 1 (instant)
 - **Model**: Flash/Lite tier for maximum throughput
 - **Not for**: Zero-ceremony at full quality — just ask directly (`lite` → `@code`); no workflow needed
-- **Alias**: `/flash-dev`
+- **Alias**: `/dev-flash`
 
-### `/plan-dev` — Plan-First Development
+### `/dev-plan` — Plan-First Development
 
 ```
 User → @build → @advisor (clarify) → @architect (plan) → confirm → @<lang>-dev (implement) → optional @code-review → Done
@@ -45,7 +45,7 @@ User → @build → @advisor (clarify) → @architect (plan) → confirm → @<l
 - **Review**: None by default; `--review` adds single `@code-review` audit (max 5 rounds)
 - **Exit**: Plan confirmed + implementation delivered (review passed if `--review`)
 
-### `/prud-dev` — FMEA Risk-First Development
+### `/dev-prud` — FMEA Risk-First Development
 
 ```
 User → Socratic Clarification → FMEA Risk Register → Risk-Driven Plan → Implementation → Register-Audited Verification
@@ -54,9 +54,9 @@ User → Socratic Clarification → FMEA Risk Register → Risk-Driven Plan → 
 - **Core**: Pre-implementation risk enumeration (SEV × PROB ranked, top-N)
 - **Review**: Configurable (0, 1, or 2 reviewers — risk register drives the bar)
 - **Exit**: All top-N risk mitigations verified in register
-- **See**: [Prudent Development](prud-dev.md) for full protocol
+- **See**: [Prudent Development](dev-prud.md) for full protocol
 
-### `/review-dev` — Dual-Review Deep Consensus
+### `/dev-review` — Dual-Review Deep Consensus
 
 ```
 User → @build → @<lang>-dev → @architect (Review A) + @code-review (Review B) → @advisor arbitration → Consensus
@@ -68,7 +68,7 @@ User → @build → @<lang>-dev → @architect (Review A) + @code-review (Review
 - **Rounds**: Max 10 (typically 3–5)
 - **Exit**: Dual-reviewer consensus
 
-### `/ultra-dev` — Autonomous Multi-Phase Execution
+### `/dev-ultra` — Autonomous Multi-Phase Execution
 
 ```
 User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1..N: code + dual review] → Final verify
@@ -78,7 +78,7 @@ User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1.
 - **Autonomy**: High — user gives objective, orchestrator drives all phases
 - **Phases**: Default 6 (3–6 recommended; compaction extends to 8–10)
 - **Stop**: Consecutive phase fuses ≥ 3, files > 100, external dependency unavailable
-- **Resume**: `--resume` from `.opencode/ultra-dev-state.md`
+- **Resume**: `--resume` from `.opencode/dev-ultra-state.md`
 
 ---
 
@@ -90,22 +90,22 @@ User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1.
                    /                          \
                  Yes                           No
                  /                              \
-           🛸 /ultra-dev               Could a bug cause harm
+           🛸 /dev-ultra               Could a bug cause harm
            (autonomous)                to people or business?
                                      /                        \
                                    Yes                           No
                                    /                              \
-                            🛡️ /prud-dev                  Is it mission-critical
+                            🛡️ /dev-prud                  Is it mission-critical
                             (risk-first)                   (distributed TX, full-stack)?
                                                            /                      \
                                                          Yes                                                         No
                                                          /                                                          \
-                                                   🧠 /review-dev                                           Is plan approval
+                                                   🧠 /dev-review                                           Is plan approval
                                                    (dual-review)                                           desired before coding?
                                                                                                            /              \
                                                                                                            Yes                No
                                                                                                            /                    \
-                                                                                                     📋 /plan-dev          ⚡ /quick-dev
+                                                                                                     📋 /dev-plan          ⚡ /dev-quick
                                                                                                      (plan-first)         (zero-friction)
 ```
 
@@ -113,7 +113,7 @@ User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1.
 
 ## Comparison Matrix
 
-| Dimension | ⚡ `/quick-dev` | 📋 `/plan-dev` | 🧠 `/review-dev` | 🛡️ `/prud-dev` | 🛸 `/ultra-dev` | 🧩 `/dev` |
+| Dimension | ⚡ `/dev-quick` | 📋 `/dev-plan` | 🧠 `/dev-review` | 🛡️ `/dev-prud` | 🛸 `/dev-ultra` | 🧩 `/dev` |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Philosophy** | Zero friction | Plan-first | Deep consensus | Risk-first FMEA | Full autonomy | Composable — bring your own pipeline |
 | **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping | Daily default: features where plan approval matters | 20% mission-critical: distributed TX, full-stack, security | Safety-critical: payments, auth, medical, aviation | Large-scale systems spanning multiple domains | Compositions no preset covers |
@@ -129,9 +129,9 @@ User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1.
 
 ## Dynamic Domain Persona Injection
 
-All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-dev`, `/ultra-dev`, and `/dev` compositions) leverage **Dynamic Domain Persona Injection**:
+All flows that involve coding (`/dev-quick`, `/dev-plan`, `/dev-review`, `/dev-prud`, `/dev-ultra`, and `/dev` compositions) leverage **Dynamic Domain Persona Injection**:
 
-1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput (used by the `/quick-dev` preset and bare `/dev` with zero depth flags);
+1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput (used by the `/dev-quick` preset and bare `/dev` with zero depth flags);
 2. **On-the-Fly Persona Enchantment**: Orchestrator `@build` detects the technical stack and injects specialized domain guidelines into the prompt header:
    - **Frontend**: Strict TS (no `any`), atomic Tailwind, no wasteful re-renders, A11y standards;
    - **Go**: Explicit error handling, context propagation, goroutine leak prevention, zero panics in hot paths;
@@ -143,42 +143,42 @@ All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-
 
 ## Usage & Arguments
 
-### `/quick-dev` (Zero-Review, Optional Review)
+### `/dev-quick` (Zero-Review, Optional Review)
 
 ```bash
-/quick-dev Add copy button to code blocks with toast feedback
-/flash-dev Fix off-by-one error in pagination query  # alias
-/quick-dev Add dark mode toggle --review  # with single audit
+/dev-quick Add copy button to code blocks with toast feedback
+/dev-flash Fix off-by-one error in pagination query  # alias
+/dev-quick Add dark mode toggle --review  # with single audit
 ```
 
-### `/plan-dev` (Plan-First, Optional Review)
+### `/dev-plan` (Plan-First, Optional Review)
 
 ```bash
-/plan-dev Implement user avatar upload and crop component
-/plan-dev Optimize order pagination query --review  # plan + single-review audit
-/plan-dev Add payment webhook handler --review --max-rounds=5
+/dev-plan Implement user avatar upload and crop component
+/dev-plan Optimize order pagination query --review  # plan + single-review audit
+/dev-plan Add payment webhook handler --review --max-rounds=5
 ```
 
-### `/prud-dev` (Risk-First)
+### `/dev-prud` (Risk-First)
 
 ```bash
-/prud-dev Implement payment settlement with idempotency guarantees --top=5
-/prud-dev Add OAuth2 PKCE flow for mobile app --top=3 --max-rounds=8
+/dev-prud Implement payment settlement with idempotency guarantees --top=5
+/dev-prud Add OAuth2 PKCE flow for mobile app --top=3 --max-rounds=8
 ```
 
-### `/review-dev` (Dual-Review)
+### `/dev-review` (Dual-Review)
 
 ```bash
-/review-dev Refactor settlement engine with distributed transaction compensation
-/review-dev Implement QR-code login: session table, polling API, dialog --max-rounds=10
+/dev-review Refactor settlement engine with distributed transaction compensation
+/dev-review Implement QR-code login: session table, polling API, dialog --max-rounds=10
 ```
 
-### `/ultra-dev` (Autonomous Multi-Phase)
+### `/dev-ultra` (Autonomous Multi-Phase)
 
 ```bash
-/ultra-dev Implement a complete user authentication system with OAuth2, session management, and RBAC
-/ultra-dev Build real-time notification service: WebSocket, queue, SDK, dashboard --max-rounds=8 --max-phases=10
-/ultra-dev --resume
+/dev-ultra Implement a complete user authentication system with OAuth2, session management, and RBAC
+/dev-ultra Build real-time notification service: WebSocket, queue, SDK, dashboard --max-rounds=8 --max-phases=10
+/dev-ultra --resume
 ```
 
 ### `/dev` (Compositor — no preset matches)
@@ -195,11 +195,11 @@ All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-
 
 | Guardrail | Applies To |
 |---|---|
-| **Safety-First Arbitration** | `/review-dev`, `/ultra-dev`, `/prud-dev` (when dual-review enabled) |
-| **Plan Confirmation Gate** | `/plan-dev` |
-| **10-Round Fuse** | All flows with review (per phase for `/ultra-dev`) |
-| **Consecutive Fuse Stop** (≥ 3) | `/ultra-dev` |
-| **Max-Phases Cap** (default 6, max 20) | `/ultra-dev` |
-| **Context Compaction** | `/ultra-dev` (every 2 phases) |
-| **Per-Phase Diff Isolation** | `/ultra-dev` (one git commit per phase) |
-| **Risk Register Audit** | `/prud-dev` (all top-N mitigations verified) |
+| **Safety-First Arbitration** | `/dev-review`, `/dev-ultra`, `/dev-prud` (when dual-review enabled) |
+| **Plan Confirmation Gate** | `/dev-plan` |
+| **10-Round Fuse** | All flows with review (per phase for `/dev-ultra`) |
+| **Consecutive Fuse Stop** (≥ 3) | `/dev-ultra` |
+| **Max-Phases Cap** (default 6, max 20) | `/dev-ultra` |
+| **Context Compaction** | `/dev-ultra` (every 2 phases) |
+| **Per-Phase Diff Isolation** | `/dev-ultra` (one git commit per phase) |
+| **Risk Register Audit** | `/dev-prud` (all top-N mitigations verified) |

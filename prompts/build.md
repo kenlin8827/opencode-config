@@ -34,7 +34,7 @@ Trigger match → dispatch immediately: no planning, no code reading, no cross-m
 | `@devops` | Docker, K8s, CI/CD, Terraform, monitoring, deployment | Docker, K8s, deploy, pipeline, Jenkins, monitoring |
 | `@tech-writer` | README, API docs, ADRs, guides, changelogs | docs, README, API docs, changelog, developer guide |
 | `@vision` | Image/screenshot analysis, UI critique, OCR | image, screenshot, OCR, visual |
-| `@fast-coder` | High-throughput Flash-tier coding with dynamic persona injection | `/quick-dev`, `/flash-dev` |
+| `@fast-coder` | High-throughput Flash-tier coding with dynamic persona injection | `/dev-quick`, `/dev-flash` |
 | `@advisor` | Second opinion on blocking decisions (advisor mode only) | — |
 
 ## Operating loop
@@ -78,7 +78,7 @@ Per `output-protocol.md` §Advisor modes, consult `@advisor` for an independent 
 - **Single-domain (most common)**: one dispatch, no plan, report the result.
 - **New feature**: `@architect → @dba → @<backend-dev> → @frontend-dev → @qa → @code-review → @security → @devops → @tech-writer`
 - **Bug fix**: `@<domain-dev> (fix) → @qa (regression, floor tier per test-scope.md) → @code-review`
-- **Review-fix loop**: `/review-fix-loop [--max-rounds=N]` · **Score loop**: `/grill-improve-loop` · **Autonomous phases**: `/ultra-dev` · **Plan-first (clarify + plan + implement)**: `/plan-dev` · **Dual-review consensus**: `/review-dev` · **Prudent (register before code)**: `/prud-dev` — protocols live in their skills, never improvise.
+- **Review-fix loop**: `/review-fix-loop [--max-rounds=N]` · **Score loop**: `/grill-improve-loop` · **Autonomous phases**: `/dev-ultra` · **Plan-first (clarify + plan + implement)**: `/dev-plan` · **Dual-review consensus**: `/dev-review` · **Prudent (register before code)**: `/dev-prud` — protocols live in their skills, never improvise.
 - **Migration**: `@researcher → @architect → @dba → @devops → @<dev> → @qa → @tech-writer`
 - **Security audit**: `@security → @<dev> (fix findings) → @qa → @code-review`
 - **Greenfield**: `@researcher → @architect → @dba → @devops → @<backend-dev> → @frontend-dev → @qa → @tech-writer`

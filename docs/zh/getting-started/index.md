@@ -106,7 +106,7 @@ OCP 支持三种界面 —— 均共享同一套 `~/.config/opencode` 配置，�
 | **四种工作模式** | `@lite`（默认 — 精益日常驱动，约 2k tok/步）、`@code`（直接开发）、`@build`（编排执行）、`@plan`（只读分析） |
 | **代码智能与数据库（MCP）** | 预配置 MCP 服务（Serena LSP、CodeGraph 图谱、GitNexus、DBHub 数据库网关），开箱按需自动装 CLI |
 | **配置预设（Profiles）** | `/profile` 一次性把 5 个模型层级映射到某服务商的模型 —— 无需逐智能体 `set model` |
-| **工作流斜杠命令** | `/dev` 组合引擎 · `/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` 开发流、`/review-fix-loop`、`/grill-improve-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
+| **工作流斜杠命令** | `/dev` 组合引擎 · `/dev-quick` · `/dev-plan` · `/dev-review` · `/dev-ultra` 开发流、`/review-fix-loop`、`/grill-improve-loop`、`/goal`、`/handoff`、`/grill-me`、advisor 模式等 |
 | **可选护栏** | 按项目启用的 ADR 强制（`/adr-guard`）、密钥文件门控（`env-guard`）、E2E 门控（`/e2e-guard`）、提交纪律（`/project`）—— 全部默认关闭 |
 | **一键安装器** | PowerShell + Bash 双平台，基于清单升级；凭证和模型选择在每次重装后完好保留 |
 | **Token 节省** | 安装时自动配置 [rtk](https://github.com/rtk-ai/rtk) 输出压缩（60–90%）+ `@lite` 实测约 2k tok/步系统提示，而满配 Agent 每步背负 13k+ tok 开销 |
@@ -122,9 +122,9 @@ OCP 支持三种界面 —— 均共享同一套 `~/.config/opencode` 配置，�
 | :--- | :--- | :--- |
 | **与运行时的关系** | 独立智能体外壳——替换你的 Agent 运行时 | ⚡ **零迁移的纪律层——保留 OpenCode 运行时、插件与全部配置** |
 | **开箱能力侧重** | 🔧 原生工具火力：~8 万行 Rust 核心、hashline 编辑、内置 LSP/DAP、记忆、浏览器、协作 | 🧰 工程纪律火力：21 位专家智能体、MCP 代码智能、`/profile` 预设、护栏、工作流命令 |
-| **交付分档** | 魔法关键词（`ultrathink` / `orchestrate`），单轨自主推进 | 🏆 **`/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` 显式人选档位，可写入团队 SOP** |
+| **交付分档** | 魔法关键词（`ultrathink` / `orchestrate`），单轨自主推进 | 🏆 **`/dev-quick` · `/dev-plan` · `/dev-review` · `/dev-ultra` 显式人选档位，可写入团队 SOP** |
 | **调度与编排** | 🟢 `task` 子智能体扇出至隔离工作树，类型化结果，实时监督面板 | 🏆 **`@build` 编排器 + 预定义角色流水线（执行计划先公示再执行）+ 分级模型调度（Flash 写码、旗舰审查）+ 动态领域人格注入 + 失败自动重试并原任务续跑** |
-| **审查门控** | `/review` 事后判级 P0–P3，单一审查者 | 🏆 **`/review-dev` 旗舰双审 + `@advisor` 安全仲裁，修复在闭环内收敛** |
+| **审查门控** | `/review` 事后判级 P0–P3，单一审查者 | 🏆 **`/dev-review` 旗舰双审 + `@advisor` 安全仲裁，修复在闭环内收敛** |
 | **规范驱动生命周期** | 无内置（需外接工具） | 🏆 **`/prd` → `/plan`（自动链接 PRD 与 ADR）→ `/impl` → `/sdd handoff` 完整 SDD 生命周期** |
 | **工作流命令套件** | `ultrathink` / `orchestrate` / `workflowz` 关键词 | 🏆 **`/grill-me` 苏格拉底式方案拷问 + `/review-fix-loop` 自动修复至零 P0/P1 + `/grill-improve-loop` 评分驱动改进闭环 + `/goal` 机械可校验的停止条件 + `/handoff` git-safe 会话交接包** |
 | **Token 与成本治理** | hashline 编辑省 token + 进程内高效工具 | 🏆 **五级智能体—模型路由（`tiers.json`）+ RTK 代理层输出压缩 60–90%，安装时自动配置** |

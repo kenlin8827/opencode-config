@@ -1,6 +1,6 @@
 # `/dev` Compositor
 
-`/dev` is the single-pass pipeline compositor behind the [Five Dev Flows](dev-loops.md): assemble your own development pipeline from spec depth, plan review, code review, and QA flags. The preset commands (`/quick-dev`, `/plan-dev`, `/review-dev`) are fixed flag sets over this engine.
+`/dev` is the single-pass pipeline compositor behind the [Five Dev Flows](dev-loops.md): assemble your own development pipeline from spec depth, plan review, code review, and QA flags. The preset commands (`/dev-quick`, `/dev-plan`, `/dev-review`) are fixed flag sets over this engine.
 
 ---
 
@@ -51,9 +51,9 @@ Legacy alias: `--review` (still accepted on preset commands) → `--code-review=
 
 | Preset | Equivalent `/dev` flags | Legacy translation | max-rounds default |
 |---|---|---|---|
-| `/quick-dev` (alias `/flash-dev`) | *(none)* | `--review` → `--code-review=1` | 3 |
-| `/plan-dev` | `--plan` | `--review` → `--code-review=1` | 5 |
-| `/review-dev` | `--code-review=2` | — | 10 |
+| `/dev-quick` (alias `/dev-flash`) | *(none)* | `--review` → `--code-review=1` | 3 |
+| `/dev-plan` | `--plan` | `--review` → `--code-review=1` | 5 |
+| `/dev-review` | `--code-review=2` | — | 10 |
 | bare `/dev` | your flags | `--review` → `--code-review=1` | 5 |
 
 ## Usage
@@ -84,6 +84,6 @@ The five flows are decision defaults. When you need a combination they don't enc
 
 ## Boundary
 
-`/prud-dev` (FMEA risk register) and `/ultra-dev` (autonomous multi-phase) remain **standalone protocols** — different topologies (register-driven / multi-phase autonomous) that are not expressible as `/dev` flags.
+`/dev-prud` (FMEA risk register) and `/dev-ultra` (autonomous multi-phase) remain **standalone protocols** — different topologies (register-driven / multi-phase autonomous) that are not expressible as `/dev` flags.
 
 See [Five Dev Flows](dev-loops.md) for the preset-first overview.

@@ -1,4 +1,4 @@
-# Plan-First Development (`/plan-dev`)
+# Plan-First Development (`/dev-plan`)
 
 Plan-dev front-loads **requirement clarification and implementation planning before any code is written**. It is one of the [Five Dev Flows](dev-loops.md) — the plan-first philosophy: see and approve the plan before a single line of code exists, then execute with optional review.
 
@@ -41,7 +41,7 @@ The Socratic clarification uses `@advisor` to surface ambiguities, edge cases, a
 
 ## Optional review
 
-By default, plan-dev skips review entirely for maximum speed. With `--review`:
+By default, dev-plan skips review entirely for maximum speed. With `--review`:
 
 - Single `@code-review` evidence-driven audit
 - Max 5 fix rounds (configurable via `--max-rounds=N`)
@@ -51,23 +51,23 @@ By default, plan-dev skips review entirely for maximum speed. With `--review`:
 
 | Factor | Pick |
 |---|---|
-| Want to approve plan before coding | `/plan-dev` |
-| Throwaway script, no plan needed | `/quick-dev` |
-| Mission-critical, needs dual review | `/review-dev` |
-| Safety-critical, needs FMEA | `/prud-dev` |
-| Large autonomous multi-phase objective | `/ultra-dev` |
+| Want to approve plan before coding | `/dev-plan` |
+| Throwaway script, no plan needed | `/dev-quick` |
+| Mission-critical, needs dual review | `/dev-review` |
+| Safety-critical, needs FMEA | `/dev-prud` |
+| Large autonomous multi-phase objective | `/dev-ultra` |
 
 ## Usage
 
 ```bash
 # Standard plan-first development
-/plan-dev Implement user avatar upload and crop component
+/dev-plan Implement user avatar upload and crop component
 
 # With optional single-review audit
-/plan-dev Add payment webhook handler --review
+/dev-plan Add payment webhook handler --review
 
 # With extended review loop
-/plan-dev Refactor order service --review --max-rounds=8
+/dev-plan Refactor order service --review --max-rounds=8
 ```
 
 Arguments: `--review` (enable single-review audit, default off), `--max-rounds=N` (review-fix rounds when `--review` is set, default 5, range 1–99).

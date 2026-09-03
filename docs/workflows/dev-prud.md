@@ -1,6 +1,6 @@
-# Prudent Development (`/prud-dev`)
+# Prudent Development (`/dev-prud`)
 
-Prudent-dev (prud from "prudent") front-loads **FMEA-style failure-mode enumeration before any code exists**, then lets that risk register drive planning, implementation, and verification. It is one of the [Five Dev Flows](dev-loops.md) — the risk-first philosophy: where other flows focus on reviewing code after it's written, prud-dev manufactures the review ammunition *before* the first line is written.
+Prudent-dev (prud from "prudent") front-loads **FMEA-style failure-mode enumeration before any code exists**, then lets that risk register drive planning, implementation, and verification. It is one of the [Five Dev Flows](dev-loops.md) — the risk-first philosophy: where other flows focus on reviewing code after it's written, dev-prud manufactures the review ammunition *before* the first line is written.
 
 Grounded in established practice: FMEA (IEC 60812 — design-stage failure-mode enumeration, RPN ranking), ISTQB risk-based testing (Risk Exposure = Likelihood × Impact), and Boehm's risk-driven spiral model (each iteration opens with risk analysis).
 
@@ -55,23 +55,23 @@ The register's recall is unknowable in advance, so the verify loop runs a second
 
 | Factor | Pick |
 |---|---|
-| Late bug is expensive (payment, auth, migration, irreversible ops) | `/prud-dev` |
+| Late bug is expensive (payment, auth, migration, irreversible ops) | `/dev-prud` |
 | Requirement is ambiguous, no development wanted yet | `/grill-me` |
-| Post-hoc dual review suffices | `/review-dev` |
-| Large autonomous multi-phase objective | `/ultra-dev` |
-| Small edits, docs, throwaway scripts | `/quick-dev` |
+| Post-hoc dual review suffices | `/dev-review` |
+| Large autonomous multi-phase objective | `/dev-ultra` |
+| Small edits, docs, throwaway scripts | `/dev-quick` |
 
 ## Usage
 
 ```bash
 # Mission-critical feature — full default register (top 50)
-/prud-dev Implement refund API with idempotency and partial refunds
+/dev-prud Implement refund API with idempotency and partial refunds
 
 # Focused register for a narrower change
-/prud-dev Add webhook retry with exponential backoff --top=20
+/dev-prud Add webhook retry with exponential backoff --top=20
 
 # Deep verification loop for a sprawling diff
-/prud-dev Migrate user table to partitioned schema --top=80 --max-rounds=8
+/dev-prud Migrate user table to partitioned schema --top=80 --max-rounds=8
 ```
 
 Arguments: `--top=N` (enumeration cap, default 50, range 10–200), `--max-rounds=N` (verify-fix loop, default 5, range 1–99).

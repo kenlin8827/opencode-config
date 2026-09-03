@@ -9,7 +9,7 @@
 * [进阶工作流与项目护栏 (Workflows & Governance)](docs/zh/workflows/commands.md)
   * [工作流斜杠命令](docs/zh/workflows/commands.md)
   * [五档开发流](docs/zh/workflows/dev-loops.md)
-  * [审慎开发](docs/zh/workflows/prud-dev.md)
+  * [审慎开发](docs/zh/workflows/dev-prud.md)
   * [Auto-advisor 模式](docs/zh/workflows/auto-advisor.md)
   * [插件系统与项目护栏](docs/zh/workflows/plugins.md)
   * [ADR 活化架构与升级指南](docs/zh/workflows/adr-upgrade-guide.md)

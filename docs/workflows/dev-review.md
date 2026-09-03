@@ -1,4 +1,4 @@
-# Dual-Review Deep Consensus (`/review-dev`)
+# Dual-Review Deep Consensus (`/dev-review`)
 
 Review-dev enforces **dual independent review with arbitration** for mission-critical code. It is one of the [Five Dev Flows](dev-loops.md) — the deep consensus philosophy: two flagship reviewers attack the diff through different lenses, and an advisor arbitrates disagreements under Safety-First principles.
 
@@ -48,20 +48,20 @@ When reviewers disagree (one approves, one rejects, or conflicting recommendatio
 
 | Factor | Pick |
 |---|---|
-| Mission-critical: distributed TX, full-stack, security-sensitive | `/review-dev` |
-| Plan approval desired, review optional | `/plan-dev` |
-| Safety-critical, needs FMEA | `/prud-dev` |
-| Large autonomous multi-phase objective | `/ultra-dev` |
-| Throwaway script, no review needed | `/quick-dev` |
+| Mission-critical: distributed TX, full-stack, security-sensitive | `/dev-review` |
+| Plan approval desired, review optional | `/dev-plan` |
+| Safety-critical, needs FMEA | `/dev-prud` |
+| Large autonomous multi-phase objective | `/dev-ultra` |
+| Throwaway script, no review needed | `/dev-quick` |
 
 ## Usage
 
 ```bash
 # Mission-critical feature — dual review + arbitration
-/review-dev Refactor settlement engine with distributed transaction compensation
+/dev-review Refactor settlement engine with distributed transaction compensation
 
 # Full-stack feature with extended review loop
-/review-dev Implement QR-code login: session table, polling API, dialog --max-rounds=10
+/dev-review Implement QR-code login: session table, polling API, dialog --max-rounds=10
 ```
 
 Arguments: `--max-rounds=N` (max iteration rounds, default 10, range 1–99).
