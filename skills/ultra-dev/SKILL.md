@@ -168,7 +168,7 @@ Dispatch to the appropriate domain specialist (`@<lang>-dev`) with the phase spe
 You are the full-stack developer. Read the relevant files and 100% implement every requirement for this phase. No fake mocks, no empty TODOs, and no skipped edge cases. Follow existing conventions from the context map above.
 ```
 
-**Domain persona injection**: Domain expertise is native to each `@<lang>-dev` agent — no separate persona injection needed (unlike `/fast-dev` and `/quick-dev` which use `@fast-coder`).
+**Domain persona injection**: Domain expertise is native to each `@<lang>-dev` agent — no separate persona injection needed (unlike `/quick-dev`, which uses `@fast-coder`).
 
 #### 3b — Dual Review
 
@@ -401,11 +401,11 @@ After all phases complete (or a stop condition halts execution):
 
 ---
 
-## When to use `/ultra-dev` vs `/deep-dev`
+## When to use `/ultra-dev` vs `/review-dev`
 
-Both `/deep-dev` and `/ultra-dev` support multi-stage, full-stack execution with dual review. The key differentiator is **autonomy and scope**:
+Both `/review-dev` and `/ultra-dev` support multi-stage, full-stack execution with dual review. The key differentiator is **autonomy and scope**:
 
-| Factor | `/deep-dev` | `/ultra-dev` |
+| Factor | `/review-dev` | `/ultra-dev` |
 |---|---|---|
 | **Input** | A specific coding task (e.g. "implement QR login with session table, polling API, dialog") | A high-level objective (e.g. "implement a complete user authentication system") |
 | **Decomposition** | The orchestrator sequences sub-tasks within a single review loop | The orchestrator decomposes into independent phases, each with its own review loop |
@@ -413,6 +413,6 @@ Both `/deep-dev` and `/ultra-dev` support multi-stage, full-stack execution with
 | **User interaction** | User triggers, loop runs, user gets result | User gives objective, confirms plan, then gets result — zero interaction in between |
 | **When to pick** | You know exactly what to build and can describe it in one sentence | You have a big-picture goal and want the orchestrator to figure out the phases |
 
-**Rule of thumb**: If you can write your request as a single coding task → `/deep-dev`. If you need to say "implement the whole X system" and let the agent figure out the decomposition → `/ultra-dev`.
+**Rule of thumb**: If you can write your request as a single coding task → `/review-dev`. If you need to say "implement the whole X system" and let the agent figure out the decomposition → `/ultra-dev`.
 
 **Practical limits**: `/ultra-dev` is designed for 3–6 phase objectives. With context compaction (Step 4), it can stretch to 8–10 phases. For objectives beyond 10 phases, split into multiple `/ultra-dev --resume` runs. The orchestrator (`@build`, standard tier) has a finite context window — compaction prevents overflow but does not eliminate the ceiling.

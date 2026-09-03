@@ -143,7 +143,7 @@ cd opencode-prime
   <img src="./docs/public/images/opencode-zh.webp" alt="OpenCode 终端界面" width="880"/>
 </p>
 
-终端界面提供对话式交互，支持 21 位专家智能体（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等）、四种工作模式（`@lite`（默认 — 约 2k tok/步）/ `@code` / `@build` / `@plan`）、工作流斜杠命令（`/quick-dev` · `/deep-dev` · `/review-fix-loop` · `/sdd` …）以及 `/profile` 预设选择器一键映射模型层级。
+终端界面提供对话式交互，支持 21 位专家智能体（`@java-dev`、`@security`、`@dba`、`@frontend-dev`、`@fast-coder` 等）、四种工作模式（`@lite`（默认 — 约 2k tok/步）/ `@code` / `@build` / `@plan`）、工作流斜杠命令（`/quick-dev` · `/plan-dev` · `/review-dev` · `/review-fix-loop` · `/sdd` …）以及 `/profile` 预设选择器一键映射模型层级。
 
 ---
 

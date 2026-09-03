@@ -1,5 +1,5 @@
 ---
-description: Quick-Dev - zero-review fast track: @fast-coder coding + instant delivery (no review). Usage: /quick-dev <requirements>
+description: Quick-Dev - zero-review fast track: flash-tier @fast-coder coding + instant delivery, cheapest path for low-stakes tasks (optional --review for single audit). Usage: /quick-dev <requirements> [--review] [--max-rounds=N]
 agent: build
 ---
 

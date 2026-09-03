@@ -190,14 +190,14 @@ $allFiles = @(
     "prompts/security.md", "prompts/tech-writer.md", "prompts/vision.md",
     # Commands — thin slash-command launchers (each loads its L2 skill on demand)
     "commands/goal.md", "commands/handoff.md", "commands/grill-me.md", "commands/grill-with-docs.md",
-    "commands/grill-improve-loop.md", "commands/fast-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
-    "commands/deep-dev.md", "commands/ultra-dev.md", "commands/review-fix-loop.md",
+    "commands/grill-improve-loop.md", "commands/plan-dev.md", "commands/quick-dev.md", "commands/flash-dev.md",
+    "commands/review-dev.md", "commands/ultra-dev.md", "commands/review-fix-loop.md",
     "commands/prud-dev.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
     "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
-    "skills/grill-improve-loop/SKILL.md", "skills/fast-dev/SKILL.md", "skills/quick-dev/SKILL.md",
-    "skills/deep-dev/SKILL.md", "skills/ultra-dev/SKILL.md", "skills/review-fix-loop/SKILL.md",
+    "skills/grill-improve-loop/SKILL.md", "skills/plan-dev/SKILL.md", "skills/quick-dev/SKILL.md",
+    "skills/review-dev/SKILL.md", "skills/ultra-dev/SKILL.md", "skills/review-fix-loop/SKILL.md",
     "skills/prud-dev/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
@@ -319,7 +319,7 @@ CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't dupl
 
 # Remaining workflow skills: structural checks only (protocol bodies migrated
 # verbatim; shipping is covered by the file-integrity list above).
-foreach ($name in @("grill-improve-loop", "fast-dev", "quick-dev", "deep-dev", "ultra-dev", "review-fix-loop")) {
+foreach ($name in @("grill-improve-loop", "plan-dev", "quick-dev", "review-dev", "ultra-dev", "review-fix-loop")) {
     CheckWorkflowSkill $name @()
 }
 

@@ -1,5 +1,5 @@
 ---
-description: Quick-Dev (alias) - zero-review fast track: @fast-coder coding + instant delivery. Usage: /flash-dev <requirements>
+description: Quick-Dev (alias) - zero-review fast track: flash-tier @fast-coder coding + instant delivery. Usage: /flash-dev <requirements>
 agent: build
 ---
 

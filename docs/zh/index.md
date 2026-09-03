@@ -27,7 +27,7 @@ features:
   - title: 🤖 专家分工与自适应编排
     details: 17 位垂直领域专家（Java、Go、前端、DBA、安全等）随调随用，@code / @build / @plan 模式自适应切换。
   - title: 🔄 四阶敏捷/严谨闭环开发
-    details: /quick-dev 极速自写直出、/fast-dev 敏捷单审单修闭环、/deep-dev 双旗舰对抗仲裁、/ultra-dev 自主多阶段执行，搭配 rtk 60-90% Token 压缩代理。
+    details: /quick-dev 极速自写直出、/plan-dev 计划先行开发、/review-dev 双旗舰对抗仲裁、/ultra-dev 自主多阶段执行，搭配 rtk 60-90% Token 压缩代理。
   - title: 📐 规范驱动开发 (SDD)
     details: PRD 需求规格 → ADR 架构决策 → PLAN 实施计划 → IMPL 编码验证全链路闭环，支持任意阶段起手与交互式跳级流转。
   - title: 🎯 一键分层模型治理

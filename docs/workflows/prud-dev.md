@@ -57,7 +57,7 @@ The register's recall is unknowable in advance, so the verify loop runs a second
 |---|---|
 | Late bug is expensive (payment, auth, migration, irreversible ops) | `/prud-dev` |
 | Requirement is ambiguous, no development wanted yet | `/grill-me` |
-| Post-hoc dual review suffices | `/deep-dev` |
+| Post-hoc dual review suffices | `/review-dev` |
 | Large autonomous multi-phase objective | `/ultra-dev` |
 | Small edits, docs, throwaway scripts | `/quick-dev` |
 

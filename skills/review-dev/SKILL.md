@@ -1,11 +1,11 @@
 ---
-name: deep-dev
-description: Deep-Dev - mission-critical dual-review consensus loop: domain-routed coding plus dual review and Advisor arbitration (default max 10 rounds). Load ONLY when the user invokes /deep-dev.
+name: review-dev
+description: Review-Dev - mission-critical dual-review consensus loop: domain-routed coding plus dual review and Advisor arbitration (default max 10 rounds). Load ONLY when the user invokes /review-dev.
 ---
 
-# Deep-Dev Protocol (Mission-Critical Dual-Review Loop)
+# Review-Dev Protocol (Mission-Critical Dual-Review Loop)
 
-You are now executing the **deep-dev** workflow — a mission-critical, double-review, consensus-driven development loop. Follow this protocol until all criteria are satisfied or the maximum rounds are reached.
+You are now executing the **review-dev** workflow — a mission-critical, double-review, consensus-driven development loop. Follow this protocol until all criteria are satisfied or the maximum rounds are reached.
 
 ## Core Design Principle: Zero-Loss Raw Passthrough
 
@@ -52,7 +52,7 @@ stateDiagram-v2
 
 ## Arguments & Options
 
-- **Positional args**: The raw user requirements or task description (e.g. `/deep-dev Refactor settlement engine with distributed transaction compensation`).
+- **Positional args**: The raw user requirements or task description (e.g. `/review-dev Refactor settlement engine with distributed transaction compensation`).
 - `--max-rounds=N` (optional): Maximum iteration rounds. **Default: 10**, range: 1–99.
 
 ---
@@ -101,7 +101,7 @@ Your verdict MUST be grounded in verifiable evidence — not subjective judgment
 
 Audit the diff using the Execute → Observe → Match method:
 1. **Requirement Traceability**: Walk through every requirement in the user's raw prompt. For each, locate the exact code that implements it. If a requirement has no corresponding code, that is a finding — cite the requirement and state "no implementation found".
-2. **Anti-Slop & Contract Defense**: Hunt for scope cuts, fake mocks, empty TODOs, or happy-path-only logic. Ensure cross-module DTOs and API contracts fit. Each finding must cite `file:line` + what was expected vs. what was found.
+2. **Anti-Slop & Contract Defense**: Hunt for scope cuts, fake mocks, empty TODOs, or happy-path-only logic. Ensure cross-module DTs and API contracts fit. Each finding must cite `file:line` + what was expected vs. what was found.
 3. **Verdict by Evidence**: Your verdict MUST follow this rule:
    - `APPROVE` only when every requirement is traceable to code AND no architectural defect is found.
    - `REQUEST_CHANGES` when any requirement is unimplemented OR any architectural defect exists.
