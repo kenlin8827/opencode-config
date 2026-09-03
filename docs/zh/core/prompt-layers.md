@@ -9,7 +9,7 @@
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | 每个 Agent 的每一步 | 铁律：`rfc-keywords`、`output-protocol`、`verification-honesty`、`routing-index` |
 | **L1** | Agent 的 `prompt` 字段，经 `{file:}` 标记拼装 | 该 Agent 运行期间 | 角色规则：编码包、`sql-migration`、评审基准 |
-| **L2** | `skills/*/SKILL.md` 元数据 | 每步常驻，可见性由 `permission` 控制；**正文经 `commands/*.md` 发射器按需加载** | 场景规则：工作流协议（`sdd-workflow`、`deep-dev`、`goal`、`handoff` 等） |
+| **L2** | `skills/*/SKILL.md` 元数据 | 每步常驻，可见性由 `permission` 控制；**正文经 `commands/*.md` 发射器按需加载** | 场景规则：工作流协议（`sdd-workflow`、`dev`、`goal`、`handoff` 等） |
 | **L3** | 你项目的 `AGENTS.md`（OpenCode 原生） | 读取该目录文件时 | 你的个人 / 项目规则 |
 
 L0 是最贵的层（× 步数 × Agent 数），因此发布门禁用

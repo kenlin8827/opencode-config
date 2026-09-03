@@ -66,8 +66,18 @@ function Compare-VersionLt([string]$a, [string]$b) {
 }
 
 # --- prompt budget gate (layered disclosure: L0/L1 sizes) ------------------
+# Runtime ladder mirrors install/install.ps1: bun when available, otherwise
+# node + the repo-local tsx.
 
-& bun run (Join-Path $RepoRoot 'scripts/measure-prompts.ts')
+$Measure = Join-Path $RepoRoot 'scripts/measure-prompts.ts'
+$TsxEntry = Join-Path $RepoRoot 'node_modules/tsx/dist/cli.mjs'
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    & bun run $Measure
+} elseif ((Get-Command node -ErrorAction SilentlyContinue) -and (Test-Path $TsxEntry)) {
+    & node $TsxEntry $Measure
+} else {
+    throw 'measure-prompts requires bun, or node with repo-local tsx (run: bun install)'
+}
 if ($LASTEXITCODE -ne 0) { throw 'prompt budget gate failed — slim the prompts before releasing' }
 
 # --- historical manifest immutability gate --------------------------------
@@ -117,8 +127,11 @@ $installFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'install') -Recurse -
     ForEach-Object { "install/" + $_.FullName.Substring((Join-Path $RepoRoot 'install').Length + 1).Replace('\', '/') })
 
 $binFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'bin') -Recurse -File |
-    Where-Object { $_.FullName -notmatch '[\/\\]\.' } |
-    ForEach-Object { "bin/" + $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1).Replace('\', '/') })
+    ForEach-Object { "bin/" + $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1).Replace('\', '/') } |
+    # Filter on the bin-relative path — the absolute path may legitimately
+    # contain dot-segments (e.g. a checkout under ~\.local\...) that would
+    # wrongly exclude every file.
+    Where-Object { $_ -notmatch '[\/\\]\.' })
 
 $pkgJson = if (Test-Path (Join-Path $RepoRoot 'package.json')) { @('package.json') } else { @() }
 

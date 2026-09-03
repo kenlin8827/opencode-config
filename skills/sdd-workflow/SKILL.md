@@ -1,6 +1,6 @@
 ---
 name: sdd-workflow
-description: Specification-Driven Development lifecycle — governs the /prd → /adr → /plan → /impl phases, deliverables, and transitions. Load ONLY when the user invokes /prd, /adr, /plan, /impl, /sdd, or explicitly requests SDD; never force it on ordinary chats.
+description: Specification-Driven Development lifecycle — governs the /prd → /adr → /plan → /impl phases, deliverables, and transitions. Load ONLY when the user invokes /prd, /adr, /plan, /impl, /sdd, or /dev --sdd, or explicitly requests SDD; never force it on ordinary chats.
 ---
 
 # SDD Protocol (Specification-Driven Development)
@@ -96,6 +96,8 @@ SDD guarantees software quality and maintainability through a rigorous specifica
 ---
 
 ## 3. Interactive Transition Protocol
+
+**Exception (/dev front-end mode)**: when executing as the /dev --sdd front-end, the per-phase transition menu collapses to a single Approve / Revise / Stop gate — the pipeline order is already fixed by the --sdd phase set.
 
 When completing ANY SDD phase, you **MUST NOT** simply stop silently. You MUST ask the user how they wish to proceed.
 

@@ -316,7 +316,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `md-to-pdf.ts` (+ `plugins/md-to-pdf/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-pdf` command & `md_to_pdf` tool: converts Markdown to styled A4 PDF via Pandoc + Playwright. Auto-steers natural language `@filepath 转PDF`. |
 | `md-to-docx.ts` (+ `plugins/md-to-docx/`) | `config` + `command.execute.before` + `system.transform` + custom tool | `/md-to-docx` command & `md_to_docx` tool: converts Markdown to publication-quality styled Word (.docx) documents via Pandoc + Python typography engine. |
 
-Workflow slash commands (`/deep-dev`, `/goal`, `/handoff`, …) are native opencode command files in `commands/*.md` — thin launchers that instruct the agent to load the matching L2 skill (`skills/<name>/SKILL.md`) on demand. No runtime code, no system-prompt injection; the protocol body enters the conversation exactly once, only when the command is invoked. Runtime-logic plugins (guards, wizards, exporters) still register their commands programmatically via the `config` hook; every `system.transform` injector passes through the `plugin-scope.ts` gate first (see shared plumbing), so injections never land in `@lite`, utility sessions, or subagent steps unless a per-plugin entry overrides the default (project-profiler does — its backend routing is explore's work discipline, not orchestration protocol).
+Workflow slash commands (`/review-dev`, `/goal`, `/handoff`, …) are native opencode command files in `commands/*.md` — thin launchers that instruct the agent to load the matching L2 skill (`skills/<name>/SKILL.md`) on demand. No runtime code, no system-prompt injection; the protocol body enters the conversation exactly once, only when the command is invoked. Runtime-logic plugins (guards, wizards, exporters) still register their commands programmatically via the `config` hook; every `system.transform` injector passes through the `plugin-scope.ts` gate first (see shared plumbing), so injections never land in `@lite`, utility sessions, or subagent steps unless a per-plugin entry overrides the default (project-profiler does — its backend routing is explore's work discipline, not orchestration protocol).
 
 ### Auto-advisor internals
 
@@ -493,12 +493,13 @@ providers/
 └── qoder-router.json         # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
 
 commands/                     # Native opencode slash-command launchers (thin: frontmatter + "load the skill")
-├── deep-dev.md … ultra-dev.md     # Dev-loop launchers (agent: build)
+├── dev.md · plan-dev.md · quick-dev.md · flash-dev.md · review-dev.md · ultra-dev.md   # Dev-flow launchers (agent: build)
 ├── goal.md · handoff.md · grill-*.md · review-fix-loop.md
 └── sdd.md · prd.md · plan.md · impl.md   # SDD launchers (agent: plan/code)
 
 skills/                       # L2 workflow protocols — metadata resident, body loads on demand
-├── deep-dev/SKILL.md · fast-dev/ · quick-dev/ · ultra-dev/
+├── dev/SKILL.md                     # /dev compositor — quick-dev/plan-dev/review-dev are preset routers over it
+├── prud-dev/ · ultra-dev/
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/
 └── sdd-workflow/             # Merged SDD protocol (/sdd /prd /plan /impl)

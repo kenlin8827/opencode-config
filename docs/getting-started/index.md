@@ -106,7 +106,7 @@ Launch with `ocp desktop` (alias `ocp ui`) — native Tauri app with full keyboa
 | **Four Working Modes** | `@lite` (default — lean daily driver, ~2k tok/step), `@code` (direct development), `@build` (orchestrated execution), `@plan` (read-only analysis) |
 | **Code Intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
-| **Workflow Slash Commands** | `/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` dev loops, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
+| **Workflow Slash Commands** | `/dev` compositor · `/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` dev flows, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
 | **Optional Guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
 | **One-Command Installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Token Savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install + `@lite` measured ~2k tok/step system prompt where full-config agents carry 13k+ tok/step of overhead |
@@ -122,9 +122,9 @@ Two kinds of batteries, two kinds of rides. omp builds and ships its own native 
 | :--- | :--- | :--- |
 | **Relationship to Runtime** | Standalone harness — replaces your agent runtime | ⚡ **Zero-migration discipline layer — keep your OpenCode runtime, plugins & config** |
 | **What's in the Box** | 🔧 Native tooling firepower: ~80k-line Rust core, hashline edits, built-in LSP/DAP, memory, browser, collab | 🧰 Discipline firepower: 21 specialist agents, MCP code intelligence, `/profile` presets, guardrails, workflow commands |
-| **Delivery Pacing** | Magic keywords (`ultrathink` / `orchestrate`), single-track autonomy | 🏆 **`/quick-dev` · `/fast-dev` · `/deep-dev` · `/ultra-dev` — explicit human-selected tiers, SOP-friendly** |
+| **Delivery Pacing** | Magic keywords (`ultrathink` / `orchestrate`), single-track autonomy | 🏆 **`/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` — explicit human-selected tiers, SOP-friendly** |
 | **Scheduling & Orchestration** | 🟢 `task` fan-out into isolated worktrees, typed results, live subagent hub | 🏆 **`@build` orchestrator + predefined role pipelines (plan visible before execution) + tiered scheduling (Flash codes, Flagship reviews) + dynamic domain-persona injection + auto-retry with task resume** |
-| **Review Gates** | `/review` post-hoc P0–P3 verdict, single reviewer | 🏆 **`/deep-dev` dual flagship review + `@advisor` safety arbitration — fixes converge inside the loop** |
+| **Review Gates** | `/review` post-hoc P0–P3 verdict, single reviewer | 🏆 **`/review-dev` dual flagship review + `@advisor` safety arbitration — fixes converge inside the loop** |
 | **Spec-Driven Lifecycle** | None built-in (requires external tools) | 🏆 **`/prd` → `/plan` (auto-links PRD & ADRs) → `/impl` → `/sdd handoff` — full SDD lifecycle** |
 | **Workflow Command Suite** | `ultrathink` / `orchestrate` / `workflowz` keywords | 🏆 **`/grill-me` Socratic plan interrogation + `/review-fix-loop` auto-fix until zero P0/P1 + `/grill-improve-loop` score-driven improvement loop + `/goal` mechanically-checkable stop conditions + `/handoff` git-safe session bundles** |
 | **Token & Cost Governance** | hashline edit savings + efficient in-process tools | 🏆 **Five-tier agent-to-model routing (`tiers.json`) + RTK proxy-layer output compression (60–90%) auto-provisioned at install** |

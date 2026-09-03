@@ -29,7 +29,7 @@ Same agent roster and trigger words as the orchestrator — see the "Your team &
 3. **Execute analysis** — dispatch with the canonical dispatch template from `prompts/build.md`, adding `Scope: <files/modules/directories>` and making the Task explicitly **read-only, no code changes**. Emphasize: analyze and report, NEVER modify source files.
 4. **Token discipline** — follow the "Token discipline" section of `prompts/build.md`: pre-resolve structural lookups, dispatch `@explore` once, follow-ups read only changed files, never re-read after dispatch.
 5. **Synthesize findings** — cross-reference findings across domains (e.g. architect coupling + QA coverage gaps), identify themes, prioritize by impact × urgency, translate into an actionable plan.
-6. **Persist plan artifact & hand off** — (a) write the complete plan (SDD conventions) to `docs/plan/<topic>.md`; (b) emit deterministic handoff instructions for `@build` or `/fast-dev`. This prevents session context dilution and preserves prompt-caching efficiency for implementation phases.
+6. **Persist plan artifact & hand off** — (a) write the complete plan (SDD conventions) to `docs/plan/<topic>.md`; (b) emit deterministic handoff instructions for `@build` or `/plan-dev`. This prevents session context dilution and preserves prompt-caching efficiency for implementation phases.
 
 Language behavior: follow `output-protocol.md` → Session language.
 

@@ -14,10 +14,12 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | **`/impl [task]`** | SDD 规范驱动 | 依照 PRD/ADR/Plan 规范执行测试驱动编码实现与质量验证 |
 | **`/sdd [status\|handoff\|help]`** | SDD 规范驱动 | 规范驱动开发导航、制品状态检查与专属跨会话暂存交接（`/sdd handoff`） |
 | **`/grill-me <topic>`** | 架构与构思 | 逐题逼问式苏格拉底访谈，全方位磨砺需求与技术设计 |
-| **`/quick-dev <task>`** | 闭环开发 | **Quick-Dev 极速免审直通**：Flash 极速出码 + 动态领域灵魂注入（零审查开销，出码即交付，别名 `/flash-dev`，详见 [四阶闭环开发](dev-loops.md)） |
-| **`/fast-dev <task> [--max-rounds=N]`** | 闭环开发 | **Fast-Dev 敏捷单审闭环**：Flash 极速出码（动态领域灵魂） + 旗舰单审证据驱动严把关（详见 [四阶闭环开发](dev-loops.md)） |
-| **`/deep-dev <task> [--max-rounds=N]`** | 闭环开发 | **Deep-Dev 深度双审共识闭环**：Flash 编码 + 双旗舰顶级会审 + Advisor 争议仲裁共识，支持全栈拆解汇总（详见 [四阶闭环开发](dev-loops.md)） |
-| **`/ultra-dev <objective> [--max-rounds=N] [--max-phases=N]`** | 闭环开发 | **Ultra-Dev 自主多阶段闭环**：端到端自主执行 —— 将大型目标分解为多阶段，每阶段独立 `/deep-dev` 循环 + 上下文压缩 + 逐阶段 Git 提交隔离 + 支持 `--resume` 断点续跑（详见 [四阶闭环开发](dev-loops.md)） |
+| **`/dev <requirement> [--plan] [--sdd[="prd,adr,plan"]] [--plan-review[=1\|2]] [--code-review[=1\|2]] [--qa] [--fast] [--max-rounds=N] [--auto-advisor[=full\|lite\|off]]`** | 开发流 | **Dev 组合引擎**：单趟流水线引擎 —— 规格深度（`--plan` / `--sdd`）、计划评审、代码评审（1\|2）与 QA 标志自由组装流水线；`--auto-advisor` 仅本次运行覆盖 advisor 模式（裸值 = full）；预设 quick-dev/plan-dev/review-dev 是该引擎上的固定标志组合（详见 [/dev 组合引擎](dev.md)） |
+| **`/quick-dev <task> [--review] [--max-rounds=N]`** | 开发流 | **Quick-Dev 极速免审直通**：Flash 档最低成本出码 + 动态领域灵魂注入（零审查开销，出码即交付，`--review` 触发单审，别名 `/flash-dev`；`/dev` 的零深度标志预设，详见 [五档开发流](dev-loops.md)） |
+| **`/plan-dev <requirement> [--review] [--max-rounds=N]`** | 开发流 | **Plan-Dev 计划先行开发**：苏格拉底式澄清 + 架构师出计划 + 按领域路由实现，按需审查（`/dev` 的 `--plan` 预设，详见 [五档开发流](dev-loops.md)） |
+| **`/review-dev <task> [--max-rounds=N]`** | 开发流 | **Review-Dev 深度双审共识闭环**：领域路由编码 + 双旗舰顶级会审 + Advisor 争议仲裁共识，支持全栈拆解汇总（`/dev` 的 `--code-review=2` 预设，详见 [五档开发流](dev-loops.md)） |
+| **`/ultra-dev <objective> [--max-rounds=N] [--max-phases=N]`** | 开发流 | **Ultra-Dev 自主多阶段闭环**：端到端自主执行 —— 将大型目标分解为多阶段，每阶段独立 `/review-dev` 循环 + 上下文压缩 + 逐阶段 Git 提交隔离 + 支持 `--resume` 断点续跑（详见 [五档开发流](dev-loops.md)） |
+| **`/prud-dev <requirement> [--top=N] [--max-rounds=N]`** | 开发流 | **FMEA 审慎开发**：苏格拉底式澄清 + 编码前风险登记册（SEV×PROB 排序，top-N），由登记册驱动计划、实现与逐条审计验证（详见 [审慎开发](prud-dev.md)） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
 | **`/grill-improve-loop [subject] [--max-rounds=N] [--target=N]`** | 评分驱动闭环 | 评分驱动改进闭环：评分→分析改进路径→修复/重构→验证→重新评分，直到结构性天花板、停滞或最大轮次。每轮触发 verification-honesty 评分机制（规则 5–7） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
