@@ -106,7 +106,7 @@ Launch with `ocp desktop` (alias `ocp ui`) — native Tauri app with full keyboa
 | **Four Working Modes** | `@lite` (default — lean daily driver, ~2k tok/step), `@code` (direct development), `@build` (orchestrated execution), `@plan` (read-only analysis) |
 | **Code Intelligence & DB (MCP)** | Pre-configured MCP servers (Serena LSP, CodeGraph knowledge graph, GitNexus, DBHub gateway) with automatic CLI provisioning |
 | **Profiles** | `/profile` maps all 5 model tiers to a provider's models in one shot — no per-agent `set model` |
-| **Workflow Slash Commands** | `/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` dev flows, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
+| **Workflow Slash Commands** | `/dev` compositor · `/quick-dev` · `/plan-dev` · `/review-dev` · `/ultra-dev` dev flows, `/review-fix-loop`, `/grill-improve-loop`, `/goal`, `/handoff`, `/grill-me`, `/advisor` modes, and more |
 | **Optional Guardrails** | Per-project ADR enforcement (`/adr-guard`), secret-file gate (`env-guard`), E2E gate (`/e2e-guard`), commit discipline (`/project`) — all default off |
 | **One-Command Installer** | PowerShell + Bash, manifest-based upgrades; your credentials and model picks survive every reinstall |
 | **Token Savings** | [rtk](https://github.com/rtk-ai/rtk) output compression (60–90%) auto-provisioned on install + `@lite` measured ~2k tok/step system prompt where full-config agents carry 13k+ tok/step of overhead |

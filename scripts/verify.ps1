@@ -127,8 +127,11 @@ $installFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'install') -Recurse -
     ForEach-Object { "install/" + $_.FullName.Substring((Join-Path $RepoRoot 'install').Length + 1).Replace('\', '/') })
 
 $binFiles = @(Get-ChildItem -Path (Join-Path $RepoRoot 'bin') -Recurse -File |
-    Where-Object { $_.FullName -notmatch '[\/\\]\.' } |
-    ForEach-Object { "bin/" + $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1).Replace('\', '/') })
+    ForEach-Object { "bin/" + $_.FullName.Substring((Join-Path $RepoRoot 'bin').Length + 1).Replace('\', '/') } |
+    # Filter on the bin-relative path — the absolute path may legitimately
+    # contain dot-segments (e.g. a checkout under ~\.local\...) that would
+    # wrongly exclude every file.
+    Where-Object { $_ -notmatch '[\/\\]\.' })
 
 $pkgJson = if (Test-Path (Join-Path $RepoRoot 'package.json')) { @('package.json') } else { @() }
 

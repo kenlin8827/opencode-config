@@ -11,7 +11,7 @@ that don't.
 |---|---|---|---|
 | **L0** | `opencode.jsonc:instructions` | every step of every agent | iron rules: `rfc-keywords`, `output-protocol`, `verification-honesty`, `routing-index` |
 | **L1** | agent `prompt` field, assembled from `{file:}` markers | while that agent runs | role rules: coding pack, `sql-migration`, review criteria |
-| **L2** | `skills/*/SKILL.md` metadata | resident every step, visibility gated by `permission`; **body loads on demand** via the slash-command launchers in `commands/*.md` | scenario rules: workflow protocols (`sdd-workflow`, `review-dev`, `goal`, `handoff`, …) |
+| **L2** | `skills/*/SKILL.md` metadata | resident every step, visibility gated by `permission`; **body loads on demand** via the slash-command launchers in `commands/*.md` | scenario rules: workflow protocols (`sdd-workflow`, `dev`, `goal`, `handoff`, …) |
 | **L3** | your project's `AGENTS.md` (OpenCode native) | when files in that directory are read | your personal / project rules |
 
 L0 is the expensive layer (paid × steps × agents), so it stays under a hard

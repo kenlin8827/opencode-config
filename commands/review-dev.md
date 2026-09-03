@@ -3,6 +3,6 @@ description: Review-Dev - mission-critical dual-review consensus loop: domain-ro
 agent: build
 ---
 
-Load the review-dev skill and follow it strictly.
+Load the dev skill and execute it with the **review-dev preset**: `--code-review=2` (--max-rounds default 10).
 
 User request: $ARGUMENTS

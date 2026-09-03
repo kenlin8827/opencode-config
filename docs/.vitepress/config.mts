@@ -49,6 +49,7 @@ export default withMermaid(
               items: [
                 { text: 'Workflow Slash Commands', link: '/workflows/commands' },
                 { text: 'Five Dev Flows', link: '/workflows/dev-loops' },
+                { text: '/dev Compositor', link: '/workflows/dev' },
                 { text: 'Specification-Driven Development (SDD)', link: '/workflows/sdd' },
                 { text: 'Auto-Advisor Mode', link: '/workflows/auto-advisor' },
                 { text: 'Plugins & Project Guardrails', link: '/workflows/plugins' },
@@ -110,6 +111,7 @@ export default withMermaid(
                 items: [
                   { text: '工作流斜杠命令', link: '/zh/workflows/commands' },
                   { text: '五档开发流', link: '/zh/workflows/dev-loops' },
+                  { text: '/dev 组合引擎', link: '/zh/workflows/dev' },
                   { text: '规范驱动开发 (SDD)', link: '/zh/workflows/sdd' },
                   { text: 'Auto-advisor 模式', link: '/zh/workflows/auto-advisor' },
                   { text: '插件系统与项目护栏', link: '/zh/workflows/plugins' },

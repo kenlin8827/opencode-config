@@ -4,6 +4,8 @@ Five Dev Flows represent the flagship multi-agent workflow system in OpenCode's 
 
 Each flow embodies a **development philosophy** — a distinct trade-off between speed, depth, autonomy, and risk posture. Choose based on the nature of your task, not a linear "better/worse" hierarchy.
 
+The three linear flows (`/quick-dev`, `/plan-dev`, `/review-dev`) are implemented as **presets over one [`/dev`](dev.md) compositor engine** — each expands to a flag set on `/dev`. `/prud-dev` and `/ultra-dev` remain standalone protocols (different topologies). Invoke `/dev` directly when no preset matches.
+
 ---
 
 ## The Five Flows at a Glance
@@ -15,6 +17,7 @@ Each flow embodies a **development philosophy** — a distinct trade-off between
 | `/review-dev` | 🧠 | **Deep consensus** — dual flagship review + arbitration | 20% mission-critical: distributed transactions, full-stack, security-sensitive |
 | `/prud-dev` | 🛡️ | **Risk-first** — FMEA before code, risk register drives everything | Safety-critical: payments, auth, medical, aviation, anything a bug could harm |
 | `/ultra-dev` | 🛸 | **Autonomous** — objective in, phases out, zero interaction | Large-scale systems spanning multiple domains and phases |
+| [`/dev`](dev.md) | 🧩 | **Composable — bring your own pipeline** | Compositions no preset covers: `--plan --code-review=2 --qa`, `--sdd="adr,plan"` |
 
 ---
 
@@ -110,25 +113,25 @@ User → Objective → @build decomposes → Phase 0: @explore → Loop[Phase 1.
 
 ## Comparison Matrix
 
-| Dimension | ⚡ `/quick-dev` | 📋 `/plan-dev` | 🧠 `/review-dev` | 🛡️ `/prud-dev` | 🛸 `/ultra-dev` |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Philosophy** | Zero friction | Plan-first | Deep consensus | Risk-first FMEA | Full autonomy |
-| **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping | Daily default: features where plan approval matters | 20% mission-critical: distributed TX, full-stack, security | Safety-critical: payments, auth, medical, aviation | Large-scale systems spanning multiple domains |
-| **Host Agent** | `@build` | `@build` | `@build` | `@build` | `@build` |
-| **Coder Agent** | `@fast-coder` | `@<lang>-dev` (domain-routed) | `@<lang>-dev` (domain-routed) | `@<lang>-dev` (domain-routed) | `@<lang>-dev` per phase |
-| **Review Team** | None (optional `--review`) | None (optional `--review`) | 2 (`@architect` + `@code-review`) | Configurable (risk-driven) | 2 per phase |
-| **Pre-Implementation** | None | Socratic clarification + plan | None | FMEA Risk Register | `@explore` survey |
-| **Arbitration** | None | Plan-confirmation gate | `@advisor` (Safety-First) | Risk-register-driven | `@advisor` per phase |
-| **Convergence** | 1 round | 1 round (+ max 5 if `--review`) | Max 10 rounds | Register audit | Max 10 rounds/phase |
-| **Autonomy** | None | Low (plan gate) | Low | Low | High |
+| Dimension | ⚡ `/quick-dev` | 📋 `/plan-dev` | 🧠 `/review-dev` | 🛡️ `/prud-dev` | 🛸 `/ultra-dev` | 🧩 `/dev` |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Philosophy** | Zero friction | Plan-first | Deep consensus | Risk-first FMEA | Full autonomy | Composable — bring your own pipeline |
+| **Use Cases** | Throwaway scripts, UI tweaks, quick prototyping | Daily default: features where plan approval matters | 20% mission-critical: distributed TX, full-stack, security | Safety-critical: payments, auth, medical, aviation | Large-scale systems spanning multiple domains | Compositions no preset covers |
+| **Host Agent** | `@build` | `@build` | `@build` | `@build` | `@build` | `@build` |
+| **Coder Agent** | `@fast-coder` | `@<lang>-dev` (domain-routed) | `@<lang>-dev` (domain-routed) | `@<lang>-dev` (domain-routed) | `@<lang>-dev` per phase | `@fast-coder` or `@<lang>-dev` (flag-deterministic) |
+| **Review Team** | None (optional `--review`) | None (optional `--review`) | 2 (`@architect` + `@code-review`) | Configurable (risk-driven) | 2 per phase | 0 / 1 / 2 by flag |
+| **Pre-Implementation** | None | Socratic clarification + plan | None | FMEA Risk Register | `@explore` survey | Optional plan / SDD by flag |
+| **Arbitration** | None | Plan-confirmation gate | `@advisor` (Safety-First) | Risk-register-driven | `@advisor` per phase | `@advisor` (with `--code-review=2`) |
+| **Convergence** | 1 round | 1 round (+ max 5 if `--review`) | Max 10 rounds | Register audit | Max 10 rounds/phase | `--max-rounds` by flag (default 5) |
+| **Autonomy** | None | Low (plan gate) | Low | Low | High | Low |
 
 ---
 
 ## Dynamic Domain Persona Injection
 
-All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-dev`, `/ultra-dev`) leverage **Dynamic Domain Persona Injection**:
+All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-dev`, `/ultra-dev`, and `/dev` compositions) leverage **Dynamic Domain Persona Injection**:
 
-1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput (used by `/quick-dev`);
+1. **Stateless Container**: `@fast-coder` is bound to the fast Flash/Lite model tier, maintaining maximum throughput (used by the `/quick-dev` preset and bare `/dev` with zero depth flags);
 2. **On-the-Fly Persona Enchantment**: Orchestrator `@build` detects the technical stack and injects specialized domain guidelines into the prompt header:
    - **Frontend**: Strict TS (no `any`), atomic Tailwind, no wasteful re-renders, A11y standards;
    - **Go**: Explicit error handling, context propagation, goroutine leak prevention, zero panics in hot paths;
@@ -176,6 +179,14 @@ All flows that involve coding (`/quick-dev`, `/plan-dev`, `/review-dev`, `/prud-
 /ultra-dev Implement a complete user authentication system with OAuth2, session management, and RBAC
 /ultra-dev Build real-time notification service: WebSocket, queue, SDK, dashboard --max-rounds=8 --max-phases=10
 /ultra-dev --resume
+```
+
+### `/dev` (Compositor — no preset matches)
+
+```bash
+/dev Implement webhook retry with exponential backoff --plan --code-review=2 --qa
+/dev Add multi-tenant row-level security --sdd="adr,plan"
+/dev Tighten the CSV parser edge cases --qa
 ```
 
 ---

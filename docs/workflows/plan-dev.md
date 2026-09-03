@@ -2,6 +2,8 @@
 
 Plan-dev front-loads **requirement clarification and implementation planning before any code is written**. It is one of the [Five Dev Flows](dev-loops.md) — the plan-first philosophy: see and approve the plan before a single line of code exists, then execute with optional review.
 
+> Implemented as the `--plan` preset of the [`/dev`](dev.md) engine.
+
 ---
 
 ## Workflow

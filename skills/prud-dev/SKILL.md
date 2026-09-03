@@ -122,7 +122,7 @@ Information flow discipline: the plan receives **Tier A in full + Tier B as a on
 
 ### Step 6 — Implementation
 
-Dispatch the domain specialist per `build.md` trigger routing (`@node-dev`, `@python-dev`, `@dba`, `@frontend-dev`, …; multi-domain → sequential dispatches in dependency order, like `/review-dev` staging). The dispatch carries: the plan, **Tier A risks with their mitigations and acceptance criteria** (hard requirements — no fake mocks, no skipped edge cases), and the Tier B digest. The dev agent runs tests at the tier defined by `instructions/test-scope.md` (change-size based, as in `/review-dev`) before reporting completion. Zero-loss: forward the consolidated requirement verbatim, never your paraphrase.
+Dispatch the domain specialist per `build.md` trigger routing (`@node-dev`, `@python-dev`, `@dba`, `@frontend-dev`, …; multi-domain → sequential dispatches in dependency order, like the `/dev --code-review` staging). The dispatch carries: the plan, **Tier A risks with their mitigations and acceptance criteria** (hard requirements — no fake mocks, no skipped edge cases), and the Tier B digest. The dev agent runs tests at the tier defined by `instructions/test-scope.md` (change-size based, as in `/dev`) before reporting completion. Zero-loss: forward the consolidated requirement verbatim, never your paraphrase.
 
 ### Step 7 — Verification loop (max `--max-rounds`, default 5)
 

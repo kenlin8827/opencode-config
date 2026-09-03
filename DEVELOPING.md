@@ -493,12 +493,13 @@ providers/
 └── qoder-router.json         # Custom provider definition (auto-loaded preset; importable via /provider → "Add preset")
 
 commands/                     # Native opencode slash-command launchers (thin: frontmatter + "load the skill")
-├── plan-dev.md · review-dev.md · ultra-dev.md   # Dev-flow launchers (agent: build)
+├── dev.md · plan-dev.md · quick-dev.md · flash-dev.md · review-dev.md · ultra-dev.md   # Dev-flow launchers (agent: build)
 ├── goal.md · handoff.md · grill-*.md · review-fix-loop.md
 └── sdd.md · prd.md · plan.md · impl.md   # SDD launchers (agent: plan/code)
 
 skills/                       # L2 workflow protocols — metadata resident, body loads on demand
-├── review-dev/SKILL.md · plan-dev/ · quick-dev/ · prud-dev/ · ultra-dev/
+├── dev/SKILL.md                     # /dev compositor — quick-dev/plan-dev/review-dev are preset routers over it
+├── prud-dev/ · ultra-dev/
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/
 └── sdd-workflow/             # Merged SDD protocol (/sdd /prd /plan /impl)

@@ -3,6 +3,6 @@ description: Plan-Dev - plan-first development: @advisor clarification + @archit
 agent: build
 ---
 
-Load the plan-dev skill and follow it strictly.
+Load the dev skill and execute it with the **plan-dev preset**: `--plan` (--review → --code-review=1; --max-rounds default 5).
 
 User request: $ARGUMENTS

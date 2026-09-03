@@ -2,6 +2,8 @@
 
 Review-dev enforces **dual independent review with arbitration** for mission-critical code. It is one of the [Five Dev Flows](dev-loops.md) — the deep consensus philosophy: two flagship reviewers attack the diff through different lenses, and an advisor arbitrates disagreements under Safety-First principles.
 
+> Implemented as the `--code-review=2` preset of the [`/dev`](dev.md) engine.
+
 ---
 
 ## Workflow
