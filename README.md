@@ -172,3 +172,9 @@ The desktop app provides a native window with side-by-side diff views, multi-mod
 ---
 
 > 📖 **For full documentation** — agents, profiles, MCP servers, workflows, guardrails, and installer options — visit the **[Online Docs](https://kenlin8827.github.io/opencode-prime/)**.
+
+---
+
+## License
+
+Copyright (C) 2026 Ken Lin — licensed under the [GNU Affero General Public License v3.0 or later](./LICENSE). Third-party integrations keep their own licenses; per-component license notes live in `install/options.jsonc` and `opencode.template.jsonc`.

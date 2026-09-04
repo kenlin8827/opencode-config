@@ -11,7 +11,7 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `project-profiler.ts` | Detects project languages & active MCP servers at session start; steers agents to LSP/graph queries before grep |
 | `design-token-guard.ts` | Blocks writes with hardcoded colors/spacing/radius — keeps frontend code on design tokens |
 | `ai-slop-scanner.ts` | Warns about AI anti-patterns in frontend files (gradient soup, div soup) |
-| `usage.ts` | `/usage` TUI command opens a dialog with auto-fitted width and a visible tab strip: **by session** (one row per session + total), **by agent**, **by model** — non-cached input / output / cached-in tokens, cost, cache hit, share bars; `1/2/3` or `←→` switch tabs live, `Enter` closes; `/usage all\|agent\|model` opens a dimension directly; toast fallback when the dialog API is unavailable (TUI sessions only) |
+| `usage.ts` | `/usage` TUI command opens a dialog with auto-fitted width and a visible tab strip: **by session** (one row per session + total), **by agent**, **by model** — non-cached input / output / cached-in tokens, cost, cache hit, share bars; `1/2/3` or `←→` switch tabs live, `Enter` closes; `↑/↓` scroll long tables (tab strip, warning, header, total and footers stay pinned); `/usage all\|agent\|model` opens a dimension directly; toast fallback when the dialog API is unavailable (TUI sessions only) |
 | `auto-format.ts` | Auto-runs prettier/eslint/ruff/gofmt/rustfmt after file edits |
 | `auto-advisor-mode.ts` | `/auto-advisor` command, protocol injection, mode gating, red-team suppression |
 | `deepseek-anchor.ts` | `/deepseek-anchor` command — anchor-based reasoning protocols with DeepSeek models |

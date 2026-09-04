@@ -23,6 +23,16 @@ All rules in this document (token budget, cross-references, release flow) exist 
 
 ---
 
+## License & Dependency Compatibility
+
+OCP is licensed **AGPL-3.0-or-later** (`LICENSE`, SPDX in `package.json`). Dependency rules:
+
+- **Compatible to bundle** (import/ship): AGPL-3.0, GPL-3.0, Apache-2.0, MIT/BSD/ISC/0BSD, MPL-2.0 — keep upstream license notices.
+- **Not compatible to bundle** (source-available or non-commercial terms — gitnexus, PolyForm, Elastic/BSL, proprietary): keep as opt-in external integrations behind default-off switches, isolated from shipped code (existing pattern: `gitnexus` in `options.jsonc`).
+- Any new shipped dependency MUST state its license in the inline comment where it is wired (`options.jsonc` / `opencode.template.jsonc`).
+
+---
+
 ## 1. Language Standards
 
 All source code, agent prompts, instructions, plugin protocols, and contributor guidelines (`AGENTS.md`, `DEVELOPING.md`) must be **100% English**.

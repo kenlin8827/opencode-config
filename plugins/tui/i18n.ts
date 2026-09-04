@@ -501,30 +501,56 @@ const STRINGS = {
   // ── Usage (token/cost view — usage.ts) ───────────────────────────
   // ════════════════════════════════════════════════════════════════
   "usage.commandTitle": { en: "Show token usage", "zh-CN": "查看 token 用量" },
-  "usage.commandDesc": { en: "Token/cost usage with tabbed dimensions (session / agent / model) — 1/2/3 or ←→ to switch", "zh-CN": "按会话 / Agent / 模型分 tab 查看 token/费用消耗 — 1/2/3 或 ←→ 切换" },
+  "usage.commandDesc": { en: "Token/cost usage with tabbed dimensions (session / agent / model) — 1/2/3 or ←→ to switch, ↑/↓ to scroll", "zh-CN": "按会话 / Agent / 模型分 tab 查看 token/费用消耗 — 1/2/3 或 ←→ 切换，↑/↓ 滚动" },
   "usage.dialogTitle": { en: "Token usage", "zh-CN": "Token 用量" },
   "usage.dimPrev": { en: "Previous usage tab", "zh-CN": "上一个用量 tab" },
   "usage.dimNext": { en: "Next usage tab", "zh-CN": "下一个用量 tab" },
   "usage.dimSession": { en: "By session", "zh-CN": "按会话" },
   "usage.dimAgent": { en: "By agent", "zh-CN": "按Agent" },
   "usage.dimModel": { en: "By model", "zh-CN": "按模型" },
+  "usage.scrollHint": { en: "↑/↓ scroll · rows {first}–{last} of {total}", "zh-CN": "↑/↓ 滚动 · 第 {first}–{last} 行 / 共 {total} 行" },
   "usage.totalRow": { en: "total", "zh-CN": "总计" },
   "usage.hSession": { en: "session", "zh-CN": "会话" },
   "usage.hAgent": { en: "agent", "zh-CN": "Agent" },
   "usage.hSessions": { en: "sessions", "zh-CN": "会话数" },
-  "usage.hIn": { en: "in", "zh-CN": "输入" },
+  "usage.hIn": { en: "in (uncached)", "zh-CN": "输入(非缓存)" },
   "usage.hOut": { en: "out", "zh-CN": "输出" },
-  "usage.hCached": { en: "cached", "zh-CN": "缓存" },
+  "usage.hCached": { en: "in (cached)", "zh-CN": "输入(缓存)" },
   "usage.hCost": { en: "cost", "zh-CN": "费用" },
   "usage.hCredits": { en: "credits", "zh-CN": "积分" },
   "usage.hSteps": { en: "steps", "zh-CN": "步数" },
   "usage.hHit": { en: "hit", "zh-CN": "命中率" },
   "usage.hShare": { en: "share", "zh-CN": "占比" },
   "usage.hModel": { en: "model", "zh-CN": "模型" },
-  "usage.hitCell": { en: "hit {hit}%", "zh-CN": "命中 {hit}%" },
+  "usage.hitCell": { en: "hit {hit}% • total {total}", "zh-CN": "命中 {hit}% · 总 {total}" },
+  "usage.killLineFooter": { en: "⚓ Estimate baseline: {model}", "zh-CN": "⚓ 估算下界基准: {model}" },
+  "usage.fullIdMapping": { en: "Full IDs:", "zh-CN": "模型全名:" },
   "usage.noData": { en: "📊 No token data for the current session yet.", "zh-CN": "📊 当前会话还没有 token 数据。" },
   "usage.unknownSub": { en: "📊 Unknown subcommand \"{sub}\". Usage: /usage [all|model]", "zh-CN": "📊 未知子命令 \"{sub}\"。用法: /usage [all|model]" },
   "usage.failed": { en: "📊 Failed to query usage: {err}", "zh-CN": "📊 查询用量失败: {err}" },
+
+  // Context-watch: long-session reminders injected above the table.
+  // Three tiers — gentle hint at soft threshold, strong warning past the
+  // standard attention-decay boundary, and a hard "you should handoff
+  // now" beyond the compaction safety line. Compactions flagging fires
+  // independently because compaction is an opencode-internal action the
+  // user can't undo from the prompt side.
+  "usage.contextWarning.soft": {
+    en: "💡 {count} turns — early context may be losing weight. Consider asking the agent for a recap before the next task.",
+    "zh-CN": "💡 已 {count} 轮 — 早期上下文可能开始在弱化。下一步任务前建议让 agent 做个小结。",
+  },
+  "usage.contextWarning.strong": {
+    en: "⚠️ {count} turns — context is getting heavy. Strongly recommend wrapping up and opening a fresh session with a recap bridge.",
+    "zh-CN": "⚠️ 已 {count} 轮 — 上下文已经很重。强烈建议尽快收尾，用小结桥接开新会话。",
+  },
+  "usage.contextWarning.hard": {
+    en: "🚨 {count} turns — past the attention-decay line. Old instructions may already be forgotten; a fresh session will be cheaper AND more reliable.",
+    "zh-CN": "🚨 已 {count} 轮 — 超过注意力衰减红线。早期指令可能已经被遗忘，开新会话既省钱又可靠。",
+  },
+  "usage.contextWarning.compactions": {
+    en: "⚠️ {count} compaction(s) detected — opencode has already auto-summarized earlier context. Past history may be lossy.",
+    "zh-CN": "⚠️ 已发生 {count} 次自动压缩 — opencode 已经摘要过早期上下文，更早的历史可能有损。",
+  },
 } as const
 
 type StringKey = keyof typeof STRINGS

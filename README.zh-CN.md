@@ -194,3 +194,9 @@ OCP_RAW_MIRROR=https://ghfast.top ocp update
 ---
 
 > 📖 **完整文档** — 智能体、预设、MCP 服务、工作流、护栏与安装选项 — 请访问 **[在线文档站](https://kenlin8827.github.io/opencode-prime/zh/)**。
+
+---
+
+## 许可证
+
+版权所有 (C) 2026 Ken Lin — 基于 [GNU Affero 通用公共许可证 v3.0 或更高版本](./LICENSE) 发布。第三方集成保留各自许可证；各组件的许可说明见 `install/options.jsonc` 与 `opencode.template.jsonc`。

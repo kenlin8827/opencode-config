@@ -116,7 +116,7 @@ const fakeApi = {
       messages: async ({ sessionID }: { sessionID: string }) => ({ data: messages[sessionID] || [] }),
     },
   },
-  renderer: { keyInput: keypressEmitter },
+  renderer: { keyInput: keypressEmitter, height: 30 },
 } as any
 
 // ─── Fixtures: mirror the reference screenshot ──────────────────────────────
@@ -242,6 +242,13 @@ assertEq(dialogRenders.length, 4, "keypress 'right' cycled to next dimension")
 // Unhandled key: Enter should NOT be stopped
 const stoppedEnter = fireKeypress("return")
 assert(!stoppedEnter, "Enter key not stopped (dialog handles it for close)")
+// Scroll keys pass through when the table fits (no overflow → no interception).
+// Switch back to the session dim first: the model dim's id-mapping footer
+// makes even 3 rows overflow a 30-row terminal.
+fireKeypress("1")
+await tick()
+const stoppedUp = fireKeypress("up")
+assert(!stoppedUp, "'up' not stopped when the table fits the terminal")
 
 // Close dialog → keypress handler removed
 for (const cb of dialogCloseCallbacks) cb()
@@ -282,8 +289,8 @@ dialogCloseCallbacks.length = 0
 
 // --- numbered tab strip + composed view (official TabSelect style underline) ---
 const { formatByDimension, renderDimensionView, fitDialogSize } = await import("../plugins/tui/usage")
-const sessionTable = await formatByDimension(fakeApi.client, "s1", "session")
-const view = renderDimensionView(sessionTable, "agent")
+const sessionRender = await formatByDimension(fakeApi.client, "s1", "session")
+const view = renderDimensionView(sessionRender, "agent")
 const viewLines = view.split("\n")
 assertEq(viewLines[0], "(1)By session   (2)By agent   (3)By model", "tab strip labels carry hotkey numbers (no space after number)")
 // "(2)By agent" sits at offset width("(1)By session") + 3; the bar covers exactly its width
@@ -311,10 +318,12 @@ resetCostsCache()
 sessions.z1 = { id: "z1", agent: "build" }
 // 10000×2.3 + 20000×0.56 + 5000×8 / 10000 = (23000 + 11200 + 40000) / 10000 = 7.42 积分
 messages.z1 = [assistant({ mode: "build", agent: "build", providerID: "zhipuai-coding-plan", modelID: "glm-5.3-flash", cost: 0, tokens: { input: 10000, output: 5000, cache: { read: 20000, write: 0 } } }, 1)]
-const ptsText = await formatByDimension(fakeApi.client, "z1", "session")
+const ptsText = (await formatByDimension(fakeApi.client, "z1", "session")).table
 assert(ptsText.includes("credits") && ptsText.includes("7.42"), "credits column present for plan sessions")
-assert(ptsText.includes("7.42"), `points computed via OCP dataset (got: ${ptsText.split("\n").join(" | ")})`)
-assert(ptsText.includes("$0.0000"), "server cost still shown as-is (no invented dollars)")
+  assert(ptsText.includes("7.42"), `points computed via OCP dataset (got: ${ptsText.split("\n").join(" | ")})`)
+  // On coding plans the server-side cost is $0, but credits are the actual
+  // billing mechanism so costKnown should be true and no kill-line skull appears.
+  assert(!ptsText.includes("💀"), "coding-plan sessions don't get a kill-line skull (credits are the real bill)")
 delete sessions.z1
 delete messages.z1
 rmSync(pointsPath, { force: true })
@@ -324,8 +333,8 @@ resetCostsCache()
 // --- non-plan provider with cost 0 → no points, plain $0.0000 ---
 sessions.z2 = { id: "z2", agent: "build" }
 messages.z2 = [assistant({ mode: "build", agent: "build", providerID: "anthropic", modelID: "claude-pro", cost: 0, tokens: { input: 1000, output: 100, cache: { read: 10000, write: 0 } } }, 1)]
-const nonPlanText = await formatByDimension(fakeApi.client, "z2", "session")
-assert(nonPlanText.includes("$0.0000") && !nonPlanText.includes("积分"), "non-plan cost 0 stays plain $0.0000 without credits column")
+const nonPlanText = (await formatByDimension(fakeApi.client, "z2", "session")).table
+assert(nonPlanText.includes("💀") && !nonPlanText.includes("积分"), "non-plan cost 0 shows kill-line estimate prefixed with skull")
 delete sessions.z2
 delete messages.z2
 
@@ -337,7 +346,7 @@ assertEq(fitDialogSize("a".repeat(100)), "xlarge", "wide content → xlarge")
 // --- dimension tables via formatByDimension (host renders the dialog) ---
 
 // session dimension: one row per session + total row
-const sessionText = await formatByDimension(fakeApi.client, "s1", "session")
+const sessionText = (await formatByDimension(fakeApi.client, "s1", "session")).table
 for (const header of ["session", "in", "out", "cached", "steps", "cost", "share"]) {
   assert(sessionText.includes(header), `session table has "${header}" column`)
 }
@@ -345,8 +354,8 @@ assert(sessionText.includes("🧠 lite"), "main session row (emoji icon)")
 assert(sessionText.includes("🦾 explore"), "subagent session row (emoji icon)")
 assert(!sessionText.includes("@"), "no @ concatenation in session names")
 assert(!sessionText.includes("main agent") && !sessionText.includes("主 agent"), "legend line removed")
-assert(sessionText.includes("11.7k") && sessionText.includes("11.1k") && sessionText.includes("100"), "per-session in values")
-assert(sessionText.includes("22.9k") && sessionText.includes("1,970") && sessionText.includes("27k"), "total row sums")
+assert(sessionText.includes("11,702") && sessionText.includes("100"), "per-session in values")
+  assert(sessionText.includes("22,853") && sessionText.includes("1,970") && sessionText.includes("27,008"), "total row sums")
 assert(sessionText.includes("$0.0031"), "total row cost")
 assert(sessionText.includes("hit 54.2%") && sessionText.includes("total"), "total row with hit rate")
 assert(sessionText.includes("51.2%"), "s1 share pct")
@@ -354,24 +363,95 @@ assert(sessionText.includes("\u2588"), "bar characters present")
 assert(!sessionText.includes("cache-write") && !sessionText.includes("reasoning"), "display limited to 3 numbers: in / out / cached")
 
 // agent dimension: sessions grouped by agent attribution
-const agentText = await formatByDimension(fakeApi.client, "s1", "agent")
+const agentText = (await formatByDimension(fakeApi.client, "s1", "agent")).table
 for (const header of ["agent", "sessions", "in", "out", "cached", "cost", "share"]) {
   assert(agentText.includes(header), `agent table has "${header}" column`)
 }
 assert(agentText.includes("lite") && agentText.includes("explore"), "agent rows present")
-assert(agentText.includes("11.7k") && agentText.includes("11.1k"), "per-agent input sums")
-assert(agentText.includes("19.8k"), "explore cached-in sum")
+assert(agentText.includes("11,702"), "per-agent input sums")
+  assert(agentText.includes("19,776"), "explore cached-in sum")
 assert(!agentText.includes("build") || agentText.indexOf("explore") < agentText.indexOf("build"), "fixture agent 'build' never used by messages")
 
 // model dimension: tokens/cost summed across the whole tree (same columns as sessions)
-const modelText = await formatByDimension(fakeApi.client, "s1", "model")
+const modelText = (await formatByDimension(fakeApi.client, "s1", "model")).table
 for (const header of ["model", "sessions", "in", "out", "cached", "cost", "share"]) {
   assert(modelText.includes(header), `model table has "${header}" column`)
 }
 assert(modelText.includes("anthropic/claude-pro"), "model row: claude-pro")
-assert(modelText.includes("11.8k"), "claude-pro input summed across s1+c0 (11702+100)")
+assert(modelText.includes("11,802"), "claude-pro input summed across s1+c0 (11702+100)")
 assert(modelText.includes("994") && modelText.includes("7,232"), "claude-pro output/cache summed (984+10, 7232+0)")
 assert(modelText.includes("google/gemini-flash"), "model row: gemini-flash")
+
+// --- scrollable viewport: short terminals slice data rows, pin header + total ---
+const { renderScrollView } = await import("../plugins/tui/usage")
+// Grow the tree to 12 sessions so the session table overflows a 30-row
+// terminal. x0 carries 14 steps → totalSteps crosses the soft tier (30),
+// so the context warning is part of the pinned top region too.
+for (let i = 0; i < 9; i++) {
+  const id = `x${i}`
+  sessions[id] = { id, parentID: "s1", agent: "task" }
+  messages[id] = [assistant({ mode: "explore", agent: "explore", providerID: "google", modelID: "gemini", cost: 0.0001, tokens: { input: 100 + i, output: 10, reasoning: 0, cache: { read: 0, write: 0 } } }, i === 0 ? 14 : 1)]
+  children.s1.push(id)
+}
+const bigRender = await formatByDimension(fakeApi.client, "s1", "session")
+const bigFlat = renderDimensionView(bigRender, "session")
+assertEq(bigRender.view.dataRows.length, 12, "grown tree has 12 data rows")
+assert(bigFlat.includes("turns"), "context warning present in the flat view")
+
+// Short terminal (30 rows → 15 message lines): overflow, pinned chrome, indicator
+const svTop = renderScrollView(bigRender, "session", 30, 0)
+assert(svTop.maxOffset > 0, "overflow detected on a short terminal")
+assertEq(svTop.offset, 0, "offset 0 at the top")
+assertEq(svTop.view.split("\n").slice(0, 8).join("\n"), bigFlat.split("\n").slice(0, 8).join("\n"), "tab strip + warning + column header pinned at top")
+assert(svTop.view.includes("11,702"), "first data row visible at offset 0")
+assert(!svTop.view.includes("108"), "last data row not visible at offset 0")
+assert(svTop.view.includes(bigRender.view.totalRow), "total row pinned (always visible)")
+assert(svTop.view.includes("↑/↓") && svTop.view.includes("of 12"), "scroll indicator present with row count")
+assert(svTop.view.split("\n").length < bigFlat.split("\n").length, "sliced view shorter than the flat view")
+
+// Scroll to the bottom: clamped, last row visible, line count stable
+const svEnd = renderScrollView(bigRender, "session", 30, 9999)
+assertEq(svEnd.offset, svEnd.maxOffset, "offset clamped to maxOffset")
+assert(svEnd.view.includes("108"), "last data row visible at the bottom")
+assert(!svEnd.view.includes("11,702"), "first data row scrolled out at the bottom")
+assertEq(svEnd.view.split("\n").length, svTop.view.split("\n").length, "line count stable while scrolling")
+
+// Mid-offset window
+const svMid = renderScrollView(bigRender, "session", 30, 3)
+assertEq(svMid.offset, 3, "explicit mid offset honored")
+assert(svMid.view.includes("101"), "row 5 visible at offset 3")
+assert(!svMid.view.includes("11,702"), "row 1 scrolled out at offset 3")
+
+// Tall terminal: no overflow → byte-identical to the flat render, no indicator
+const svTall = renderScrollView(bigRender, "session", 100, 5)
+assertEq(svTall.maxOffset, 0, "tall terminal → no scrolling")
+assertEq(svTall.offset, 0, "offset forced to 0 when nothing overflows")
+assertEq(svTall.view, bigFlat, "no-overflow view identical to the flat render")
+assert(!svTall.view.includes("↑/↓"), "no scroll indicator when the table fits")
+
+// --- plugin-level: scroll keys intercepted while the dialog overflows ---
+toasts.length = 0
+dialogRenders.length = 0
+await runUsage("usage.show")
+await tick()
+assertEq(dialogRenders.length, 1, "dialog opened for the grown tree")
+const rendersBefore = dialogRenders.length
+assert(fireKeypress("down"), "'down' stopPropagation when the table overflows")
+await tick()
+assertEq(dialogRenders.length, rendersBefore + 1, "'down' re-rendered the dialog from cache")
+assert(fireKeypress("j"), "'j' scroll alias intercepted")
+assert(fireKeypress("k"), "'k' scroll alias intercepted")
+// Clamping: hammering 'down' past the end stops re-rendering
+for (let i = 0; i < 100; i++) fireKeypress("down")
+assert(dialogRenders.length < rendersBefore + 100, "scroll re-renders stop at the clamp boundary")
+assert(!fireKeypress("return"), "Enter not stopped while scrolling")
+// Tab switch to a dimension that fits → scroll keys pass through again
+fireKeypress("2")
+await tick()
+assert(!fireKeypress("down"), "'down' passes through after switching to a table that fits")
+for (const cb of dialogCloseCallbacks) cb()
+dialogCloseCallbacks.length = 0
+assertEq(keypressListeners.length, 0, "keypress handler removed after close")
 
 // --- /usage all|agent|model → opens the corresponding table dialog ---
 toasts.length = 0
@@ -383,7 +463,7 @@ assertEq(dialogRenders.length, 1, "session table dialog opened")
 
 // --- parentID climbing: route on a child session still shows the whole tree ---
 routeSessionID = "c0"
-const climbText = await formatByDimension(fakeApi.client, "c0", "session")
+const climbText = (await formatByDimension(fakeApi.client, "c0", "session")).table
 assert(climbText.includes("🦾 lite") && climbText.includes("🦾 explore") && climbText.includes("🧠 code"), "route on child walks up to root and includes whole tree")
 assert(climbText.includes("🧠 code"), "current session (even if child) gets the main icon")
 routeSessionID = "s1"
