@@ -541,7 +541,8 @@ providers/
 
 commands/                     # Native opencode slash-command launchers (thin: frontmatter + "load the skill")
 ├── dev.md · dev-plan.md · dev-quick.md · dev-flash.md · dev-review.md · dev-ultra.md   # Dev-flow launchers (agent: build)
-├── git-merge.md                 # Git merge launcher — 3 strategies: merge/squash/rebase (agent-agnostic; added in v0.23.0)
+├── git-merge.md                 # Git merge launcher — 3 strategies: merge/squash/rebase (agent: build; added in v0.23.0)
+├── git-pull.md                  # Safe upstream sync — ff-only first, diverged → guard + git-merge protocol (agent: build; added in v0.24.0)
 ├── goal.md · handoff.md · grill-*.md · review-fix-loop.md
 └── sdd.md · prd.md · plan.md · impl.md   # SDD launchers (agent: plan/code)
 
@@ -549,6 +550,7 @@ skills/                       # L2 workflow protocols — metadata resident, bod
 ├── dev/SKILL.md                     # /dev compositor — dev-quick/dev-plan/dev-review are preset routers over it
 ├── dev-prud/ · dev-ultra/
 ├── git-merge/SKILL.md          # /git-merge protocol — baseline-first conflict resolution, 3 strategies (merge/squash/rebase) (added in v0.23.0)
+├── git-pull/SKILL.md           # /git-pull protocol — ff-first sync; diverged → guard backup + delegate to git-merge (added in v0.24.0)
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/
 └── sdd-workflow/             # Merged SDD protocol (/sdd /prd /plan /impl)

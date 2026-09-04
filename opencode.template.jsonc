@@ -251,9 +251,7 @@
       // own sight (zero-alternative path). Lite is a leaf — heavy or
       // multi-domain coding escalates to @code or @build by the user.
       "permission": {
-        "*": { "*": "deny" },
-        // git-merge: pure operational skill (bash + edit), no L1 dependency.
-        "skill": { "git-merge": "allow" }
+        "*": { "*": "deny" }
       },
       "tools": {
         "*": false,

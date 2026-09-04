@@ -340,9 +340,8 @@ CheckWorkflowSkill "dev-prud" @("Surface model", "SEV", "PROB", "Tier A", "misse
 # passthrough, Safety-First arbitration, and the test-scope tier.
 CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "dev-quick", "dev-plan", "dev-review", "Zero-Loss", "Safety-First", "test-scope", "--auto-advisor")
 
-# git-merge: agent-agnostic (no agent: restriction); @lite has an explicit
-# skill whitelist entry. Anchors protect the stock-merge model, sync-first
-# baseline, baseline-authority resolution, deletion-is-intent, and verification.
+# git-merge: anchors protect the stock-merge model, sync-first baseline,
+# baseline-authority resolution, deletion-is-intent, and verification.
 CheckWorkflowSkill "git-merge" @(
     "git merge --continue",
     "git pull --ff-only",
@@ -353,7 +352,19 @@ CheckWorkflowSkill "git-merge" @(
     "guard/",
     "instructions/verification-honesty.md",
     "modify/delete"
-) $null
+)
+
+# git-pull: ff-first sync of the current branch with its upstream; diverged →
+# guard backup + delegation to the git-merge protocol. Anchors protect the
+# ff-only policy, the guard backup, the delegation, and the no-squash stance.
+CheckWorkflowSkill "git-pull" @(
+    "git pull --ff-only",
+    "git fetch origin",
+    "guard/",
+    "git-merge",
+    "never legitimate",
+    "set-upstream-to"
+)
 
 # Preset routers: the three dev-flow launchers load the dev skill with their
 # preset expansion.
