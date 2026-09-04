@@ -40,9 +40,10 @@ import { parseJsonc } from "../shared/ocp-config"
  *
  * Tables render in a host dialog (DialogAlert); hosts without the dialog
  * API fall back to a toast. Picker → table → confirm → picker acts as
- * tab-style dimension switching. On short terminals the data rows scroll
- * (↑/↓/j/k) inside the dialog while the tab strip, context warning, column
- * header, total row and footers stay pinned — the summary is never clipped.
+ * tab-style dimension switching. Tables taller than the viewport (capped at
+ * MAX_VISIBLE_ROWS) scroll (↑/↓/j/k) inside the dialog while the tab strip,
+ * context warning, column header, total row and footers stay pinned — the
+ * summary is never clipped.
  *
  * Note: this is a TUI-only module — it can only run while the TUI is active.
  */
@@ -1269,6 +1270,10 @@ const DIALOG_CHROME = 7
 /** Never show fewer than one data row, even on degenerate tiny terminals. */
 const MIN_VISIBLE_ROWS = 1
 
+/** Max data rows per viewport — keeps the dialog compact on tall terminals;
+ *  shorter terminals still shrink adaptively below this. */
+const MAX_VISIBLE_ROWS = 8
+
 export interface ScrollView {
   /** Composed dialog message: pinned tab strip / warning / column header,
    *  the visible slice of data rows, then pinned total row + footers +
@@ -1280,8 +1285,9 @@ export interface ScrollView {
   maxOffset: number
 }
 
-/** Compose the dialog message for a bounded terminal. Pinned top: tab strip,
- *  context warning, column header + rule. Scrolling region: data rows only,
+/** Compose the dialog message for a viewport of at most MAX_VISIBLE_ROWS data
+ *  rows (short terminals shrink it further). Pinned top: tab strip, context
+ *  warning, column header + rule. Scrolling region: data rows only,
  *  row-granular (a row is never cut mid-line). Pinned bottom: total row,
  *  table footers, scroll indicator. When nothing overflows the output is
  *  byte-identical to renderDimensionView. */
@@ -1297,7 +1303,7 @@ export function renderScrollView(rendered: UsageRender, dim: UsageDimension, ter
   const footerLines = tv.footers.reduce((n, f) => n + 1 + f.split("\n").length, 0) // + leading blank each
   const pinnedBottom = 2 /* blank + total row */ + footerLines
   const rowsFor = (withIndicator: boolean) =>
-    Math.max(MIN_VISIBLE_ROWS, Math.floor((budget - pinnedTop - pinnedBottom - (withIndicator ? 2 : 0) + 1) / 2))
+    Math.max(MIN_VISIBLE_ROWS, Math.min(MAX_VISIBLE_ROWS, Math.floor((budget - pinnedTop - pinnedBottom - (withIndicator ? 2 : 0) + 1) / 2)))
   let visible = rowsFor(false)
   let maxOffset = 0
   if (visible < total) {
@@ -1336,7 +1342,7 @@ let keyHandler: ((e: any) => void) | null = null
 let openRendered: UsageRender | null = null
 /** Scroll position (data-row offset) of the open dialog; reset on open/tab switch. */
 let scrollOffset = 0
-/** Max row offset of the current view — 0 when the table fits the terminal
+/** Max row offset of the current view — 0 when the table fits the viewport
  *  (scroll keys pass through to the host). */
 let scrollMax = 0
 

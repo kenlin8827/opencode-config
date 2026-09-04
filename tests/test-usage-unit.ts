@@ -384,6 +384,10 @@ assert(modelText.includes("google/gemini-flash"), "model row: gemini-flash")
 
 // --- scrollable viewport: short terminals slice data rows, pin header + total ---
 const { renderScrollView } = await import("../plugins/tui/usage")
+// Pre-growth snapshot (few data rows): a table within MAX_VISIBLE_ROWS rows
+// fits any terminal without scrolling — used by the no-overflow assertions.
+const smallRender = await formatByDimension(fakeApi.client, "s1", "session")
+const smallFlat = renderDimensionView(smallRender, "session")
 // Grow the tree to 12 sessions so the session table overflows a 30-row
 // terminal. x0 carries 14 steps → totalSteps crosses the soft tier (30),
 // so the context warning is part of the pinned top region too.
@@ -422,12 +426,20 @@ assertEq(svMid.offset, 3, "explicit mid offset honored")
 assert(svMid.view.includes("101"), "row 5 visible at offset 3")
 assert(!svMid.view.includes("11,702"), "row 1 scrolled out at offset 3")
 
-// Tall terminal: no overflow → byte-identical to the flat render, no indicator
+// Tall terminal: viewport capped at MAX_VISIBLE_ROWS (8) rows regardless of
+// terminal height — 12 data rows → 8 visible, 4-row scroll range.
 const svTall = renderScrollView(bigRender, "session", 100, 5)
-assertEq(svTall.maxOffset, 0, "tall terminal → no scrolling")
-assertEq(svTall.offset, 0, "offset forced to 0 when nothing overflows")
-assertEq(svTall.view, bigFlat, "no-overflow view identical to the flat render")
-assert(!svTall.view.includes("↑/↓"), "no scroll indicator when the table fits")
+assertEq(svTall.maxOffset, 4, "tall terminal → viewport capped at 8 rows (12 − 8)")
+assertEq(svTall.offset, 4, "offset clamped to maxOffset")
+assert(svTall.view.includes("108"), "last data row visible at the capped bottom")
+assert(!svTall.view.includes("11,702"), "first data row outside the 8-row window")
+assert(svTall.view.includes("↑/↓"), "scroll indicator present when capped")
+// Table within 8 rows → fits, byte-identical to the flat render, no indicator
+const svFit = renderScrollView(smallRender, "session", 100, 5)
+assertEq(svFit.maxOffset, 0, "table that fits → no scrolling")
+assertEq(svFit.offset, 0, "offset forced to 0 when nothing overflows")
+assertEq(svFit.view, smallFlat, "no-overflow view identical to the flat render")
+assert(!svFit.view.includes("↑/↓"), "no scroll indicator when the table fits")
 
 // --- plugin-level: scroll keys intercepted while the dialog overflows ---
 toasts.length = 0
