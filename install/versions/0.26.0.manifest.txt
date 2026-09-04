@@ -54,8 +54,6 @@ plugins/auto-advisor/auto-advisor-system-inject.ts
 plugins/auto-advisor/auto-advisor-tool-guard.ts
 plugins/auto-format.ts
 plugins/browser-screenshot.ts
-plugins/context-watch.ts
-plugins/context-watch/context-watch.ts
 plugins/deepseek-anchor.ts
 plugins/deepseek-anchor/deepseek-anchor-announce.ts
 plugins/deepseek-anchor/deepseek-anchor-command.ts
