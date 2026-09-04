@@ -23,6 +23,8 @@ Plugins provide runtime enforcement and workflows that prompts alone cannot achi
 | `profile-wizard.ts`, `provider-wizard.ts`, `project-wizard.ts` | `/profile`, `/provider`, and `/project-wizard` TUI dialog wizards |
 | `md-to-pdf.ts` | `/md-to-pdf` command & `md_to_pdf` tool — export Markdown files as publication-quality A4 PDFs (via Pandoc + Playwright) |
 | `md-to-docx.ts` | `/md-to-docx` command & `md_to_docx` tool — export Markdown files as publication-quality Word (.docx) documents (Chinese typography, auto TOC, styled tables & code blocks) |
+| `context-watch.ts` | Long-session context reminders — at 30/60/100 assistant turns injects a one-line "wrap up & open a fresh session" suggestion into the latest user message (monotonic tiers, subagent sessions skipped) |
+| `context-compress.ts` | Stale tool-output compression — tool outputs older than a 12-message recency window (verbose logs, listings) are deterministically compressed once, then replayed byte-identically on every later step (prefix-cache safe); code-heavy outputs stay verbatim; kill switch: `OCP_CONTEXT_COMPRESS=0` |
 
 > **Workflow commands are not plugins.** `/dev-quick`, `/dev-plan`, `/dev-review`, `/dev-ultra`, `/dev-prud`, `/review-fix-loop`, `/grill-improve-loop`, `/grill-me`, `/grill-with-docs`, `/goal`, `/handoff` are native opencode command files (`commands/*.md`): thin launchers that load their protocol from an L2 skill (`skills/<name>/SKILL.md`) on demand — paid once per invocation, never resident. See [Workflow Slash Commands](commands.md) and [Five Dev Flows](dev-loops.md).
 
@@ -169,6 +171,17 @@ OpenCode persists prompts submitted while busy as user messages. The bundled `qu
 
 - `/queued` opens a picker dialog listing all queued messages.
 - Selected actions: **Edit Prompt**, **Cancel Prompt**, **View Full Text**, or **Cancel ALL**.
+
+---
+
+## Context economy (`context-watch` & `context-compress`)
+
+Two complementary plugins that keep long sessions cheap and sharp:
+
+- **`context-watch`** — At 30/60/100 assistant turns, injects a one-line reminder into the *latest* user message suggesting the agent wrap up and open a fresh session with a recap bridge. Tier escalation is monotonic (a session never sees the same tier twice), subagent sessions are skipped, and state is dropped on `session.deleted`.
+- **`context-compress`** — Every step re-ships the full history. Tool outputs older than a 12-message recency window are compressed with a deterministic, structure-aware engine ([ContextCompressionEngine](https://github.com/SimplyLiz/ContextCompressionEngine), vendored under `plugins/context-compress/vendor/`): log-style text compresses to a summary while code blocks stay verbatim. Each message is compressed exactly once and the frozen bytes are replayed on every later step, so the provider-side prefix cache is never busted. User messages, assistant prose, and tool-call structure are never touched.
+
+Both are on by default. To disable compression: set `OCP_CONTEXT_COMPRESS=0` in your environment.
 
 ---
 

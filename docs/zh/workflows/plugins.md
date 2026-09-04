@@ -23,6 +23,8 @@
 | `profile-wizard.ts`、`provider-wizard.ts`、`project-wizard.ts` | `/profile`、`/provider` 与 `/project-wizard` TUI 弹窗向导 |
 | `md-to-pdf.ts` | `/md-to-pdf` 命令与 `md_to_pdf` 工具 —— 将 Markdown 一键导出为高质量 A4 PDF（基于 Pandoc + Playwright） |
 | `md-to-docx.ts` | `/md-to-docx` 命令与 `md_to_docx` 工具 —— 将 Markdown 导出为出版级 Word (.docx) 文档（宋体/黑体排版、自动TOC、智能表格与代码美化） |
+| `context-watch.ts` | 长会话上下文提醒 —— 30/60/100 轮时在最新用户消息注入一行"收尾并开新会话"建议（层级单调递进，子代理会话跳过） |
+| `context-compress.ts` | 陈旧工具输出压缩 —— 超出 12 条消息近期窗口的工具输出（冗长日志、清单）被确定性压缩一次，此后每步逐字节重放（前缀缓存安全）；代码为主的输出保持原文；关闭开关：`OCP_CONTEXT_COMPRESS=0` |
 
 > **工作流命令不是插件。** `/dev-quick`、`/dev-plan`、`/dev-review`、`/dev-ultra`、`/dev-prud`、`/review-fix-loop`、`/grill-improve-loop`、`/grill-me`、`/grill-with-docs`、`/goal`、`/handoff` 是 opencode 原生命令文件（`commands/*.md`）：薄发射器，按需从 L2 技能（`skills/<name>/SKILL.md`）加载协议正文——每次调用只付费一次，永不常驻。详见[工作流斜杠命令](commands.md)与[五档开发流](dev-loops.md)。
 
@@ -173,6 +175,17 @@ echo on > <project>/.opencode/.env-guard
 
 - `/queued` 打开选择对话框，列出全部排队消息。
 - 选中后可执行：**编辑文本**、**取消消息**、**查看全文**，或 **Cancel ALL** 批量取消。
+
+---
+
+## 上下文经济（`context-watch` 与 `context-compress`）
+
+两个互补插件，让长会话既省钱又保持敏锐：
+
+- **`context-watch`** —— 30/60/100 轮时，向*最新*用户消息注入一行提醒，建议 Agent 收尾当前任务并通过回顾桥接开启新会话。层级升级单调递进（同一层级不会重复注入），子代理会话跳过，`session.deleted` 时清理状态。
+- **`context-compress`** —— 每一步都会重新发送完整历史。超出 12 条消息近期窗口的工具输出，由确定性、结构感知的引擎（[ContextCompressionEngine](https://github.com/SimplyLiz/ContextCompressionEngine)，vendor 于 `plugins/context-compress/vendor/`）压缩：日志类文本压成摘要，代码块保持逐字。每条消息只压缩一次，之后每步逐字节重放冻结结果，绝不破坏供应商侧前缀缓存。用户消息、Agent 散文与工具调用结构永不改写。
+
+两者默认开启。关闭压缩：在环境中设置 `OCP_CONTEXT_COMPRESS=0`。
 
 ---
 

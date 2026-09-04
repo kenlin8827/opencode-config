@@ -752,6 +752,10 @@ if ($LASTEXITCODE -ne 0) { $fail++ }
 if ($LASTEXITCODE -ne 0) { $fail++ }
 & bun "$PSScriptRoot\test-profile-reset-unit.ts"
 if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-context-watch-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
+& bun "$PSScriptRoot\test-context-compress-unit.ts"
+if ($LASTEXITCODE -ne 0) { $fail++ }
 
 # Prompt tests (API calls) — skipped under -StructuralOnly (CI mode)
 # ============================================================================
