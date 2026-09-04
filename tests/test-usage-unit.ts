@@ -313,8 +313,10 @@ sessions.z1 = { id: "z1", agent: "build" }
 messages.z1 = [assistant({ mode: "build", agent: "build", providerID: "zhipuai-coding-plan", modelID: "glm-5.3-flash", cost: 0, tokens: { input: 10000, output: 5000, cache: { read: 20000, write: 0 } } }, 1)]
 const ptsText = await formatByDimension(fakeApi.client, "z1", "session")
 assert(ptsText.includes("credits") && ptsText.includes("7.42"), "credits column present for plan sessions")
-assert(ptsText.includes("7.42"), `points computed via OCP dataset (got: ${ptsText.split("\n").join(" | ")})`)
-assert(ptsText.includes("$0.0000"), "server cost still shown as-is (no invented dollars)")
+  assert(ptsText.includes("7.42"), `points computed via OCP dataset (got: ${ptsText.split("\n").join(" | ")})`)
+  // On coding plans the server-side cost is $0, but credits are the actual
+  // billing mechanism so costKnown should be true and no kill-line skull appears.
+  assert(!ptsText.includes("💀"), "coding-plan sessions don't get a kill-line skull (credits are the real bill)")
 delete sessions.z1
 delete messages.z1
 rmSync(pointsPath, { force: true })
@@ -325,7 +327,7 @@ resetCostsCache()
 sessions.z2 = { id: "z2", agent: "build" }
 messages.z2 = [assistant({ mode: "build", agent: "build", providerID: "anthropic", modelID: "claude-pro", cost: 0, tokens: { input: 1000, output: 100, cache: { read: 10000, write: 0 } } }, 1)]
 const nonPlanText = await formatByDimension(fakeApi.client, "z2", "session")
-assert(nonPlanText.includes("$0.0000") && !nonPlanText.includes("积分"), "non-plan cost 0 stays plain $0.0000 without credits column")
+assert(nonPlanText.includes("💀") && !nonPlanText.includes("积分"), "non-plan cost 0 shows kill-line estimate prefixed with skull")
 delete sessions.z2
 delete messages.z2
 
@@ -345,8 +347,8 @@ assert(sessionText.includes("🧠 lite"), "main session row (emoji icon)")
 assert(sessionText.includes("🦾 explore"), "subagent session row (emoji icon)")
 assert(!sessionText.includes("@"), "no @ concatenation in session names")
 assert(!sessionText.includes("main agent") && !sessionText.includes("主 agent"), "legend line removed")
-assert(sessionText.includes("11.7k") && sessionText.includes("11.1k") && sessionText.includes("100"), "per-session in values")
-assert(sessionText.includes("22.9k") && sessionText.includes("1,970") && sessionText.includes("27k"), "total row sums")
+assert(sessionText.includes("11,702") && sessionText.includes("100"), "per-session in values")
+  assert(sessionText.includes("22,853") && sessionText.includes("1,970") && sessionText.includes("27,008"), "total row sums")
 assert(sessionText.includes("$0.0031"), "total row cost")
 assert(sessionText.includes("hit 54.2%") && sessionText.includes("total"), "total row with hit rate")
 assert(sessionText.includes("51.2%"), "s1 share pct")
@@ -359,8 +361,8 @@ for (const header of ["agent", "sessions", "in", "out", "cached", "cost", "share
   assert(agentText.includes(header), `agent table has "${header}" column`)
 }
 assert(agentText.includes("lite") && agentText.includes("explore"), "agent rows present")
-assert(agentText.includes("11.7k") && agentText.includes("11.1k"), "per-agent input sums")
-assert(agentText.includes("19.8k"), "explore cached-in sum")
+assert(agentText.includes("11,702"), "per-agent input sums")
+  assert(agentText.includes("19,776"), "explore cached-in sum")
 assert(!agentText.includes("build") || agentText.indexOf("explore") < agentText.indexOf("build"), "fixture agent 'build' never used by messages")
 
 // model dimension: tokens/cost summed across the whole tree (same columns as sessions)
@@ -369,7 +371,7 @@ for (const header of ["model", "sessions", "in", "out", "cached", "cost", "share
   assert(modelText.includes(header), `model table has "${header}" column`)
 }
 assert(modelText.includes("anthropic/claude-pro"), "model row: claude-pro")
-assert(modelText.includes("11.8k"), "claude-pro input summed across s1+c0 (11702+100)")
+assert(modelText.includes("11,802"), "claude-pro input summed across s1+c0 (11702+100)")
 assert(modelText.includes("994") && modelText.includes("7,232"), "claude-pro output/cache summed (984+10, 7232+0)")
 assert(modelText.includes("google/gemini-flash"), "model row: gemini-flash")
 

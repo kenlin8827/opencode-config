@@ -8,7 +8,20 @@
 //   points = (input × input + cached × cached + output × output) / divisor
 
 {
-  "$comment": "OCP supplementary — coding-plan points. Add a new top-level provider key to register a new plan; add models under its rates map. Drop the unused provider block to remove support.",
+  "$comment": "OCP supplementary — coding-plan points + last-resort USD price floor. Add a new top-level provider key to register a new plan; add models under its rates map. Drop the unused provider block to remove support.",
+
+  // Last-resort USD price floor (kill-line) used by /usage when the server
+  // billed nothing AND the dataset has no provider/model match. Source of
+  // truth: https://mappedinfo.github.io/llm-price-kill-line/ — bottom of the
+  // Pareto frontier for cheap-tier first-party models. Any real LLM spend
+  // exceeds these figures; they are a strict lower bound so the cost cell
+  // never silently reads $0 when we have no other data. Per 1M tokens.
+  "killLineUSD": {
+    "input": 0.06,
+    "cached": 0.012,
+    "output": 0.12,
+    "source": "https://mappedinfo.github.io/llm-price-kill-line/"
+  },
 
   "providers": {
     "zhipuai-coding-plan": {
