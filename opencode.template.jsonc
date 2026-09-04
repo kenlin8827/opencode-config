@@ -210,7 +210,8 @@
   // across this file to update ALL deny blocks in one pass.
   //
   // L2 layer: `lite` is the default agent — overhead-free primary, inline
-  // prompt, no skills, no MCP, OCP injectors skip it via plugin-scope.json,
+  // prompt, skills scoped to git-merge/git-pull/git-rebase (the only agent-less commands),
+  // no MCP, OCP injectors skip it via plugin-scope.json,
   // plugins/lite-mode.ts strips L0 instructions (keeping the `<!-- lite-mode -->`
   // sentinel), and plugins/lite-tools.ts compresses native tool descriptions
   // (measured: stock ≈ 8.4k → ≈ 1.7k tok/step). Lite handles 80% of daily work
@@ -227,12 +228,12 @@
     // would silently run them on the host's model instead of a tier preset.
     "general": { "disable": true },
     "lite": {
-      "description": "Lite — default primary agent. Lean, capable, ready for anything: quick fixes, lookups, Q&A, small edits, drafting, analysis. Escalates to @code/@build when out of scope. No L0/skills/MCP.",
+      "description": "Lite — default primary agent. Lean, capable, ready for anything: quick fixes, lookups, Q&A, small edits, drafting, analysis. Escalates to @code/@build when out of scope. No L0/MCP; skills limited to git-merge/git-pull/git-rebase.",
       "prompt": "<!-- lite-mode -->\n{file:~/.config/opencode/prompts/lite.md}",
       "mode": "primary",
       "temperature": 0.3,
-      // No variant pin: lite's slimness comes from prompt surgery (no L0/skills/
-      // MCP, compressed tool schemas), not model quality — it rides the standard
+      // No variant pin: lite's slimness comes from prompt surgery (no L0/MCP,
+      // skills scoped to two, compressed tool schemas), not model quality — it rides the standard
       // tier and inherits the model's native default (ChatGPT-style auto/standard,
       // Kimi-style thinking-on). Forcing "low" would demote a user-facing daily
       // primary; throughput agents (explore, fast-coder) keep their explicit low.
@@ -251,7 +252,22 @@
       // own sight (zero-alternative path). Lite is a leaf — heavy or
       // multi-domain coding escalates to @code or @build by the user.
       "permission": {
-        "*": { "*": "deny" }
+        "*": { "*": "deny" },
+        // Scoped skill access: /git-merge, /git-pull and /git-rebase are the
+        // only commands with no `agent:` frontmatter, so they fall back to the
+        // current agent — and lite is the default. Allow exactly those three
+        // (git-pull's and git-rebase's protocols delegate to git-merge); every
+        // other skill stays denied so the skills block lists 3 entries, not 13
+        // (token economy). The more
+        // specific `skill` key overrides the catch-all `"*"` above; inside it
+        // the allows beat `"*": "deny"` (last-match-wins, same rule as
+        // explore's bash gate).
+        "skill": {
+          "*": "deny",
+          "git-merge": "allow",
+          "git-pull": "allow",
+          "git-rebase": "allow"
+        }
       },
       "tools": {
         "*": false,
@@ -264,7 +280,8 @@
         "webfetch": true,
         "websearch": true,
         "todowrite": true,
-        "task": true
+        "task": true,
+        "skill": true
       }
     },
     "code": {

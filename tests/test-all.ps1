@@ -194,6 +194,7 @@ $allFiles = @(
     "commands/dev-review.md", "commands/dev-ultra.md", "commands/review-fix-loop.md",
     "commands/dev-prud.md",
     "commands/git-merge.md",
+    "commands/git-rebase.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
     "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
@@ -201,6 +202,7 @@ $allFiles = @(
     "skills/dev-ultra/SKILL.md", "skills/review-fix-loop/SKILL.md",
     "skills/dev-prud/SKILL.md",
     "skills/git-merge/SKILL.md",
+    "skills/git-rebase/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
@@ -341,7 +343,11 @@ CheckWorkflowSkill "dev-prud" @("Surface model", "SEV", "PROB", "Tier A", "misse
 CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "dev-quick", "dev-plan", "dev-review", "Zero-Loss", "Safety-First", "test-scope", "--auto-advisor")
 
 # git-merge: anchors protect the stock-merge model, sync-first baseline,
-# baseline-authority resolution, deletion-is-intent, and verification.
+# baseline-authority resolution, deletion-is-intent, confidence self-check +
+# @advisor escalation, and verification.
+# No agent frontmatter (3rd arg $null): git ops are pure operational work the
+# current agent handles — the launcher falls back to the default agent (lite,
+# which carries scoped skill access to git-merge/git-pull/git-rebase).
 CheckWorkflowSkill "git-merge" @(
     "git merge --continue",
     "git pull --ff-only",
@@ -351,20 +357,53 @@ CheckWorkflowSkill "git-merge" @(
     "Deletion is intentional",
     "guard/",
     "instructions/verification-honesty.md",
-    "modify/delete"
-)
+    "modify/delete",
+    "global coherence",
+    ".git/ocp-merge-reports",
+    "Confidence self-check",
+    "@advisor",
+    "FACTUAL + confidence",
+    "best-effort"
+) $null
 
 # git-pull: ff-first sync of the current branch with its upstream; diverged →
-# guard backup + delegation to the git-merge protocol. Anchors protect the
-# ff-only policy, the guard backup, the delegation, and the no-squash stance.
+# guard backup + delegation to the git-merge protocol (--rebase → git-rebase).
+# Anchors protect the ff-only policy, the guard backup, both delegations, and
+# the no-squash stance. Agent-less like git-merge (3rd arg $null).
 CheckWorkflowSkill "git-pull" @(
     "git pull --ff-only",
     "git fetch origin",
     "guard/",
     "git-merge",
+    "git-rebase",
     "never legitimate",
     "set-upstream-to"
-)
+) $null
+
+# git-rebase: replay ALL of source's unique commits onto target HEAD, linear.
+# Anchors protect the stock-rebase model, sync-first onto-baseline, both-tip
+# guard backup, SELF-CONTAINED resolution (no git-merge delegation), whole-file
+# coherence review, confidence self-check + @advisor escalation, decision-log
+# archive, ff-only landing, force-with-lease rewrite safety. Agent-less like
+# git-merge (3rd arg $null).
+CheckWorkflowSkill "git-rebase" @(
+    "git rebase <target>",
+    "git rebase --continue",
+    "git pull --ff-only",
+    "git merge --ff-only",
+    "authoritative baseline",
+    "force-with-lease",
+    "guard/",
+    "do NOT load another skill",
+    "compose both parties",
+    "global coherence",
+    ".git/ocp-rebase-reports",
+    "instructions/verification-honesty.md",
+    "Confidence self-check",
+    "@advisor",
+    "FACTUAL + confidence",
+    "best-effort"
+) $null
 
 # Preset routers: the three dev-flow launchers load the dev skill with their
 # preset expansion.

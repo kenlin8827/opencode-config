@@ -311,18 +311,24 @@ if (realTemplate?.permission !== 'allow') {
 if (realTemplate?.agent?.lite?.permission?.['*']?.['*'] !== 'deny') {
   throw new Error('shipped template lost the lite wildcard deny');
 }
-if (realTemplate?.agent?.lite?.tools?.question !== false) {
-  throw new Error('shipped template lost the lite heavy-tools removal');
-}
-if (realTemplate?.agent?.lite?.tools?.task !== false) {
-  throw new Error('lite must keep task disabled — self-contained lookups, escalation to @build');
+// lite's skill access is scoped to the three agent-less commands (/git-merge,
+// /git-pull, /git-rebase) that fall back to the default agent; every other skill stays denied.
+const liteSkill = realTemplate?.agent?.lite?.permission?.skill;
+if (liteSkill?.['*'] !== 'deny' || liteSkill?.['git-merge'] !== 'allow' || liteSkill?.['git-pull'] !== 'allow' || liteSkill?.['git-rebase'] !== 'allow') {
+  throw new Error('lite skill permission must deny "*" and allow exactly git-merge + git-pull + git-rebase');
 }
 const liteTools = realTemplate?.agent?.lite?.tools;
-if (!liteTools || typeof liteTools !== 'object' || Object.values(liteTools).some((v) => v !== false)) {
-  throw new Error('lite tools must be a tools:false map');
+if (!liteTools || typeof liteTools !== 'object' || liteTools['*'] !== false) {
+  throw new Error('lite tools must wildcard-deny then whitelist the capable set');
 }
-if (liteTools && ('bash' in liteTools || 'edit' in liteTools || 'webfetch' in liteTools)) {
-  throw new Error('lite tools map must not touch core coding tools');
+// Whitelisted core set + the skill tool (needed to load git-merge/git-pull/git-rebase).
+const liteRequired = ['read', 'edit', 'write', 'bash', 'grep', 'glob', 'webfetch', 'websearch', 'todowrite', 'task', 'skill'];
+const liteMissing = liteRequired.filter((t) => liteTools?.[t] !== true);
+if (liteMissing.length) {
+  throw new Error('lite tools whitelist lost required tools: ' + liteMissing.join(', '));
+}
+if (liteTools && ('question' in liteTools || 'list' in liteTools)) {
+  throw new Error('lite tools whitelist must not carry question/list (heavy or non-existent tools)');
 }
 const realScope = readJsoncFile<Record<string, any>>(path.join(repoDir, 'plugin-scope.json'));
 if (!realScope?.plugins?.['*']?.deny?.includes('lite') || !realScope.plugins['*'].deny.includes('subagent:*')) {
