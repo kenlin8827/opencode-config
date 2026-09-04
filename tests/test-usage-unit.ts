@@ -56,6 +56,22 @@ const registeredCommands: any[] = []
 const registeredBindings: any[] = []
 const dialogRenders: Array<() => unknown> = []
 const dialogSizes: string[] = []
+const dialogCloseCallbacks: Array<() => void> = []
+
+// Keypress listener tracking for global keyInput interceptor
+const keypressListeners: Array<(e: any) => void> = []
+const keypressEmitter = {
+  on: (_event: string, handler: (e: any) => void) => { keypressListeners.push(handler) },
+  off: (_event: string, handler: (e: any) => void) => {
+    const idx = keypressListeners.indexOf(handler)
+    if (idx >= 0) keypressListeners.splice(idx, 1)
+  },
+}
+function fireKeypress(name: string) {
+  let stopped = false
+  for (const h of [...keypressListeners]) h({ name, stopPropagation: () => { stopped = true } })
+  return stopped
+}
 
 let routeSessionID = "s1"
 
@@ -71,8 +87,9 @@ const fakeApi = {
       toasts.push(t)
     },
     dialog: {
-      replace: (render: () => unknown) => {
+      replace: (render: () => unknown, onClose?: () => void) => {
         dialogRenders.push(render)
+        if (onClose) dialogCloseCallbacks.push(onClose)
       },
       clear: () => {},
       setSize: (s: string) => { dialogSizes.push(s) },
@@ -99,6 +116,7 @@ const fakeApi = {
       messages: async ({ sessionID }: { sessionID: string }) => ({ data: messages[sessionID] || [] }),
     },
   },
+  renderer: { keyInput: keypressEmitter },
 } as any
 
 // ─── Fixtures: mirror the reference screenshot ──────────────────────────────
@@ -153,22 +171,114 @@ assert(typeof plugin.tui === "function", "tui entry exported")
 assertEq(registeredCommands.length, 6, "usage.show + 3 dimensions + prev/next registered")
 assertEq(registeredCommands[0].slashName, "usage", "slash name registered (bare, TUI prepends /)")
 
-// --- /usage: opens the tabbed session view dialog directly, not a toast ---
+// --- /usage: shows the session view in a dialog ---
 toasts.length = 0
 dialogRenders.length = 0
+dialogCloseCallbacks.length = 0
 await runUsage("usage.show")
 await tick()
 assertEq(toasts.length, 0, "/usage with data shows no toast")
-assertEq(dialogRenders.length, 1, "tabbed usage dialog opened")
+assertEq(dialogRenders.length, 1, "usage dialog opened")
 
-// --- tab keymap: 1/2/3 jump to a dimension, left/right cycle ---
-const binding = (key: string) => registeredBindings.find((b) => b.key.split(",").includes(key))
-for (const [key, cmd] of [["1", "usage.dim.session"], ["2", "usage.dim.agent"], ["3", "usage.dim.model"], ["left", "usage.dim.prev"], ["right", "usage.dim.next"]] as const) {
-  assertEq(binding(key)?.cmd, cmd, `key "${key}" bound to ${cmd}`)
-}
+// --- dimension commands are no-ops when dialog is closed (dialogOpen guard) ---
+for (const cb of dialogCloseCallbacks) cb()
+dialogCloseCallbacks.length = 0
+const dimCmd = registeredCommands.find((c: any) => c.name === "usage.dim.agent")
+const prevCmd = registeredCommands.find((c: any) => c.name === "usage.dim.prev")
+dialogRenders.length = 0
+dimCmd!.run()
+await tick()
+assertEq(dialogRenders.length, 0, "dimension command is no-op when dialog is closed")
+prevCmd!.run()
+await tick()
+assertEq(dialogRenders.length, 0, "cycle command is no-op when dialog is closed")
+
+// --- dimension commands work when dialog is open ---
+await runUsage("usage.show")
+await tick()
+dialogRenders.length = 0
+dimCmd!.run()
+await tick()
+assertEq(dialogRenders.length, 1, "dimension command works when dialog is open")
+// close dialog for subsequent tests
+for (const cb of dialogCloseCallbacks) cb()
+dialogCloseCallbacks.length = 0
+
+// --- keymap: bindings registered (guarded by dialogOpen) ---
+// Bindings are empty: key interception is via global keypress handler,
+// not keymap bindings. Verify no bindings registered.
+assertEq(registeredBindings.length, 0, "no keymap bindings (intercepted via keyInput)")
+// dimension commands registered for command palette / slash subcommands
 for (const name of ["usage.dim.session", "usage.dim.agent", "usage.dim.model", "usage.dim.prev", "usage.dim.next"]) {
-  assert(registeredCommands.some((c) => c.name === name), `tab command "${name}" registered`)
+  assert(registeredCommands.some((c) => c.name === name), `command "${name}" registered`)
 }
+
+// --- keypress interception: dimension keys switch via stopPropagation ---
+// Open dialog first — keypress handler is only active while dialog is open
+await runUsage("usage.show")
+await tick()
+dialogRenders.length = 0
+// "2" → agent dimension: should stopPropagation + open new dialog
+const stopped2 = fireKeypress("2")
+await tick()
+assert(stopped2, "keypress '2' stopPropagation returned true")
+assertEq(dialogRenders.length, 1, "keypress '2' triggered agent dimension switch")
+
+// "3" → model dimension
+fireKeypress("3")
+await tick()
+assertEq(dialogRenders.length, 2, "keypress '3' triggered model dimension switch")
+
+// left → prev dimension (model→agent)
+fireKeypress("left")
+await tick()
+assertEq(dialogRenders.length, 3, "keypress 'left' cycled to prev dimension")
+
+// right → next dimension (agent→model)
+fireKeypress("right")
+await tick()
+assertEq(dialogRenders.length, 4, "keypress 'right' cycled to next dimension")
+
+// Unhandled key: Enter should NOT be stopped
+const stoppedEnter = fireKeypress("return")
+assert(!stoppedEnter, "Enter key not stopped (dialog handles it for close)")
+
+// Close dialog → keypress handler removed
+for (const cb of dialogCloseCallbacks) cb()
+dialogCloseCallbacks.length = 0
+assertEq(keypressListeners.length, 0, "keypress handler removed after dialog close")
+
+// After close, keypresses are NOT intercepted
+dialogRenders.length = 0
+const stoppedAfterClose = fireKeypress("2")
+assert(!stoppedAfterClose, "keypress not intercepted after dialog close")
+await tick()
+assertEq(dialogRenders.length, 0, "no dialog opened from keypress after close")
+
+// --- generation counter: stale onClose doesn't break keypress handler ---
+await runUsage("usage.show")
+await tick()
+const staleListeners = [...keypressListeners]
+const staleCbs = [...dialogCloseCallbacks]
+keypressListeners.length = 0
+dialogCloseCallbacks.length = 0
+// fireKeypress iterates keypressListeners which we just cleared.
+// The handler was saved in staleListeners, so call it directly.
+staleListeners[0]({ name: "3", stopPropagation: () => {} })
+// Now the handler's openDimension("model") has started its async chain.
+// Wait for it to complete and install the new handler.
+await new Promise((r) => setTimeout(r, 100))
+assertEq(keypressListeners.length, 1, "new keypress handler after dimension switch")
+// Fire stale onClose from old dialog — should be a no-op
+for (const cb of staleCbs) cb()
+assertEq(keypressListeners.length, 1, "stale onClose didn't remove new handler (generation guard)")
+// New handler still works
+fireKeypress("2")
+await tick()
+assertEq(dialogRenders.length >= 1, true, "dimension switch still works after stale onClose")
+// Cleanup
+for (const cb of dialogCloseCallbacks) cb()
+dialogCloseCallbacks.length = 0
 
 // --- numbered tab strip + composed view (official TabSelect style underline) ---
 const { formatByDimension, renderDimensionView, fitDialogSize } = await import("../plugins/tui/usage")

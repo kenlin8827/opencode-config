@@ -628,11 +628,61 @@ export function fitDialogSize(text: string): "medium" | "large" | "xlarge" {
 // ─── Plugin entry ───────────────────────────────────────────────────────────
 
 let activeDim: UsageDimension = "session"
+/** True while the usage dialog is on-screen. */
+let dialogOpen = false
+/** Generation counter: each dialog open increments this. onClose only
+ *  resets dialogOpen when its captured generation matches current,
+ *  preventing stale onClose from dialog.replace() from clobbering state. */
+let dialogGen = 0
+/** Global keypress handler: intercepts dimension-switching keys BEFORE
+ *  DialogAlert can consume them. Registered on dialog open, removed on close. */
+let keyHandler: ((e: any) => void) | null = null
 
 const tui: TuiPlugin = async (api) => {
   initI18n(api)
 
   const hasDialog = typeof api.ui.dialog?.replace === "function"
+
+  const cycleDimension = (delta: number) => {
+    const idx = DIMENSIONS.indexOf(activeDim)
+    void openDimension(DIMENSIONS[(idx + delta + DIMENSIONS.length) % DIMENSIONS.length])
+  }
+
+  /** Register global keypress interceptor: fires BEFORE DialogAlert.
+   *  Matches 1/2/3/left/right, calls stopPropagation() so the dialog
+   *  never sees them, then performs the dimension switch. */
+  const installKeyHandler = () => {
+    removeKeyHandler()
+    keyHandler = (e: any) => {
+      if (!dialogOpen) return
+      const name: string = e.name
+      // Dimension jump: 1/2/3
+      if (name === "1" || name === "2" || name === "3") {
+        e.stopPropagation()
+        const dim = DIMENSIONS[parseInt(name) - 1]
+        if (dim) void openDimension(dim)
+        return
+      }
+      // Dimension cycle: left = prev, right = next
+      if (name === "left") {
+        e.stopPropagation()
+        cycleDimension(-1)
+        return
+      }
+      if (name === "right") {
+        e.stopPropagation()
+        cycleDimension(1)
+        return
+      }
+    }
+    api.renderer.keyInput.on("keypress", keyHandler)
+  }
+
+  const removeKeyHandler = () => {
+    if (!keyHandler) return
+    api.renderer.keyInput.off("keypress", keyHandler)
+    keyHandler = null
+  }
 
   const openDimension = (dim: UsageDimension) => {
     activeDim = dim
@@ -650,21 +700,32 @@ const tui: TuiPlugin = async (api) => {
           api.ui.toast({ message: view, variant: "info", duration: TOAST_DURATION })
           return
         }
-        // replace() resets the dialog size to medium — set the fitted size AFTER.
-        api.ui.dialog.replace(() => api.ui.DialogAlert({ title: tr("usage.dialogTitle"), message: view }))
+        removeKeyHandler()
+        const myGen = ++dialogGen
+        dialogOpen = true
+        installKeyHandler()
+        api.ui.dialog.replace(
+          () => api.ui.DialogAlert({ title: tr("usage.dialogTitle"), message: view }),
+          () => {
+            if (dialogGen === myGen) {
+              dialogOpen = false
+              removeKeyHandler()
+            }
+          },
+        )
         api.ui.dialog.setSize(size)
       })
       .catch((err) => {
+        dialogOpen = false
+        removeKeyHandler()
         api.ui.toast({ message: tr("usage.failed", { err: err instanceof Error ? err.message : String(err) }), variant: "warning" })
       })
   }
 
-  const cycleDimension = (delta: number) => {
-    const idx = DIMENSIONS.indexOf(activeDim)
-    void openDimension(DIMENSIONS[(idx + delta + DIMENSIONS.length) % DIMENSIONS.length])
-  }
-
-  // Slash command + command palette entry, plus the tab keymap.
+  // Slash command + command palette entry.
+  // Key bindings are handled by the global keypress interceptor
+  // (installKeyHandler) which fires BEFORE DialogAlert and calls
+  // stopPropagation() to prevent the dialog from consuming the keys.
   api.keymap.registerLayer({
     commands: [
       {
@@ -689,7 +750,7 @@ const tui: TuiPlugin = async (api) => {
         title: tr(DIM_TITLE_KEY[dim] as Parameters<typeof tr>[0]),
         category: "Session",
         run() {
-          void openDimension(dim)
+          if (dialogOpen) void openDimension(dim)
         },
       })),
       {
@@ -697,7 +758,7 @@ const tui: TuiPlugin = async (api) => {
         title: tr("usage.dimPrev"),
         category: "Session",
         run() {
-          cycleDimension(-1)
+          if (dialogOpen) cycleDimension(-1)
         },
       },
       {
@@ -705,22 +766,11 @@ const tui: TuiPlugin = async (api) => {
         title: tr("usage.dimNext"),
         category: "Session",
         run() {
-          cycleDimension(1)
+          if (dialogOpen) cycleDimension(1)
         },
       },
     ],
-    bindings: [
-      // Global open hotkey. input_delete_to_line_start also claims ctrl+u, but
-      // only while the prompt input is focused (opencode double-binds keys
-      // across input/session scopes, resolved by focus) — outside the input
-      // this fires.
-      { key: "ctrl+u", cmd: "usage.show", desc: "Show token usage" },
-      { key: "1", cmd: "usage.dim.session" },
-      { key: "2", cmd: "usage.dim.agent" },
-      { key: "3", cmd: "usage.dim.model" },
-      { key: "left,[", cmd: "usage.dim.prev" },
-      { key: "right,]", cmd: "usage.dim.next" },
-    ],
+    bindings: [],
   })
 }
 
