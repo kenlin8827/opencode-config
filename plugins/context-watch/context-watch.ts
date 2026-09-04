@@ -9,7 +9,7 @@
  * and open a fresh session with a recap bridge — but the user is busy and
  * often doesn't notice. This plugin:
  *
- *   1. Tracks the highest tier already injected per session (WeakMap keyed
+ *   1. Tracks the highest tier already injected per session (Map keyed
  *      by session id). Tier escalation is monotonic: once "hard" is
  *      injected, no further reminders fire for that session.
  *   2. At three thresholds (30 / 60 / 100 turns) injects a one-line
@@ -23,16 +23,15 @@
  *      a chat are intrusive and (b) the user already gets the `/usage`
  *      header banner for a clearer picture when they look.
  *
- * Idempotency: WeakMap on session id (not message object) because the
- * "tier already injected" check is per-session, not per-message. A second
- * WeakSet on the message object keeps the transform itself single-shot per
- * turn in case opencode fires it more than once.
+ * Idempotency: a Map keyed by session id tracks the highest tier already
+ * injected. Repeated transform calls within one turn are single-shot by the
+ * same monotonic check (tier ≤ already-injected → skip), so reminders never
+ * stack.
  *
- * Scope: fires for every session that the opencode host reports as a
- * top-level session. Subagent sessions are filtered out via session.created
- * event tracking (parentID !== null) — subagent contexts are isolated and
- * ephemeral, the user wouldn't see their banners anyway and the LLM in a
- * subagent has no power to suggest the user open a new main session.
+ * Scope: fires for every top-level session. Subagent sessions are filtered
+ * out via session.created event tracking (parentID set) — subagent contexts
+ * are isolated and ephemeral, the user wouldn't see their banners anyway and
+ * a subagent has no power to suggest opening a new main session.
  *
  * Plugin hooks must NEVER crash the session — failures degrade to
  * "no injection".
@@ -79,38 +78,50 @@ function pickTier(count: number): Tier | null {
 const TIER_RANK: Record<Tier, number> = { soft: 1, strong: 2, hard: 3 }
 function tierGte(a: Tier, b: Tier): boolean { return TIER_RANK[a] >= TIER_RANK[b] }
 
-export const ContextWatchPlugin: Plugin = async ({ client }) => {
-  // Filter out subagent sessions at the transform site — they're isolated
-  // ephemeral contexts whose reminder would never reach the user anyway.
-  // Pattern borrowed from `plugins/deepseek-anchor/index.ts:119-130`.
-  try {
-    const { event } = await import("@opencode-ai/sdk")
-    // Subscribe asynchronously; we don't block plugin load on it.
-    client.event?.subscribe?.(({ type, info }: { type?: string; info?: { id?: string; parentID?: string } }) => {
-      if (type !== "session.created" || !info?.id) return
-      if (info.parentID) subagentSessionIds.add(info.id)
-    })
-  } catch {
-    // SDK import or event subscription is best-effort. Without it, the
-    // transform falls back to "inject into all sessions" — the same
-    // behaviour every other reminder plugin uses when session.created
-    // isn't available.
-  }
-
+export const ContextWatchPlugin: Plugin = async () => {
   return {
+    // Filter out subagent sessions — isolated ephemeral contexts whose
+    // reminder would never reach the user anyway. Track them via the native
+    // event hook (session.created parentID) and drop per-session state on
+    // session.deleted so the Map stays bounded. Pattern borrowed from
+    // `plugins/deepseek-anchor/index.ts`.
+    event: async (input: { event: unknown }) => {
+      try {
+        const event = input.event as {
+          type?: string
+          properties?: { info?: { id?: string; parentID?: string } }
+        }
+        const info = event?.properties?.info
+        if (!info?.id) return
+        if (event?.type === "session.created" && info.parentID) {
+          subagentSessionIds.add(info.id)
+        } else if (event?.type === "session.deleted") {
+          subagentSessionIds.delete(info.id)
+          lastInjectedBySession.delete(info.id)
+        }
+      } catch {
+        // Best-effort: without the event feed the transform still runs
+        // (fallback: inject into all sessions, like other reminder plugins).
+      }
+    },
     "experimental.chat.messages.transform": async (
       input: { sessionID?: string } | undefined,
-      output: { messages: { info: { role?: string }; parts: unknown[] }[] },
+      output: { messages: { info: { role?: string; sessionID?: string }; parts: unknown[] }[] },
     ) => {
       try {
-        const sessionID = input?.sessionID
-        if (!sessionID) return
-        // Subagent filter: the session.created listener (above) tracks
-        // subagent session IDs; if this one matches, bail out.
-        if (subagentSessionIds.has(sessionID)) return
-
         const msgs = output.messages
         if (!Array.isArray(msgs) || msgs.length === 0) return
+
+        // Prefer the hook input's sessionID; fall back to any message's
+        // info.sessionID — some opencode builds pass no transform input,
+        // but message info always carries the session.
+        const sessionID =
+          input?.sessionID ??
+          msgs.find((m) => typeof m.info?.sessionID === "string")?.info?.sessionID
+        if (!sessionID) return
+        // Subagent filter: the event hook (above) tracks subagent session
+        // IDs; if this one matches, bail out.
+        if (subagentSessionIds.has(sessionID)) return
 
         // Count only assistant messages — proxy for "conversation length"
         // and matches the /usage header banner metric so the two stay in sync.
@@ -129,15 +140,18 @@ export const ContextWatchPlugin: Plugin = async ({ client }) => {
         // Find the most recent user message — that's where reminders carry
         // the most attention weight (system prompts decay; user-message
         // tail dominates the recency position).
-        let target: { info: object; parts: { type?: string; text?: string }[] } | null = null
+        let target: { info: { role?: string }; parts: unknown[] } | null = null
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].info?.role !== "user") continue
-          target = msgs[i] as typeof target
+          target = msgs[i]
           break
         }
         if (!target) return
 
-        target.parts.push({ type: "text", text: `\n\n${REMINDERS[tier]}` })
+        ;(target.parts as { type?: string; text?: string }[]).push({
+          type: "text",
+          text: `\n\n${REMINDERS[tier]}`,
+        })
       } catch {
         // Never crash the session — degrade to no reminder.
       }
