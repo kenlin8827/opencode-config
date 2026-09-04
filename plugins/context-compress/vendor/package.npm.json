@@ -1,0 +1,62 @@
+{
+  "name": "context-compression-engine",
+  "version": "1.0.0",
+  "description": "Lossless context compression engine for LLMs",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "bench": "npx tsx bench/run.ts",
+    "prepublishOnly": "npm test && tsc"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "AGPL-3.0-only",
+  "keywords": [
+    "llm",
+    "context",
+    "compression",
+    "tokens",
+    "summarization",
+    "chat",
+    "messages",
+    "context-window",
+    "token-budget",
+    "deduplication"
+  ],
+  "author": "Lisa Welsch <lisa@tastehub.io> (https://www.lisawelsch.com)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SimplyLiz/ContextCompressionEngine.git"
+  },
+  "homepage": "https://github.com/SimplyLiz/ContextCompressionEngine#readme",
+  "bugs": {
+    "url": "https://github.com/SimplyLiz/ContextCompressionEngine/issues"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.0.2",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
+  }
+}

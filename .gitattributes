@@ -1,1 +1,3 @@
 * text=auto
+# Vendored third-party code stays byte-identical to the upstream npm tarball
+plugins/context-compress/vendor/** -text
