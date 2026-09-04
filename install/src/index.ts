@@ -322,8 +322,9 @@ Actions:
                apply the selected ones in an interactive TTY (Enter = keep, n = skip);
                -y applies ALL pending updates without prompting; --check-only
                probes versions and applies nothing (default without -y when non-interactive)
-  upgrade      Pull the latest release (git pull for clones, release download
-               otherwise) and re-apply the installer
+  upgrade      Download the latest release tarball, overlay it onto the repo
+               directory, and re-apply the installer (works the same whether
+               you installed via \`git clone\` or not)
   session        Manage sessions: list, delete (passthrough), clean
   auth           Open OpenCode's auth.json: 'auth open' (creates the file if missing)
   herdr          Launch Herdr (https://herdr.dev) and open the current directory

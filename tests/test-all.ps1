@@ -193,12 +193,14 @@ $allFiles = @(
     "commands/grill-improve-loop.md", "commands/dev.md", "commands/dev-plan.md", "commands/dev-quick.md", "commands/dev-flash.md",
     "commands/dev-review.md", "commands/dev-ultra.md", "commands/review-fix-loop.md",
     "commands/dev-prud.md",
+    "commands/git-merge.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
     "skills/goal/SKILL.md", "skills/handoff/SKILL.md", "skills/grill-me/SKILL.md", "skills/grill-with-docs/SKILL.md",
     "skills/grill-improve-loop/SKILL.md", "skills/dev/SKILL.md",
     "skills/dev-ultra/SKILL.md", "skills/review-fix-loop/SKILL.md",
     "skills/dev-prud/SKILL.md",
+    "skills/git-merge/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
     "plugins/auto-advisor/auto-advisor-config.ts",
@@ -298,13 +300,17 @@ foreach ($f in $allFiles) {
 # Workflow protocols live at L2 (skills/<name>/SKILL.md) with thin command
 # launchers (commands/<name>.md) — the old plugin system-prompt injectors were
 # retired in v0.16.0. Content checks below preserve the former protocol anchors.
-function CheckWorkflowSkill($name, $patterns) {
+function CheckWorkflowSkill($name, $patterns, $agent = "build") {
     $skill = Get-Content "$PSScriptRoot\..\skills\$name\SKILL.md" -Raw
     $launcher = Get-Content "$PSScriptRoot\..\commands\$name.md" -Raw
     Check "${name}: SKILL.md frontmatter names the skill" ($skill -match "name: $name")
     Check "${name}: SKILL.md description is on-demand (Load ONLY)" ($skill -match "Load ONLY")
     Check "${name}: launcher loads its skill and forwards arguments" ($launcher -match "Load the $name skill" -and $launcher -match '\$ARGUMENTS')
-    Check "${name}: launcher routes to @build" ($launcher -match "agent: build")
+    if ($agent) {
+        Check "${name}: launcher routes to @${agent}" ($launcher -match "agent: $agent")
+    } else {
+        Check "${name}: launcher has no agent restriction" ($launcher -notmatch "agent:")
+    }
     foreach ($p in $patterns) {
         Check "${name}: protocol keeps '$p'" ($skill -match [regex]::Escape($p))
     }
@@ -333,6 +339,21 @@ CheckWorkflowSkill "dev-prud" @("Surface model", "SEV", "PROB", "Tier A", "misse
 # dev compositor: anchors protect flag grammar, preset routing, zero-loss
 # passthrough, Safety-First arbitration, and the test-scope tier.
 CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "dev-quick", "dev-plan", "dev-review", "Zero-Loss", "Safety-First", "test-scope", "--auto-advisor")
+
+# git-merge: agent-agnostic (no agent: restriction); @lite has an explicit
+# skill whitelist entry. Anchors protect the stock-merge model, sync-first
+# baseline, baseline-authority resolution, deletion-is-intent, and verification.
+CheckWorkflowSkill "git-merge" @(
+    "git merge --continue",
+    "git pull --ff-only",
+    "git merge-base",
+    "authoritative baseline",
+    "Never silently remove or undo target",
+    "Deletion is intentional",
+    "guard/",
+    "instructions/verification-honesty.md",
+    "modify/delete"
+) $null
 
 # Preset routers: the three dev-flow launchers load the dev skill with their
 # preset expansion.

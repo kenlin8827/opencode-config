@@ -10,6 +10,8 @@ import {
   getInstalledVersion,
   isBinaryOnPath,
   loadToolRegistry,
+  apiMirrorUrls,
+  rawMirrorUrls,
   resolveInstallCommand,
   runInstallCommand,
 } from './installer';
@@ -17,11 +19,34 @@ import { isNewerVersion, parseVersionPayload } from './manifest';
 
 const REPO_BASE = 'https://github.com/kenlin8827/opencode-prime';
 const RELEASE_BASE = `${REPO_BASE}/releases/latest/download`;
-// raw.githubusercontent serves tracked files (not release assets) — good for
-// a lightweight version probe, and it tends to stay reachable even where
-// github.com release downloads are slow or blocked.
+// raw.githubusercontent serves tracked files (not release assets) — used as
+// a lightweight version probe. raw.githubusercontent.com is BLOCKED in
+// mainland CN (frequent DNS reset), so `rawMirrorUrls()` reorders the
+// fetch to try `OCP_RAW_MIRROR` first when the user has set it.
 const RAW_VERSION_URL =
   'https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install/version.json';
+
+/**
+ * Pure decision helper for the OCP archive-download branch in
+ * `executeUpgrade`. Exported so the test suite can pin the force-override
+ * semantics without mocking fetch / fs / network.
+ *
+ * Skip ONLY when ALL THREE hold:
+ *   - the caller did NOT pass `-f` / `--force`
+ *   - the remote probe succeeded (`probed !== null`)
+ *   - the probed version is NOT newer than the local repo version
+ *
+ * Every other shape forces the archive to be re-fetched: a force request,
+ * a probe failure (CN raw.githubusercontent often times out), or a remote
+ * that's actually ahead of the local copy.
+ */
+export function shouldSkipUpgradeDownload(
+  force: boolean,
+  probed: string | null,
+  repoVersion: string,
+): boolean {
+  return !force && probed !== null && !isNewerVersion(probed, repoVersion);
+}
 
 /** A single component covered by the `ocp update` check/upgrade flow. */
 interface ComponentCheck {
@@ -91,14 +116,28 @@ export async function executeUpdate(repoDir: string, passthrough: string[]): Pro
 
   let remoteVersion: string;
   try {
-    const res = await fetch(RAW_VERSION_URL, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    // Try OCP_RAW_MIRROR first (CN-friendly), then the official
+    // raw.githubusercontent URL as fallback. Each attempt is bounded by
+    // the 15s timeout; the whole sequence stops on the first 2xx.
+    let res: Response | null = null;
+    let lastErr: unknown = null;
+    for (const url of rawMirrorUrls(RAW_VERSION_URL)) {
+      try {
+        res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (res.ok) break;
+        lastErr = new Error(`HTTP ${res.status} ${res.statusText}`);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (!res?.ok) throw lastErr ?? new Error('all attempts failed');
     const parsed = parseVersionPayload(await res.text());
     if (!parsed) throw new Error('Empty version payload');
     remoteVersion = parsed;
   } catch (err) {
     console.error(`✗ Version check failed: ${(err as Error).message ?? err}`);
-    console.error('  Network trouble? Run `ocp upgrade` directly, or update via `git pull`.');
+    console.error('  Network trouble? Set OCP_RAW_MIRROR (e.g. https://ghfast.top),');
+    console.error('  run `ocp upgrade` directly, or update via `git pull`.');
     return 1;
   }
 
@@ -160,7 +199,10 @@ export async function executeUpdate(repoDir: string, passthrough: string[]): Pro
   let failed = 0;
   for (const c of selected) {
     console.log(`\n=== Upgrading ${c.label} ${fmtVer(c.local)} → ${fmtVer(c.latest)} ===`);
-    const code = await applyComponentUpgrade(c.key, repoDir);
+    // Pass the user-facing passthrough (incl. `-f`/`--force`) down to
+    // executeUpgrade so `ocp update -f` actually forces a re-download.
+    // Companion tools ignore passthrough (see applyComponentUpgrade).
+    const code = await applyComponentUpgrade(c.key, repoDir, passthrough);
     if (code === 0) {
       console.log(`✔ ${c.label} upgraded.`);
     } else {
@@ -186,10 +228,18 @@ async function confirmDefaultYes(question: string): Promise<boolean> {
   }
 }
 
-async function applyComponentUpgrade(key: ComponentCheck['key'], repoDir: string): Promise<number> {
+async function applyComponentUpgrade(
+  key: ComponentCheck['key'],
+  repoDir: string,
+  passthrough: string[] = [],
+): Promise<number> {
   switch (key) {
     case 'ocp':
-      return executeUpgrade(repoDir, []);
+      // Forward passthrough so `ocp update -f` actually reaches
+      // executeUpgrade and forces the archive re-download. Companion
+      // tools don't take passthrough (their registry entries have no
+      // -f semantics — upgrade_tool_from_registry ignores it).
+      return executeUpgrade(repoDir, passthrough);
     default:
       // Everything else comes from install/tools.jsonc via probeToolsFromRegistry.
       // The dispatch (smart vs static) lives inside upgradeToolFromRegistry.
@@ -374,11 +424,27 @@ async function fetchLatestFromSource(src: UpdateCheckSource): Promise<string | n
   switch (src.kind) {
     case 'github': {
       if (!src.repo) return null;
-      const res = await fetch(`https://api.github.com/repos/${src.repo}/releases/latest`, {
-        signal: AbortSignal.timeout(15000),
-        headers: { 'User-Agent': 'opencode-prime-updater' },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Try OCP_API_MIRROR first (CN-friendly, avoids 429 rate-limit), then
+      // the official api.github.com URL as fallback. Each attempt is bounded
+      // by the 15s timeout; the whole sequence stops on the first 2xx so a
+      // mirror outage degrades to the official GitHub Releases API.
+      let res: Response | null = null;
+      let lastErr: unknown = null;
+      for (const url of apiMirrorUrls(
+        `https://api.github.com/repos/${src.repo}/releases/latest`,
+      )) {
+        try {
+          res = await fetch(url, {
+            signal: AbortSignal.timeout(15000),
+            headers: { 'User-Agent': 'opencode-prime-updater' },
+          });
+          if (res.ok) break;
+          lastErr = new Error(`HTTP ${res.status}`);
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      if (!res?.ok) throw lastErr ?? new Error('all attempts failed');
       const tag = (((await res.json()) as { tag_name?: string }).tag_name ?? '').replace(/^v/, '');
       return tag || null;
     }
@@ -443,14 +509,21 @@ function resolveTargetDir(passthrough: string[]): string {
 /** Semver-aware comparison lives in manifest.ts — shared with the installer. */
 
 /**
- * `ocp upgrade` — fetch the latest release and reinstall, mirroring the
- * "10-Second Quick Install" flow from the README:
+ * `ocp upgrade` — fetch the latest release tarball and reinstall, mirroring
+ * the "10-Second Quick Install" flow from the README:
  *
- * - Git clone   → `git pull --ff-only`, then force-reapply the installer.
- * - Release pkg → download opencode-prime-latest.{tar.gz,zip} into a temp
- *   dir, overlay it onto the current repo directory, then force-reapply the
- *   installer from there. The repo directory stays the persistent home,
- *   so the global shims in ~/.local/bin keep pointing at a valid location.
+ * Download opencode-prime-latest.{tar.gz,zip} into a temp dir, overlay it
+ * onto the current repo directory, then force-reapply the installer from
+ * there. The repo directory stays the persistent home, so the global shims
+ * in ~/.local/bin keep pointing at a valid location.
+ *
+ * NOTE: the overlay (`fs.cpSync recursive force`) overwrites tracked files
+ * in the repo directory. If you installed via `git clone` and have local
+ * edits to tracked files (your opencode.jsonc, custom prompts/skills/agents
+ * that are tracked, etc.), they will be replaced by the release copy. Commit
+ * or back them up before upgrading. The `.git/` directory is not in the
+ * archive, so your git history and uncommitted diffs survive — but `ocp
+ * upgrade` no longer uses git for the upgrade itself.
  *
  * Set OCP_RELEASE_MIRROR to a ghproxy-style prefix (e.g. https://ghfast.top)
  * when the official GitHub download is blocked or slow; the mirror is tried
@@ -458,73 +531,71 @@ function resolveTargetDir(passthrough: string[]): string {
  */
 export async function executeUpgrade(repoDir: string, passthrough: string[]): Promise<number> {
   const force = passthrough.some((a) => ['-f', '--force', '-Force'].includes(a));
-  const isGit = fs.existsSync(path.join(repoDir, '.git'));
 
-  if (isGit) {
-    console.log(`Updating git clone at ${repoDir} (git pull --ff-only)...`);
-    const pull = spawnSync('git', ['pull', '--ff-only'], { cwd: repoDir, stdio: 'inherit' });
-    if (pull.status !== 0) {
-      console.error('✗ git pull failed (local changes or diverged history).');
-      console.error('  Commit or stash your changes, then re-run `ocp upgrade`.');
-      return pull.status ?? 1;
-    }
+  const repoVersionBeforeDownload = getCurrentRepoVersion(repoDir);
+  // Cheap probe first: skip the archive download entirely when the local
+  // repo copy is already at or ahead of the latest released version. The
+  // `-f` / `--force` flag bypasses this skip and re-downloads the archive
+  // anyway — useful in CN where the raw.githubusercontent probe can lag
+  // or return a stale cached value, and to recover from a half-applied
+  // overlay where the repo copy is technically current but drift exists.
+  const probed = await probeRemoteVersion();
+  if (shouldSkipUpgradeDownload(force, probed, repoVersionBeforeDownload)) {
+    console.log(`Repository copy is already at v${repoVersionBeforeDownload} (latest release: v${probed}) — no download needed.`);
   } else {
-    const repoVersionBeforeDownload = getCurrentRepoVersion(repoDir);
-    // Cheap probe first: skip the archive download entirely when the local
-    // repo copy is already at or ahead of the latest released version.
-    const probed = await probeRemoteVersion();
-    if (probed && !isNewerVersion(probed, repoVersionBeforeDownload)) {
-      console.log(`Repository copy is already at v${repoVersionBeforeDownload} (latest release: v${probed}) — no download needed.`);
-    } else {
-      const ext = process.platform === 'win32' ? 'zip' : 'tar.gz';
-      const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocp-upgrade-'));
-      try {
-        const archive = await downloadArchive(`${RELEASE_BASE}/opencode-prime-latest.${ext}`, tmpRoot, ext);
-        if (!archive) return 1;
+    if (force && probed && !isNewerVersion(probed, repoVersionBeforeDownload)) {
+      console.log(`--force requested — re-downloading v${probed} release despite local v${repoVersionBeforeDownload}.`);
+    }
+    const ext = process.platform === 'win32' ? 'zip' : 'tar.gz';
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocp-upgrade-'));
+    try {
+      const archive = await downloadArchive(`${RELEASE_BASE}/opencode-prime-latest.${ext}`, tmpRoot, ext);
+      if (!archive) return 1;
 
-        // bsdtar (macOS / Windows 10+) and GNU tar both extract tar.gz and zip.
-        const tar = spawnSync('tar', ['-xf', archive, '-C', tmpRoot], { stdio: 'inherit' });
-        if (tar.status !== 0) {
-          console.error('✗ Failed to extract the release archive.');
-          return tar.status ?? 1;
-        }
-
-        const extracted = fs
-          .readdirSync(tmpRoot)
-          .map((e) => path.join(tmpRoot, e))
-          .find(
-            (p) =>
-              fs.statSync(p).isDirectory() &&
-              (fs.existsSync(path.join(p, 'install', 'version.json')) ||
-                fs.existsSync(path.join(p, 'install', 'VERSION')))
-          );
-        if (!extracted) {
-          console.error('✗ The release archive has an unexpected layout.');
-          return 1;
-        }
-
-        // version.json is authoritative; install/VERSION covers transitional archives.
-        const vjPath = path.join(extracted, 'install', 'version.json');
-        const remoteVersion = fs.existsSync(vjPath)
-          ? parseVersionPayload(fs.readFileSync(vjPath, 'utf8')) ?? ''
-          : fs.readFileSync(path.join(extracted, 'install', 'VERSION'), 'utf8').trim();
-        if (!remoteVersion) {
-          console.error('✗ Could not determine the release version.');
-          return 1;
-        }
-        const repoVersion = getCurrentRepoVersion(repoDir);
-        if (isNewerVersion(remoteVersion, repoVersion)) {
-          console.log(`Overlaying v${remoteVersion} onto ${repoDir}...`);
-          // Overlay the new package onto the persistent repo directory. Removed
-          // files inside the repo dir are harmless — the manifest-driven install
-          // only copies the files it lists.
-          fs.cpSync(extracted, repoDir, { recursive: true, force: true });
-        } else {
-          console.log(`Repository copy is already at v${repoVersion} (latest release: v${remoteVersion}) — skipping overlay.`);
-        }
-      } finally {
-        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      // bsdtar (macOS / Windows 10+) and GNU tar both extract tar.gz and zip.
+      const tar = spawnSync('tar', ['-xf', archive, '-C', tmpRoot], { stdio: 'inherit' });
+      if (tar.status !== 0) {
+        console.error('✗ Failed to extract the release archive.');
+        return tar.status ?? 1;
       }
+
+      const extracted = fs
+        .readdirSync(tmpRoot)
+        .map((e) => path.join(tmpRoot, e))
+        .find(
+          (p) =>
+            fs.statSync(p).isDirectory() &&
+            (fs.existsSync(path.join(p, 'install', 'version.json')) ||
+              fs.existsSync(path.join(p, 'install', 'VERSION')))
+        );
+      if (!extracted) {
+        console.error('✗ The release archive has an unexpected layout.');
+        return 1;
+      }
+
+      // version.json is authoritative; install/VERSION covers transitional archives.
+      const vjPath = path.join(extracted, 'install', 'version.json');
+      const remoteVersion = fs.existsSync(vjPath)
+        ? parseVersionPayload(fs.readFileSync(vjPath, 'utf8')) ?? ''
+        : fs.readFileSync(path.join(extracted, 'install', 'VERSION'), 'utf8').trim();
+      if (!remoteVersion) {
+        console.error('✗ Could not determine the release version.');
+        return 1;
+      }
+      const repoVersion = getCurrentRepoVersion(repoDir);
+      if (isNewerVersion(remoteVersion, repoVersion)) {
+        console.log(`Overlaying v${remoteVersion} onto ${repoDir}...`);
+        // Overlay the new package onto the persistent repo directory. Removed
+        // files inside the repo dir are harmless — the manifest-driven install
+        // only copies the files it lists. Tracked files in the repo are
+        // overwritten by the release copy; back up local edits before
+        // upgrading (see the function doc above).
+        fs.cpSync(extracted, repoDir, { recursive: true, force: true });
+      } else {
+        console.log(`Repository copy is already at v${repoVersion} (latest release: v${remoteVersion}) — skipping overlay.`);
+      }
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
     }
   }
 
@@ -543,8 +614,9 @@ export async function executeUpgrade(repoDir: string, passthrough: string[]): Pr
   // and loads the freshly overlaid engine, which may have replaced the code
   // currently running this upgrade.
   const rest = force ? passthrough : ['--force', ...passthrough];
-  // Make the reason explicit when git reported no new commits: the repo copy
-  // can still be ahead of what was last applied to the target directory.
+  // Make the reason explicit when the version probe reported no newer
+  // release: the repo copy can still be ahead of what was last applied
+  // to the target directory, so we still re-apply the installer.
   console.log(
     `Applying v${repoVersion} to ${targetDir} (installed: ${installedVersion ? `v${installedVersion}` : 'none'})...`,
   );
@@ -568,15 +640,24 @@ export async function executeUpgrade(repoDir: string, passthrough: string[]): Pr
   return res.status ?? 1;
 }
 
-/** Lightweight remote version probe (raw.githubusercontent); null on failure. */
+/**
+ * Lightweight remote version probe. Tries OCP_RAW_MIRROR first when set,
+ * then the official raw.githubusercontent URL. Returns null on any failure
+ * — `executeUpgrade` uses null as "could not determine; proceed to download
+ * anyway", which is the safe degradation path.
+ */
 async function probeRemoteVersion(): Promise<string | null> {
-  try {
-    const res = await fetch(RAW_VERSION_URL, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    return parseVersionPayload(await res.text());
-  } catch {
-    return null;
+  for (const url of rawMirrorUrls(RAW_VERSION_URL)) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const parsed = parseVersionPayload(await res.text());
+      if (parsed) return parsed;
+    } catch {
+      // try the next URL
+    }
   }
+  return null;
 }
 
 /** Official URL first, then the optional ghproxy-style OCP_RELEASE_MIRROR. */

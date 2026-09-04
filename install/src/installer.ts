@@ -300,6 +300,152 @@ export function mcpProvisionPlan(
 }
 
 /**
+ * Shared core for URL-list-returning mirror helpers. Given a URL, an env
+ * var name, a domain predicate, and an order flag, returns the URL
+ * sequence the caller should try in order.
+ *
+ * Returns `[url]` only when:
+ *   - the env var is unset, OR
+ *   - the URL doesn't match the supplied domain predicate
+ *
+ * Used by `rawMirrorUrls` / `apiMirrorUrls` / any future GitHub-domain
+ * mirror wrapper. Each public helper documents its own env var, domain,
+ * and order — keeping call sites self-explanatory instead of passing a
+ * stringly-typed config blob through a single mega-helper.
+ *
+ * Mirror prefix convention: `${envValue}/${url}` (verified to work with
+ * ghfast.top, gh-proxy.com, mirror.ghproxy.com — all use the same
+ * `prefix + full-https-url` shape).
+ */
+function withMirrorUrls(
+  url: string,
+  envVar: string,
+  matchesDomain: (u: string) => boolean,
+  mirrorFirst: boolean,
+): string[] {
+  const mirror = process.env[envVar]?.replace(/\/+$/, '');
+  if (!mirror || !matchesDomain(url)) return [url];
+  const mirrored = `${mirror}/${url}`;
+  return mirrorFirst ? [mirrored, url] : [url, mirrored];
+}
+
+/**
+ * Probe URLs through OCP_RAW_MIRROR for raw.githubusercontent.com
+ * fetches. Mirror first because raw.github is BLOCKED in mainland CN
+ * (DNS reset); official as fallback. Setting OCP_RAW_MIRROR is an
+ * explicit opt-in from a user who has declared "the official is
+ * unreachable for me, please use the mirror", and we honor that.
+ */
+export function rawMirrorUrls(url: string): string[] {
+  return withMirrorUrls(
+    url,
+    'OCP_RAW_MIRROR',
+    (u) => u.includes('raw.githubusercontent.com'),
+    /* mirrorFirst */ true,
+  );
+}
+
+/**
+ * Probe URLs through OCP_API_MIRROR for api.github.com fetches.
+ * `api.github.com` is rate-limited (60 unauth req/hour per IP) and from
+ * mainland CN frequently returns HTTP 429 on tool-version probes
+ * (rtk / herdr / opencode latest release tag). Routing through a
+ * ghproxy-class mirror avoids the rate-limit / slow path. Falls back to
+ * the official URL on mirror failure so a mirror outage doesn't block
+ * the probe.
+ */
+export function apiMirrorUrls(url: string): string[] {
+  return withMirrorUrls(
+    url,
+    'OCP_API_MIRROR',
+    (u) => u.includes('api.github.com'),
+    /* mirrorFirst */ true,
+  );
+}
+
+/**
+ * Shared core for shell-command URL rewriters. Prepends the mirror
+ * prefix to every URL match in the command. Returns the original string
+ * unchanged when the env var is unset.
+ *
+ * Trailing whitespace, quotes, and `<>` are excluded from the URL match
+ * (caller's regex responsibility) so the regex doesn't eat into shell
+ * quoting or pipe metacharacters.
+ */
+function withMirrorRewrite(cmd: string, envVar: string, urlRegex: RegExp): string {
+  const mirror = process.env[envVar]?.replace(/\/+$/, '');
+  if (!mirror) return cmd;
+  return cmd.replace(urlRegex, (m) => `${mirror}/${m}`);
+}
+
+/**
+ * Rewrite raw.githubusercontent.com URLs inside a shell command string so
+ * companion-tool installs / upgrades (rtk POSIX today, anything declared
+ * in install/tools.jsonc tomorrow) route through OCP_RAW_MIRROR when set.
+ *
+ * Touches ONLY raw.githubusercontent.com URLs. github.com release-asset
+ * URLs are NOT rewritten here — see `rewriteReleaseMirror`.
+ */
+export function rewriteRawMirror(cmd: string): string {
+  return withMirrorRewrite(
+    cmd,
+    'OCP_RAW_MIRROR',
+    /https:\/\/raw\.githubusercontent\.com\/[^\s'"<>]+/g,
+  );
+}
+
+/**
+ * Rewrite github.com release-asset URLs inside a shell command string so
+ * companion-tool installs that ship via GitHub Releases (rtk Windows today)
+ * route through OCP_RELEASE_MIRROR when set.
+ *
+ * The regex requires `/releases/` in the path so we only touch release
+ * assets, never project home pages (`github.com/<owner>/<repo>`), source
+ * browse (`/blob/`, `/raw/`-on-github), or unrelated github.com URLs.
+ *
+ * Note: OCP_RELEASE_MIRROR's order semantics differ from OCP_RAW_MIRROR's
+ * — for github.com releases the order is `[official, mirror]` (release
+ * assets are slow but reachable from CN, so trust the official first;
+ * mirror is a backup for outages). The order decision lives in
+ * `downloadArchive` (ocp upgrade path) and `installCommandSequence`
+ * (ocp install path) — this rewriter only produces the rewritten string;
+ * the orchestration decides what to do on failure.
+ */
+export function rewriteReleaseMirror(cmd: string): string {
+  return withMirrorRewrite(
+    cmd,
+    'OCP_RELEASE_MIRROR',
+    /https:\/\/github\.com\/[^/\s'"<>]+\/[^/\s'"<>]+\/releases\/[^\s'"<>]+/g,
+  );
+}
+
+/**
+ * Decide the sequence of commands to run under OCP_RAW_MIRROR. Pure helper
+ * so the orchestration can be unit-tested without mocking spawnSync.
+ *
+ * Returns:
+ *   - primary:  command to run first
+ *   - fallback: command to run if primary fails (null = no fallback)
+ *
+ * Rules:
+ *   - env unset → mirror is a no-op; run original once, no fallback.
+ *   - env set + rewrite actually changed the command → try rewritten
+ *     first, fall back to the original on failure. A mirror outage
+ *     (timeout, 5xx, DNS reset) degrades to raw.githubusercontent.com.
+ *   - env set but the rewrite was a no-op (no raw.githubusercontent.com
+ *     URL matched in the command) → don't retry the same command twice.
+ */
+export function installCommandSequence(
+  rewritten: string,
+  original: string,
+  mirrorSet: boolean,
+): { primary: string; fallback: string | null } {
+  if (!mirrorSet) return { primary: original, fallback: null };
+  if (rewritten === original) return { primary: original, fallback: null };
+  return { primary: rewritten, fallback: original };
+}
+
+/**
  * Run an install command string from install/tools.jsonc or an MCP `install`
  * field. Shares the PowerShell-vs-POSIX split with `ocp update`:
  *
@@ -310,8 +456,43 @@ export function mcpProvisionPlan(
  * 5.1 so this works on machines without PowerShell 7. Both expose iwr/irm/iex.
  *
  * On POSIX the commands are `curl | sh` pipelines, so let Node pick a shell.
+ *
+ * Mirror orchestration for tool installs (chains OCP_RAW_MIRROR and
+ * OCP_RELEASE_MIRROR — they cover non-overlapping URL classes, so order
+ * is cosmetic):
+ *   1. Rewrite raw.githubusercontent.com URLs (rtk POSIX install).
+ *   2. Rewrite github.com release-asset URLs (rtk Windows install).
+ *   3. Run the rewritten command.
+ *   4. If it failed AND at least one mirror is configured, fall back to the
+ *      ORIGINAL command. A mirror outage (timeout, 5xx, DNS reset) still
+ *      has a chance to succeed via the official source. Without this
+ *      fallback, mirror-only users would hard-fail on the first mirror
+ *      hiccup.
  */
 export function runInstallCommand(cmd: string) {
+  // Chain both rewriters — they target non-overlapping URL classes, so
+  // applying one then the other is safe. Whichever (if any) actually
+  // matches determines whether `installCommandSequence` produces a
+  // fallback path.
+  let rewritten = rewriteRawMirror(cmd);
+  rewritten = rewriteReleaseMirror(rewritten);
+  const mirrorSet = !!process.env.OCP_RAW_MIRROR || !!process.env.OCP_RELEASE_MIRROR;
+  const { primary, fallback } = installCommandSequence(rewritten, cmd, mirrorSet);
+
+  const res = runShellCommand(primary);
+  if (res.status === 0 || !fallback) return res;
+
+  // At least one mirror URL failed. Try the original command (with all
+  // the unwritten official URLs) as a last-resort fallback. The stderr
+  // line tells the user why they're seeing the second attempt.
+  console.error(
+    `[OCP_*_MIRROR] mirror URL failed (exit ${res.status ?? 'n/a'}), ` +
+      `falling back to the official source URL`,
+  );
+  return runShellCommand(fallback);
+}
+
+function runShellCommand(cmd: string) {
   if (process.platform !== 'win32') {
     return spawnSync(cmd, { stdio: 'inherit', timeout: 600000, shell: true });
   }

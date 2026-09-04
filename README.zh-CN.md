@@ -80,6 +80,28 @@ cd opencode-prime
 
 ---
 
+## 🇨🇳 大陆用户提示
+
+中国大陆访问 `raw.githubusercontent.com`（OCP 安装与升级脚本所在域名）经常被 DNS 重置或超时。如果上面的安装 / 升级 / `ocp update` 在下载环节卡住，请设置 `OCP_RAW_MIRROR` 环境变量，OCP 会自动把 raw.githubusercontent.com 请求路由到镜像（仍然以官方源为兜底）：
+
+```bash
+# 一键安装（带镜像）
+OCP_RAW_MIRROR=https://ghfast.top \
+  curl -fsSL https://raw.githubusercontent.com/kenlin8827/opencode-prime/main/install.sh | bash
+
+# 已装用户升级 / update
+OCP_RAW_MIRROR=https://ghfast.top ocp upgrade --force
+OCP_RAW_MIRROR=https://ghfast.top ocp update
+```
+
+也支持 `https://gh-proxy.com`、`https://mirror.ghproxy.com` 等同类镜像（必须用 `prefix + 完整 https URL` 这种拼接方式）。`OCP_RAW_MIRROR` 只影响 `raw.githubusercontent.com`；`github.com` release 资源仍走 `OCP_RELEASE_MIRROR`（若需要请另设）；`api.github.com`（`ocp update` 探测 rtk/herdr/opencode 最新版本号）走 `OCP_API_MIRROR`。第三方依赖（opencode.ai、herdr.dev、npm、pypi）请自行配对应镜像。
+
+**`OCP_API_MIRROR`（可选）**：`ocp update` 探测 rtk / herdr / opencode 最新 release tag 时打的是 `api.github.com`，这个域名经常被大陆 HTTP 429 限速。设 `OCP_API_MIRROR=https://ghfast.top`（或同类）后自动走镜像，失败仍回退官方。
+
+**Mirror 不通时会自动回退到 `raw.githubusercontent.com`** —— 升级 / 装 rtk 时如果 mirror 超时 / 5xx / DNS reset，OCP 会再试一次官方源（终端会出现 `[OCP_RAW_MIRROR] mirror URL failed, falling back to raw.githubusercontent.com` 这一行）。所以 mirror 偶尔挂掉不会卡住你。`OCP_API_MIRROR` / `OCP_RELEASE_MIRROR` 也是同样的"mirror 先，官方兜底"语义。
+
+---
+
 ## 📋 OCP CLI 命令一览
 
 安装完成后，全局命令 `ocp`（别名：`opencode-prime`）可在**任意终端路径**下使用：

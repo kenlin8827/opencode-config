@@ -15,8 +15,9 @@
 #   update          Check the suite + companion tools (opencode, openchamber) for
 #                   updates and apply the selected ones in an interactive TTY
 #                   (-y = apply all without prompting; --check-only = read-only)
-#   upgrade         Pull the latest release (git pull for clones, release
-#                   download otherwise) and re-apply the installer
+#   upgrade         Download the latest release tarball, overlay it onto the
+#                   repo directory, and re-apply the installer (works the
+#                   same whether you installed via `git clone` or not)
 #   init            Backup + clear the target for a fresh start
 #   uninstall       Remove the installed version's manifest files from the target
 #   status          Show installed vs repo version

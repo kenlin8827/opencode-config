@@ -25,8 +25,9 @@ Structure/relationships/flow **MUST** have a diagram: arch → box; data/process
 - [Assumption] — unverified → own section `## Assumptions (to confirm)`
 
 ## Session language
-- **MUST** match the latest substantive user request language (prose + headings). Mixed → dominant language; unclear → English.
-- Handoffs, plans, PRDs, ADRs, reports **MUST** preserve that language. Code/paths/commands/protocol labels stay English.
+- **Environment default.** Probe `LANG`/`LC_ALL`/`LANGUAGE` (bash: `echo "${LANG:-${LC_ALL:-${LANGUAGE:-}}}"`); map locale to prose (e.g. `zh_CN`→Chinese). Unset/unrecognized→English.
+- **Context overrides.** Conversation prose in a different language → switch to it. Mixed→dominant wins.
+- Handoffs/plans/PRDs/ADRs/reports preserve session language. Code/paths/commands stay English.
 
 ## Counterargument
 Each key conclusion: `> Counter: This fails when <condition>, because <reason>.`

@@ -308,8 +308,8 @@ const realTemplate = readJsoncFile<Record<string, any>>(path.join(repoDir, 'open
 if (realTemplate?.permission !== 'allow') {
   throw new Error('opencode.template.jsonc must carry global permission "allow" — policy lives in the template');
 }
-if (realTemplate?.agent?.lite?.permission?.skill?.['*'] !== 'deny') {
-  throw new Error('shipped template lost the lite skills-block deny');
+if (realTemplate?.agent?.lite?.permission?.['*']?.['*'] !== 'deny') {
+  throw new Error('shipped template lost the lite wildcard deny');
 }
 if (realTemplate?.agent?.lite?.tools?.question !== false) {
   throw new Error('shipped template lost the lite heavy-tools removal');

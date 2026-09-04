@@ -21,6 +21,7 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | **`/dev-ultra <objective> [--max-rounds=N] [--max-phases=N]`** | 开发流 | **Ultra-Dev 自主多阶段闭环**：端到端自主执行 —— 将大型目标分解为多阶段，每阶段独立 `/dev-review` 循环 + 上下文压缩 + 逐阶段 Git 提交隔离 + 支持 `--resume` 断点续跑（详见 [五档开发流](dev-loops.md)） |
 | **`/dev-prud <requirement> [--top=N] [--max-rounds=N]`** | 开发流 | **FMEA 审慎开发**：苏格拉底式澄清 + 编码前风险登记册（SEV×PROB 排序，top-N），由登记册驱动计划、实现与逐条审计验证（详见 [审慎开发](dev-prud.md)） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
+| **`/git-merge <source> <target> [--dry-run] [--no-verify] [--squash] [--rebase] [--no-ff] [--abort]`** | Git 工程流 | **原生 `git merge`，agent 扮演解决冲突的人**：先把目标分支与 origin 同步（`git pull --ff-only`，本地分叉即停）、创建 guard 备份分支，再合并源分支 —— git 能自动合并的全部交给 git，只有冲突文件才基于真实 merge-base 做语义合并，且**目标 HEAD 是权威基线**（目标的改动——包括删除——一律保留，源分支在其之上叠加、绝不悄悄回退基线）。三种策略：默认 merge（1 个 merge commit）、`--squash`（所有变更压成 1 个 commit，LLM 生成 commit message）、`--rebase`（逐个重放源分支 commit，线性历史）。agent 收尾跑一次测试并输出逐 hunk 决策日志 |
 | **`/grill-improve-loop [subject] [--max-rounds=N] [--target=N]`** | 评分驱动闭环 | 评分驱动改进闭环：评分→分析改进路径→修复/重构→验证→重新评分，直到结构性天花板、停滞或最大轮次。每轮触发 verification-honesty 评分机制（规则 5–7） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
 | **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至 Git 忽略的 `.opencode/handoffs/`），生成新会话一键恢复开场白 |

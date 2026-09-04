@@ -278,6 +278,53 @@ Agent naming convention: mode verbs for primaries (`build`, `plan`, `code`), rol
 
 ---
 
+## Adding a new skill or command
+
+Workflow slash commands (`/dev`, `/goal`, `/handoff`, …) are native opencode command files in `commands/*.md`. Each is a thin launcher that loads a matching L2 skill protocol from `skills/<name>/SKILL.md` on demand — paid once per invocation, never resident. Compared to plugins (which register hooks), skills are **prompt body only**: zero runtime code, zero system-prompt injection outside the loaded conversation.
+
+### Steps
+
+1. **Plan the protocol body first** — write the SKILL.md outline on paper (Phase graph, hard rules, failure modes, output template) before any code. If the protocol is just a thin preset over an existing skill (e.g. `/dev-quick` over `/dev`), the launcher command is trivial and the skill body may not need a new file — only a new entry in `commands/`.
+2. **Create `skills/<name>/SKILL.md`** if a new protocol is needed:
+   - YAML frontmatter with **only** `name:` and `description:` (no version, no author — convention: 10 existing skills follow this)
+   - `description` field MUST end with `Load ONLY when the user invokes /<name>.` so `@lite` doesn't load it speculatively
+   - Body structure mirrors existing skills: `# <Protocol Name>` intro → `## What this is NOT` (where relevant) → `## Arguments` → Phase/Step sections → `## Hard rules` → `## Output format` → `## Failure catalog`
+   - Reference `instructions/git-safety.md`, `instructions/verification-honesty.md`, `instructions/output-protocol.md` by relative path when their policy applies — don't duplicate the policy text
+3. **Create `commands/<name>.md`** as the launcher:
+   - YAML frontmatter: `description:` (one line, ≤ ~300 chars), `agent: build` (or `plan` for analysis-only skills)
+   - Body: exactly `Load the <name> skill and follow it strictly.\n\nUser request: $ARGUMENTS`
+4. **Update `docs/workflows/commands.md`** (English) and **`docs/zh/workflows/commands.md`** (Chinese) — add one row to the command overview table. The row description is the user-facing summary; keep it short (≤ ~250 chars) and link related docs where useful.
+5. **Update `DEVELOPING.md` repository layout** (this file, around line 495) — add the new files to the `commands/` and `skills/` directory tree so the listing stays truthful. Don't list every file; list the new *category* entry.
+6. **Bump version and regenerate manifest**:
+   - `install/version.json` + `package.json` + `install/README.md` title — bump minor for new features (e.g. `0.22.0 → 0.23.0`)
+   - `bun run install/src/index.ts generate` (or `ocp generate`) — `commands/` and `skills/` are in `SHIPPED_DIRS` (see `install/src/manifest.ts`), so new files appear automatically in `install/versions/<version>.manifest.txt`
+   - If a custom protocol needs a self-check script (recommended for safety-critical skills), add it to the skill's `## Protocol self-check` section **using shell variables to assemble forbidden-pattern literals** — otherwise grep in the check will false-positive on the literals themselves.
+7. **Run structural tests** — `pwsh -ExecutionPolicy Bypass -File tests/test-all.ps1 -StructuralOnly`. Verify the test suite accepts the new files and frontmatter.
+8. **Commit** — `feat: add /<name> command and skill` (no need to bump versions in the commit; version bump is a separate release commit).
+
+### Checklist for new skill/command
+
+- [ ] `commands/<name>.md` exists with standard launcher body and `description:` ≤ ~300 chars
+- [ ] `skills/<name>/SKILL.md` exists with `name:` + `description:` frontmatter only (no `version:` field — convention)
+- [ ] `description` ends with `Load ONLY when the user invokes /<name>.`
+- [ ] Body references existing `instructions/*` policy files by relative path; doesn't duplicate them
+- [ ] Hard rules list is enumerable (numbered, no overlapping scope)
+- [ ] Failure catalog covers at least: not-a-git-repo / pathspec-mismatch / dirty-checkout / empty-patch / leftover-state
+- [ ] For safety-critical skills (modify history, push, force ops): has a `## Protocol self-check` section with bash-variable-protected greps
+- [ ] `docs/workflows/commands.md` EN table updated (one row)
+- [ ] `docs/zh/workflows/commands.md` ZH table updated (one row, mirror of EN)
+- [ ] `DEVELOPING.md` repository layout updated
+- [ ] `install/version.json` + `package.json` + `install/README.md` bumped
+- [ ] `bun run install/src/index.ts generate` ran and produced `install/versions/<version>.manifest.txt`
+- [ ] Manifest contains the new command + skill files (auto-discovery since both are in `SHIPPED_DIRS`)
+- [ ] `tests/test-all.ps1 -StructuralOnly` passes
+
+### Naming convention
+
+- `<name>.md` matches the command and skill (`/git-merge` → `commands/git-merge.md` + `skills/git-merge/SKILL.md`)
+- `<name>` is kebab-case, short, action-or-subject noun (`goal`, `handoff`, `review-fix-loop`, `git-merge`)
+- For preset commands over an existing skill (`/dev-quick` over `/dev`), the command file is in `commands/` but **no new skill folder** — just a thin preset launcher
+
 ## Plugin system
 
 OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achieve.
@@ -494,12 +541,14 @@ providers/
 
 commands/                     # Native opencode slash-command launchers (thin: frontmatter + "load the skill")
 ├── dev.md · dev-plan.md · dev-quick.md · dev-flash.md · dev-review.md · dev-ultra.md   # Dev-flow launchers (agent: build)
+├── git-merge.md                 # Git merge launcher — 3 strategies: merge/squash/rebase (agent-agnostic; added in v0.23.0)
 ├── goal.md · handoff.md · grill-*.md · review-fix-loop.md
 └── sdd.md · prd.md · plan.md · impl.md   # SDD launchers (agent: plan/code)
 
 skills/                       # L2 workflow protocols — metadata resident, body loads on demand
 ├── dev/SKILL.md                     # /dev compositor — dev-quick/dev-plan/dev-review are preset routers over it
 ├── dev-prud/ · dev-ultra/
+├── git-merge/SKILL.md          # /git-merge protocol — baseline-first conflict resolution, 3 strategies (merge/squash/rebase) (added in v0.23.0)
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/
 └── sdd-workflow/             # Merged SDD protocol (/sdd /prd /plan /impl)
