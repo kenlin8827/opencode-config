@@ -209,7 +209,9 @@ function parseCliArgs(rawArgs: string[]): CliArgs {
         process.exit(0);
       }
     } else if (arg === 'auth') {
-      // `auth` namespace — only `open` is supported locally.
+      // `auth` namespace — `open` launches the credential file editor,
+      // `disconnect` removes a provider credential (the /connect logout
+      // opencode never shipped; headless counterpart of /disconnect).
       const next = rawArgs[i + 1];
       if (next === 'open') {
         args.action = 'auth';

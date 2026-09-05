@@ -25,9 +25,12 @@ import {
   executeStatus,
   executeInit,
   executeUninstall,
+  computeTargetManagedFiles,
   getCurrentRepoVersion,
+  getTargetInstalledManifestPath,
   loadEffectiveOptions,
   mcpProvisionPlan,
+  readTargetInstalledManifest,
 } from '../install/src/installer';
 import { registerShim, unregisterShim } from '../install/src/shim';
 import {
@@ -322,14 +325,15 @@ const liteTools = realTemplate?.agent?.lite?.tools;
 if (!liteTools || typeof liteTools !== 'object' || liteTools['*'] !== false) {
   throw new Error('lite tools must wildcard-deny then whitelist the capable set');
 }
-// Whitelisted core set + the skill tool (needed to load git-merge/git-pick/git-pull/git-push/git-rebase).
-const liteRequired = ['read', 'edit', 'write', 'bash', 'grep', 'glob', 'webfetch', 'websearch', 'todowrite', 'task', 'skill'];
+// Whitelisted core set + the skill tool (needed to load git-merge/git-pick/git-pull/git-push/git-rebase)
+// + question (interactive ask for the default primary; measured ~216 tok/step with the lite-tools override).
+const liteRequired = ['read', 'edit', 'write', 'bash', 'grep', 'glob', 'webfetch', 'websearch', 'todowrite', 'task', 'skill', 'question'];
 const liteMissing = liteRequired.filter((t) => liteTools?.[t] !== true);
 if (liteMissing.length) {
   throw new Error('lite tools whitelist lost required tools: ' + liteMissing.join(', '));
 }
-if (liteTools && ('question' in liteTools || 'list' in liteTools)) {
-  throw new Error('lite tools whitelist must not carry question/list (heavy or non-existent tools)');
+if (liteTools && 'list' in liteTools) {
+  throw new Error('lite tools whitelist must not carry list (not a real opencode tool)');
 }
 const realScope = readJsoncFile<Record<string, any>>(path.join(repoDir, 'plugin-scope.json'));
 if (!realScope?.plugins?.['*']?.deny?.includes('lite') || !realScope.plugins['*'].deny.includes('subagent:*')) {
@@ -553,7 +557,16 @@ if (fs.existsSync(path.join(testTargetDir, 'opencode.template.jsonc'))) throw ne
 if (fs.existsSync(path.join(testTargetDir, 'tui.template.jsonc'))) throw new Error('TUI template leaked into target — only the merged tui.jsonc should be installed');
 if (!fs.existsSync(path.join(testTargetDir, 'tui.jsonc'))) throw new Error('tui.jsonc missing from target');
 if (!fs.existsSync(path.join(testTargetDir, 'installed.version'))) throw new Error('installed.version missing');
+if (!fs.existsSync(getTargetInstalledManifestPath(testTargetDir))) throw new Error('.ocp/installed.manifest.txt missing');
 if (!fs.existsSync(path.join(testTargetDir, 'tiers.json'))) throw new Error('tiers.json missing from target');
+const targetManagedManifest = readTargetInstalledManifest(testTargetDir);
+if (!targetManagedManifest || targetManagedManifest.length === 0) throw new Error('Failed to read target installed manifest');
+if (targetManagedManifest.includes('opencode.template.jsonc') || targetManagedManifest.includes('tui.template.jsonc')) {
+  throw new Error('Target installed manifest must not include template input files');
+}
+if (!targetManagedManifest.includes('providers/llm-router.json')) {
+  throw new Error('First-install target manifest should include seeded provider preset');
+}
 
 // Verify custom tiers were written and `code` keeps the shipped template value.
 const targetTiers = readTierMap(testTargetDir);
@@ -561,6 +574,37 @@ if (targetTiers.qa !== 'flash' || targetTiers.devops !== 'max' || targetTiers.co
   throw new Error('Custom tiers merging failed');
 }
 console.log(`✓ Install passed (${installRes.filesInstalled} files written, custom tiers merged)`);
+
+// 5a. Stale prune uses the target-managed set, not the package manifest. This
+// catches files that remain package inputs but should never remain in target.
+console.log('\nTest 5a: Stale Prune Removes Non-Target Package Inputs');
+fs.writeFileSync(path.join(testTargetDir, 'opencode.template.jsonc'), 'stale template\n', 'utf8');
+fs.writeFileSync(path.join(testTargetDir, 'tui.template.jsonc'), 'stale tui template\n', 'utf8');
+const packageFiles = collectShippedFiles(repoDir);
+const managedAfterFirstInstall = computeTargetManagedFiles(packageFiles, false);
+if (managedAfterFirstInstall.includes('opencode.template.jsonc') || managedAfterFirstInstall.includes('tui.template.jsonc')) {
+  throw new Error('computeTargetManagedFiles leaked template input files');
+}
+const staleRes = executeInstall(repoDir, {
+  action: 'install',
+  target: testTargetDir,
+  force: true,
+  noBackup: true,
+  yes: true,
+  isInteractive: false,
+});
+if (!staleRes.success) throw new Error('Stale-prune reinstall failed');
+if (fs.existsSync(path.join(testTargetDir, 'opencode.template.jsonc'))) {
+  throw new Error('Stale opencode.template.jsonc survived reinstall');
+}
+if (fs.existsSync(path.join(testTargetDir, 'tui.template.jsonc'))) {
+  throw new Error('Stale tui.template.jsonc survived reinstall');
+}
+const targetManagedManifestAfterReinstall = readTargetInstalledManifest(testTargetDir);
+if (!targetManagedManifestAfterReinstall || targetManagedManifestAfterReinstall.includes('providers/llm-router.json')) {
+  throw new Error('Upgrade target manifest should exclude user-owned provider presets');
+}
+console.log('✓ Stale prune removes template inputs and writes target-managed manifest');
 
 // 5b. MCP CLI provisioning plan
 console.log('\nTest 5b: MCP CLI Provisioning Plan');

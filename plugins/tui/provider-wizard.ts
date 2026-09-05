@@ -22,13 +22,17 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  *
  * Entry points:
  *   /provider               — slash command (opens the wizard)
+ *   /disconnect             — slash command (TUI only, keymap: one menu
+ *                             row, instant dialogs; <id> jumps to
+ *                             confirm; --all asks once)
  *   command palette (ctrl+p) — "Provider setup wizard"
  *
  * Flow — two dialog levels:
- *   Level 1: DialogSelect — "➕ Add custom provider" (blank) and "📦 Add preset
+ *   Level 1: DialogSelect — "➕ Add custom provider" (blank), "📦 Add preset
  *            provider" (imports a providers/ definition file into the
- *            config) pinned on top without category headers, then the
- *            providers stored in the opencode.jsonc `provider` node;
+ *            config) and "🔌 Manage connections…" pinned on top without
+ *            category headers, then the providers stored in the
+ *            opencode.jsonc `provider` node;
  *            `current` keeps the cursor on the first provider so picking
  *            stays one key away. Presets enter the list only via 📦.
  *   Level 2 (provider detail): DialogSelect —
@@ -53,6 +57,9 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  *     ➕ Add model…        form sheet: identity / capabilities / limits
  *     📥 Fetch models…     import remote models by glob pattern
  *     🗑 Clear models…    remove models matching a glob pattern (* = all)
+ *     🔌 Disconnect…     remove the stored credential and clear apiKey —
+ *                         the provider definition and models stay, so
+ *                         reconnecting is one ⚙ Basic settings form away
  *     🗑 Delete provider…  confirm, then drop the whole config entry
  *   Writes go through atomic opencode.jsonc saves (forms on 💾); the
  *   saved provider is compacted — fields equal to host parse defaults
@@ -62,33 +69,41 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  *
  * Note: this is a TUI-only module — a single module cannot export both
  * `server` and `tui`. It only runs inside the TUI; headless sessions
- * have no /provider equivalent.
+ * have no /provider equivalent (headless disconnect: /disconnect, which
+ * shares plugins/shared/provider-creds.ts with this wizard).
  */
 
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  readdirSync,
-  renameSync,
-  mkdirSync,
-} from "node:fs"
-import { join, dirname } from "node:path"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { join } from "node:path"
 import { homedir } from "node:os"
-import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG, type DialogOption } from "./i18n"
+import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG, parseSlashArgs, type DialogOption } from "./i18n"
+import {
+  CONFIG_FILE,
+  readConfig,
+  writeConfigAtomic,
+  writeAuth,
+  readAuth,
+  authKey,
+  naturalCmp,
+  listConnections,
+  readConnections,
+  disconnectProvider,
+  type ModelDef,
+  type ProviderDef,
+  type OpenCodeConfig,
+  type ConnectionInfo,
+} from "../shared/provider-creds"
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
-const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
 const PROVIDERS_DIR = join(CONFIG_DIR, "providers")
-// Literal API keys live here — the same file the official /connect command
-// writes (opencode's Global.Path.data/auth.json), so both share one store.
-const AUTH_FILE = join(homedir(), ".local", "share", "opencode", "auth.json")
 const PLUGIN_ID = "opencode-prime.provider"
 const ADD_PROVIDER = "__add_provider__"
 const ADD_PRESET = "__add_preset__"
+const MANAGE_CONNECTIONS = "__manage_connections__"
 const EDIT_SETTINGS = "__edit_settings__"
 const EDIT_ID = "__edit_id__"
 const DELETE_PROVIDER = "__delete_provider__"
+const DISCONNECT = "__disconnect__"
 const SAVE_PROVIDER = "__save_provider__"
 const EDIT_NAME = "__edit_name__"
 const EDIT_NPM = "__edit_npm__"
@@ -112,37 +127,6 @@ const FIELD_CONTEXT = "__field_context__"
 const FIELD_OUTPUT = "__field_output__"
 const SAVE_MODEL = "__save_model__"
 const DELETE_MODEL = "__delete_model__"
-
-// ─── Types ───────────────────────────────────────────────────────────
-
-interface ModelDef {
-  name?: string
-  id?: string
-  status?: string
-  attachment?: boolean
-  temperature?: boolean
-  reasoning?: boolean
-  tool_call?: boolean
-  modalities?: { input?: string[]; output?: string[] }
-  limit?: { context?: number; output?: number }
-  [key: string]: unknown
-}
-
-interface ProviderDef {
-  npm?: string
-  name?: string
-  options?: Record<string, unknown>
-  models?: Record<string, ModelDef>
-  /** legacy: keys imported by old fetch versions; no longer written */
-  presetModels?: Record<string, true>
-  [key: string]: unknown
-}
-
-interface OpenCodeConfig {
-  model?: string
-  provider?: Record<string, ProviderDef>
-  [key: string]: unknown
-}
 
 // ─── Model import helpers (exported for unit tests) ─────────────────────
 
@@ -192,59 +176,295 @@ export function allocateModelKey(
   return { key: candidate, duplicate: false }
 }
 
+/**
+ * models.dev provider-agnostic catalog (models.json) — the open model
+ * database opencode's built-in providers consume. Keys are canonical
+ * "author/model" IDs, so a remote "vendor/gpt-x" matches by bare ID
+ * suffix without any normalization. Fetched straight from the site (no
+ * SDK dependency: the 1.18.x `api.client` has no `model.list`, so that
+ * path silently yielded an empty catalog and every import stayed
+ * text-only).
+ */
+const MODELS_CATALOG_URL = "https://models.dev/models.json"
+
+/** opencode's modality vocabulary; catalog-specific values like "file" are dropped. */
+const MODALITY_NAMES = ["text", "audio", "image", "video", "pdf"]
+
 type CatalogModel = {
   id?: string
   capabilities?: { input?: string[]; output?: string[] }
+  limit?: { context?: number; output?: number }
+  reasoning?: boolean
+  temperature?: boolean
+  toolCall?: boolean
 }
 
-/** Decode the SDK's `{ data: { data: ModelV2Info[] } }` response defensively. */
-export function catalogModels(response: unknown): CatalogModel[] {
-  if (!response || typeof response !== "object") return []
-  const outer = (response as { data?: unknown }).data
-  if (!outer || typeof outer !== "object") return []
-  const models = (outer as { data?: unknown }).data
-  if (!Array.isArray(models)) return []
-  return models.flatMap((model): CatalogModel[] => {
-    if (!model || typeof model !== "object" || typeof (model as { id?: unknown }).id !== "string") return []
-    const capabilities = (model as { capabilities?: unknown }).capabilities
-    if (!capabilities || typeof capabilities !== "object") return [{ id: (model as { id: string }).id }]
-    const normalize = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : undefined
-    return [{
-      id: (model as { id: string }).id,
-      capabilities: {
-        input: normalize((capabilities as { input?: unknown }).input),
-        output: normalize((capabilities as { output?: unknown }).output),
-      },
-    }]
+const strArray = (value: unknown): string[] | undefined =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : undefined
+
+/** Accept both modality shapes seen in the wild: string arrays and boolean maps. */
+const normalizeModalities = (value: unknown): string[] | undefined => {
+  const arr = strArray(value)
+  if (arr) return arr.filter((m) => MODALITY_NAMES.includes(m))
+  if (value && typeof value === "object") {
+    const on = MODALITY_NAMES.filter((m) => (value as Record<string, unknown>)[m] === true)
+    return on.length ? on : undefined
+  }
+  return undefined
+}
+
+const normalizeLimit = (value: unknown): { context: number; output: number } | undefined => {
+  if (!value || typeof value !== "object") return undefined
+  const limit = value as { context?: unknown; output?: unknown }
+  if (typeof limit.context !== "number" || !Number.isFinite(limit.context) || limit.context <= 0) return undefined
+  if (typeof limit.output !== "number" || !Number.isFinite(limit.output) || limit.output <= 0) return undefined
+  return { context: limit.context, output: limit.output }
+}
+
+/** Decode one catalog entry's shared fields (used by both payload shapes). */
+const catalogEntry = (id: string, model: Record<string, unknown>): CatalogModel => {
+  const caps = model.modalities ?? model.capabilities
+  const capabilities =
+    caps && typeof caps === "object"
+      ? {
+          input: normalizeModalities((caps as { input?: unknown }).input),
+          output: normalizeModalities((caps as { output?: unknown }).output),
+        }
+      : undefined
+  const limit = normalizeLimit(model.limit)
+  const entry: CatalogModel = { id }
+  if (capabilities?.input || capabilities?.output) entry.capabilities = capabilities
+  if (limit) entry.limit = limit
+  // Only non-default values are worth recording: opencode already defaults
+  // reasoning/temperature to false and tool_call to true.
+  if (model.reasoning === true) entry.reasoning = true
+  if (model.temperature === true) entry.temperature = true
+  if (model.tool_call === false) entry.toolCall = false
+  return entry
+}
+
+/** True when a decoded entry carries at least one usable signal. */
+const catalogEntryUsable = (entry: CatalogModel): boolean =>
+  entry.capabilities !== undefined || entry.limit !== undefined ||
+  entry.reasoning !== undefined || entry.temperature !== undefined || entry.toolCall !== undefined
+
+/**
+ * Decode a models.dev `models.json` payload defensively. Two shapes are
+ * accepted: the live object-keyed form (`{ "author/model": {...} }`) and
+ * the older array form (`{ data: [{ id, architecture: {...} }] }`).
+ */
+export function catalogModels(body: unknown): CatalogModel[] {
+  if (!body || typeof body !== "object") return []
+  if (!Array.isArray(body)) {
+    const entries = Object.entries(body as Record<string, unknown>).flatMap(([key, model]): CatalogModel[] => {
+      if (!model || typeof model !== "object" || Array.isArray(model)) return []
+      const id = typeof (model as { id?: unknown }).id === "string" ? (model as { id: string }).id : key
+      return [catalogEntry(id, model as Record<string, unknown>)]
+    })
+    // Recognized as the live shape when at least one entry carried a signal
+    // (a `{ data: [...] }` body yields none — its only value is an array).
+    if (entries.some(catalogEntryUsable)) return entries
+  }
+  return catalogModelsLegacyArray(body)
+}
+
+/**
+ * Decode the older models.dev array payload (`{ data: [...] }` with
+ * `architecture.input_modalities` / `context_length` / `top_provider`).
+ */
+export function catalogModelsLegacyArray(body: unknown): CatalogModel[] {
+  const list = (body as { data?: unknown } | null)?.data
+  if (!Array.isArray(list)) return []
+  return list.flatMap((model): CatalogModel[] => {
+    if (!model || typeof model !== "object") return []
+    const m = model as {
+      id?: unknown
+      architecture?: { input_modalities?: unknown; output_modalities?: unknown }
+      modalities?: { input?: unknown; output?: unknown }
+      limit?: unknown
+      reasoning?: unknown
+      temperature?: unknown
+      tool_call?: unknown
+    }
+    if (typeof m.id !== "string") return []
+    const arch = m.architecture
+    const normalized: Record<string, unknown> = {
+      modalities: m.modalities ?? (arch
+        ? { input: arch.input_modalities, output: arch.output_modalities }
+        : undefined),
+      limit: m.limit,
+      reasoning: m.reasoning,
+      temperature: m.temperature,
+      tool_call: m.tool_call,
+    }
+    if (!normalized.limit) {
+      // legacy shape carries limits as context_length + top_provider
+      const top = (model as { top_provider?: { max_completion_tokens?: unknown } }).top_provider
+      const context = (model as { context_length?: unknown }).context_length
+      const output = top?.max_completion_tokens
+      if (typeof context === "number" && typeof output === "number") {
+        normalized.limit = { context, output }
+      }
+    }
+    const entry = catalogEntry(m.id, normalized)
+    return [entry]
   })
 }
 
 /**
- * Gets the catalog capabilities for a remotely listed model. The `/models`
- * APIs do not standardize capability metadata, so only an explicit matching
- * OpenCode catalog entry can enable attachments. Exact IDs take precedence;
- * a namespaced-ID fallback is accepted only when it has one unambiguous match.
+ * Decode an SDK `model.list()` payload defensively. Newer opencode SDKs may
+ * expose the host's own catalog; the envelope and per-model shape vary, so
+ * every step tolerates absence. Returns an empty list when nothing usable.
  */
+export function sdkCatalogModels(response: unknown): CatalogModel[] {
+  const envelope = (response as { data?: unknown } | null)?.data
+  const candidates = [envelope, (envelope as { data?: unknown } | null)?.data, (envelope as { all?: unknown } | null)?.all]
+  const list = candidates.find(Array.isArray) as unknown[] | undefined
+  if (!list) return []
+  return list.flatMap((model): CatalogModel[] => {
+    if (!model || typeof model !== "object") return []
+    const m = model as {
+      id: string
+      capabilities?: { input?: unknown; output?: unknown; reasoning?: unknown; temperature?: unknown; toolcall?: unknown }
+      modalities?: { input?: unknown; output?: unknown }
+      limit?: unknown
+    }
+    if (typeof m.id !== "string") return []
+    const caps = m.capabilities ?? m.modalities
+    const capabilities = caps
+      ? { input: normalizeModalities(caps.input), output: normalizeModalities(caps.output) }
+      : undefined
+    const limit = normalizeLimit(m.limit)
+    const entry: CatalogModel = { id: m.id }
+    if (capabilities?.input || capabilities?.output) entry.capabilities = capabilities
+    if (limit) entry.limit = limit
+    if (m.capabilities?.reasoning === true) entry.reasoning = true
+    if (m.capabilities?.temperature === true) entry.temperature = true
+    if (m.capabilities?.toolcall === false) entry.toolCall = false
+    return [entry]
+  })
+}
+
+let catalogCache: Promise<CatalogModel[]> | undefined
+
+/**
+ * Fetch the model catalog, cached per session, in two fallback layers:
+ *   1. the host's own `client.model.list()` when the SDK provides it;
+ *   2. the models.dev database (the open dataset opencode itself consumes).
+ * Best-effort by construction: every failure short-circuits to the next
+ * layer and ultimately to an empty catalog, so a broken/unreachable
+ * catalog NEVER blocks or alters the remote model fetch — imports just
+ * fall back to conservative text-only defaults.
+ */
+export function fetchCatalog(api: TuiPluginApi): Promise<CatalogModel[]> {
+  catalogCache ??= (async () => {
+    const client = api.client as unknown as { model?: { list: () => Promise<unknown> } }
+    if (typeof client.model?.list === "function") {
+      try {
+        const fromSdk = sdkCatalogModels(await client.model.list())
+        if (fromSdk.length) return fromSdk
+      } catch {
+        // host catalog unavailable — fall through to models.dev
+      }
+    }
+    try {
+      const res = await fetch(MODELS_CATALOG_URL, { signal: AbortSignal.timeout(15_000) })
+      if (res.ok) return catalogModels(await res.json())
+    } catch {
+      // unreachable catalog — empty is a valid result
+    }
+    return [] as CatalogModel[]
+  })()
+  return catalogCache
+}
+
+/**
+ * Unique catalog match for a remote model ID: exact ID first, else a
+ * namespaced-ID fallback is accepted only when it has one unambiguous
+ * match. The `/models` APIs do not standardize capability metadata, so
+ * only an explicit catalog match may enable capabilities.
+ */
+/**
+ * Reasoning-effort variants some gateways expose as standalone model IDs
+ * ("gpt-5.6-luna-xhigh"). Stripped ONLY as a last-resort fallback: exact
+ * IDs and real model names like "qwen-max" keep precedence. A single
+ * trailing segment is removed — compounds are not guessed.
+ */
+const EFFORT_SUFFIXES = new Set(["none", "low", "medium", "high", "xhigh", "max"])
+
+const stripEffortSuffix = (id: string): string | undefined => {
+  const dash = id.lastIndexOf("-")
+  if (dash <= 0) return undefined
+  const suffix = id.slice(dash + 1)
+  return EFFORT_SUFFIXES.has(suffix) ? id.slice(0, dash) : undefined
+}
+
+/**
+ * Unique catalog match for a remote model ID, tried from most to least
+ * specific; a level with AMBIGUOUS hits stops the ladder (conflicting
+ * catalog data must not be guessed past):
+ *   1. exact ID;
+ *   2. bare ID (namespace prefix removed), exactly one hit;
+ *   3. bare ID minus one trailing reasoning-effort suffix, exactly one hit.
+ */
+function catalogMatch(remoteID: string, catalog: readonly CatalogModel[]): CatalogModel | undefined {
+  const bareID = deriveModelKey(remoteID)
+  const levels: string[] = [remoteID, bareID]
+  const stripped = stripEffortSuffix(bareID)
+  if (stripped && stripped !== bareID) levels.push(stripped)
+  for (const level of levels) {
+    const matches = level === remoteID
+      ? catalog.filter((model) => model.id === remoteID)
+      : catalog.filter((model) => typeof model.id === "string" && deriveModelKey(model.id) === level)
+    if (matches.length > 1) return undefined // ambiguous — stay unknown
+    if (matches.length === 1) return matches[0]
+  }
+  return undefined
+}
+
+/** Catalog modalities for a remote model, conservatively requiring proven image input. */
 export function catalogCapabilities(
   remoteID: string,
   catalog: readonly CatalogModel[],
 ): { input: string[]; output: string[] } | undefined {
-  const bareID = deriveModelKey(remoteID)
-  const exact = catalog.find((model) => model.id === remoteID)
-  const matches = exact
-    ? [exact]
-    : catalog.filter((model) => typeof model.id === "string" && deriveModelKey(model.id) === bareID)
-  if (matches.length !== 1) return undefined
-  const match = matches[0]
-  const input = match.capabilities?.input
-  if (!Array.isArray(input) || !input.includes("image")) return undefined
+  const match = catalogMatch(remoteID, catalog)
+  const input = match?.capabilities?.input
+  if (!match || !Array.isArray(input) || !input.includes("image")) return undefined
   return {
     input: [...input],
     output: Array.isArray(match.capabilities?.output) ? [...match.capabilities.output] : ["text"],
   }
 }
 
-/** Build a conservative imported model definition, adding only catalog-proven vision support. */
+/** Catalog token limits for a remote model; only a complete pair is returned. */
+export function catalogLimit(
+  remoteID: string,
+  catalog: readonly CatalogModel[],
+): { context: number; output: number } | undefined {
+  const limit = catalogMatch(remoteID, catalog)?.limit
+  return limit && limit.context && limit.output
+    ? { context: limit.context, output: limit.output }
+    : undefined
+}
+
+/** Record a catalog-proven capability flag when it differs from opencode's default. */
+const applyFlag = (entry: ModelDef, flag: "reasoning" | "temperature" | "toolCall", value: boolean | undefined): boolean => {
+  if (value === undefined) return false
+  if (flag === "toolCall") {
+    if (value === false && entry.tool_call === undefined) {
+      entry.tool_call = false
+      return true
+    }
+    return false
+  }
+  if (value === true && entry[flag] === undefined) {
+    entry[flag] = true
+    return true
+  }
+  return false
+}
+
+/** Build a conservative imported model definition from catalog-proven data only. */
 export function importedModelDef(
   remote: { id: string; name: string },
   key: string,
@@ -256,79 +476,54 @@ export function importedModelDef(
     entry.attachment = true
     entry.modalities = capabilities
   }
+  const limit = catalogLimit(remote.id, catalog)
+  if (limit) entry.limit = limit
+  const match = catalogMatch(remote.id, catalog)
+  if (match) {
+    applyFlag(entry, "reasoning", match.reasoning)
+    applyFlag(entry, "temperature", match.temperature)
+    applyFlag(entry, "toolCall", match.toolCall)
+  }
   return entry
+}
+
+/**
+ * Fill capability fields an existing entry never had, using catalog-proven
+ * data. Returns true when anything was added; never overwrites fields the
+ * user (or an earlier import) already set.
+ */
+export function enrichModelDef(
+  entry: ModelDef,
+  remoteID: string,
+  catalog: readonly CatalogModel[],
+): boolean {
+  let changed = false
+  if (entry.attachment === undefined && entry.modalities === undefined) {
+    const capabilities = catalogCapabilities(remoteID, catalog)
+    if (capabilities) {
+      entry.attachment = true
+      entry.modalities = capabilities
+      changed = true
+    }
+  }
+  if (entry.limit === undefined) {
+    const limit = catalogLimit(remoteID, catalog)
+    if (limit) {
+      entry.limit = limit
+      changed = true
+    }
+  }
+  const match = catalogMatch(remoteID, catalog)
+  if (match) {
+    changed = applyFlag(entry, "reasoning", match.reasoning) || changed
+    changed = applyFlag(entry, "temperature", match.temperature) || changed
+    changed = applyFlag(entry, "toolCall", match.toolCall) || changed
+  }
+  return changed
 }
 
 const NPM_OPENAI = "@ai-sdk/openai-compatible"
 const NPM_ANTHROPIC = "@ai-sdk/anthropic"
-
-// ─── JSONC stripping (same implementation as provider-config.ts) ────
-
-function stripJsonc(raw: string): string {
-  let result = ""
-  let i = 0
-  const len = raw.length
-  let state: "normal" | "string" | "lineComment" | "blockComment" = "normal"
-
-  while (i < len) {
-    const c = raw[i]
-    const next = i + 1 < len ? raw[i + 1] : ""
-
-    switch (state) {
-      case "normal":
-        if (c === '"') {
-          result += c
-          state = "string"
-        } else if (c === "/" && next === "/") {
-          state = "lineComment"
-          i++
-        } else if (c === "/" && next === "*") {
-          state = "blockComment"
-          i++
-        } else {
-          result += c
-        }
-        break
-      case "string":
-        result += c
-        if (c === "\\") {
-          i++
-          if (i < len) result += raw[i]
-        } else if (c === '"') {
-          state = "normal"
-        }
-        break
-      case "lineComment":
-        if (c === "\n") {
-          result += c
-          state = "normal"
-        }
-        break
-      case "blockComment":
-        if (c === "*" && next === "/") {
-          state = "normal"
-          i++
-        }
-        break
-    }
-    i++
-  }
-
-  return result.replace(/,(\s*[}\]])/g, "$1")
-}
-
-function readConfig(path: string): OpenCodeConfig {
-  if (!existsSync(path)) throw new Error(`config not found: ${path}`)
-  return JSON.parse(stripJsonc(readFileSync(path, "utf-8"))) as OpenCodeConfig
-}
-
-function writeConfigAtomic(path: string, data: OpenCodeConfig): void {
-  if (existsSync(path)) {
-    writeFileSync(path + ".bak", readFileSync(path))
-  }
-  writeFileSync(path + ".tmp", JSON.stringify(data, null, 2), "utf-8")
-  renameSync(path + ".tmp", path)
-}
 
 // ─── Definition loading (same shape as provider-config.ts) ──────────
 
@@ -373,37 +568,6 @@ function displayKey(value: unknown): string {
   if (value === undefined) return tr("common.unset")
   return isEnvToken(value) ? String(value) : "••••••••"
 }
-
-// ─── Auth store (shared with official /connect) ─────────────────────
-
-interface AuthEntry {
-  type?: string
-  key?: string
-}
-
-function readAuth(): Record<string, AuthEntry> {
-  try {
-    return JSON.parse(readFileSync(AUTH_FILE, "utf-8")) as Record<string, AuthEntry>
-  } catch {
-    return {}
-  }
-}
-
-/** api-type credential for a provider, as written by /connect or 💾. */
-function authKey(id: string): string | undefined {
-  const entry = readAuth()[id]
-  return entry?.type === "api" && entry.key ? entry.key : undefined
-}
-
-function writeAuth(data: Record<string, AuthEntry>): void {
-  mkdirSync(dirname(AUTH_FILE), { recursive: true })
-  writeFileSync(AUTH_FILE + ".tmp", JSON.stringify(data, null, 2), { encoding: "utf-8", mode: 0o600 })
-  renameSync(AUTH_FILE + ".tmp", AUTH_FILE)
-}
-
-/** Natural order: 'router-2' sorts before 'router-10'. */
-const naturalCmp = (a: string, b: string): number =>
-  a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
 
 function globToRegex(glob: string): RegExp {
   let re = ""
@@ -555,6 +719,11 @@ function startWizard(api: TuiPluginApi): void {
         value: ADD_PRESET,
         description: tr("provider.addPresetProviderDesc"),
       },
+      {
+        title: tr("provider.manageConnections"),
+        value: MANAGE_CONNECTIONS,
+        description: tr("provider.manageConnectionsDesc", { count: listConnections(config).length }),
+      },
       ...ids.map((id) => {
         const provider = config.provider?.[id]
         const baseURL = provider?.options?.baseURL
@@ -582,11 +751,66 @@ function startWizard(api: TuiPluginApi): void {
         pickPresetProvider(api)
         return
       }
+      if (option.value === MANAGE_CONNECTIONS) {
+        connectionsMenu(api)
+        return
+      }
       detailMenu(api, option.value)
     },
   }
   // level 1 is the wizard root — Esc just closes it
   api.ui.dialog.replace(() => api.ui.DialogSelect<string>(selectProps))
+}
+
+// ─── Level 2: connections list ───────────────────────────────────────
+
+/**
+ * All connections on one screen — official built-ins and custom providers
+ * share the credential store, so both appear here. Picking one asks for
+ * confirmation, then disconnects (credential store entry + config apiKey)
+ * and returns to this refreshed list.
+ */
+function connectionsMenu(api: TuiPluginApi): void {
+  const config = readConfigOrToast(api)
+  if (!config) return
+  const conns = listConnections(config)
+  if (conns.length === 0) {
+    toast(api, tr("provider.connectionsEmpty"), "info")
+    setTimeout(() => startWizard(api), 0)
+    return
+  }
+
+  const description = (c: ConnectionInfo): string => {
+    const typeLabel = c.authType === "oauth"
+      ? tr("provider.connTypeOauth")
+      : c.authType === "api"
+        ? tr("provider.connTypeApi")
+        : isEnvToken(c.configKey)
+          ? tr("provider.connTypeEnv")
+          : tr("provider.connTypeApi")
+    const sources = [
+      c.authType ? tr("provider.connSourceStore") : "",
+      c.inConfig ? tr("provider.connSourceConfig") : "",
+    ].filter(Boolean).join(" + ")
+    const kind = c.inConfig ? tr("provider.connKindCustom") : tr("provider.connKindExternal")
+    return `${typeLabel} · ${sources} · ${kind}`
+  }
+
+  let navigated = false
+  api.ui.dialog.replace(() =>
+    api.ui.DialogSelect<string>({
+      title: tr("provider.connectionsTitle"),
+      placeholder: tr("provider.connectionsPlaceholder"),
+      options: conns.map((c) => ({ title: c.id, value: c.id, description: description(c) })),
+      onSelect: (option) => {
+        navigated = true
+        confirmDisconnect(api, option.value, () => connectionsMenu(api))
+      },
+    }),
+    () => {
+      if (!navigated) setTimeout(() => startWizard(api), 0)
+    },
+  )
 }
 
 // ─── Level 1.5: preset providers (providers/ definition files) ────
@@ -694,6 +918,11 @@ function detailMenu(api: TuiPluginApi, id: string): void {
   }
 
   const actionsCat = tr("provider.actionsHeader")
+  // opencode's /connect has no logout — offer the missing counterpart here;
+  // hidden when nothing credential-ish exists so the row never no-ops
+  if (storedAuthKey !== undefined || options.apiKey !== undefined) {
+    items.push({ title: tr("provider.disconnect"), value: DISCONNECT, description: tr("provider.disconnectDesc"), category: actionsCat })
+  }
   items.push(
     { title: tr("provider.addModel"), value: ADD_MODEL, description: tr("provider.addModelDesc"), category: actionsCat },
     { title: tr("provider.fetchModels"), value: FETCH_MODELS, description: tr("provider.fetchModelsDesc"), category: actionsCat },
@@ -728,6 +957,9 @@ function detailMenu(api: TuiPluginApi, id: string): void {
           }
           case DELETE_PROVIDER:
             confirmDeleteProvider(api, id)
+            return
+          case DISCONNECT:
+            confirmDisconnect(api, id)
             return
           case FETCH_MODELS:
             promptFetchPattern(api, id)
@@ -1076,6 +1308,20 @@ function promptFetchPattern(api: TuiPluginApi, id: string): void {
         value: "*",
         onConfirm: (value) => {
           navigated = true
+          // Busy prompt: the fetch can take up to the remote timeout, so
+          // keep an explicit on-screen indicator instead of a silent wait.
+          // Every doFetch exit path (success, no-match, error) lands in
+          // detailMenu, which replaces this dialog.
+          api.ui.dialog.replace(() =>
+            api.ui.DialogPrompt({
+              title: tr("provider.fetchingTitle", { id }),
+              busy: true,
+              busyText: tr("provider.fetchingBusy"),
+              onCancel: () => {
+                setTimeout(() => detailMenu(api, id), 0)
+              },
+            }),
+          )
           void doFetch(api, id, value.trim() || "*")
         },
         onCancel: () => {
@@ -1127,19 +1373,17 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
   }
 
   let remote: Array<{ id: string; name: string }>
-  let catalog: CatalogModel[] = []
+  let catalog: CatalogModel[]
   try {
-    // The provider endpoint and OpenCode catalog are independent. Catalog
-    // lookup is best-effort: an unavailable or older host must not prevent imports.
-    const client = api.client as unknown as {
-      model?: { list: () => Promise<unknown> }
-    }
+    // Remote list and catalog are independent. fetchCatalog never rejects
+    // and never blocks the import: an unavailable catalog only means
+    // models fall back to conservative text-only defaults.
     const [modelsResult, catalogResult] = await Promise.all([
       fetchRemoteModels(provider.npm ?? NPM_OPENAI, baseURL, apiKey),
-      client.model?.list().catch(() => undefined),
+      fetchCatalog(api),
     ])
     remote = modelsResult
-    catalog = catalogModels(catalogResult)
+    catalog = catalogResult
   } catch (err) {
     toast(api, tr("provider.fetchFailed", { err: (err as Error).message }), "error")
     detailMenu(api, id)
@@ -1157,14 +1401,17 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
   provider.models ??= {}
   const models = provider.models
   // Additive import: existing keys (user-added, presets, earlier fetches)
-  // are never overwritten or deleted — duplicates are skipped.
+  // are never overwritten — duplicates only get catalog fields they never
+  // had (enriched); everything user-set is left untouched.
   let added = 0
+  let enriched = 0
   let skipped = 0
   for (const m of matched) {
     const candidate = deriveModelKey(m.id)
     const { key, duplicate } = allocateModelKey(models, candidate, m.id)
     if (duplicate) {
-      skipped++
+      if (enrichModelDef(models[key], m.id, catalog)) enriched++
+      else skipped++
       continue
     }
     models[key] = importedModelDef(m, key, catalog)
@@ -1173,13 +1420,13 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
   // legacy fetch bookkeeping — no longer written
   delete provider.presetModels
 
-  if (added === 0) {
+  if (added === 0 && enriched === 0) {
     toast(api, tr("provider.fetchNoNew", { skipped, id }), "info")
   } else {
     try {
       compactProvider(provider)
       writeConfigAtomic(CONFIG_FILE, config)
-      toast(api, tr("provider.fetchImported", { added, skipped, id, pattern }), "success")
+      toast(api, tr("provider.fetchImported", { added, enriched, skipped, id, pattern }), "success")
     } catch (err) {
       toast(api, tr("provider.writeFailed", { err: (err as Error).message }), "error")
     }
@@ -1298,6 +1545,86 @@ function confirmDeleteProvider(api: TuiPluginApi, id: string): void {
       }),
     () => {
       if (!navigated) setTimeout(() => detailMenu(api, id), 0)
+    },
+  )
+}
+
+/**
+ * Disconnect — the counterpart /connect lacks: remove the provider's
+ * credential without touching its definition. Drops the /connect-shared
+ * auth store entry, clears the apiKey field (literal or env ref) in
+ * opencode.jsonc, and keeps models so reconnecting is one form away.
+ * `back` defaults to the provider detail menu; the connections list
+ * passes its own refresh callback.
+ */
+function confirmDisconnect(api: TuiPluginApi, id: string, back?: () => void): void {
+  const goBack = () => setTimeout(back ?? (() => detailMenu(api, id)), 0)
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("provider.disconnectTitle", { id }),
+        message: tr("provider.disconnectConfirm", { id }),
+        onConfirm: () => {
+          navigated = true
+          // single source of truth — the /disconnect command runs the same path
+          const result = disconnectProvider(id)
+          if (result.ok) {
+            toast(api, tr("provider.disconnected", { id }), "success")
+          } else {
+            toast(api, tr("provider.writeFailed", { err: result.error ?? "unknown" }), "error")
+          }
+          // defer: the host runs dialog.clear() after this callback returns
+          goBack()
+        },
+        onCancel: () => {
+          navigated = true
+          goBack()
+        },
+      }),
+    () => {
+      if (!navigated) goBack()
+    },
+  )
+}
+
+/**
+ * /disconnect --all — one confirmation for every connection, then each
+ * id goes through the same disconnectProvider path as a single
+ * disconnect. Provider definitions and models stay; the refreshed
+ * connections list shows what is left (usually nothing).
+ */
+function confirmDisconnectAll(api: TuiPluginApi): void {
+  const conns = readConnections()
+  if (conns.length === 0) {
+    toast(api, tr("provider.connectionsEmpty"), "info")
+    setTimeout(() => startWizard(api), 0)
+    return
+  }
+  const goList = () => setTimeout(() => connectionsMenu(api), 0)
+  let navigated = false
+  api.ui.dialog.replace(
+    () =>
+      api.ui.DialogConfirm({
+        title: tr("provider.disconnectAllTitle"),
+        message: tr("provider.disconnectAllConfirm", { count: conns.length }),
+        onConfirm: () => {
+          navigated = true
+          let ok = 0
+          for (const c of conns) {
+            if (disconnectProvider(c.id).ok) ok++
+          }
+          toast(api, tr("provider.disconnectAllDone", { ok, count: conns.length }), ok === conns.length ? "success" : "warning")
+          // defer: the host runs dialog.clear() after this callback returns
+          goList()
+        },
+        onCancel: () => {
+          navigated = true
+          goList()
+        },
+      }),
+    () => {
+      if (!navigated) goList()
     },
   )
 }
@@ -1603,6 +1930,41 @@ const tui: TuiPlugin = async (api) => {
         slashName: "provider",
         run() {
           startWizard(api)
+        },
+      },
+      // TUI-only /disconnect — the official /connect's counterpart, same
+      // keymap-only shape: ONE slash-menu row that dispatches instantly
+      // client-side (no Enter → server roundtrip). No config command is
+      // registered, so nothing duplicates. Verified against the opencode
+      // source: the Enter path only intercepts config commands
+      // (component/prompt/index.tsx submitInner), while the autocomplete
+      // visible during typing selects this row on Enter — matching how
+      // official /connect behaves.
+      {
+        name: "provider.disconnect",
+        title: tr("provider.cmdDisconnectTitle"),
+        desc: tr("provider.cmdDisconnectDesc"),
+        category: "Provider",
+        namespace: "palette",
+        slashName: "disconnect",
+        run(ctx: unknown) {
+          const sub = parseSlashArgs(ctx, ["provider.disconnect", "disconnect", "/disconnect"])
+          if (!sub) {
+            connectionsMenu(api)
+            return Promise.resolve()
+          }
+          if (sub === "--all" || sub === "all") {
+            confirmDisconnectAll(api)
+            return Promise.resolve()
+          }
+          if (!readConnections().some((c) => c.id === sub)) {
+            toast(api, tr("provider.connNotFound", { id: sub }), "warning")
+            connectionsMenu(api)
+            return Promise.resolve()
+          }
+          // jump straight to the confirm for that id, then refresh the list
+          confirmDisconnect(api, sub, () => connectionsMenu(api))
+          return Promise.resolve()
         },
       },
     ],

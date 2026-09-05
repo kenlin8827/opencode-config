@@ -240,7 +240,12 @@
       // Cost-shrinking: "*": { "*": "deny" } hides all MCP tool definitions
       // plus <mcp_instructions>. tools:false drops every heavy native schema;
       // the whitelist keeps the minimal capable set lite needs (read/edit/
-      // write/bash/grep/glob/webfetch/websearch/todowrite/task).
+      // write/bash/grep/glob/webfetch/websearch/todowrite/task/question).
+      // `question` (interactive ask) is back on lite after token measurement
+      // showed it costs only ~216 tok/step with the lite-tools description
+      // override (schema ~198 tok + one-line desc) — worth it because lite is
+      // the default primary and its git-safety flow promises Proceed/Cancel.
+      // Discipline lives in lite.md: at most one blocking question per task.
       // No `list` — opencode has no such tool; `read` auto-lists directories.
       // lite-tools.ts compresses only the description (the bulk — bash's
       // usage guide alone is ~1.8k tok). Parameters/jsonSchema stay native:
@@ -282,7 +287,8 @@
         "websearch": true,
         "todowrite": true,
         "task": true,
-        "skill": true
+        "skill": true,
+        "question": true
       }
     },
     "code": {

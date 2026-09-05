@@ -98,6 +98,8 @@ export function backupTargetDir(targetDir: string): string | null {
  * stops at these boundaries — they are never removed themselves.
  */
 const MANAGED_DIRS = new Set(['commands', 'instructions', 'plugins', 'profiles', 'prompts', 'providers', 'skills']);
+const OCP_STATE_DIR = '.ocp';
+const TARGET_INSTALLED_MANIFEST = 'installed.manifest.txt';
 
 /**
  * Walk up from `startDir`, removing every empty directory until a managed
@@ -201,6 +203,42 @@ export function copyRepoFiles(repoDir: string, targetDir: string, files: string[
     }
   }
   return count;
+}
+
+/**
+ * Files in the package manifest are not always files that should exist in the
+ * target directory after install. Template inputs are rendered into user config
+ * files, and provider presets are seeded once then owned by the user.
+ */
+export function computeTargetManagedFiles(files: string[], userOwnsProviders: boolean): string[] {
+  return files
+    .filter((relFile) => {
+      if (relFile === 'opencode.template.jsonc') return false;
+      if (relFile === 'tui.template.jsonc') return false;
+      if (
+        userOwnsProviders &&
+        relFile.startsWith('providers/') &&
+        relFile.endsWith('.json')
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .sort();
+}
+
+export function getTargetInstalledManifestPath(targetDir: string): string {
+  return path.join(targetDir, OCP_STATE_DIR, TARGET_INSTALLED_MANIFEST);
+}
+
+export function readTargetInstalledManifest(targetDir: string): string[] | null {
+  return readManifest(getTargetInstalledManifestPath(targetDir));
+}
+
+function writeTargetInstalledManifest(targetDir: string, files: string[]): void {
+  const stateDir = path.join(targetDir, OCP_STATE_DIR);
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(getTargetInstalledManifestPath(targetDir), files.sort().join('\n') + '\n', 'utf8');
 }
 
 export function isBinaryOnPath(cmdName: string): boolean {
@@ -785,16 +823,16 @@ export function executeInstall(
   // 3. Extract user modifications to preserve
   const preserveBag = extractPreserveBag(targetDir);
 
-  // 3.5 Remove files shipped in any historical version but no longer shipped
-  //   in the current one. Without this, removed prompts/instructions/plugins
+  // 3.5 Remove files shipped in any historical version but no longer managed
+  //   in the current target layout. Without this, removed prompts/instructions/plugins
   //   accumulate in ~/.config/opencode/ across upgrades.
   //
   //   The historical source is the union of every loose manifest plus the
   //   compacted history.manifest.txt, excluding only curVersion. The
-  //   installed version's manifest is deliberately INCLUDED: entries it
-  //   lists that the current version no longer ships are exactly the stale
-  //   files an upgrade must remove (curSet protects everything still
-  //   shipped). Unioning all versions — rather than a single-prev diff —
+  //   installed version's manifest is deliberately INCLUDED when available:
+  //   entries it lists that the current version no longer manages are exactly
+  //   the stale files an upgrade must remove (curSet protects everything still
+  //   target-managed). Unioning all versions — rather than a single-prev diff —
   //   matches reality: the disk is the accumulation of every version ever
   //   installed, not just the previous one.
   //
@@ -810,17 +848,23 @@ export function executeInstall(
   //   copyRepoFiles rule.
   const shippedFiles = collectShippedFiles(repoDir);
   const prevVer = getInstalledVersion(targetDir);
-  if (prevVer) {
+  const userOwnsProviders = fs.existsSync(path.join(targetDir, 'installed.version'));
+  const targetManagedFiles = computeTargetManagedFiles(shippedFiles, userOwnsProviders);
+  const previousTargetManifest = readTargetInstalledManifest(targetDir);
+  const targetHasContent = fs.existsSync(targetDir) && fs.readdirSync(targetDir).length > 0;
+  if (prevVer || previousTargetManifest || targetHasContent) {
     const minVer = readVersionJson(repoDir)?.minVersion;
-    if (minVer && isNewerVersion(minVer, prevVer)) {
+    if (prevVer && minVer && isNewerVersion(minVer, prevVer)) {
       console.log(`⚠ Installed v${prevVer} is below the supported floor v${minVer} — upgrading on a best-effort basis.`);
     }
-    const historicalFiles = collectHistoricalShippedFiles(repoDir, new Set([curVersion]));
-    if (historicalFiles.length > 0) {
-      const curSet = new Set(shippedFiles);
-      const userOwnsProviders = fs.existsSync(path.join(targetDir, 'installed.version'));
+    const staleBasis = new Set<string>([
+      ...(previousTargetManifest ?? []),
+      ...collectHistoricalShippedFiles(repoDir, new Set([curVersion])),
+    ]);
+    if (staleBasis.size > 0) {
+      const curSet = new Set(targetManagedFiles);
       let staleRemoved = 0;
-      for (const rel of historicalFiles) {
+      for (const rel of staleBasis) {
         if (curSet.has(rel)) continue;
         if (userOwnsProviders && rel.startsWith('providers/') && rel.endsWith('.json')) continue;
         const p = path.join(targetDir, rel);
@@ -845,6 +889,7 @@ export function executeInstall(
 
   // 6. Write installed version
   fs.writeFileSync(path.join(targetDir, 'installed.version'), curVersion + '\n', 'utf8');
+  writeTargetInstalledManifest(targetDir, targetManagedFiles);
 
   // 7. Provision CLIs for enabled MCP servers missing from PATH
   provisionMcpCli(repoDir, effectiveOptions);
@@ -945,10 +990,11 @@ export function executeUninstall(
     return { targetDir, removedCount: 0 };
   }
 
-  // Prefer the *installed* version's manifest so uninstall removes exactly
-  // what was shipped, not whatever the repo happens to contain now (a
-  // user who hasn't run `ocp update` since pulling should still be able to
-  // uninstall cleanly).
+  // Prefer the target-side manifest so uninstall removes exactly what the
+  // current installation still considers OCP-managed. Fall back to the
+  // *installed* version's package manifest for older installs without .ocp
+  // state, so a user who hasn't run `ocp update` since pulling can still
+  // uninstall cleanly.
   const installedVer = getInstalledVersion(targetDir);
   const manifestVer = installedVer ?? getCurrentRepoVersion(repoDir);
   // Exact per-version manifest first. When it has been compacted away (or
@@ -956,7 +1002,7 @@ export function executeUninstall(
   // superset of what any version shipped, so nothing managed survives, and
   // entries absent on disk are skipped by the loop below. Live repo scan is
   // the last resort when install/versions/ is missing entirely.
-  let manifest = readManifest(getManifestPath(repoDir, manifestVer));
+  let manifest = readTargetInstalledManifest(targetDir) ?? readManifest(getManifestPath(repoDir, manifestVer));
   if (!manifest) {
     const union = collectHistoricalShippedFiles(repoDir, new Set());
     manifest = union.length > 0 ? union : collectShippedFiles(repoDir);
@@ -982,6 +1028,11 @@ export function executeUninstall(
   const versionFile = path.join(targetDir, 'installed.version');
   if (fs.existsSync(versionFile)) {
     fs.rmSync(versionFile, { force: true });
+  }
+
+  const stateDir = path.join(targetDir, OCP_STATE_DIR);
+  if (fs.existsSync(stateDir)) {
+    fs.rmSync(stateDir, { recursive: true, force: true });
   }
 
   return { targetDir, removedCount: count };

@@ -322,21 +322,33 @@ const ptsText = (await formatByDimension(fakeApi.client, "z1", "session")).table
 assert(ptsText.includes("credits") && ptsText.includes("7.42"), "credits column present for plan sessions")
   assert(ptsText.includes("7.42"), `points computed via OCP dataset (got: ${ptsText.split("\n").join(" | ")})`)
   // On coding plans the server-side cost is $0, but credits are the actual
-  // billing mechanism so costKnown should be true and no kill-line skull appears.
-  assert(!ptsText.includes("💀"), "coding-plan sessions don't get a kill-line skull (credits are the real bill)")
+  // billing mechanism so costKnown should be true and no simulated-price icon appears.
+  assert(!ptsText.includes("🔗"), "coding-plan sessions don't get a simulated-price icon (credits are the real bill)")
 delete sessions.z1
 delete messages.z1
 rmSync(pointsPath, { force: true })
 delete process.env.OCP_POINTS_PATH
 resetCostsCache()
 
-// --- non-plan provider with cost 0 → no points, plain $0.0000 ---
+// --- non-plan provider with cost 0 → models.dev simulated price + pricing link ---
+const modelsDevPath = join(tmpdir(), `ocp-modelsdev-test-${process.pid}.json`)
+writeFileSync(modelsDevPath, JSON.stringify({
+  ts: Date.now(),
+  prices: { "anthropic/claude-pro": { input: 3, cached: 0.3, output: 15 } },
+  pageIds: { "claude-pro": "anthropic/claude-pro" },
+}))
+process.env.OCP_MODELSDEV_PATH = modelsDevPath
+resetCostsCache()
 sessions.z2 = { id: "z2", agent: "build" }
 messages.z2 = [assistant({ mode: "build", agent: "build", providerID: "anthropic", modelID: "claude-pro", cost: 0, tokens: { input: 1000, output: 100, cache: { read: 10000, write: 0 } } }, 1)]
 const nonPlanText = (await formatByDimension(fakeApi.client, "z2", "session")).table
-assert(nonPlanText.includes("💀") && !nonPlanText.includes("积分"), "non-plan cost 0 shows kill-line estimate prefixed with skull")
+assert(nonPlanText.includes("🔗 $0.0075") && !nonPlanText.includes("积分"), "non-plan cost 0 shows models.dev simulated estimate prefixed with link icon")
+assert(nonPlanText.includes("https://models.dev/models/anthropic/claude-pro"), "simulated pricing footer links to models.dev model page")
 delete sessions.z2
 delete messages.z2
+rmSync(modelsDevPath, { force: true })
+delete process.env.OCP_MODELSDEV_PATH
+resetCostsCache()
 
 // --- auto-fit dialog width ---
 assertEq(fitDialogSize("a".repeat(10)), "medium", "narrow content → medium")

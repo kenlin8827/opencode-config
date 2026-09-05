@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { initI18n, tr } from "./i18n"
+import { initI18n, tr, parseSlashArgs } from "./i18n"
 import { parseJsonc } from "../shared/ocp-config"
 
 /**
@@ -96,7 +96,7 @@ interface SessionUsage {
   cost: number
   /** True when `cost` came from real server billing, false when it's $0
    *  because the provider is on a plan or skipped billing metadata. The
-   *  cost column shows 💀 when false. */
+   *  cost column shows 🔗 when false. */
   costKnown: boolean
   /** OCP supplementary — coding-plan points (积分) for plan providers. */
   credits: number
@@ -104,13 +104,14 @@ interface SessionUsage {
   /** OCP supplementary — cash ($/Mtok) for non-plan providers whose server cost is 0. */
   cash: number
   cashKnown: boolean
-  /** Last-resort USD estimate using the kill-line price floor — applied
-   *  per-message when the dataset has no entry AND the server billed $0.
-   *  Always a lower bound (cheap-tier baseline), never an underestimate. */
+  /** Simulated USD estimate — shown (with 🔗) only when the server billed $0
+   *  and no OCP real billing fallback (credits/cash) matched. Uses models.dev
+   *  public list prices first; final fallback is a low-end market floor. */
   estimatedCost: number
-  /** Name of the model at the kill-line — surfaced in the cost cell when
-   *  the estimate is shown so the user knows what "💀 $X" represents. */
-  killLineModel?: string
+  /** Canonical models.dev page ids ("lab/slug") used as pricing-standard links. */
+  devModels: string[]
+  /** Full opencode model ids that missed models.dev and used the final floor. */
+  floorModels: string[]
   steps: number
   compactions: number
   inputByModel: Record<string, number>
@@ -204,11 +205,12 @@ export function loadCosts(): CostsData | null {
   } catch (e) { console.error("loadCosts err:", file, (e as Error)?.message); costsDataCache = null; return null }
 }
 
-/** Reset the points cache (used by tests when they change OCP_POINTS_PATH). */
+/** Reset usage-pricing caches (used by tests when they change OCP_* paths). */
 export function resetCostsCache(): void {
   costsDataCache = undefined
-  killLineMemCache = undefined
-  killLineRefreshInFlight = null
+  modelsDevCache = undefined
+  modelsDevByModel = null
+  modelsDevRefreshInFlight = null
 }
 
 /** OCP-supplied usage for a message: either积分 (points, divided by provider divisor) or
@@ -248,291 +250,172 @@ function shortModelName(fullId: string): string {
 }
 
 /** Render the cost cell. When the server actually billed something
- *  (`costKnown=true`) the dollar amount is shown plain — no skull,
+ *  (`costKnown=true`) the dollar amount is shown plain — no icon,
  *  since the server is the source of truth.
  *
- *  Otherwise (kill-line estimate): the 💀 skull is prefixed so the user
- *  knows "this is not what you were charged — it's a lower-bound floor
- *  using the cheapest real models on the market". The baseline model
- *  name (e.g. "DeepSeek V4 Flash") is intentionally NOT embedded in
- *  this cell — the cost column is too narrow and any long name would
- *  wrap and break the table layout. The parent table renderer is
- *  responsible for placing the baseline in a footer/legend line under
- *  the table. The 💀 emoji survives monospace-width alignment because
- *  it's a single BMP glyph (display width = 1). */
+ *  Otherwise (simulated estimate): a 🔗 prefix marks the amount as a
+ *  public-list-price simulation, not a real charge. The estimate basis
+ *  and pricing-standard links live in the table footer, keeping this
+ *  column narrow. */
 function fmtCost(cost: number, estimatedCost: number, costKnown: boolean): string {
   const value = costKnown ? cost : estimatedCost
-  const skull = costKnown ? "" : "💀 "
-  return `${skull}$${value.toFixed(4)}`
+  const icon = costKnown ? "" : "🔗 "
+  return `${icon}$${value.toFixed(4)}`
 }
 
-/** SWR (stale-while-revalidate) cache for the kill-line price floor.
- *  Pattern: serve the cached price instantly if fresh, or stale data while
- *  triggering a background refresh, or the hardcoded fallback if neither
- *  exists yet. Source of truth: https://github.com/Mappedinfo/llm-price-kill-line
- *  We fetch the raw JS dataset, parse every USD-priced model entry, and
- *  pick the Pareto frontier's cheapest point (best input+output cost
- *  weighted by industry cache/output ratios). Persisted under the user
- *  config dir; refresh cadence: every 24 h. */
-const KILL_LINE_SOURCE_URL = "https://raw.githubusercontent.com/Mappedinfo/llm-price-kill-line/refs/heads/main/src/data/models.js"
-const KILL_LINE_CACHE_FILE = "llm-prices-killline.json"
-/** SWR: how long a cache entry counts as "fresh" and returned synchronously. */
-const KILL_LINE_FRESH_MS = 24 * 60 * 60 * 1000
-/** SWR: how long an entry may be served "stale" while a background refresh
- *  is in flight. After this window we still serve stale but kick the
- *  refresh unconditionally. */
-const KILL_LINE_STALE_MS = 7 * 24 * 60 * 60 * 1000
-/** Hard-coded fallback if cost.jsonc is missing or empty — same baseline
- *  numbers as the dataset's recommended kill-line (see CostRates.killLineUSD).
- *  Source of truth: https://mappedinfo.github.io/llm-price-kill-line/
- *  "Pareto frontier of cheap-tier models" — the absolute cheapest (USD/MTok)
- *  currently on the market across first-party APIs. The values here are the
- *  bottom row of that Pareto scatter (Gemini 3 Flash tier, off-peak-equivalent
- *  API aggregators) and represent a true lower-bound: any real LLM spend
- *  exceeds these figures, never under. Used as a fail-open estimate when
- *  the server billed $0 and the dataset has no matching provider/model. */
-const FALLBACK_KILL_LINE_USD = { input: 0.06, cached: 0.012, output: 0.12 }
+// ─── models.dev pricing fallback (simulated cost) ───────────────────────────
 
-interface KillLineCache {
-  ts: number
-  prices: { input: number; cached: number; output: number; source?: string }
-  /** Model name at the Pareto kill-line — what the user is actually
-   *  paying for when they see the estimate. e.g. "DeepSeek V4 Flash". */
-  model?: string
-  sourceUrl?: string
-  /** Timestamp of the last failed refresh — used to back off and not pound
-   *  a flaky network. While set, we keep serving the last good prices. */
-  lastError?: { ts: number; message: string }
-}
+/** Public list-price source used when the opencode server billed $0 and the
+ *  OCP local cost dataset has no matching provider/model. Prices are USD/MTok.
+ *  Source: https://models.dev/api.json. Model-page links use the canonical
+ *  catalog ids from https://models.dev/models.json, rendered as
+ *  https://models.dev/models/{lab}/{model}. */
+const MODELSDEV_API_URL = "https://models.dev/api.json"
+const MODELSDEV_MODELS_URL = "https://models.dev/models.json"
+const MODELSDEV_CACHE_FILE = "modelsdev-prices.json"
+const MODELSDEV_FRESH_MS = 24 * 60 * 60 * 1000
+const MODELSDEV_STALE_MS = 7 * 24 * 60 * 60 * 1000
+/** Final fallback when models.dev is unavailable or does not list the model.
+ *  USD/MTok; intentionally a low-end market floor, disclosed in the footer. */
+const FALLBACK_FLOOR_USD = { input: 0.06, cached: 0.012, output: 0.12 }
+type ModelsDevPrice = { input: number; cached: number; output: number }
+type ModelsDevCache = { ts: number; prices: Record<string, ModelsDevPrice>; pageIds: Record<string, string>; lastError?: { ts: number; message: string } }
+let modelsDevCache: ModelsDevCache | null | undefined
+let modelsDevRefreshInFlight: Promise<void> | null = null
+let modelsDevByModel: Map<string, ModelsDevPrice> | null = null
 
-let killLineMemCache: KillLineCache | null | undefined
-let killLineRefreshInFlight: Promise<void> | null = null
-
-function killLineCachePath(): string {
-  if (process.env.OCP_KILL_LINE_PATH) return process.env.OCP_KILL_LINE_PATH
+function modelsDevCachePath(): string {
+  if (process.env.OCP_MODELSDEV_PATH) return process.env.OCP_MODELSDEV_PATH
   const os = require("node:os") as typeof import("node:os")
   const base = process.env.XDG_CONFIG_HOME ||
     (process.platform === "win32"
       ? `${process.env.USERPROFILE || os.homedir()}\\.config`
       : `${os.homedir()}/.config`)
-  return `${base}/opencode/${KILL_LINE_CACHE_FILE}`
+  return `${base}/opencode/${MODELSDEV_CACHE_FILE}`
 }
 
-/** Parse the kill-line data source for the cheapest USD-priced model.
- *  The source is an ES module exporting `DATA = { meta, vendors, plans,
- *  models: [...] }` with each model as `{ id, vendor, model, ii, ch, cur,
- *  pIn, pCache, pOut, ... }`. We filter to USD entries only (CNY entries
- *  require an FX conversion that we'd rather not maintain), and pick the
- *  Pareto frontier's cheapest point weighted by industry cache/output
- *  ratios (input dominates in coding agents, so output gets a 4× weight
- *  matching Artificial Analysis' 7:2:1 blended formula). Returns null
- *  on parse failure so the caller falls back gracefully.
- *
- *  Strategy: walk every `cur:'USD'` occurrence, bracket each one by the
- *  surrounding `{ ... }` record, then extract prices + model name from
- *  that record. Records are well-formed (no nested braces in fields), so
- *  `lastIndexOf('{')` + `indexOf('}')` is enough. */
-function parseKillLineFromBundle(source: string): { input: number; cached: number; output: number; model: string } | null {
-  let cheapest: { input: number; cached: number; output: number; model: string; score: number } | null = null
-  let idx = 0
-  while (true) {
-    const i = source.indexOf("cur:'USD'", idx)
-    if (i === -1) break
-    const start = source.lastIndexOf('{', i)
-    const end = source.indexOf('}', i)
-    if (start === -1 || end === -1 || end < start) { idx = i + 1; continue }
-    const rec = source.slice(start, end + 1)
-    const inM = /pIn:((?:\d*\.\d+|\d+))/.exec(rec)
-    const caM = /pCache:((?:\d*\.\d+|\d+))/.exec(rec)
-    const ouM = /pOut:((?:\d*\.\d+|\d+))/.exec(rec)
-    const moM = /model:'([^']+)'/.exec(rec)
-    idx = end + 1
-    if (!inM || !caM || !ouM || !moM) continue
-    const input = parseFloat(inM[1])
-    const cached = parseFloat(caM[1])
-    const output = parseFloat(ouM[1])
-    if (!Number.isFinite(input) || !Number.isFinite(cached) || !Number.isFinite(output)) continue
-    if (input <= 0 || output <= 0) continue
-    const score = input + output * 4
-    if (!cheapest || score < cheapest.score) {
-      cheapest = { input, cached, output, model: moM[1], score }
+function parseModelsDevApi(api: unknown): Record<string, ModelsDevPrice> {
+  const out: Record<string, ModelsDevPrice> = {}
+  if (!api || typeof api !== "object") return out
+  for (const [pid, provider] of Object.entries(api as Record<string, any>)) {
+    const models = provider?.models
+    if (!models || typeof models !== "object") continue
+    for (const [mid, model] of Object.entries(models as Record<string, any>)) {
+      const c = model?.cost
+      if (!c || typeof c.input !== "number" || typeof c.output !== "number") continue
+      if (!Number.isFinite(c.input) || !Number.isFinite(c.output)) continue
+      if (c.input <= 0 && c.output <= 0) continue
+      out[`${pid}/${mid}`] = {
+        input: c.input,
+        cached: typeof c.cache_read === "number" && Number.isFinite(c.cache_read) ? c.cache_read : 0,
+        output: c.output,
+      }
     }
   }
-  if (!cheapest) return null
-  return { input: cheapest.input, cached: cheapest.cached, output: cheapest.output, model: cheapest.model }
+  return out
 }
 
-/** Fetch the kill-line JS bundle, extract the Pareto floor, persist it.
- *  Returns the parsed prices on success, null on failure (so the caller
- *  keeps using whatever it already has — be it stale cache or hardcoded
- *  fallback). On failure, records the error timestamp on the cache entry
- *  so the SWR orchestrator can back off (avoid hammering a flaky network).
- *  Fire-and-forget by callers; never blocks /usage. */
-async function refreshKillLineFromRemote(): Promise<{ input: number; cached: number; output: number; model: string } | null> {
+function parseModelsDevCatalog(models: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!models || typeof models !== "object") return out
+  for (const [id] of Object.entries(models as Record<string, unknown>)) {
+    if (typeof id !== "string") continue
+    const slash = id.lastIndexOf("/")
+    if (slash === -1) continue
+    const model = id.slice(slash + 1)
+    if (model && !out[model]) out[model] = id
+  }
+  return out
+}
+
+function loadModelsDevFromDisk(): boolean {
   try {
     const fs = require("node:fs") as typeof import("node:fs")
-    const res = await fetch(KILL_LINE_SOURCE_URL, { signal: AbortSignal.timeout(10_000) })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const bundle = await res.text()
-    const parsed = parseKillLineFromBundle(bundle)
-    if (!parsed) throw new Error("parse failed")
-    const entry: KillLineCache = {
-      ts: Date.now(),
-      prices: { input: parsed.input, cached: parsed.cached, output: parsed.output, source: parsed.model },
-      model: parsed.model,
-      sourceUrl: KILL_LINE_SOURCE_URL,
+    const file = modelsDevCachePath()
+    if (!fs.existsSync(file)) return false
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as ModelsDevCache
+    if (!parsed || typeof parsed.ts !== "number" || !parsed.prices || typeof parsed.prices !== "object") return false
+    modelsDevCache = { ts: parsed.ts, prices: parsed.prices, pageIds: parsed.pageIds || {}, lastError: parsed.lastError }
+    modelsDevByModel = null
+    return true
+  } catch { return false }
+}
+
+async function refreshModelsDevFromRemote(): Promise<void> {
+  try {
+    const fs = require("node:fs") as typeof import("node:fs")
+    const [apiRes, catalogRes] = await Promise.all([
+      fetch(MODELSDEV_API_URL, { signal: AbortSignal.timeout(15_000) }),
+      fetch(MODELSDEV_MODELS_URL, { signal: AbortSignal.timeout(15_000) }),
+    ])
+    if (!apiRes.ok) throw new Error(`api.json HTTP ${apiRes.status}`)
+    const prices = parseModelsDevApi(await apiRes.json())
+    if (Object.keys(prices).length === 0) throw new Error("api.json parse failed")
+    let pageIds: Record<string, string> = {}
+    if (catalogRes.ok) {
+      try { pageIds = parseModelsDevCatalog(await catalogRes.json()) } catch { /* page links are best-effort */ }
     }
+    const entry: ModelsDevCache = { ts: Date.now(), prices, pageIds }
     try {
-      // Atomic write: tmp → rename. If power dies mid-write the .tmp is
-      // left behind (harmless) and the real cache file is untouched.
-      const tmp = killLineCachePath() + ".tmp"
+      const tmp = modelsDevCachePath() + ".tmp"
       fs.writeFileSync(tmp, JSON.stringify(entry))
-      fs.renameSync(tmp, killLineCachePath())
-    } catch { /* disk write is best-effort; in-memory still wins */ }
-    killLineMemCache = entry
-    return parsed
+      fs.renameSync(tmp, modelsDevCachePath())
+    } catch { /* disk write best-effort */ }
+    modelsDevCache = entry
+    modelsDevByModel = null
   } catch (e) {
-    // Sticky error on whatever we currently know — the entry may be a
-    // fresh success (no lastError) or a previous success we're keeping.
-    // Either way, recording the failure timestamp tells SWR to back off.
-    if (killLineMemCache) {
-      killLineMemCache = {
-        ...killLineMemCache,
-        lastError: { ts: Date.now(), message: e instanceof Error ? e.message : String(e) },
-      }
-      // Best-effort persist so a process restart still sees the back-off
-      try {
-        const fs = require("node:fs") as typeof import("node:fs")
-        fs.writeFileSync(killLineCachePath(), JSON.stringify(killLineMemCache))
-      } catch { /* ignore */ }
+    if (modelsDevCache) {
+      modelsDevCache = { ...modelsDevCache, lastError: { ts: Date.now(), message: e instanceof Error ? e.message : String(e) } }
     }
-    return null
   }
 }
 
-/** SWR back-off: how long to skip retrying after a failed refresh.
- *  Doubles on consecutive failures up to a cap. Reset on any success. */
-let killLineBackoffMs = 60_000
-const KILL_LINE_BACKOFF_MAX_MS = 60 * 60 * 1000 // 1 h
-function bumpBackoff() { killLineBackoffMs = Math.min(killLineBackoffMs * 2, KILL_LINE_BACKOFF_MAX_MS) }
-function resetBackoff() { killLineBackoffMs = 60_000 }
-function inBackoff(): boolean {
-  if (!killLineMemCache?.lastError) return false
-  return Date.now() - killLineMemCache.lastError.ts < killLineBackoffMs
+async function getModelsDevAsync(): Promise<void> {
+  if (modelsDevCache && Date.now() - modelsDevCache.ts < MODELSDEV_FRESH_MS) return
+  if (!modelsDevCache) loadModelsDevFromDisk()
+  if (modelsDevCache && Date.now() - modelsDevCache.ts < MODELSDEV_STALE_MS) {
+    if (!modelsDevRefreshInFlight) modelsDevRefreshInFlight = refreshModelsDevFromRemote().finally(() => { modelsDevRefreshInFlight = null })
+    return
+  }
+  if (!modelsDevRefreshInFlight) modelsDevRefreshInFlight = refreshModelsDevFromRemote().finally(() => { modelsDevRefreshInFlight = null })
+  await modelsDevRefreshInFlight
 }
 
-/** SWR orchestrator. Called on every /usage render; returns immediately
- *  with whatever price is available (cached fresh → cached stale → fallback).
- *  Triggers a background refresh in the stale/no-cache paths. The actual
- *  /usage call site doesn't await the refresh, so dialog open stays
- *  instant. */
-async function getKillLineUSDAsync(): Promise<{ input: number; cached: number; output: number; source?: string }> {
-  // 1. In-memory cache (fresh?)
-  if (killLineMemCache && Date.now() - killLineMemCache.ts < KILL_LINE_FRESH_MS) {
-    return killLineMemCache.prices
-  }
-
-  // 2. Disk cache — load synchronously since it's tiny (<1 KB)
-  if (!killLineMemCache) {
-    try {
-      const fs = require("node:fs") as typeof import("node:fs")
-      if (fs.existsSync(killLineCachePath())) {
-        const raw = fs.readFileSync(killLineCachePath(), "utf-8")
-        const parsed = JSON.parse(raw) as KillLineCache
-        if (parsed && typeof parsed.ts === "number" && parsed.prices) {
-          killLineMemCache = parsed
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
-  // 3. Decide: serve what we have (fresh/stale) or fall back
-  if (killLineMemCache) {
-    const age = Date.now() - killLineMemCache.ts
-    if (age < KILL_LINE_STALE_MS) {
-      // Stale-while-revalidate: kick a background refresh, return now.
-      // Respect the back-off window: if the last refresh failed, don't
-      // retry until the back-off expires — keeps the network quiet.
-      if (!killLineRefreshInFlight && !inBackoff()) {
-        killLineRefreshInFlight = refreshKillLineFromRemote()
-          .then((res) => { if (res) resetBackoff() })
-          .catch(() => { bumpBackoff() })
-          .finally(() => { killLineRefreshInFlight = null })
-      }
-      return killLineMemCache.prices
-    }
-    // Very stale — still serve but refresh unconditionally
-    if (!killLineRefreshInFlight && !inBackoff()) {
-      killLineRefreshInFlight = refreshKillLineFromRemote()
-        .then((res) => { if (res) resetBackoff() })
-        .catch(() => { bumpBackoff() })
-        .finally(() => { killLineRefreshInFlight = null })
-    }
-    return killLineMemCache.prices
-  }
-
-  // 4. Nothing on disk — fetch synchronously (one slow /usage) or fall back
-  if (!killLineRefreshInFlight) {
-    // The variable is typed `Promise<void> | null` (used by the chained
-    // sites that wrap with .then/.catch). Coerce the unchained remote
-    // promise to `Promise<void>` via a no-op `.then` so the assignment
-    // typechecks; rejections still propagate (the `then` callback
-    // doesn't catch them).
-    killLineRefreshInFlight = refreshKillLineFromRemote()
-      .then(() => undefined)
-      .finally(() => { killLineRefreshInFlight = null })
-  }
-  await killLineRefreshInFlight
-  // 5. Either the remote fetch populated the cache, or it didn't — fall
-  // through to the hardcoded baseline in the latter case. The `as` cast
-  // re-anchors the type after the `await`: without it TS narrows the
-  // module-level `let` to `never` (likely because all prior paths
-  // returned). Runtime behavior is unchanged.
-  return (killLineMemCache as KillLineCache | null | undefined)?.prices
-    ?? { ...FALLBACK_KILL_LINE_USD, source: "code fallback (DeepSeek V4 Flash baseline)" }
+function getModelsDevSync(): void {
+  if (modelsDevCache && Date.now() - modelsDevCache.ts < MODELSDEV_STALE_MS) return
+  if (!modelsDevCache) loadModelsDevFromDisk()
+  if (!modelsDevRefreshInFlight) modelsDevRefreshInFlight = refreshModelsDevFromRemote().finally(() => { modelsDevRefreshInFlight = null })
 }
 
-/** Synchronous variant for the rendering hot path. Returns whatever is
- *  already in memory or on disk; if both miss, returns the hardcoded
- *  fallback and triggers a fire-and-forget refresh for next time. */
-function getKillLineUSDSync(): { input: number; cached: number; output: number; source?: string } {
-  // In-memory
-  if (killLineMemCache && Date.now() - killLineMemCache.ts < KILL_LINE_STALE_MS) {
-    return killLineMemCache.prices
-  }
-  // Disk
-  if (!killLineMemCache) {
-    try {
-      const fs = require("node:fs") as typeof import("node:fs")
-      if (fs.existsSync(killLineCachePath())) {
-        const raw = fs.readFileSync(killLineCachePath(), "utf-8")
-        const parsed = JSON.parse(raw) as KillLineCache
-        if (parsed && typeof parsed.ts === "number" && parsed.prices) {
-          killLineMemCache = parsed
-          return parsed.prices
-        }
-      }
-    } catch { /* ignore */ }
-  }
-  if (killLineMemCache) {
-    // Stale-while-revalidate fire-and-forget — respect the back-off so
-    // a flaky network doesn't get pounded on every /usage open.
-    if (!killLineRefreshInFlight && !inBackoff()) {
-      killLineRefreshInFlight = refreshKillLineFromRemote()
-        .then((res) => { if (res) resetBackoff() })
-        .catch(() => { bumpBackoff() })
-        .finally(() => { killLineRefreshInFlight = null })
+function modelsDevPriceFor(providerID: string, modelID: string): ModelsDevPrice | null {
+  getModelsDevSync()
+  const cache = modelsDevCache
+  if (!cache) return null
+  const exact = cache.prices[`${providerID}/${modelID}`]
+  if (exact) return exact
+  if (!modelsDevByModel) {
+    modelsDevByModel = new Map()
+    for (const [key, price] of Object.entries(cache.prices)) {
+      const mid = key.slice(key.indexOf("/") + 1)
+      const cur = modelsDevByModel.get(mid)
+      if (!cur || price.input + price.output * 4 < cur.input + cur.output * 4) modelsDevByModel.set(mid, price)
     }
-    return killLineMemCache.prices
   }
-  // Nothing at all — kick refresh + return fallback synchronously
-  if (!killLineRefreshInFlight && !inBackoff()) {
-    killLineRefreshInFlight = refreshKillLineFromRemote()
-      .then((res) => { if (res) resetBackoff() })
-      .catch(() => { bumpBackoff() })
-      .finally(() => { killLineRefreshInFlight = null })
+  return modelsDevByModel.get(modelID) ?? null
+}
+
+function modelsDevPageIdFor(modelID: string): string | null {
+  getModelsDevSync()
+  return modelsDevCache?.pageIds[modelID] ?? null
+}
+
+function computeModelsDevEstimate(providerID: string, modelID: string, input: number, cacheRead: number, output: number): { value: number; pageId?: string } | null {
+  const price = modelsDevPriceFor(providerID, modelID)
+  if (!price) return null
+  return {
+    value: (input * price.input + cacheRead * price.cached + output * price.output) / 1_000_000,
+    pageId: modelsDevPageIdFor(modelID) || undefined,
   }
-  return { ...FALLBACK_KILL_LINE_USD, source: "code fallback (DeepSeek V4 Flash baseline)" }
 }
 
 // ─── Aggregation (SDK queries) ──────────────────────────────────────────────
@@ -551,7 +434,8 @@ const EMPTY: Omit<SessionUsage, "id" | "agent"> = {
   cash: 0,
   cashKnown: false,
   estimatedCost: 0,
-  killLineModel: undefined,
+  devModels: [],
+  floorModels: [],
   steps: 0,
   compactions: 0,
   inputByModel: {},
@@ -569,6 +453,7 @@ async function usageForSession(client: Client, session: SessionInfo): Promise<Se
     id: session.id,
     agent: session.agent,
     ...EMPTY,
+    devModels: [], floorModels: [],
     inputByModel: {}, outputByModel: {}, cacheByModel: {}, stepsByModel: {}, creditsByModel: {}, cashByModel: {}, costByModel: {}, estimatedCostByModel: {},
   }
 
@@ -659,22 +544,23 @@ async function usageForSession(client: Client, session: SessionInfo): Promise<Se
         }
       }
     }
-    // Last-resort USD estimate: applied to EVERY message, even when server
-    // did bill something — but the rendered column will prefer `m.cost` and
-    // show this only when the server total is $0. Always a lower bound by
-    // construction (kill-line = cheapest real models on the market).
+    // Simulated USD estimate: applied to EVERY message, even when server did
+    // bill something — but the rendered column will prefer `m.cost` and show
+    // this only when the server total is $0. Source order: models.dev public
+    // list price, then a hardcoded low-end market floor if the model is absent.
     {
-      const kl = getKillLineUSDSync()
-      const msgEst =
-        ((t.input || 0) * kl.input +
-          (t.cache?.read || 0) * kl.cached +
-          (t.output || 0) * kl.output) /
-        1_000_000
-      m.estimatedCost += msgEst
-      m.estimatedCostByModel[model] = (m.estimatedCostByModel[model] || 0) + msgEst
-      // Surface the model name on the first message so the cell can name
-      // what the estimate represents. No-op on subsequent messages.
-      if (!m.killLineModel && kl.source) m.killLineModel = kl.source
+      const est = computeModelsDevEstimate(info.providerID || "", info.modelID || "", t.input || 0, t.cache?.read || 0, t.output || 0)
+      const value = est?.value ??
+        (((t.input || 0) * FALLBACK_FLOOR_USD.input +
+          (t.cache?.read || 0) * FALLBACK_FLOOR_USD.cached +
+          (t.output || 0) * FALLBACK_FLOOR_USD.output) / 1_000_000)
+      m.estimatedCost += value
+      m.estimatedCostByModel[model] = (m.estimatedCostByModel[model] || 0) + value
+      if (est) {
+        if (est.pageId && !m.devModels.includes(est.pageId)) m.devModels.push(est.pageId)
+      } else {
+        if (!m.floorModels.includes(model)) m.floorModels.push(model)
+      }
     }
     if (info.mode || info.agent) m.agent = info.agent || info.mode
 
@@ -910,7 +796,27 @@ function renderTableView(headers: string[], rows: string[][], totalRow: string[]
 
 /** Flat single-string form of a table view (dialog message body, tests). */
 function tableViewToString(tv: TableView): string {
-  return [tv.header, ...tv.dataRows, tv.totalRow, ...tv.footers].join("\n\n")
+  const table = [tv.header, ...tv.dataRows, tv.totalRow].join("\n\n")
+  return tv.footers.length > 0 ? table + "\n\n" + tv.footers.join("\n\n") : table
+}
+
+/** Disclosure footer for 🔗 simulated prices. The amount is only shown when
+ *  the opencode server reported $0 and no real OCP billing fallback matched;
+ *  link to the models.dev model pages used as the pricing standard. */
+function pushEstimateFooters(tv: TableView, sessions: SessionUsage[], totalCostKnown: boolean): void {
+  if (totalCostKnown) return
+  const devModels = [...new Set(sessions.flatMap((s) => s.devModels))]
+  const floorModels = [...new Set(sessions.flatMap((s) => s.floorModels))]
+  if (devModels.length === 0 && floorModels.length === 0) return
+  const lines = [tr("usage.estimateNote")]
+  if (devModels.length > 0) {
+    lines.push(...devModels.slice(0, 8).map((id) => `• ${shortModelName(id)} → https://models.dev/models/${id}`))
+    if (devModels.length > 8) lines.push(`• +${devModels.length - 8}`)
+  }
+  if (floorModels.length > 0) {
+    lines.push(`• ${tr("usage.estimateFloor")}`)
+  }
+  tv.footers.push(lines.join("\n"))
 }
 
 // ─── Dimension views ────────────────────────────────────────────────────────
@@ -971,17 +877,16 @@ function renderSessionTable(sessions: SessionUsage[], currentSessionId: string):
   if (showCredits) aligns.push("r")
   aligns.push("l")
   const tv = renderTableView(headers, rows, totalRow, aligns)
-  const killLine = sessions.find((s) => s.killLineModel)?.killLineModel
-  if (!totalCostKnown && killLine) tv.footers.push(tr("usage.killLineFooter", { model: killLine }))
+  pushEstimateFooters(tv, sessions, totalCostKnown)
   return tv
 }
 
 /** One row per agent — sessions grouped by agent attribution. */
 function renderAgentTable(sessions: SessionUsage[]): TableView {
-  const groups = new Map<string, { n: number; input: number; output: number; cacheRead: number; cacheWrite: number; reasoning: number; cost: number; estimatedCost: number; costKnown: boolean; killLineModel?: string; credits: number; steps: number }>()
+  const groups = new Map<string, { n: number; input: number; output: number; cacheRead: number; cacheWrite: number; reasoning: number; cost: number; estimatedCost: number; costKnown: boolean; credits: number; steps: number }>()
   for (const s of sessions) {
     const key = s.agent || "-"
-    const g = groups.get(key) || { n: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, cost: 0, estimatedCost: 0, costKnown: false, killLineModel: undefined, credits: 0, steps: 0 }
+    const g = groups.get(key) || { n: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, cost: 0, estimatedCost: 0, costKnown: false, credits: 0, steps: 0 }
     g.n++
     g.input += s.input
     g.output += s.output
@@ -989,7 +894,6 @@ function renderAgentTable(sessions: SessionUsage[]): TableView {
     g.cost += s.cost
     g.estimatedCost += s.estimatedCost
     g.costKnown = g.costKnown || s.costKnown
-    g.killLineModel = g.killLineModel || s.killLineModel
     g.credits += s.credits
     g.steps += s.steps
     groups.set(key, g)
@@ -1045,19 +949,18 @@ function renderAgentTable(sessions: SessionUsage[]): TableView {
   if (showCredits) aligns.push("r")
   aligns.push("l")
   const tv = renderTableView(headers, rows, totalRow, aligns)
-  const killLine = sessions.find((s) => s.killLineModel)?.killLineModel
-  if (!totalCostKnown && killLine) tv.footers.push(tr("usage.killLineFooter", { model: killLine }))
+  pushEstimateFooters(tv, sessions, totalCostKnown)
   return tv
 }
 
 /** One row per model — tokens/cost summed across all sessions in the tree. */
 function renderModelTable(sessions: SessionUsage[]): TableView {
-  const models = new Map<string, { n: number; input: number; output: number; cacheRead: number; cost: number; estimatedCost: number; costKnown: boolean; killLineModel?: string; credits: number; steps: number }>()
+  const models = new Map<string, { n: number; input: number; output: number; cacheRead: number; cost: number; estimatedCost: number; costKnown: boolean; credits: number; steps: number }>()
   let totalEstimated = 0
   let totalCostKnown = false
   for (const s of sessions) {
     for (const [model, input] of Object.entries(s.inputByModel)) {
-      const g = models.get(model) || { n: 0, input: 0, output: 0, cacheRead: 0, cost: 0, estimatedCost: 0, costKnown: false, killLineModel: undefined, credits: 0, steps: 0 }
+      const g = models.get(model) || { n: 0, input: 0, output: 0, cacheRead: 0, cost: 0, estimatedCost: 0, costKnown: false, credits: 0, steps: 0 }
       g.n++
       g.input += input
       g.output += s.outputByModel[model] || 0
@@ -1065,7 +968,6 @@ function renderModelTable(sessions: SessionUsage[]): TableView {
       g.cost += s.costByModel[model] || 0
       g.estimatedCost += s.estimatedCostByModel[model] || 0
       g.costKnown = g.costKnown || (s.costByModel[model] || 0) > 0
-      g.killLineModel = g.killLineModel || s.killLineModel
       g.credits += s.creditsByModel[model] || 0
       g.steps += s.stepsByModel[model] || 0
       models.set(model, g)
@@ -1122,10 +1024,6 @@ function renderModelTable(sessions: SessionUsage[]): TableView {
   if (showCredits) aligns.push("r")
   aligns.push("l")
   const tv = renderTableView(headers, rows, totalRow, aligns)
-  const killLine = sessions.find((s) => s.killLineModel)?.killLineModel
-  if (!totalCostKnown && killLine) {
-    tv.footers.push(tr("usage.killLineFooter", { model: killLine }))
-  }
   // Full-id mapping: only emit when at least one model name was actually
   // truncated (had a `/`). The short name in the table is derived by
   // taking the last `/`-segment, so showing the mapping keeps the
@@ -1134,12 +1032,15 @@ function renderModelTable(sessions: SessionUsage[]): TableView {
     .map((full) => ({ short: shortModelName(full), full }))
     .filter((m) => m.short !== m.full)
   if (mappings.length > 0) {
-    const maxShort = Math.max(...mappings.map((m) => displayWidth(m.short)))
     const lines = mappings
-      .map((m) => `  ${padEndW(m.short, maxShort)}  ← ${m.full}`)
+      .map((m) => `• ${m.short} ← ${m.full}`)
       .join("\n")
     tv.footers.push(`${tr("usage.fullIdMapping")}\n${lines}`)
   }
+  // In the model view, place simulated-pricing disclosure after the full-id
+  // mapping: first explain what each short model name expands to, then explain
+  // where the 🔗 estimated price came from.
+  pushEstimateFooters(tv, sessions, totalCostKnown)
   return tv
 }
 
@@ -1159,17 +1060,16 @@ export interface UsageRender {
 }
 
 export async function formatByDimension(client: Client, sessionId: string, dim: UsageDimension): Promise<UsageRender> {
-  // If we have no kill-line price yet (cold install, no disk cache, first
-  // /usage open), wait for the SWR fetch so the cost column shows real
-  // numbers instead of the hardcoded fallback. Timeout is generous but
-  // bounded so a stuck network never freezes the dialog open.
-  if (!killLineMemCache) {
+  // If we have no models.dev price cache yet (cold install, no disk cache,
+  // first /usage open), wait briefly so simulated costs can use real public
+  // list prices instead of the hardcoded market-floor fallback.
+  if (!modelsDevCache) {
     try {
       await Promise.race([
-        getKillLineUSDAsync(),
+        getModelsDevAsync(),
         new Promise<void>((resolve) => setTimeout(resolve, 3000)),
       ])
-    } catch { /* fall through to fallback in getKillLineUSDSync */ }
+    } catch { /* fall through to the hardcoded floor fallback */ }
   }
   const sessions = await collectSessions(client, sessionId)
   if (sessions.length === 0) {
@@ -1193,23 +1093,10 @@ const COMMAND_TOKENS = new Set(["usage.show", "usage", "/usage"])
 /**
  * Extract subcommand args from the keymap command context. Check data.args
  * and payload first (likely the real slash args), ctx.input last; in every
- * source skip leading command-name tokens.
+ * source skip leading command-name tokens. (Generic version lives in i18n.)
  */
 export function parseSubcommand(ctx: unknown): string | null {
-  if (typeof ctx !== "object" || ctx === null) return null
-  const c = ctx as { input?: unknown; payload?: unknown; data?: { args?: unknown } }
-  const sources = [c.data?.args, c.payload, c.input]
-  for (const raw of sources) {
-    const parts = Array.isArray(raw) ? raw : [raw]
-    for (const item of parts) {
-      if (typeof item !== "string" || item.trim() === "") continue
-      const tokens = item.trim().split(/\s+/).map((t) => t.toLowerCase())
-      let i = 0
-      while (i < tokens.length && COMMAND_TOKENS.has(tokens[i])) i++
-      if (i < tokens.length) return tokens[i]
-    }
-  }
-  return null
+  return parseSlashArgs(ctx, [...COMMAND_TOKENS])
 }
 
 function currentSessionID(api: TuiPluginApi): string | undefined {
@@ -1479,8 +1366,8 @@ const tui: TuiPlugin = async (api) => {
     // a fresh install will trigger one slow fetch (because there's nothing
     // on disk yet) — handled via the formatByDimension await below; all
     // subsequent opens are instant (background-only refresh).
-    if (!killLineMemCache) {
-      void getKillLineUSDAsync().catch(() => { /* network errors never block */ })
+    if (!modelsDevCache) {
+      void getModelsDevAsync().catch(() => { /* network errors never block */ })
     }
     return formatByDimension(api.client, sessionId, dim)
       .then((rendered) => {

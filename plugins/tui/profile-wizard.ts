@@ -73,8 +73,10 @@ import { tr, initI18n, languageOption, switchLanguage, SWITCH_LANG } from "./i18
 
 const CONFIG_DIR = join(homedir(), ".config", "opencode")
 const CONFIG_FILE = join(CONFIG_DIR, "opencode.jsonc")
+const AUTH_FILE = join(homedir(), ".local", "share", "opencode", "auth.json")
 const TIERS_FILE = join(CONFIG_DIR, "tiers.json")
 const STATE_FILE = join(CONFIG_DIR, ".active-profile")
+const PROFILE_STATE_FILE = join(CONFIG_DIR, ".profile-state.json")
 const PROFILES_DIR = join(CONFIG_DIR, "profiles")
 const PLUGIN_ID = "opencode-prime.profile"
 const APPLY = "__apply__"
@@ -96,6 +98,12 @@ const VALID_TIERS = ["flash", "standard", "pro", "max", "vision"] as const
 interface Profile {
   description?: string
   tiers: Record<string, string> // tier name → "provider/model_id"
+}
+
+interface ProfileState {
+  version: 1
+  custom: string[]
+  recent: string[]
 }
 
 interface Agent {
@@ -129,6 +137,7 @@ type Catalog = Record<string, CatalogProvider>
 
 interface ProviderDef {
   name?: string
+  options?: Record<string, unknown>
   models?: Record<string, ModelDef>
   [key: string]: unknown
 }
@@ -210,6 +219,21 @@ function writeConfigAtomic(path: string, data: OpenCodeConfig): void {
 
 // ─── Profile loading + state ─────────────────────────────────────────
 
+type ProfileKind = "custom" | "preset"
+
+interface ProfileListEntry {
+  name: string
+  profile: Profile
+  kind: ProfileKind
+  active: boolean
+  recent: boolean
+}
+
+interface AuthEntry {
+  type?: string
+  key?: string
+}
+
 function loadProfiles(): Map<string, Profile> {
   const profiles = new Map<string, Profile>()
   if (!existsSync(PROFILES_DIR)) return profiles
@@ -255,6 +279,168 @@ function getActiveProfile(): string | null {
 function setActiveProfile(name: string): void {
   if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true })
   writeFileSync(STATE_FILE, name, "utf-8")
+}
+
+function uniqueNames(names: string[]): string[] {
+  return [...new Set(names.filter((name) => name.trim().length > 0))]
+}
+
+function readProfileState(): ProfileState {
+  if (existsSync(PROFILE_STATE_FILE)) {
+    try {
+      const data = JSON.parse(readFileSync(PROFILE_STATE_FILE, "utf-8")) as Partial<ProfileState>
+      return {
+        version: 1,
+        custom: uniqueNames(Array.isArray(data.custom) ? data.custom.filter((name): name is string => typeof name === "string") : []),
+        recent: uniqueNames(Array.isArray(data.recent) ? data.recent.filter((name): name is string => typeof name === "string") : []),
+      }
+    } catch {
+      return { version: 1, custom: [], recent: [] }
+    }
+  }
+  return { version: 1, custom: [], recent: [] }
+}
+
+function writeProfileState(state: ProfileState): void {
+  if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true })
+  const normalized: ProfileState = {
+    version: 1,
+    custom: uniqueNames(state.custom),
+    recent: uniqueNames(state.recent).filter((name) => !state.custom.includes(name)).slice(0, 12),
+  }
+  writeFileSync(PROFILE_STATE_FILE + ".tmp", JSON.stringify(normalized, null, 2) + "\n", "utf-8")
+  renameSync(PROFILE_STATE_FILE + ".tmp", PROFILE_STATE_FILE)
+}
+
+function markCustomProfile(name: string): void {
+  const state = readProfileState()
+  writeProfileState({ ...state, custom: [name, ...state.custom], recent: state.recent.filter((item) => item !== name) })
+}
+
+function forgetProfileState(name: string): void {
+  const state = readProfileState()
+  writeProfileState({
+    ...state,
+    custom: state.custom.filter((item) => item !== name),
+    recent: state.recent.filter((item) => item !== name),
+  })
+}
+
+function recordRecentProfile(name: string): void {
+  const state = readProfileState()
+  if (state.custom.includes(name)) return
+  writeProfileState({ ...state, recent: [name, ...state.recent.filter((item) => item !== name)] })
+}
+
+function profileKind(name: string, state: ProfileState): ProfileKind {
+  return state.custom.includes(name) ? "custom" : "preset"
+}
+
+function profileGroup(name: string): string {
+  return name.includes("/") ? name.split("/")[0] ?? name : "general"
+}
+
+function profileCategory(entry: ProfileListEntry): string {
+  if (entry.active) return tr("profile.activeProfilesHeader")
+  if (entry.kind === "custom") return tr("profile.customProfilesHeader")
+  if (entry.recent) return tr("profile.recentProfilesHeader")
+  return tr("profile.presetProfilesHeader", { group: profileGroup(entry.name) })
+}
+
+function profileTitle(entry: ProfileListEntry): string {
+  return entry.active ? `${entry.name}  ← active` : entry.name
+}
+
+function sortedProfileEntries(profiles: Map<string, Profile>): ProfileListEntry[] {
+  const state = readProfileState()
+  const active = getActiveProfile()
+  const recentRank = new Map(state.recent.map((name, index) => [name, index]))
+  return Array.from(profiles.entries())
+    .map(([name, profile]) => {
+      const kind = profileKind(name, state)
+      return {
+        name,
+        profile,
+        kind,
+        active: name === active,
+        recent: kind !== "custom" && recentRank.has(name),
+      }
+    })
+    .sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1
+      if (a.kind !== b.kind) return a.kind === "custom" ? -1 : 1
+      if (a.recent !== b.recent) return a.recent ? -1 : 1
+      if (a.recent && b.recent) return (recentRank.get(a.name) ?? 0) - (recentRank.get(b.name) ?? 0)
+      const group = profileGroup(a.name).localeCompare(profileGroup(b.name))
+      return group || a.name.localeCompare(b.name)
+    })
+}
+
+function providerNameCmp(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+}
+
+interface ProviderConnectionRanks {
+  auth: Map<string, number>
+  config: Set<string>
+}
+
+function connectedProviderRanks(): ProviderConnectionRanks {
+  const auth = new Map<string, number>()
+  for (const [id, entry] of Object.entries(readAuth())) {
+    if (entry && typeof entry === "object" && (entry.type === "api" || entry.type === "oauth")) auth.set(id, auth.size)
+  }
+  const config = new Set<string>()
+  try {
+    const data = readConfig(CONFIG_FILE)
+    for (const [id, provider] of Object.entries(data.provider ?? {})) {
+      if (provider?.options?.apiKey !== undefined) config.add(id)
+    }
+  } catch {
+    // auth.json is enough for official /connect providers; config apiKey is best-effort.
+  }
+  return { auth, config }
+}
+
+function isProviderConnectedByRank(id: string, connected: ProviderConnectionRanks): boolean {
+  return connected.auth.has(id) || connected.config.has(id)
+}
+
+function providerCategory(id: string, connected: ProviderConnectionRanks): string {
+  return isProviderConnectedByRank(id, connected) ? tr("profile.connectedProvidersHeader") : tr("profile.providersHeader")
+}
+
+function providerDescription(id: string, provider: CatalogProvider, connected: ProviderConnectionRanks): string {
+  const tags = [
+    tr("common.modelCount", { count: Object.keys(provider.models).length }),
+    provider.source === "config" ? tr("common.config") : tr("common.builtin"),
+  ]
+  if (isProviderConnectedByRank(id, connected)) tags.push(tr("common.connected"))
+  return tags.join(" · ")
+}
+
+function sortedProviderIds(catalog: Catalog): string[] {
+  const connected = connectedProviderRanks()
+  return Object.keys(catalog).sort((a, b) => {
+    const authA = connected.auth.get(a)
+    const authB = connected.auth.get(b)
+    if (authA !== undefined || authB !== undefined) {
+      if (authA !== undefined && authB !== undefined) return authA - authB
+      return authA !== undefined ? -1 : 1
+    }
+    const cfgA = connected.config.has(a)
+    const cfgB = connected.config.has(b)
+    if (cfgA !== cfgB) return cfgA ? -1 : 1
+    return providerNameCmp(a, b)
+  })
+}
+
+function readAuth(): Record<string, AuthEntry> {
+  try {
+    return JSON.parse(readFileSync(AUTH_FILE, "utf-8")) as Record<string, AuthEntry>
+  } catch {
+    return {}
+  }
 }
 
 function profilePath(name: string): string {
@@ -494,9 +680,7 @@ function tierDescription(tier: string): string {
 // ════════════════════════════════════════════════════════════════════
 
 function startWizard(api: TuiPluginApi): void {
-  const profiles = loadProfiles()
   const active = getActiveProfile()
-  const sorted = Array.from(profiles.keys()).sort()
 
   const actionsCat = tr("profile.actionsHeader")
   const interfaceCat = tr("common.interfaceHeader")
@@ -855,7 +1039,8 @@ async function pickLiveTierProvider(
   tier: string,
 ): Promise<void> {
   const catalog = await loadCatalog(api)
-  const ids = Object.keys(catalog).sort()
+  const connected = connectedProviderRanks()
+  const ids = sortedProviderIds(catalog)
   if (ids.length === 0) {
     promptLiveTierRef(api, overrides, tier)
     return
@@ -870,16 +1055,11 @@ async function pickLiveTierProvider(
         options: [
           ...ids.map((id) => {
             const p = catalog[id]
-            const tags = [
-              tr("common.modelCount", { count: Object.keys(p.models).length }),
-              p.source === "config" ? tr("common.config") : tr("common.builtin"),
-            ]
-            if (p.connected) tags.push(tr("common.connected"))
             return {
               title: id,
               value: id,
-              description: tags.join(" · "),
-              category: tr("profile.providersHeader"),
+              description: providerDescription(id, p, connected),
+              category: providerCategory(id, connected),
             }
           }),
           {
@@ -1057,8 +1237,7 @@ async function applyTierModelChanges(
 // Level 2: Profile list (for managing models)
 function manageProfileModels(api: TuiPluginApi): void {
   const profiles = loadProfiles()
-  const active = getActiveProfile()
-  const sorted = Array.from(profiles.keys()).sort()
+  const sorted = sortedProfileEntries(profiles)
 
   let navigated = false
   api.ui.dialog.replace(
@@ -1067,11 +1246,11 @@ function manageProfileModels(api: TuiPluginApi): void {
         title: tr("profile.manageTitle"),
         placeholder: tr("profile.managePlaceholder"),
         options: [
-          ...sorted.map((name) => ({
-            title: name === active ? `${name}  ← active` : name,
-            value: name,
-            description: profiles.get(name)!.description?.slice(0, 100),
-            category: tr("profile.profilesHeader"),
+          ...sorted.map((entry) => ({
+            title: profileTitle(entry),
+            value: entry.name,
+            description: entry.profile.description?.slice(0, 100),
+            category: profileCategory(entry),
           })),
           {
             title: tr("profile.addProfile"),
@@ -1178,7 +1357,8 @@ async function pickProvider(
   tier: string,
 ): Promise<void> {
   const catalog = await loadCatalog(api)
-  const ids = Object.keys(catalog).sort()
+  const connected = connectedProviderRanks()
+  const ids = sortedProviderIds(catalog)
   if (ids.length === 0) {
     promptTierRef(api, name, profile, overrides, tier)
     return
@@ -1193,16 +1373,11 @@ async function pickProvider(
         options: [
           ...ids.map((id) => {
             const p = catalog[id]
-            const tags = [
-              tr("common.modelCount", { count: Object.keys(p.models).length }),
-              p.source === "config" ? tr("common.config") : tr("common.builtin"),
-            ]
-            if (p.connected) tags.push(tr("common.connected"))
             return {
               title: id,
               value: id,
-              description: tags.join(" · "),
-              category: tr("profile.providersHeader"),
+              description: providerDescription(id, p, connected),
+              category: providerCategory(id, connected),
             }
           }),
           {
@@ -1346,6 +1521,7 @@ async function applyProfileModelChanges(
       writeConfigAtomic(CONFIG_FILE, config)
     }
     setActiveProfile(name)
+    recordRecentProfile(name)
     api.ui.dialog.clear()
     toast(
       api,
@@ -1393,6 +1569,7 @@ function promptAddProfile(api: TuiPluginApi, back: () => void = () => manageProf
         }
         try {
           writeProfileAtomic(name, blankProfile)
+          markCustomProfile(name)
           toast(api, tr("profile.profileCreated", { name }), "success")
           reviewProfileTiers(api, name, blankProfile, {})
         } catch (err) {
@@ -1427,6 +1604,7 @@ function confirmDeleteProfile(
           navigated = true
           try {
             deleteProfile(name)
+            forgetProfileState(name)
             toast(api, tr("profile.profileDeleted", { name }), "success")
           } catch (err) {
             toast(api, tr("profile.deleteFailed", { err: (err as Error).message }), "error")
@@ -1457,8 +1635,7 @@ function selectProfile(api: TuiPluginApi): void {
     return
   }
 
-  const active = getActiveProfile()
-  const sorted = Array.from(profiles.keys()).sort()
+  const sorted = sortedProfileEntries(profiles)
 
   let navigated = false
   api.ui.dialog.replace(
@@ -1466,10 +1643,11 @@ function selectProfile(api: TuiPluginApi): void {
       api.ui.DialogSelect<string>({
         title: tr("profile.selectTitle"),
         placeholder: tr("profile.selectPlaceholder"),
-        options: sorted.map((name) => ({
-          title: name === active ? `${name}  ← active` : name,
-          value: name,
-          description: profiles.get(name)!.description?.slice(0, 100),
+        options: sorted.map((entry) => ({
+          title: profileTitle(entry),
+          value: entry.name,
+          description: entry.profile.description?.slice(0, 100),
+          category: profileCategory(entry),
         })),
         onSelect: (option) => {
           navigated = true
@@ -1533,6 +1711,7 @@ async function applySelection(
       writeConfigAtomic(CONFIG_FILE, config)
     }
     setActiveProfile(name)
+    recordRecentProfile(name)
     api.ui.dialog.clear()
     toast(
       api,

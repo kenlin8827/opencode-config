@@ -33,6 +33,7 @@ const OVERRIDES: Record<string, string> = {
   webfetch: "Fetch a URL and extract its main content as markdown.",
   task: "Delegate to a read-only assistant. explore: codebase search. code-review: review diffs. advisor: second opinion. vision: image analysis. Only these four available.",
   skill: "Load a scoped skill by name and follow it. Available: git-merge, git-pick, git-pull, git-push, git-rebase.",
+  question: "Ask the user a blocking question mid-execution; answers return as selected labels. Use at most once per task — only for irreversible/destructive decisions.",
 }
 
 export async function LiteToolsPlugin() {

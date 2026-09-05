@@ -387,7 +387,7 @@ OpenCode plugin hooks provide runtime guarantees that prompts alone cannot achie
 | `project-manager.ts` (+ `plugins/project-manager/`) | `config` + `command.execute.before` + `system.transform` + `tool.execute.before` + `event: session.created` | `/project init|index|sync` commands; init tops up an existing project config with new template switches (append-only); file-as-switch commit discipline; one-time `/project init` suggestion. |
 | `sdd.ts` (+ `plugins/sdd/`) | `command.execute.before` | Engine-only: `/sdd status|handoff|help` runtime actions (artifact discovery, handoff bundling). The SDD protocol itself lives at L2 (`skills/sdd-workflow/SKILL.md`); `/sdd` `/prd` `/plan` `/impl` are `commands/*.md` launchers. |
 | `profile-wizard.ts` | TUI plugin | `/profile` dialog wizard: tier review, per-tier model override, live apply via server config API with file rewrite on request failure. Announces active profile on session creation. |
-| `provider-wizard.ts` | TUI plugin | `/provider` dialog wizard: baseURL/apiKey prompts, atomic write, model add/remove management. |
+| `provider-wizard.ts` | TUI plugin | `/provider` dialog wizard: baseURL/apiKey prompts, atomic write, model add/remove management; 🔌 Manage connections — union of the /connect credential store and config apiKeys (official built-ins and custom), one-click disconnect that keeps provider definitions and models. `/disconnect` (TUI-only keymap, official-/connect shape: one menu row, instant dialogs). |
 | `queue-manager.ts` | TUI plugin | `/queued` command: list/edit/cancel queued user messages. |
 | `usage.ts` | TUI plugin | `/usage` opens a dialog with auto-fitted width and a visible tab strip: **by session** (one row per session + total), **by agent**, **by model** — input (non-cached) / output / cached-in, cost, cache hit, share bars. `1/2/3` or `←→` (`[`/`[]`) switch tabs live via global keymap bindings; `Enter` closes. `/usage all\|agent\|model` opens a dimension directly. Hosts without the dialog API fall back to a toast. Pure view over server data — no local persistence. |
 | `project-wizard.ts` | TUI plugin | `/project-wizard` dialog wizard: two-tier interactive wizard (scaffolding init, switch configuration, template sync, index catch-up) with re-entrant echo. |
@@ -592,6 +592,7 @@ skills/                       # L2 workflow protocols — metadata resident, bod
 
 plugins/
 ├── shared/opencode-prime.ts      # Shared JSONC plumbing (project dir, field upsert)
+├── shared/provider-creds.ts      # Credential single source of truth (auth store + config apiKeys; used by the wizard's disconnect flows)
 ├── auto-advisor-mode.ts           # Barrel: advisor mode guard (5 hooks)
 ├── auto-advisor/                  # Mode config, runtime, protocol, per-hook helpers
 ├── adr-guard.ts                   # Barrel: ADR iron-law plugin
@@ -617,7 +618,7 @@ plugins/
 ├── auto-format.ts                 # Hook: auto-run formatters
 ├── browser-screenshot.ts          # Custom tool: Playwright screenshots
 ├── profile-wizard.ts              # TUI plugin: /profile dialog wizard
-├── provider-wizard.ts             # TUI plugin: /provider dialog wizard
+├── provider-wizard.ts             # TUI plugin: /provider dialog wizard + /disconnect (TUI keymap)
 ├── queue-manager.ts               # TUI plugin: /queued dialog manager
 └── usage.ts                      # TUI plugin: /usage token/cost usage (pure view over server data)
 

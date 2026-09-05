@@ -164,17 +164,22 @@ const STRINGS = {
   "profile.agentsHeader": { en: "Agents", "zh-CN": "Agents" },
   "profile.tiersHeader": { en: "Tiers", "zh-CN": "模型层级" },
   "profile.providersHeader": { en: "Providers", "zh-CN": "服务商" },
+  "profile.connectedProvidersHeader": { en: "✅ Connected providers", "zh-CN": "✅ 已连接服务商" },
   "profile.profilesHeader": { en: "Profiles", "zh-CN": "配置方案" },
+  "profile.activeProfilesHeader": { en: "⭐ Active", "zh-CN": "⭐ 当前" },
+  "profile.customProfilesHeader": { en: "🧩 Custom profiles", "zh-CN": "🧩 自定义配置方案" },
+  "profile.recentProfilesHeader": { en: "🕘 Recent presets", "zh-CN": "🕘 最近使用的预设" },
+  "profile.presetProfilesHeader": { en: "📦 {group}", "zh-CN": "📦 {group}" },
   "profile.actionsHeader": { en: "Actions", "zh-CN": "操作" },
   "profile.mainPlaceholder": { en: "Pick an action (Esc: close)", "zh-CN": "选择一个操作 (Esc: 关闭)" },
-  "profile.editAgentTier": { en: "Edit: Agent→Tier", "zh-CN": "编辑: Agent→模型层级" },
+  "profile.editAgentTier": { en: "🤖 Edit: Agent→Tier", "zh-CN": "🤖 编辑: Agent→模型层级" },
   "profile.editAgentTierDesc": { en: "Reassign which tier (flash/standard/pro/max/vision) each agent uses", "zh-CN": "重新分配每个 Agent 所属的模型层级 (flash/standard/pro/max/vision)" },
-  "profile.editTierModels": { en: "Edit: Tier→Model", "zh-CN": "编辑: 模型层级→模型" },
+  "profile.editTierModels": { en: "⚙️ Edit: Tier→Model", "zh-CN": "⚙️ 编辑: 模型层级→模型" },
   "profile.editTierModelsDesc": { en: "Change the live tier→model mapping directly, without going through a profile", "zh-CN": "直接修改当前生效的 模型层级→模型 映射，无需经过配置方案" },
-  "profile.manageModels": { en: "Manage: Profile→Models", "zh-CN": "管理: 配置方案→模型" },
+  "profile.manageModels": { en: "🗂️ Manage: Profile→Models", "zh-CN": "🗂️ 管理: 配置方案→模型" },
   "profile.manageModelsDesc": { en: "Edit a profile's tier→model mapping, or add/delete profiles", "zh-CN": "编辑配置方案的 模型层级→模型 映射，或添加/删除配置方案" },
-  "profile.selectProfile": { en: "Select: Profile", "zh-CN": "选择: 配置方案" },
-  "profile.selectProfileActive": { en: "Select: Profile (active: {active})", "zh-CN": "选择: 配置方案 (当前: {active})" },
+  "profile.selectProfile": { en: "🎯 Select: Profile", "zh-CN": "🎯 选择: 配置方案" },
+  "profile.selectProfileActive": { en: "🎯 Select: Profile (active: {active})", "zh-CN": "🎯 选择: 配置方案 (当前: {active})" },
   "profile.selectProfileDesc": { en: "Pick a profile, review its mapping, then apply", "zh-CN": "选一个配置方案，确认映射后再应用" },
   "profile.resetModels": { en: "🧹 Reset: Model refs", "zh-CN": "🧹 重置: 模型引用" },
   "profile.resetModelsDesc": { en: "Remove every model ref from opencode.jsonc — opencode falls back to its model picker (asks for confirmation)", "zh-CN": "移除 opencode.jsonc 中所有模型引用 — opencode 回落到原生模型选择器（执行前需确认）" },
@@ -219,7 +224,7 @@ const STRINGS = {
   // Manage: Profile→Models
   "profile.manageTitle": { en: "Manage: Profile→Models", "zh-CN": "管理: 配置方案→模型" },
   "profile.managePlaceholder": { en: "Pick a profile to edit its tier→model mapping (Esc: back)", "zh-CN": "选择配置方案编辑其 模型层级→模型 映射 (Esc: 返回)" },
-  "profile.addProfile": { en: "Add: Profile", "zh-CN": "添加: 配置方案" },
+  "profile.addProfile": { en: "➕ Add: Profile", "zh-CN": "➕ 添加: 配置方案" },
   "profile.addProfileDesc": { en: "Create a new blank profile JSON in ~/.config/opencode/profiles/", "zh-CN": "在 ~/.config/opencode/profiles/ 创建空白配置方案 JSON" },
   "profile.deleteProfile": { en: "🗑️ Delete", "zh-CN": "🗑️ 删除" },
   "profile.deleteProfileDesc": { en: "Delete this profile's JSON file (asks for confirmation)", "zh-CN": "删除此配置方案的 JSON 文件（删除前需确认）" },
@@ -287,6 +292,24 @@ const STRINGS = {
   "provider.addProvider": { en: "➕ Add custom provider", "zh-CN": "➕ 添加自定义服务商" },
   "provider.addProviderDesc": { en: "Create a blank provider config from scratch", "zh-CN": "从零创建空白服务商配置" },
   "provider.addPresetProvider": { en: "📦 Add preset provider…", "zh-CN": "📦 添加预设服务商…" },
+  "provider.manageConnections": { en: "🔌 Manage connections…", "zh-CN": "🔌 管理连接…" },
+  "provider.manageConnectionsDesc": { en: "{count} connected — official built-ins and custom providers, disconnectable in one click", "zh-CN": "{count} 个已连接 — 官方内置与自定义服务商，点击即可断开" },
+  "provider.connectionsTitle": { en: "Connections", "zh-CN": "连接" },
+  "provider.connectionsPlaceholder": { en: "Pick a connection to disconnect (Esc: back)", "zh-CN": "选择要断开的连接 (Esc: 返回)" },
+  "provider.connectionsEmpty": { en: "No connections — connect providers via /connect or ⚙ Basic settings.", "zh-CN": "当前没有连接 — 可通过 /connect 或 ⚙ 基础设置 连接服务商。" },
+  "provider.connSourceStore": { en: "credential store", "zh-CN": "凭证存储" },
+  "provider.connSourceConfig": { en: "config", "zh-CN": "配置文件" },
+  "provider.connKindCustom": { en: "custom", "zh-CN": "自定义" },
+  "provider.connKindExternal": { en: "official/external (not in config)", "zh-CN": "官方/外部（不在配置中）" },
+  "provider.connTypeApi": { en: "API key", "zh-CN": "API 密钥" },
+  "provider.connTypeOauth": { en: "OAuth", "zh-CN": "OAuth" },
+  "provider.connTypeEnv": { en: "env ref", "zh-CN": "环境变量引用" },
+  "provider.cmdDisconnectTitle": { en: "Disconnect provider", "zh-CN": "断开服务商连接" },
+  "provider.cmdDisconnectDesc": { en: "Interactive: connections wizard (bare); <id> jumps to confirm; --all asks once", "zh-CN": "交互弹窗：连接向导（无参）；<id> 直达确认；--all 一次确认" },
+  "provider.connNotFound": { en: "No connection found for '{id}'.", "zh-CN": "未找到 '{id}' 的连接。" },
+  "provider.disconnectAllTitle": { en: "Disconnect all", "zh-CN": "断开全部连接" },
+  "provider.disconnectAllConfirm": { en: "Disconnect all {count} connection(s)? Provider definitions and models stay.", "zh-CN": "断开全部 {count} 个连接？服务商定义与模型保留。" },
+  "provider.disconnectAllDone": { en: "Disconnected {ok}/{count} connection(s).", "zh-CN": "已断开 {ok}/{count} 个连接。" },
   "provider.addPresetProviderDesc": { en: "Import a preset provider from the bundled providers/ definitions", "zh-CN": "从内置的 providers/ 定义文件导入预设服务商" },
   "provider.pickPresetTitle": { en: "Add preset provider", "zh-CN": "添加预设服务商" },
   "provider.pickPresetPlaceholder": { en: "Pick a preset — new ones are imported, added ones open their details (Esc: back)", "zh-CN": "选择预设服务商 — 新的将导入，已添加的直接进详情 (Esc: 返回)" },
@@ -326,6 +349,8 @@ const STRINGS = {
   "provider.baseURLRequired": { en: "baseURL is required for openai-compatible providers.", "zh-CN": "openai 兼容服务商必须填写服务地址。" },
   "provider.apiKeyPlaceholder": { en: "sk-... or {env:VAR} ({hint}; empty keeps)", "zh-CN": "sk-... 或 {env:VAR} ({hint}；留空保留)" },
   "provider.fetchModels": { en: "📥 Fetch models…", "zh-CN": "📥 拉取模型…" },
+  "provider.fetchingTitle": { en: "Fetching models — {id}", "zh-CN": "正在拉取模型 — {id}" },
+  "provider.fetchingBusy": { en: "Contacting the provider and the model catalog…", "zh-CN": "正在连接服务商和模型目录，请稍候…" },
   "provider.fetchModelsDesc": { en: "Fetch the remote model list and import matches as custom models", "zh-CN": "拉取远端模型列表，匹配项导入为自定义" },
   "provider.fetchPatternTitle": { en: "{id} — fetch pattern", "zh-CN": "{id} — 拉取 pattern" },
   "provider.fetchPatternPlaceholder": { en: "Glob filter for model ids, e.g. gpt-* (empty = *)", "zh-CN": "按模型 id 过滤的 glob，如 gpt-* (留空 = *)" },
@@ -337,7 +362,7 @@ const STRINGS = {
   "provider.fetchEnvMissing": { en: "Environment variable '{name}' is not set.", "zh-CN": "环境变量 '{name}' 未设置。" },
   "provider.fetchFailed": { en: "Fetch failed: {err}", "zh-CN": "拉取失败: {err}" },
   "provider.fetchNoMatch": { en: "Fetch OK — no models match '{pattern}' ({total} total).", "zh-CN": "拉取成功 — 没有匹配 '{pattern}' 的模型 (共 {total} 个)。" },
-  "provider.fetchImported": { en: "Imported {added} model(s) into '{id}' (pattern '{pattern}'); {skipped} existing kept.", "zh-CN": "已导入 {added} 个模型到 '{id}' (pattern '{pattern}')；{skipped} 个已有模型保留。" },
+  "provider.fetchImported": { en: "Imported {added} model(s) into '{id}' (pattern '{pattern}'); {enriched} existing enriched with catalog capabilities; {skipped} kept as-is.", "zh-CN": "已导入 {added} 个模型到 '{id}' (pattern '{pattern}')；{enriched} 个已有模型按目录补齐了属性；{skipped} 个保持原样。" },
   "provider.fetchNoNew": { en: "All {skipped} matched model(s) already exist on '{id}' — nothing added.", "zh-CN": "匹配的 {skipped} 个模型均已存在于 '{id}' — 未新增。" },
   "provider.addModel": { en: "➕ Add model…", "zh-CN": "➕ 添加模型…" },
   "provider.addModelDesc": { en: "Form sheet: identity, capabilities, limits", "zh-CN": "表单录入: 身份、能力、限制" },
@@ -360,6 +385,11 @@ const STRINGS = {
   "provider.invalidNumber": { en: "Not a valid non-negative integer.", "zh-CN": "不是有效的非负整数。" },
   "provider.saveModel": { en: "💾 Save model", "zh-CN": "💾 保存模型" },
   "provider.deleteProvider": { en: "🗑 Delete provider…", "zh-CN": "🗑 删除服务商…" },
+  "provider.disconnect": { en: "🔌 Disconnect…", "zh-CN": "🔌 断开连接…" },
+  "provider.disconnectDesc": { en: "Remove the stored credential — provider config and models stay; reconnect anytime", "zh-CN": "移除已存密钥 — 服务商配置与模型保留，可随时重新连接" },
+  "provider.disconnectTitle": { en: "{id} — disconnect", "zh-CN": "{id} — 断开连接" },
+  "provider.disconnectConfirm": { en: "Remove the stored credential and clear the apiKey field for '{id}'? The provider config and models stay — reconnect anytime via ⚙ Basic settings.", "zh-CN": "移除 '{id}' 的已存密钥并清空 apiKey 字段？服务商配置与模型保留 — 可随时在 ⚙ 基础设置 中重新连接。" },
+  "provider.disconnected": { en: "Disconnected '{id}' — credential removed.", "zh-CN": "已断开 '{id}' — 密钥已移除。" },
   "provider.deleteProviderTitle": { en: "{id} — delete provider", "zh-CN": "{id} — 删除服务商" },
   "provider.deleteProviderConfirm": { en: "Remove '{id}', all its models and the stored credential? This cannot be undone.", "zh-CN": "移除 '{id}'、其全部模型及已存密钥？不可撤销。" },
   "provider.clearModels": { en: "🗑 Clear models…", "zh-CN": "🗑 清空模型…" },
@@ -523,7 +553,8 @@ const STRINGS = {
   "usage.hShare": { en: "share", "zh-CN": "占比" },
   "usage.hModel": { en: "model", "zh-CN": "模型" },
   "usage.hitCell": { en: "hit {hit}% · {total}", "zh-CN": "命中 {hit}% · {total}" },
-  "usage.killLineFooter": { en: "⚓ Estimate baseline: {model}", "zh-CN": "⚓ 估算下界基准: {model}" },
+  "usage.estimateNote": { en: "🔗 = simulated pricing (public list-price estimate, not an actual invoice)", "zh-CN": "🔗 = 模拟计价（按公开标价估算，非实际账单）" },
+  "usage.estimateFloor": { en: "Some models were not found on models.dev; those rows use a low-end market-floor fallback.", "zh-CN": "部分模型未在 models.dev 匹配到价格，已按市场最低价下界兜底估算。" },
   "usage.fullIdMapping": { en: "Full IDs:", "zh-CN": "模型全名:" },
   "usage.noData": { en: "📊 No token data for the current session yet.", "zh-CN": "📊 当前会话还没有 token 数据。" },
   "usage.unknownSub": { en: "📊 Unknown subcommand \"{sub}\". Usage: /usage [all|model]", "zh-CN": "📊 未知子命令 \"{sub}\"。用法: /usage [all|model]" },
@@ -569,6 +600,30 @@ export function tr(key: StringKey, params?: Record<string, string | number>): st
     }
   }
   return text
+}
+
+/**
+ * Extract the first non-command token from a keymap command context —
+ * i.e. the slash argument. `commandTokens` lists every known spelling of
+ * the command itself ("my.cmd", "my", "/my") so it gets skipped. Same
+ * semantics as usage.ts's parseSubcommand, generalized for any wizard.
+ */
+export function parseSlashArgs(ctx: unknown, commandTokens: string[]): string | null {
+  const known = new Set(commandTokens.map((t) => t.toLowerCase()))
+  if (typeof ctx !== "object" || ctx === null) return null
+  const c = ctx as { input?: unknown; payload?: unknown; data?: { args?: unknown } }
+  const sources = [c.data?.args, c.payload, c.input]
+  for (const raw of sources) {
+    const parts = Array.isArray(raw) ? raw : [raw]
+    for (const item of parts) {
+      if (typeof item !== "string" || item.trim() === "") continue
+      const tokens = item.trim().split(/\s+/).map((t) => t.toLowerCase())
+      let i = 0
+      while (i < tokens.length && known.has(tokens[i])) i++
+      if (i < tokens.length) return tokens[i]
+    }
+  }
+  return null
 }
 
 // ─── Language switch (shared by all wizard main menus) ─────────────
