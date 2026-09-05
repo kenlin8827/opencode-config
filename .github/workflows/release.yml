@@ -102,23 +102,9 @@ jobs:
           fi
 
           {
-            echo '# OpenCode Prime (OCP)'
-            echo ''
-            echo '## What'\''s included'
-            echo ''
-            echo '- **Platform**: Windows (PowerShell) / macOS / Linux / WSL (Bash)'
-            echo '- **Archives**: `opencode-prime-<version>.tar.gz` (Unix) + `opencode-prime-<version>.zip` (Windows) + `latest` aliases'
-            echo '- **Files**: manifest-listed runtime files + install scripts + bin dispatchers (opencode-prime, ocp)'
-            echo ''
-            echo '## Install & Quick Start'
-            echo ''
-            echo 'See documentation: [https://kenlin8827.github.io/opencode-prime/](https://kenlin8827.github.io/opencode-prime/)'
-            echo ''
             echo '## Changes'
             echo ''
             echo "${COMMITS}"
-            echo ''
-            echo 'See [install/README.md](https://github.com/kenlin8827/opencode-prime/blob/main/install/README.md) for installer internals.'
           } > dist/RELEASE_NOTES.md
           echo "notes_path=dist/RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
 
