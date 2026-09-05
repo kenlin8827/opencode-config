@@ -25,9 +25,9 @@ Structure/relationships/flow **MUST** have a diagram: arch → box; data/process
 - [Assumption] — unverified → own section `## Assumptions (to confirm)`
 
 ## Session language
-- **Environment default.** Probe `LANG`/`LC_ALL`/`LANGUAGE` (bash: `echo "${LANG:-${LC_ALL:-${LANGUAGE:-}}}"`); map locale to prose (e.g. `zh_CN`→Chinese). Unset/unrecognized→English.
-- **Context overrides.** Conversation prose in a different language → switch to it. Mixed→dominant wins.
-- Handoffs/plans/PRDs/ADRs/reports preserve session language. Code/paths/commands stay English.
+- **Session lock.** An explicit output-language instruction in any user message takes precedence. Otherwise, determine the language from the first user's instructional prose. For slash commands, ignore command syntax, code, paths, URLs, identifiers, options, data values, quotations, pasted content, and translation source or target text. For mixed prose, use the dominant language; on a tie, use the first detected prose language. If no instructional prose remains, use the environment default: `LC_ALL`, then `LANGUAGE`, then `LANG`; map a recognized locale to prose (e.g. `zh_CN`→Chinese), otherwise use English. Keep the result for the entire session.
+- **Overrides.** A request scoped to one response or artifact applies only there. Change the locked language only when the user explicitly requests a persistent switch. A translation target changes only the translated content unless the user also requests a session switch.
+- Handoffs/plans/PRDs/ADRs/reports use the applicable locked or scoped language. Preserve existing code, identifiers, paths, commands, literals, and quoted content verbatim; author new technical content according to repository conventions.
 
 ## Counterargument
 Each key conclusion: `> Counter: This fails when <condition>, because <reason>.`

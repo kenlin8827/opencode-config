@@ -1,10 +1,10 @@
 {
-  "description": "All-DeepSeek family picks — deepseek-v4-pro carries pro and max quality slots, deepseek-v4-flash handles standard and flash exploration. vision goes to qwen3.8-max — DeepSeek is not vision-capable here; only Qwen is.",
+  "description": "All-DeepSeek family picks — deepseek-v4-pro carries pro and max quality slots, deepseek-v4-flash handles standard and flash exploration. vision uses deepseek-v4-flash-vision-exp — the only vision-capable DeepSeek here.",
   "tiers": {
     "flash": "opencode-go/deepseek-v4-flash",
     "standard": "opencode-go/deepseek-v4-flash",
     "pro": "opencode-go/deepseek-v4-pro",
     "max": "opencode-go/deepseek-v4-pro",
-    "vision": "opencode-go/qwen3.8-max"
+    "vision": "opencode-go/deepseek-v4-flash-vision-exp"
   }
 }

@@ -1,10 +1,10 @@
 {
-  "description": "Lightweight tier — lowest cost: plus/flash models on standard/flash, mimo-v2.5-pro on pro, glm-5.2 on max; vision goes to qwen3.8-max.",
+  "description": "Lightweight tier — lowest cost, but max stays review-capable: glm-5.3-flash explores on flash (kill-line value king at $0.075/$0.25), qwen3.8-flash on standard, qwen3.7-plus codes on pro (newest Qwen tier above flash), deepseek-v4-pro judges on max (strong reasoning reviewer at $0.66/$1.98); vision goes to qwen3.8-flash. qwen3.6-plus is dropped — qwen3.8-flash is newer, cheaper and vision-capable. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
   "tiers": {
-    "flash": "opencode-go/mimo-v2.5",
-    "standard": "opencode-go/qwen3.7-plus",
-    "pro": "opencode-go/mimo-v2.5-pro",
-    "max": "opencode-go/glm-5.2",
-    "vision": "opencode-go/qwen3.8-max"
+    "flash": "opencode-go/glm-5.3-flash",
+    "standard": "opencode-go/qwen3.8-flash",
+    "pro": "opencode-go/qwen3.7-plus",
+    "max": "opencode-go/deepseek-v4-pro",
+    "vision": "opencode-go/qwen3.8-flash"
   }
 }

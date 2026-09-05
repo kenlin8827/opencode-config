@@ -1,0 +1,10 @@
+{
+  "description": "Economy tier — cost-optimized for high-traffic coding on OpenCode Zen: gemini-3.5-flash-lite keeps flash/standard orchestration affordable, gpt-5.1 powers predictable general work, gpt-5.1-codex provides coding firepower without extra spend, and deepseek-v4-pro handles max-tier reviews while honoring the red line; vision routes to claude-sonnet-4-6 for attachment-friendly requests. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/gemini-3.5-flash-lite",
+    "standard": "opencode/gpt-5.1",
+    "pro": "opencode/gpt-5.1-codex",
+    "max": "opencode/deepseek-v4-pro",
+    "vision": "opencode/claude-sonnet-4-6"
+  }
+}

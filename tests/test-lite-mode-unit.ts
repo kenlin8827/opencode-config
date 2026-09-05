@@ -16,6 +16,7 @@
 import { LiteModePlugin, stripLiteOverhead, isInstructionPath } from "../plugins/lite-mode/lite-mode"
 import { detectAgent, scoped } from "../plugins/shared/plugin-scope"
 import scopeFile from "../plugin-scope.json"
+import { readFileSync } from "node:fs"
 
 // The lite identifier match text is policy data — fixtures read it directly.
 const SENTINEL = (scopeFile as any).identifiers.lite.contains as string
@@ -61,6 +62,7 @@ function joinSystem(agentPrompt: string): string {
 }
 
 const LITE_PROMPT = `${SENTINEL}\nYou are lite, a minimal-overhead assistant.`
+const SHIPPED_LITE_PROMPT = readFileSync(new URL("../prompts/lite.md", import.meta.url), "utf8")
 
 // ─── stripLiteOverhead ────────────────────────────────────────────────────
 
@@ -78,6 +80,16 @@ assert(stripped.includes("Working directory"), "env block preserved")
 assert(stripped.includes("<available_skills>"), "skills block preserved")
 assert(!/\n{3,}/.test(stripped), "no triple blank lines left behind")
 assert(!stripped.startsWith("\n"), "no leading blank lines")
+
+const strippedShippedPrompt = stripLiteOverhead(joinSystem(SHIPPED_LITE_PROMPT))
+assert(
+  strippedShippedPrompt.includes("explicit output-language instructions win")
+    && strippedShippedPrompt.includes("first user instructional prose")
+    && strippedShippedPrompt.includes("LC_ALL` → `LANGUAGE` → `LANG")
+    && strippedShippedPrompt.includes("translation targets do not persist")
+    && strippedShippedPrompt.includes("explicit persistent switch changes it"),
+  "shipped lite prompt retains the compact session-language protocol after stripping",
+)
 
 const strippedTwice = stripLiteOverhead(stripped)
 assert(strippedTwice === stripped, "idempotent on already-stripped text")

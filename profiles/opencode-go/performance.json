@@ -1,10 +1,10 @@
 {
-  "description": "Performance tier — daily driver: kimi-k2.6 orchestrates on standard, kimi-k2.7-code codes on pro, gpt-5.6-luna judges on max, deepseek-v4-flash explores on flash; vision uses qwen3.8-max.",
+  "description": "Performance tier — daily driver, cost-ascending with review-capable max (advisor tier): deepseek-v4-flash explores on flash, kimi-k2.7-code orchestrates on standard, qwen3.8-max codes on pro and judges on max (capability index 58, strongest coding+review Qwen under the red line at $2/$6); vision uses qwen3.8-flash. kimi-k2.6 excluded — deprecated prior gen, dominated by same-price k2.7-code.",
   "tiers": {
     "flash": "opencode-go/deepseek-v4-flash",
-    "standard": "opencode-go/kimi-k2.6",
-    "pro": "opencode-go/kimi-k2.7-code",
-    "max": "opencode-go/gpt-5.6-luna",
-    "vision": "opencode-go/qwen3.8-max"
+    "standard": "opencode-go/kimi-k2.7-code",
+    "pro": "opencode-go/qwen3.8-max",
+    "max": "opencode-go/qwen3.8-max",
+    "vision": "opencode-go/qwen3.8-flash"
   }
 }

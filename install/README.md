@@ -1,4 +1,4 @@
-# install (v0.26.1)
+# install (v0.27.0)
 
 Self-installing OpenCode Prime (OCP) powered by a unified **TypeScript engine** and an **interactive TUI Setup Wizard**.
 
@@ -202,10 +202,13 @@ Semantics (as implemented by the `/profile` plugin):
 
 Bundled profiles.
 Cost tiers mirror the IDE model-tier vocabulary (Auto / Ultimate / Performance / Economy / Lightweight).
-Every opencode-go profile fills `vision`: on this gateway only Qwen accepts
-image input, so all opencode-go profiles route vision to `qwen3.8-max`
-(mixed families, same provider). Official provider profiles that lack an
-image-capable model (GLM, DeepSeek) omit the `vision` tier.
+Profile keys are `profiles/`-relative paths with `/` separators: the nested file
+`profiles/opencode-zen/lite.json` is the profile `opencode-zen/lite`.
+Gateway profiles fill all five tiers, mixing model families within the same
+provider where that is the stronger or cheaper pick. Official-API profiles
+borrow a vision-capable model across providers when their own family has none
+(`deepseek` routes vision to MiniMax M3).
+Every model ref below sits under the cost red line (input <= $3.00, output <= $15.00 per M tokens).
 
 ### Tier design principles
 
@@ -225,39 +228,52 @@ flash  (fastest/cheapest)  <=  standard  (general workhorse)  <=  pro  (stronges
 
 | Profile | Tier | flash / standard / pro / max / vision |
 | --- | --- | --- |
-| `llm-router` | Auto — server-side routing baseline | its five router slots |
-| `codex-router` | codex gateway — Sol heavy / Luna cheap | gpt-5.6-sol / gpt-5.6-sol-max / gpt-5.6-sol-ultra / gpt-5.6-luna-low / gpt-5.6-sol |
-| `qoder-router` | qoder gateway — Ultimate flags / Lite explores | performance / ultimate / ultimate / lite / auto |
-| `claude-code-router` | Claude Code gateway — Fable codes / Sonnet default | claude-sonnet-5 / claude-fable-5 / claude-opus-5 / claude-haiku-4-5 / claude-sonnet-5 |
-| `qoder` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) | performance / ultimate / ultimate / lite / auto |
-| `qoder-deepseek` | All-DeepSeek family on Qoder (same bridge) | dfmodel / dmodel / dmodel / dfmodel / auto |
-| `qoder-qwen` | All-Qwen family on Qoder (same bridge) | qmodel_latest / qmodel_preview / qmodel_preview / qmodel / auto |
-| `opencode-go-ultimate` | Ultimate — quality first, cost no object | kimi-k3 / minimax-m3 / gpt-5.6-luna / kimi-k2.6 / qwen3.8-max |
-| `opencode-go-performance` | Performance — daily driver | kimi-k2.6 / kimi-k2.7-code / gpt-5.6-luna / deepseek-v4-flash / qwen3.8-max |
-| `opencode-go-economy` | Economy — cost-performance | kimi-k2.6 / kimi-k2.7-code / glm-5.2 / deepseek-v4-flash / qwen3.8-max |
-| `opencode-go-lite` | Lightweight — cheapest usable | qwen3.7-plus / mimo-v2.5-pro / glm-5.2 / mimo-v2.5 / qwen3.8-max |
-| `opencode-go-qwen` | All-Qwen family fallback | qwen3.7-max / qwen3.8-max / qwen3.8-max / qwen3.6-plus / qwen3.8-max |
-| `opencode-go-kimi` | All-Kimi family fallback | kimi-k2.6 / kimi-k2.7-code / kimi-k3 / kimi-k2.6 / qwen3.8-max |
-| `kimi-for-coding` | Kimi For Coding (official Kimi Code plan) | kimi-for-coding / kimi-for-coding / k3-256 / kimi-for-coding-highspeed / kimi-for-coding |
-| `zai-coding-plan` | Z.AI Coding Plan (official GLM subscription) | glm-5-turbo / glm-5.2 / glm-5.2 / glm-5.2-highspeed / — |
-| `deepseek` | DeepSeek (official DeepSeek API) | deepseek-chat / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / — |
-| `anthropic` | Anthropic (official Anthropic API) | claude-haiku-4-5 / claude-sonnet-5 / claude-opus-5 / claude-haiku-4-5 / claude-sonnet-5 |
-| `google` | Google (official Vertex AI / Gemini API) | gemini-2.5-flash / gemini-3-pro-preview / gemini-2.5-pro / gemini-flash-lite-latest / gemini-2.5-flash |
-| `openai` | OpenAI (official OpenAI API) | gpt-5.5 / gpt-5.3-codex / gpt-5.6-pro / gpt-5.4-fast / gpt-4o |
-| `alibaba-coding-plan` | Alibaba Coding Plan (official) | qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / qwen3.7-plus / qwen3.7-plus |
-| `alibaba-coding-plan-cn` | Alibaba Coding Plan China (official) | qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / qwen3.7-plus / qwen3.7-plus |
-| `alibaba-token-plan` | Alibaba Token Plan (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
-| `alibaba-token-plan-cn` | Alibaba Token Plan China (official) | deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / deepseek-v4-flash-0731 / qwen3.7-plus |
-| `minimax-coding-plan` | MiniMax Token Plan minimax.io (official) | MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7 / MiniMax-M3 |
-| `minimax-cn-coding-plan` | MiniMax Token Plan minimaxi.com (official) | MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M2.7 / MiniMax-M3 |
-| `zhipuai-coding-plan` | Zhipu AI Coding Plan (official) | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.2-highspeed / glm-5v-turbo |
-| `tencent-coding-plan` | Tencent Coding Plan (official) | hunyuan-turbos / tc-code-latest / minimax-m2.5 / hunyuan-turbos / kimi-k2.5 |
-| `tencent-token-plan` | Tencent Token Plan (official) | hy3 / hy3 / hy3 / hy3 / — |
-| `xiaomi-token-plan-cn` | Xiaomi Token Plan China (official) | mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 / mimo-v2.5 |
-| `xiaomi-token-plan-ams` | Xiaomi Token Plan Europe (official) | mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 / mimo-v2.5 |
-| `xiaomi-token-plan-sgp` | Xiaomi Token Plan Singapore (official) | mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 / mimo-v2.5 |
-| `opencode-go-deepseek` | All-DeepSeek family fallback | deepseek-v4-flash / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash / qwen3.8-max |
-| `opencode-go-glm` | All-GLM family fallback | glm-5.1 / glm-5.2 / glm-5.2 / glm-5.1 / qwen3.8-max |
+| `router/llm` | Auto — server-side routing baseline | its five router slots |
+| `router/codex` | codex gateway — Sol heavy / Luna cheap | gpt-5.6-luna / gpt-5.6-terra / gpt-5.6-terra / gpt-5.6-sol / gpt-5.6-luna |
+| `router/qoder` | qoder gateway — Ultimate flags / Lite explores | lite / performance / ultimate / ultimate / auto |
+| `router/claude-code` | Claude Code gateway — Fable codes / Sonnet default | claude-haiku-4-5 / claude-sonnet-5 / claude-fable-5 / claude-opus-5 / claude-sonnet-5 |
+| `router/antigravity` | Antigravity gateway — Gemini Flash reasoning steps | gemini-3.7-flash-low / -medium / -high / -high / -high |
+| `qoder/default` | Qoder subscription via opencode-qoder-bridge (official Qoder Agent SDK; needs `qoder login`) | lite / performance / ultimate / ultimate / auto |
+| `qoder/deepseek` | All-DeepSeek family on Qoder (same bridge) | dfmodel / dfmodel / dmodel / dmodel / qmodel |
+| `qoder/qwen` | All-Qwen family on Qoder (same bridge) | qmodel / qmodel_latest / qmodel_38max / qmodel_38max / qmodel |
+| `opencode-go/ultimate` | Ultimate — quality first (needs `OPENCODE_API_KEY`) | deepseek-v4-flash / kimi-k2.7-code / qwen3.8-max / grok-4.6 / qwen3.8-flash |
+| `opencode-go/performance` | Performance — daily driver | deepseek-v4-flash / kimi-k2.7-code / qwen3.8-max / qwen3.8-max / qwen3.8-flash |
+| `opencode-go/economy` | Economy — cost-performance | qwen3.8-flash / qwen3.8-flash / kimi-k2.7-code / glm-5.3 / qwen3.8-flash |
+| `opencode-go/lite` | Lightweight — cheapest usable, review-capable `max` | glm-5.3-flash / qwen3.8-flash / qwen3.7-plus / deepseek-v4-pro / qwen3.8-flash |
+| `opencode-go/deepseek` | All-DeepSeek family fallback | deepseek-v4-flash / deepseek-v4-flash / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash-vision-exp |
+| `opencode-go/kimi` | All-Kimi family fallback | kimi-k2.5 / kimi-k2.7-code / kimi-k2.7-code / kimi-k3 / kimi-k2.5 |
+| `opencode-go/qwen` | All-Qwen family fallback | qwen3.6-plus / qwen3.6-plus / qwen3.8-max / qwen3.8-max / qwen3.8-flash |
+| `opencode-go/glm` | All-GLM family fallback | glm-5.3-flash / glm-5.1 / glm-5.2 / glm-5.3 / glm-5.3-flash |
+| `opencode-zen/ultimate` | Ultimate — strongest under the cost red line (needs `OPENCODE_API_KEY`) | deepseek-v4-flash / gemini-3.8-flash / gpt-5.6-sol / grok-4.6 / claude-sonnet-4-6 |
+| `opencode-zen/performance` | Performance — daily driver, review-capable `max` | deepseek-v4-flash / kimi-k2.7-code / gpt-5.3-codex / gpt-5.6-terra / claude-sonnet-4-6 |
+| `opencode-zen/economy` | Economy — high-traffic daily coding | gemini-3.5-flash-lite / gpt-5.1 / gpt-5.1-codex / deepseek-v4-pro / claude-sonnet-4-6 |
+| `opencode-zen/lite` | Lightweight — cheapest usable, review-capable `max` | ling-3.0-flash-fin-free / gemini-3.5-flash-lite / minimax-m2.7 / deepseek-v4-pro / gemini-3.5-flash-lite |
+| `opencode-zen/claude` | All-Claude family (Opus 5 excluded: over the cap) | claude-haiku-4-5 / claude-sonnet-5 / claude-sonnet-4-6 / claude-sonnet-4-6 / claude-sonnet-5 |
+| `opencode-zen/gpt` | All-GPT family (codex coding tiers, terra judges) | gpt-5.1-codex-mini / gpt-5.1 / gpt-5.3-codex / gpt-5.6-terra / gpt-5.1-codex-mini |
+| `opencode-zen/gemini` | All-Gemini family | gemini-3.5-flash-lite / gemini-3.6-flash / gemini-3.8-flash / gemini-3.1-pro / gemini-3.5-flash-lite |
+| `opencode-zen/deepseek` | All-DeepSeek family fallback | deepseek-v4-flash / deepseek-v4-flash / deepseek-v4-pro / deepseek-v4-pro / deepseek-v4-flash-vision-exp |
+| `opencode-zen/kimi` | All-Kimi family fallback | kimi-k2.5 / kimi-k2.6 / kimi-k2.7-code / kimi-k3 / kimi-k2.5 |
+| `opencode-zen/qwen` | All-Qwen family fallback | qwen3.5-plus / qwen3.6-plus / qwen3.6-plus / qwen3.6-plus / qwen3.5-plus |
+| `opencode-zen/glm` | All-GLM family fallback | glm-5.3-flash / glm-5.1 / glm-5.2 / glm-5.3 / glm-5.3-flash |
+| `kimi-for-coding` | Kimi For Coding (official Kimi Code plan) | kimi-for-coding / kimi-for-coding / kimi-for-coding / k3-256k / kimi-for-coding |
+| `zai-coding-plan` | Z.AI Coding Plan (official GLM subscription) | glm-5.3-flash / glm-5.1 / glm-5.2 / glm-5.3 / glm-5v-turbo |
+| `zhipuai-coding-plan` | Zhipu AI Coding Plan (official GLM subscription) | glm-5.3-flash / glm-5.1 / glm-5.2 / glm-5.3 / glm-5v-turbo |
+| `deepseek` | DeepSeek (official DeepSeek API) | deepseek-v4-flash / deepseek-v4-flash / deepseek-v4-pro / deepseek-v4-pro / MiniMax-M3 (minimax-cn) |
+| `anthropic` | Anthropic (official Anthropic API) | claude-haiku-4-5 / claude-haiku-4-5 / claude-sonnet-5 / claude-opus-5 / claude-sonnet-5 |
+| `google` | Google (official Vertex AI / Gemini API) | gemini-flash-lite-latest / gemini-2.5-flash / gemini-3-pro-preview / gemini-2.5-pro / gemini-2.5-flash |
+| `openai` | OpenAI (official OpenAI API) | gpt-5.4-fast / gpt-5.5 / gpt-5.3-codex / gpt-5.6-pro / gpt-4o |
+| `alibaba/coding-plan` | Alibaba Coding Plan (official) | qwen3.7-plus / qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / qwen3.7-plus |
+| `alibaba/coding-plan-cn` | Alibaba Coding Plan China (official) | qwen3.7-plus / qwen3.7-plus / qwen3-coder-next / MiniMax-M2.5 / qwen3.7-plus |
+| `alibaba/token-plan` | Alibaba Token Plan (official) | deepseek-v4-flash-0731 / deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / qwen3.7-plus |
+| `alibaba/token-plan-cn` | Alibaba Token Plan China (official) | deepseek-v4-flash-0731 / deepseek-v4-flash-0731 / qwen3.8-max / qwen3.8-max / qwen3.7-plus |
+| `alibaba/token-plan-cn-deepseek` | Alibaba Token Plan China, all-DeepSeek | deepseek-v4-flash-0731 / deepseek-v4-flash-0731 / deepseek-v4-pro-0813 / deepseek-v4-pro-0813 / qwen3.7-plus |
+| `minimax/coding-plan` | MiniMax Coding Plan minimax.io (official) | MiniMax-M2.7 / MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M3 |
+| `minimax/cn-coding-plan` | MiniMax Coding Plan minimaxi.com (official) | MiniMax-M2.7 / MiniMax-M3 / MiniMax-M3 / MiniMax-M3 / MiniMax-M3 |
+| `tencent/coding-plan` | Tencent Coding Plan (official) | hunyuan-turbos / hunyuan-turbos / tc-code-latest / minimax-m2.5 / kimi-k2.5 |
+| `tencent/token-plan` | Tencent Token Plan (official) | hy3 / hy3 / hy3 / hy3 / hy3 |
+| `xiaomi/token-plan-cn` | Xiaomi Token Plan China (official) | mimo-v2.5 / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 |
+| `xiaomi/token-plan-ams` | Xiaomi Token Plan Europe (official) | mimo-v2.5 / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 |
+| `xiaomi/token-plan-sgp` | Xiaomi Token Plan Singapore (official) | mimo-v2.5 / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5-pro / mimo-v2.5 |
 
 ## Files
 

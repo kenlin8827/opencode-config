@@ -142,6 +142,54 @@ interface OpenCodeConfig {
   [key: string]: unknown
 }
 
+// ─── Model import helpers (exported for unit tests) ─────────────────────
+
+/** Strip namespace prefixes (e.g. `cx/`) from remote model IDs. */
+export function deriveModelKey(remoteId: string): string {
+  const trimmed = remoteId.trim()
+  if (!trimmed) return remoteId
+  const slash = trimmed.lastIndexOf("/")
+  if (slash === -1 || slash === trimmed.length - 1) {
+    return slash === trimmed.length - 1 ? trimmed.slice(0, -1) : trimmed
+  }
+  return trimmed.slice(slash + 1)
+}
+
+/** Remove namespace prefixes from display names; fallback to provided default. */
+export function humanizeModelName(remoteName: string | undefined, fallback: string): string {
+  const source = (remoteName ?? "").trim() || fallback
+  const slash = source.lastIndexOf("/")
+  if (slash === -1 || slash === source.length - 1) {
+    return slash === source.length - 1 ? source.slice(0, -1) : source
+  }
+  return source.slice(slash + 1)
+}
+
+/** Ensure model keys are unique; duplicate IDs are treated as already imported. */
+export function allocateModelKey(
+  models: Record<string, ModelDef>,
+  baseKey: string,
+  remoteId: string,
+): { key: string; duplicate: boolean } {
+  const existing = models[baseKey]
+  if (!existing) {
+    return { key: baseKey, duplicate: false }
+  }
+  if (existing.id === remoteId) {
+    return { key: baseKey, duplicate: true }
+  }
+  let suffix = 2
+  let candidate = `${baseKey}-${suffix}`
+  while (models[candidate]) {
+    if (models[candidate].id === remoteId) {
+      return { key: candidate, duplicate: true }
+    }
+    suffix++
+    candidate = `${baseKey}-${suffix}`
+  }
+  return { key: candidate, duplicate: false }
+}
+
 const NPM_OPENAI = "@ai-sdk/openai-compatible"
 const NPM_ANTHROPIC = "@ai-sdk/anthropic"
 
@@ -1027,16 +1075,19 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
   }
 
   provider.models ??= {}
+  const models = provider.models
   // Additive import: existing keys (user-added, presets, earlier fetches)
   // are never overwritten or deleted — duplicates are skipped.
   let added = 0
   let skipped = 0
   for (const m of matched) {
-    if (provider.models[m.id]) {
+    const candidate = deriveModelKey(m.id)
+    const { key, duplicate } = allocateModelKey(models, candidate, m.id)
+    if (duplicate) {
       skipped++
       continue
     }
-    provider.models[m.id] = { name: m.name, id: m.id }
+    models[key] = { name: humanizeModelName(m.name, key), id: m.id }
     added++
   }
   // legacy fetch bookkeeping — no longer written

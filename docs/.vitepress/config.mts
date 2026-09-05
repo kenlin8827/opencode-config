@@ -48,6 +48,7 @@ export default withMermaid(
               text: 'Part III: Workflows & Governance',
               items: [
                 { text: 'Workflow Slash Commands', link: '/workflows/commands' },
+                { text: 'Git Workflows', link: '/workflows/git' },
                 { text: 'Five Dev Flows', link: '/workflows/dev-loops' },
                 { text: '/dev Compositor', link: '/workflows/dev' },
                 { text: 'Specification-Driven Development (SDD)', link: '/workflows/sdd' },
@@ -110,6 +111,7 @@ export default withMermaid(
                 text: '第三部分：进阶工作流与护栏',
                 items: [
                   { text: '工作流斜杠命令', link: '/zh/workflows/commands' },
+                  { text: 'Git 工作流', link: '/zh/workflows/git' },
                   { text: '五档开发流', link: '/zh/workflows/dev-loops' },
                   { text: '/dev 组合引擎', link: '/zh/workflows/dev' },
                   { text: '规范驱动开发 (SDD)', link: '/zh/workflows/sdd' },

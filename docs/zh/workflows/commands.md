@@ -21,9 +21,11 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | **`/dev-ultra <objective> [--max-rounds=N] [--max-phases=N]`** | 开发流 | **Ultra-Dev 自主多阶段闭环**：端到端自主执行 —— 将大型目标分解为多阶段，每阶段独立 `/dev-review` 循环 + 上下文压缩 + 逐阶段 Git 提交隔离 + 支持 `--resume` 断点续跑（详见 [五档开发流](dev-loops.md)） |
 | **`/dev-prud <requirement> [--top=N] [--max-rounds=N]`** | 开发流 | **FMEA 审慎开发**：苏格拉底式澄清 + 编码前风险登记册（SEV×PROB 排序，top-N），由登记册驱动计划、实现与逐条审计验证（详见 [审慎开发](dev-prud.md)） |
 | **`/review-fix-loop [scope] [--max-rounds=N]`** | 质量自动化 | 自动化 审查→验证→修复→复审 循环，直到没有 P0/P1。范围：`last commit`、`HEAD~N`、`branch`、`PR`，或空（未提交变更） |
-| **`/git-merge <source> <target> [--dry-run] [--no-verify] [--squash] [--no-ff] [--abort]`** | Git 工程流 | **原生 `git merge`，agent 扮演解决冲突的人**：先把目标分支与 origin 同步（`git pull --ff-only`，本地分叉即停）、创建 guard 备份分支，再合并源分支 —— git 能自动合并的全部交给 git，只有冲突文件才基于真实 merge-base 做语义合并，且**目标 HEAD 是权威基线**（目标的改动——包括删除——一律保留，源分支在其之上叠加、绝不悄悄回退基线）。策略选择：只要结果、压成 1 个干净 commit → `--squash`；其他情况 → 不带 flag（merge commit 保留双方拓扑）。想要线性逐 commit 重放请改用 `/git-rebase`。agent 收尾跑一次测试（逐 hunk 理由 + 整文件连贯复读 + 逐 hunk 置信度自检：不确定的升级 `@advisor`（尽力而为）、凡是无法确信解决的（有歧义或 advisor 不可用）都交还给你、绝不瞎猜）、输出带置信度的逐 hunk 决策日志，并在解过冲突时存档到 `.git/ocp-merge-reports/` |
-| **`/git-rebase <source> <target> [--dry-run] [--no-verify] [--continue] [--skip] [--abort]`** | Git 工程流 | **原生 `git rebase`，agent 扮演解决冲突的人**：把源分支独有的全部 commit 重放到目标分支 HEAD 之上，得到干净的线性历史 —— 先把目标分支与 origin 同步（`git pull --ff-only`）、对**两个分支**尖端创建 guard 备份（rebase 会改写 source），再 `git rebase <target>`，逐个 commit 停下时做语义解冲突（**onto 分支 HEAD 是权威基线**），最后 fast-forward 目标分支。会改写历史：落地目标分支是普通 `git push`；若 source 已推过远程，更新它需要 `git push --force-with-lease`（由用户决定）。agent 收尾跑一次测试（逐 hunk 理由 + 整文件连贯复读 + 逐 hunk 置信度自检：不确定的升级 `@advisor`（尽力而为）、凡是无法确信解决的（有歧义或 advisor 不可用）都交还给你、绝不瞎猜）、输出带置信度的逐 commit 决策日志，并在解过冲突时存档到 `.git/ocp-rebase-reports/` |
-| **`/git-pull [--rebase] [--dry-run] [--no-verify] [--abort]`** | Git 工程流 | **当前分支的安全上游同步**：先试 `git pull --ff-only`（不重写任何东西）；如果分叉拉不动，先创建 guard 备份分支，再走 git-merge 协议协调（source = 拉取到的远程引用）——**远程已发布的历史是权威基线**。`--rebase` 则把本地 commit 重放到远程最新之上。不支持 `--squash` —— 把自己分支的已发布历史压成单 commit 永不正当 |
+| **`/git-merge <source> <target> [--dry-run] [--no-verify] [--squash] [--no-ff] [--continue] [--abort]`** | Git 工程流 | **原生 `git merge`，agent 扮演解决冲突的人**：先把目标分支与 origin 同步（`--ff-only`，本地分叉即停）、建 guard 备份，再合并 —— git 能自动合的全部交给 git，只有冲突文件才做语义合并，且**目标 HEAD 是权威基线**。压成 1 个干净 commit → `--squash`；其他情况不带 flag（merge commit 保留双方拓扑） |
+| **`/git-pick <source> <target> <commit>... [--all] [--dry-run] [--no-verify] [--continue] [--skip] [--abort]`** | Git 工程流 | **原生 `git cherry-pick`，agent 扮演解决冲突的人**：复制指定 commit；`--all` 时按拓扑逆序复制 source 有而 target 没有的全部非 merge commit，逐 commit 以 target 为基线解决冲突。每次都生成新的普通 commit（绝不生成 merge commit），source 历史不改写 |
+| **`/git-rebase <source> <target> [--dry-run] [--no-verify] [--continue] [--skip] [--abort]`** | Git 工程流 | **原生 `git rebase`，agent 扮演解决冲突的人**：把源分支独有的全部 commit 重放到目标分支 HEAD 之上，得到线性历史 —— 同步目标分支、对**两个**尖端建 guard 备份、逐个停下的 commit 做语义解冲突，最后 fast-forward 目标分支。会改写 source：更新已推送的 source 需 `git push --force-with-lease`，由你决定 |
+| **`/git-pull [--rebase] [--dry-run] [--no-verify] [--abort]`** | Git 工程流 | **当前分支的安全上游同步**：先试 `git pull --ff-only`，什么都不重写；已分叉 → 建 guard 备份，再委托 git-merge 协议（拉取到的上游引用作为 source）。`--rebase` 则把本地 commit 重放到远程 tip 之上。不支持 `--squash` —— 压扁已发布的分支历史永不正当 |
+| **`/git-push [--rebase\|--merge] [--dry-run] [--no-verify] [--force-with-lease] [--abort]`** | Git 工程流 | **当前分支的安全推送**：先 fetch 配置的上游并尝试普通 `git push`；确认是 `non-fast-forward` → 建 guard，按 merge 或 rebase 调和、验证后重试。认证、策略、hook、网络和语义冲突会停下；裸 `--force` 永远禁止 |
 | **`/grill-improve-loop [subject] [--max-rounds=N] [--target=N]`** | 评分驱动闭环 | 评分驱动改进闭环：评分→分析改进路径→修复/重构→验证→重新评分，直到结构性天花板、停滞或最大轮次。每轮触发 verification-honesty 评分机制（规则 5–7） |
 | **`/goal [text]`** | 自动化协议 | 结构化目标执行协议，包含审计友好的验收清单和可机械检测的停止条件 |
 | **`/handoff [focus]`** | 状态交接 | 将当前会话状态压缩为轻量交接包（存至 Git 忽略的 `.opencode/handoffs/`），生成新会话一键恢复开场白 |
@@ -39,6 +41,8 @@ OpenCode 多智能体配置自带一系列生产级工作流斜杠命令。
 | **`/profile`** | 交互向导 (TUI) | 打开模型预设弹窗选择器：一键切换或精细配置 Auto / Ultimate / Performance / Economy / Lightweight 各层级模型 |
 | **`/provider`** | 交互向导 (TUI) | 打开服务商向导：为已激活或仓库自带的服务商配置凭证（baseURL / apiKey），管理模型清单 |
 | **`/queued`** | 交互向导 (TUI) | 打开排队消息管理对话框：实时查看、编辑或取消在会话忙碌期间提交的排队提示词 |
+
+> 五个 `/git-*` 命令共用一套教义：前置检查只会停下而不替你收拾残局、适用时用 `--ff-only` 同步目标分支、`guard/` 备份、基线优先的冲突解决、逐 hunk 置信度自检（不确定则升级 `@advisor`，仍不确信就交还给你、绝不瞎猜）、只验证一次且诚实报告，以及**每次**调用都写入 `.git/ocp-*-reports/` 的脱敏哈希链审计轨迹。完整教义、flag 矩阵与故障表：**[Git 工作流](git.md)**。
 
 
 

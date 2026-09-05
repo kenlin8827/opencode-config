@@ -311,17 +311,18 @@ if (realTemplate?.permission !== 'allow') {
 if (realTemplate?.agent?.lite?.permission?.['*']?.['*'] !== 'deny') {
   throw new Error('shipped template lost the lite wildcard deny');
 }
-// lite's skill access is scoped to the three agent-less commands (/git-merge,
-// /git-pull, /git-rebase) that fall back to the default agent; every other skill stays denied.
+// lite's skill access is scoped to the six agent-less commands (/handoff,
+// /git-merge, /git-pick, /git-pull, /git-push, /git-rebase) that follow the
+// current agent; every other skill stays denied.
 const liteSkill = realTemplate?.agent?.lite?.permission?.skill;
-if (liteSkill?.['*'] !== 'deny' || liteSkill?.['git-merge'] !== 'allow' || liteSkill?.['git-pull'] !== 'allow' || liteSkill?.['git-rebase'] !== 'allow') {
-  throw new Error('lite skill permission must deny "*" and allow exactly git-merge + git-pull + git-rebase');
+if (liteSkill?.['*'] !== 'deny' || liteSkill?.['git-merge'] !== 'allow' || liteSkill?.['git-pick'] !== 'allow' || liteSkill?.['git-pull'] !== 'allow' || liteSkill?.['git-push'] !== 'allow' || liteSkill?.['git-rebase'] !== 'allow') {
+  throw new Error('lite skill permission must deny "*" and allow exactly git-merge + git-pick + git-pull + git-push + git-rebase');
 }
 const liteTools = realTemplate?.agent?.lite?.tools;
 if (!liteTools || typeof liteTools !== 'object' || liteTools['*'] !== false) {
   throw new Error('lite tools must wildcard-deny then whitelist the capable set');
 }
-// Whitelisted core set + the skill tool (needed to load git-merge/git-pull/git-rebase).
+// Whitelisted core set + the skill tool (needed to load git-merge/git-pick/git-pull/git-push/git-rebase).
 const liteRequired = ['read', 'edit', 'write', 'bash', 'grep', 'glob', 'webfetch', 'websearch', 'todowrite', 'task', 'skill'];
 const liteMissing = liteRequired.filter((t) => liteTools?.[t] !== true);
 if (liteMissing.length) {

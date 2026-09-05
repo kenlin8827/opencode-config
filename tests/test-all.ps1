@@ -194,6 +194,9 @@ $allFiles = @(
     "commands/dev-review.md", "commands/dev-ultra.md", "commands/review-fix-loop.md",
     "commands/dev-prud.md",
     "commands/git-merge.md",
+    "commands/git-pick.md",
+    "commands/git-pull.md",
+    "commands/git-push.md",
     "commands/git-rebase.md",
     "commands/sdd.md", "commands/prd.md", "commands/plan.md", "commands/impl.md",
     # Skills — L2 workflow protocols (body loads on demand via the skill tool)
@@ -202,6 +205,9 @@ $allFiles = @(
     "skills/dev-ultra/SKILL.md", "skills/review-fix-loop/SKILL.md",
     "skills/dev-prud/SKILL.md",
     "skills/git-merge/SKILL.md",
+    "skills/git-pick/SKILL.md",
+    "skills/git-pull/SKILL.md",
+    "skills/git-push/SKILL.md",
     "skills/git-rebase/SKILL.md",
     # Plugins (auto-advisor-mode + helpers + deepseek-anchor)
     "plugins/auto-advisor-mode.ts",
@@ -323,7 +329,7 @@ function CheckWorkflowSkill($name, $patterns, $agent = "build") {
 CheckWorkflowSkill "grill-me" @("present all questions to the user at once", "recommended option FIRST", "## State machine", "Stop conditions", "Decision Brief")
 CheckWorkflowSkill "grill-with-docs" @("Domain modeling", "CONTEXT.md", "ADR format", "Hard to reverse", "lazily", "Be opinionated", "present all questions to the user at once")
 CheckWorkflowSkill "goal" @("golden template", "audit checklist", "Stop conditions", "Hard rules")
-CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't duplicate", "Redact sensitive information", "Suggested agents", "and continue from there")
+CheckWorkflowSkill "handoff" @("Git-safe directory only", "Reference, don't duplicate", "Redact sensitive information", "Suggested agents", "and continue from there") $null
 
 # Remaining workflow skills: structural checks only (protocol bodies migrated
 # verbatim; shipping is covered by the file-integrity list above).
@@ -345,9 +351,12 @@ CheckWorkflowSkill "dev" @("--plan-review", "--code-review", "--sdd", "dev-quick
 # git-merge: anchors protect the stock-merge model, sync-first baseline,
 # baseline-authority resolution, deletion-is-intent, confidence self-check +
 # @advisor escalation, and verification.
-# No agent frontmatter (3rd arg $null): git ops are pure operational work the
-# current agent handles — the launcher falls back to the default agent (lite,
-# which carries scoped skill access to git-merge/git-pull/git-rebase).
+# No agent frontmatter (3rd arg $null): handoff and git ops are current-session
+# work — the launcher follows the current agent (lite by default).
+# Coverage anchors (shared by the whole family) protect the ranked verify-command
+# inference, the "halt is never a dead end" recovery rule, and the enumerated
+# Outcome token that makes the autonomous-landing rate computable from
+# .git/ocp-*-reports/*.md instead of being an unfalsifiable claim.
 CheckWorkflowSkill "git-merge" @(
     "git merge --continue",
     "git pull --ff-only",
@@ -360,10 +369,25 @@ CheckWorkflowSkill "git-merge" @(
     "modify/delete",
     "global coherence",
     ".git/ocp-merge-reports",
+    "every invocation",
+    "schema_version: 1",
+    "command_start",
+    "command_end",
+    "prev_event_sha256",
+    "argv",
+    "exit_code",
+    "SHA-256",
     "Confidence self-check",
     "@advisor",
     "FACTUAL + confidence",
-    "best-effort"
+    "best-effort",
+    "Semantic evidence pass",
+    "Repository-level semantic interaction audit",
+    "ranked inference",
+    "it is the reason to check rank 1",
+    "A halt is never a dead end",
+    "landed-no-verify-opt-in",
+    "handed-over:"
 ) $null
 
 # git-pull: ff-first sync of the current branch with its upstream; diverged →
@@ -372,12 +396,42 @@ CheckWorkflowSkill "git-merge" @(
 # the no-squash stance. Agent-less like git-merge (3rd arg $null).
 CheckWorkflowSkill "git-pull" @(
     "git pull --ff-only",
-    "git fetch origin",
+    "git fetch <remote>",
     "guard/",
     "git-merge",
     "git-rebase",
     "never legitimate",
-    "set-upstream-to"
+    "set-upstream-to",
+    "Never describe these two orientations as identical",
+    ".git/ocp-pull-reports",
+    "every invocation",
+    "schema_version: 1",
+    "command_start",
+    "command_end",
+    "prev_event_sha256",
+    "argv",
+    "exit_code",
+    "SHA-256",
+    "A halt is never a dead end",
+    "landed-fast-forward",
+    "landed-no-verify-opt-in",
+    "handed-over:",
+    "token as the report"
+) $null
+
+# git-push: safe ordinary push; remote divergence → guarded reconciliation and
+# retry; never silently force-push. Agent-less like the other git workflows.
+CheckWorkflowSkill "git-push" @(
+    "git fetch <remote>",
+    "git-merge",
+    "git-rebase",
+    "non-fast-forward",
+    "guard/",
+    "force-with-lease",
+    'Never use plain `--force`',
+    '.git/ocp-push-reports',
+    "every halt must name the next concrete action",
+    "handed-over:"
 ) $null
 
 # git-rebase: replay ALL of source's unique commits onto target HEAD, linear.
@@ -387,7 +441,7 @@ CheckWorkflowSkill "git-pull" @(
 # archive, ff-only landing, force-with-lease rewrite safety. Agent-less like
 # git-merge (3rd arg $null).
 CheckWorkflowSkill "git-rebase" @(
-    "git rebase <target>",
+    "rebase --reapply-cherry-picks --empty=stop",
     "git rebase --continue",
     "git pull --ff-only",
     "git merge --ff-only",
@@ -398,11 +452,61 @@ CheckWorkflowSkill "git-rebase" @(
     "compose both parties",
     "global coherence",
     ".git/ocp-rebase-reports",
+    "every invocation",
+    "schema_version: 1",
+    "command_start",
+    "command_end",
+    "prev_event_sha256",
+    "argv",
+    "exit_code",
+    "SHA-256",
     "instructions/verification-honesty.md",
     "Confidence self-check",
     "@advisor",
     "FACTUAL + confidence",
-    "best-effort"
+    "best-effort",
+    "Semantic evidence pass",
+    "Repository-level semantic interaction audit",
+    "--min-parents=2",
+    "ranked inference",
+    "it is the reason to check rank 1",
+    "A halt is never a dead end",
+    "landed-no-verify-opt-in",
+    "topology-ambiguous"
+) $null
+
+# git-pick: selected or all source-only non-merge commits, linear ordinary
+# cherry-picks, target baseline, conflict handover, and verification.
+CheckWorkflowSkill "git-pick" @(
+    "git cherry-pick",
+    "--all",
+    "--no-merges",
+    "reverse topological order",
+    "new ordinary one-parent commit",
+    "authoritative baseline",
+    "guard/",
+    "git cherry-pick --continue",
+    ".git/ocp-pick-reports",
+    "every invocation",
+    "schema_version: 1",
+    "command_start",
+    "command_end",
+    "prev_event_sha256",
+    "argv",
+    "exit_code",
+    "SHA-256",
+    "Confidence",
+    "@advisor",
+    "FACTUAL",
+    "Semantic evidence pass",
+    "Repository-level semantic interaction audit",
+    "--allow-empty --empty=stop",
+    "ranked inference",
+    "it is the reason to check rank 1",
+    "A halt is never a dead end",
+    "landed-no-verify-opt-in",
+    "mainline-ambiguous",
+    "## Failure catalog"
 ) $null
 
 # Preset routers: the three dev-flow launchers load the dev skill with their

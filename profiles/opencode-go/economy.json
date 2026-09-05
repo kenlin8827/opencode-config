@@ -1,10 +1,10 @@
 {
-  "description": "Economy tier — cost-optimized for high-traffic daily coding: qwen3.7-plus orchestrates on standard, kimi-k2.7-code codes on pro, glm-5.2 judges on max, mimo-v2.5 explores on flash; vision uses qwen3.8-max.",
+  "description": "Economy tier — cost-optimized for high-traffic daily coding: qwen3.8-flash explores on flash and orchestrates on standard (newest Qwen gen — cheaper and stronger than qwen3.7-plus, which is dropped), kimi-k2.7-code codes on pro, glm-5.3 judges on max (capability index 60, strong advisor pick at $1.4/$4.4); vision uses qwen3.8-flash. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
   "tiers": {
-    "flash": "opencode-go/mimo-v2.5",
-    "standard": "opencode-go/qwen3.7-plus",
+    "flash": "opencode-go/qwen3.8-flash",
+    "standard": "opencode-go/qwen3.8-flash",
     "pro": "opencode-go/kimi-k2.7-code",
-    "max": "opencode-go/glm-5.2",
-    "vision": "opencode-go/qwen3.8-max"
+    "max": "opencode-go/glm-5.3",
+    "vision": "opencode-go/qwen3.8-flash"
   }
 }

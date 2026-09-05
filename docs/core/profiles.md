@@ -44,29 +44,41 @@ A profile is a named preset that maps all model tiers to a specific provider's m
 | `openai` | Official API Direct | Official OpenAI API (GPT-5, o3-mini, o4-preview) |
 | `google` | Official API Direct | Official Google Gemini API (Gemini 2.5 Flash, 2.5 Pro) |
 | `kimi-for-coding` | Official Coding Plan | Moonshot Kimi For Coding official coding plan (K1.5 / K2 series) |
-| `alibaba-coding-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Tongyi Qwen coding plan (Qwen3-Coder, Qwen3.7-Plus) |
-| `alibaba-token-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Token plan (DeepSeek V4 Flash / Qwen 3.8 Max) |
-| `minimax-coding-plan` / `-cn` | Official Coding Plan | MiniMax official coding plan (M2.5, M2.7, M3) |
+| `alibaba/coding-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Tongyi Qwen coding plan (Qwen3-Coder, Qwen3.7-Plus) |
+| `alibaba/token-plan` / `-cn` | Official Coding Plan | Alibaba Bailian Token plan (DeepSeek V4 Flash / Qwen 3.8 Max) |
+| `alibaba/token-plan-cn-deepseek` | Official Coding Plan | Alibaba Bailian Token plan, all-DeepSeek variant (V4 Flash / V4 Pro) |
+| `minimax/coding-plan` / `minimax/cn-coding-plan` | Official Coding Plan | MiniMax official coding plan (M2.7, M3) |
 | `zhipuai-coding-plan` | Official Coding Plan | Zhipu AI official coding plan (GLM-5.1, GLM-5.2, GLM-5v) |
 | `zai-coding-plan` | Official Coding Plan | Z.AI official coding plan (GLM series) |
-| `tencent-coding-plan` | Official Coding Plan | Tencent Hunyuan Coding Plan (Hunyuan Turbo, TC Code, MiniMax M2.5) |
-| `tencent-token-plan` | Official Coding Plan | Tencent Hunyuan Token Plan (HY3) |
-| `xiaomi-token-plan-cn` / `-ams` / `-sgp` | Official Coding Plan | Xiaomi LLM Token Plan (China / Europe / Singapore nodes, MiMo v2.5) |
-| `opencode-go-ultimate` | OpenCode Go Gateway | Ultimate quality first flagship ladder (Kimi K3 / MiniMax M3 / GPT-5.6 / Qwen 3.8 Max) |
-| `opencode-go-performance` | OpenCode Go Gateway | Daily driver balance ladder |
-| `opencode-go-economy` | OpenCode Go Gateway | Cost-effective balanced tier |
-| `opencode-go-lite` | OpenCode Go Gateway | Minimum viable cost high-velocity tier |
-| `opencode-go-deepseek` | OpenCode Go Gateway | All-DeepSeek family fallback |
-| `opencode-go-kimi` | OpenCode Go Gateway | All-Kimi family fallback |
-| `opencode-go-qwen` | OpenCode Go Gateway | All-Qwen family fallback |
-| `opencode-go-glm` | OpenCode Go Gateway | All-GLM family fallback |
-| `qoder` | Subscription & Gateway | Qoder subscription via opencode-qoder-bridge (needs `qoder login`) |
-| `qoder-deepseek` / `qoder-qwen` | Subscription & Gateway | All-DeepSeek / All-Qwen on Qoder platform |
-| `antigravity-router` | Custom Gateway | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking) |
-| `claude-code-router` | Custom Gateway | Self-hosted Claude Code gateway (Anthropic protocol) |
-| `codex-router` | Custom Gateway | Self-hosted codex gateway (Sol/Luna series) |
-| `qoder-router` | Custom Gateway | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
-| `llm-router` | Custom Gateway | Server-side routing baseline |
+| `tencent/coding-plan` | Official Coding Plan | Tencent Hunyuan Coding Plan (Hunyuan Turbo, TC Code, MiniMax M2.5) |
+| `tencent/token-plan` | Official Coding Plan | Tencent Hunyuan Token Plan (HY3) |
+| `xiaomi/token-plan-cn` / `-ams` / `-sgp` | Official Coding Plan | Xiaomi LLM Token Plan (China / Europe / Singapore nodes, MiMo v2.5) |
+| `opencode-go/ultimate` | OpenCode Go Gateway | Ultimate quality-first flagship ladder (Kimi K2.7-Code / Qwen 3.8 Max / Grok 4.6) |
+| `opencode-go/performance` | OpenCode Go Gateway | Daily driver balance ladder |
+| `opencode-go/economy` | OpenCode Go Gateway | Cost-effective balanced tier |
+| `opencode-go/lite` | OpenCode Go Gateway | Minimum viable cost high-velocity tier |
+| `opencode-go/deepseek` | OpenCode Go Gateway | All-DeepSeek family fallback |
+| `opencode-go/kimi` | OpenCode Go Gateway | All-Kimi family fallback |
+| `opencode-go/qwen` | OpenCode Go Gateway | All-Qwen family fallback |
+| `opencode-go/glm` | OpenCode Go Gateway | All-GLM family fallback |
+| `opencode-zen/ultimate` | OpenCode Zen Gateway | Strongest picks under the cost red line (DeepSeek V4 Flash / Gemini 3.8 Flash / GPT-5.6 Sol / Grok 4.6) |
+| `opencode-zen/performance` | OpenCode Zen Gateway | Daily driver with review-capable `max` (DeepSeek V4 Flash / Kimi K2.7-Code / GPT-5.3 Codex / GPT-5.6 Terra) |
+| `opencode-zen/economy` | OpenCode Zen Gateway | Cost-optimized for high-traffic coding (Gemini 3.5 Flash Lite / GPT-5.1 / GPT-5.1 Codex / DeepSeek V4 Pro) |
+| `opencode-zen/lite` | OpenCode Zen Gateway | Cheapest usable ladder, DeepSeek V4 Pro still judges `max` (Ling 3.0 Flash Fin Free / Gemini 3.5 Flash Lite / MiniMax M2.7) |
+| `opencode-zen/claude` | OpenCode Zen Gateway | All-Claude picks (Haiku 4.5 / Sonnet 5 / Sonnet 4.6) |
+| `opencode-zen/gpt` | OpenCode Zen Gateway | All-GPT codex line (5.1 Codex Mini / 5.1 / 5.3 Codex / 5.6 Terra) |
+| `opencode-zen/gemini` | OpenCode Zen Gateway | All-Gemini picks (3.5 Flash Lite / 3.6 Flash / 3.8 Flash / 3.1 Pro) |
+| `opencode-zen/deepseek` | OpenCode Zen Gateway | All-DeepSeek family fallback (V4 Flash / V4 Pro / V4 Flash Vision EXP) |
+| `opencode-zen/kimi` | OpenCode Zen Gateway | All-Kimi family fallback (K2.5 / K2.6 / K2.7-Code / K3) |
+| `opencode-zen/qwen` | OpenCode Zen Gateway | All-Qwen family fallback (3.5 Plus / 3.6 Plus) |
+| `opencode-zen/glm` | OpenCode Zen Gateway | All-GLM family fallback (5.3 Flash / 5.1 / 5.2 / 5.3) |
+| `qoder/default` | Subscription & Gateway | Qoder subscription via opencode-qoder-bridge (needs `qoder login`) |
+| `qoder/deepseek` / `qoder/qwen` | Subscription & Gateway | All-DeepSeek / All-Qwen on Qoder platform |
+| `router/antigravity` | Custom Gateway | Self-hosted Antigravity gateway (Gemini Flash/Pro + Claude Sonnet/Opus Thinking) |
+| `router/claude-code` | Custom Gateway | Self-hosted Claude Code gateway (Anthropic protocol) |
+| `router/codex` | Custom Gateway | Self-hosted codex gateway (Sol/Luna series) |
+| `router/qoder` | Custom Gateway | Self-hosted qoder gateway (Ultimate/Performance/Lite) |
+| `router/llm` | Custom Gateway | Server-side routing baseline |
 
 ### Using profiles
 

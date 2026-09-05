@@ -1,0 +1,10 @@
+{
+  "description": "Lite tier — cheapest OpenCode Zen ladder under the cost red line: ling-3.0-flash-fin-free handles flash queries with near-zero spend, gemini-3.5-flash-lite keeps standard orchestration steady, minimax-m2.7 delivers dependable coding without breaking the cap, and deepseek-v4-pro stays review-capable at max while respecting the cost limit; vision reuses gemini-3.5-flash-lite for attachments. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/ling-3.0-flash-fin-free",
+    "standard": "opencode/gemini-3.5-flash-lite",
+    "pro": "opencode/minimax-m2.7",
+    "max": "opencode/deepseek-v4-pro",
+    "vision": "opencode/gemini-3.5-flash-lite"
+  }
+}

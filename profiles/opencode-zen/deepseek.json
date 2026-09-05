@@ -1,0 +1,10 @@
+{
+  "description": "All-DeepSeek family picks — deepseek-v4-flash handles flash and standard exploration to keep costs aligned with the red line, deepseek-v4-pro carries both pro and max for review-grade reasoning, and vision rotates to deepseek-v4-flash-vision-exp for attachment work. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/deepseek-v4-flash",
+    "standard": "opencode/deepseek-v4-flash",
+    "pro": "opencode/deepseek-v4-pro",
+    "max": "opencode/deepseek-v4-pro",
+    "vision": "opencode/deepseek-v4-flash-vision-exp"
+  }
+}

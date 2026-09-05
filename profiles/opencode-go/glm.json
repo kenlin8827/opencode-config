@@ -1,10 +1,10 @@
 {
-  "description": "All-GLM family picks — glm-5.1 orchestrates on standard, glm-5.3-flash explores on flash, glm-5.2 codes on pro, glm-5.3 judges on max. vision goes to qwen3.7-plus — GLM is not vision-capable here; only Qwen is.",
+  "description": "All-GLM family picks — glm-5.3-flash explores on flash and handles vision (cheapest GLM at $0.075/$0.25, image-capable), glm-5.1 orchestrates on standard, glm-5.2 codes on pro, glm-5.3 judges on max.",
   "tiers": {
     "flash": "opencode-go/glm-5.3-flash",
     "standard": "opencode-go/glm-5.1",
     "pro": "opencode-go/glm-5.2",
     "max": "opencode-go/glm-5.3",
-    "vision": "opencode/qwen3.7-plus"
+    "vision": "opencode-go/glm-5.3-flash"
   }
 }

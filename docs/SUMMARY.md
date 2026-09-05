@@ -8,6 +8,7 @@
   * [模型配置与预设 Profiles](docs/zh/core/profiles.md)
 * [进阶工作流与项目护栏 (Workflows & Governance)](docs/zh/workflows/commands.md)
   * [工作流斜杠命令](docs/zh/workflows/commands.md)
+  * [Git 工作流](docs/zh/workflows/git.md)
   * [五档开发流](docs/zh/workflows/dev-loops.md)
   * [审慎开发](docs/zh/workflows/dev-prud.md)
   * [Auto-advisor 模式](docs/zh/workflows/auto-advisor.md)

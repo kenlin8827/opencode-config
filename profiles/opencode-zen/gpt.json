@@ -1,0 +1,10 @@
+{
+  "description": "All-GPT codex line — flash uses gpt-5.1-codex-mini to keep entry costs low while still supporting attachments, standard runs vanilla gpt-5.1 for general orchestrations, pro steps up to gpt-5.3-codex for the coding-heavy work, and max stays review-capable with gpt-5.6-terra inside the $3/$15 red line; vision reuses gpt-5.1-codex-mini for multimodal tasks. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/gpt-5.1-codex-mini",
+    "standard": "opencode/gpt-5.1",
+    "pro": "opencode/gpt-5.3-codex",
+    "max": "opencode/gpt-5.6-terra",
+    "vision": "opencode/gpt-5.1-codex-mini"
+  }
+}

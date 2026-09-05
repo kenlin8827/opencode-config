@@ -1,0 +1,10 @@
+{
+  "description": "All-Gemini family picks — gemini-3.5-flash-lite handles flash exploration and vision attachments, gemini-3.6-flash runs standard orchestration, gemini-3.8-flash carries pro-grade coding, and gemini-3.1-pro becomes the max-tier reviewer that stays within the cost red line while retaining Gemini's strongest reasoning; this keeps the lineage under the cap. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/gemini-3.5-flash-lite",
+    "standard": "opencode/gemini-3.6-flash",
+    "pro": "opencode/gemini-3.8-flash",
+    "max": "opencode/gemini-3.1-pro",
+    "vision": "opencode/gemini-3.5-flash-lite"
+  }
+}

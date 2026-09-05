@@ -1,0 +1,10 @@
+{
+  "description": "All-Kimi family picks — kimi-k2.5 keeps flash and vision work cost-effective with attachments, kimi-k2.6 drives standard orchestration, kimi-k2.7-code powers pro-level coding, and kimi-k3 sits on max as the flagship reviewer that still honors the cost red line on OpenCode Zen. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/kimi-k2.5",
+    "standard": "opencode/kimi-k2.6",
+    "pro": "opencode/kimi-k2.7-code",
+    "max": "opencode/kimi-k3",
+    "vision": "opencode/kimi-k2.5"
+  }
+}

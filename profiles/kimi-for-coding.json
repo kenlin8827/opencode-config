@@ -1,7 +1,7 @@
 {
   "description": "Kimi For Coding — kimi-for-coding carries the standard and pro tiers (cost-efficient), k3 judges on max, kimi-for-coding-highspeed explores on flash. kimi-for-coding doubles as vision (image input). Requires KIMI_API_KEY environment variable.",
   "tiers": {
-    "flash": "kimi-for-coding/kimi-for-coding-highspeed",
+    "flash": "kimi-for-coding/kimi-for-coding",
     "standard": "kimi-for-coding/kimi-for-coding",
     "pro": "kimi-for-coding/kimi-for-coding",
     "max": "kimi-for-coding/k3-256k",

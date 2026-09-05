@@ -291,7 +291,7 @@ Workflow slash commands (`/dev`, `/goal`, `/handoff`, …) are native opencode c
    - Body structure mirrors existing skills: `# <Protocol Name>` intro → `## What this is NOT` (where relevant) → `## Arguments` → Phase/Step sections → `## Hard rules` → `## Output format` → `## Failure catalog`
    - Reference `instructions/git-safety.md`, `instructions/verification-honesty.md`, `instructions/output-protocol.md` by relative path when their policy applies — don't duplicate the policy text
 3. **Create `commands/<name>.md`** as the launcher:
-   - YAML frontmatter: `description:` (one line, ≤ ~300 chars), `agent: build` (or `plan` for analysis-only skills)
+   - YAML frontmatter: `description:` (one line, ≤ ~300 chars), plus `agent: build` for orchestration commands, `agent: plan` / `agent: code` for dedicated SDD phases, or no `agent:` when the command must follow the current session (for example, `/handoff` and the Git workflow family)
    - Body: exactly `Load the <name> skill and follow it strictly.\n\nUser request: $ARGUMENTS`
 4. **Update `docs/workflows/commands.md`** (English) and **`docs/zh/workflows/commands.md`** (Chinese) — add one row to the command overview table. The row description is the user-facing summary; keep it short (≤ ~250 chars) and link related docs where useful.
 5. **Update `DEVELOPING.md` repository layout** (this file, around line 495) — add the new files to the `commands/` and `skills/` directory tree so the listing stays truthful. Don't list every file; list the new *category* entry.
@@ -324,6 +324,37 @@ Workflow slash commands (`/dev`, `/goal`, `/handoff`, …) are native opencode c
 - `<name>.md` matches the command and skill (`/git-merge` → `commands/git-merge.md` + `skills/git-merge/SKILL.md`)
 - `<name>` is kebab-case, short, action-or-subject noun (`goal`, `handoff`, `review-fix-loop`, `git-merge`)
 - For preset commands over an existing skill (`/dev-quick` over `/dev`), the command file is in `commands/` but **no new skill folder** — just a thin preset launcher
+
+### Git workflow skill family (shared doctrine)
+
+`/git-merge`, `/git-pick`, `/git-pull`, `/git-push`, and `/git-rebase` are one family: five thin launchers over five L2 protocols that share a single doctrine. They are **agent-less** (no `agent:` frontmatter), so they follow the current agent — which is why `lite`'s `permission.skill` block in `opencode.template.jsonc` allow-lists exactly these five names and denies every other skill.
+
+**Edit-together invariant.** These blocks are structurally identical across the family; changing one file alone is a defect, not a style choice:
+
+| Shared block | Present in | Only permitted difference |
+|---|---|---|
+| `## Audit trail — every invocation` | all 4 | `operation-id` prefix (`git-<op>-`) + report dir (`.git/ocp-<op>-reports/`) |
+| Step 1 preflight table | all 4 | op-specific rows (rebase adds topology + signing checks, pick adds empty-commit option checks) |
+| Baseline principle + conflict-shape table | merge, pick, rebase | side labels (`ours`/`theirs` vs `:1:`/`:2:`/`:3:`) |
+| Confidence self-check → `@advisor` → human handover | merge, pick, rebase | the paused unit (hunk vs commit) |
+| Verify once; `--no-verify` is user opt-in only, never inferred | all 4 | — |
+| Ranked verify-command inference (CI → manifest script → implied runner → repo-local entrypoint → documented) | merge, pick, rebase | — (git-pull delegates it) |
+| `A halt is never a dead end` hard rule | all 4 | op-specific recovery commands |
+| `Outcome:` enum in report + `.md` summary | all 4 | op-specific `handed-over:` reasons |
+| Hard rules / Flags | all 4 | op-specific entries |
+| `## Failure catalog` | all 4 | op-specific entries |
+
+`git-pull` **delegates instead of duplicating**: its Step 3 loads the `git-merge` skill (source = `@{u}`, target = the local branch), or `git-rebase` under `--rebase` — skipping rebase Step 1.3 (tip already guarded) and Step 3.3 (the checked-out branch *is* the landed result), with both exemptions justified inline. Never re-implement conflict resolution in `git-pull`.
+
+**Layer rule.** This doctrine belongs at **L2** (`skills/*/SKILL.md`, paid only when a command loads it). Do NOT hoist it into `instructions/git-*.md` — that makes it L1 and charges every git invocation for text the skill already carries. The user-facing explanation lives in `docs/workflows/git.md` + `docs/zh/workflows/git.md`, which cost zero shipped tokens (`docs/` is not in `SHIPPED_DIRS`).
+
+**Coverage invariants** (added v0.27.0) — the doctrine was already safe, but it bailed too often to be a daily driver. These three shrank the hand-back surface without weakening a single red line:
+
+- **Ranked verify-command inference** — CI gate → manifest `test`/`check`/`verify` script → implied runner → repo-local entrypoint → documented command; "not inferable" means all five ranks missed. This closed the largest single hand-back source: a repo whose manifest has no `test` script used to be handed back `resolved-but-unverified` despite a correct resolution. **This repo is exactly that case** — its gate is `scripts/verify.sh` (declared in `.github/workflows/release.yml`) plus `tests/test-all.ps1`, and `package.json` has no `test` script, which is why CI is rank 1.
+- **`A halt is never a dead end`** — every halt names the exact recovery command for that failure. Preflight rows were normalised to git-pick's decisive form; merge/pull previously said only "finish or abort first", which is a dead end.
+- **Enumerated `Outcome:` token** — `landed-*` is the autonomous-success class, `no-op`/`dry-run` stay out of the rate's denominator, and `handed-over:<reason>` turns the next friction source into a histogram instead of a vibe. Aggregation one-liner is documented in `docs/workflows/git.md` §Reports.
+
+**Drift closed**: `skills/git-pick/SKILL.md` now carries `## Failure catalog`. The previously suspected `git-pull` never-guess gap was a **false positive from literal string matching** — its Hard rule 3 already states "advisor failure degrades to handover, never a guess". Because git-pull delegates resolution entirely, restating the full rule inline would be redundant L2 tokens: the family is consistent here by design, not by duplication.
 
 ## Plugin system
 
@@ -542,6 +573,7 @@ providers/
 commands/                     # Native opencode slash-command launchers (thin: frontmatter + "load the skill")
 ├── dev.md · dev-plan.md · dev-quick.md · dev-flash.md · dev-review.md · dev-ultra.md   # Dev-flow launchers (agent: build)
 ├── git-merge.md                 # Git merge launcher — 2 strategies: merge/squash (agent-less; added in v0.23.0)
+├── git-pick.md                  # Selective/all source-only cherry-pick with per-commit conflict resolution (agent-less; added in v0.27.0)
 ├── git-rebase.md                # Git rebase launcher — replay source commits onto target HEAD, linear (agent-less; added in v0.25.0)
 ├── git-pull.md                  # Safe upstream sync — ff-only first, diverged → guard + git-merge protocol; --rebase → git-rebase (agent-less; added in v0.24.0)
 ├── goal.md · handoff.md · grill-*.md · review-fix-loop.md
@@ -550,8 +582,9 @@ commands/                     # Native opencode slash-command launchers (thin: f
 skills/                       # L2 workflow protocols — metadata resident, body loads on demand
 ├── dev/SKILL.md                     # /dev compositor — dev-quick/dev-plan/dev-review are preset routers over it
 ├── dev-prud/ · dev-ultra/
-├── git-merge/SKILL.md          # /git-merge protocol — baseline-first conflict resolution, 2 strategies (merge/squash); Step 2 doctrine (incl. per-hunk confidence self-check + @advisor escalation) is mirrored in git-rebase — edit BOTH together (added in v0.23.0)
-├── git-rebase/SKILL.md         # /git-rebase protocol — replay source onto target HEAD, linear; self-contained conflict resolution (mirrors git-merge Step 2 doctrine in rebase terms — edit BOTH together) (added in v0.25.0)
+├── git-merge/SKILL.md          # /git-merge protocol — baseline-first conflict resolution, 2 strategies (merge/squash); Step 2 doctrine (incl. per-hunk confidence self-check + @advisor escalation) is shared with git-pick and git-rebase — see § Git workflow skill family (added in v0.23.0)
+├── git-pick/SKILL.md           # /git-pick protocol — selected or all non-merge source-only commits, ordinary new commits, per-commit conflict resolution (added in v0.27.0)
+├── git-rebase/SKILL.md         # /git-rebase protocol — replay source onto target HEAD, linear; self-contained conflict resolution (same Step 2 doctrine as git-merge in rebase terms — see § Git workflow skill family) (added in v0.25.0)
 ├── git-pull/SKILL.md           # /git-pull protocol — ff-first sync; diverged → guard backup + delegate to git-merge (--rebase → git-rebase) (added in v0.24.0)
 ├── goal/ · handoff/ · grill-me/ · grill-with-docs/ · grill-improve-loop/
 ├── review-fix-loop/

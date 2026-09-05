@@ -1,0 +1,10 @@
+{
+  "description": "All-GLM family fallback — glm-5.3-flash keeps flash exploration and vision attachments cheap, glm-5.1 handles standard orchestration, glm-5.2 drives coding, and glm-5.3 stays as the max-tier reviewer while honoring the $3/$15 cost red line on OpenCode Zen. Requires OPENCODE_API_KEY environment variable (OpenCode Zen).",
+  "tiers": {
+    "flash": "opencode/glm-5.3-flash",
+    "standard": "opencode/glm-5.1",
+    "pro": "opencode/glm-5.2",
+    "max": "opencode/glm-5.3",
+    "vision": "opencode/glm-5.3-flash"
+  }
+}

@@ -32,7 +32,7 @@ const OVERRIDES: Record<string, string> = {
   todowrite: "Create or update a structured todo list for multi-step tasks.",
   webfetch: "Fetch a URL and extract its main content as markdown.",
   task: "Delegate to a read-only assistant. explore: codebase search. code-review: review diffs. advisor: second opinion. vision: image analysis. Only these four available.",
-  skill: "Load a scoped skill by name and follow it. Available: git-merge, git-pull, git-rebase.",
+  skill: "Load a scoped skill by name and follow it. Available: git-merge, git-pick, git-pull, git-push, git-rebase.",
 }
 
 export async function LiteToolsPlugin() {

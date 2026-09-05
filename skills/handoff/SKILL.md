@@ -13,7 +13,7 @@ Produce ONE markdown handoff document and tell the user where it is. No coding w
 
 ## Language
 
-Before writing, determine the language of the latest substantive user request and follow `output-protocol.md` → Session language. Preserve frontmatter keys, paths, commands, agent names, and the paste-ready opener format.
+Follow `output-protocol.md` §Session language. Preserve frontmatter keys, paths, commands, agent names, and the paste-ready opener format.
 
 ## Arguments
 
