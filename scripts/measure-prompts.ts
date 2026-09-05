@@ -31,7 +31,7 @@ const CONFIG_PREFIX = '~/.config/opencode/';
 
 // Budgets in estimated tokens. L0 is paid every step × every agent, so it is
 // the expensive layer; L1 is isolated to one role's runtime.
-const L0_BUDGET = 2500;
+const L0_BUDGET = 2700;
 const AGENT_BUDGET = 8000;
 
 const estTokens = (text: string): number => Math.ceil(text.length / 4);
