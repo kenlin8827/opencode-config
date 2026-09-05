@@ -364,7 +364,7 @@ assert(!sessionText.includes("cache-write") && !sessionText.includes("reasoning"
 
 // agent dimension: sessions grouped by agent attribution
 const agentText = (await formatByDimension(fakeApi.client, "s1", "agent")).table
-for (const header of ["agent", "sessions", "in", "out", "cached", "cost", "share"]) {
+for (const header of ["agent", "sess", "in", "out", "cached", "cost", "share"]) {
   assert(agentText.includes(header), `agent table has "${header}" column`)
 }
 assert(agentText.includes("lite") && agentText.includes("explore"), "agent rows present")
@@ -374,7 +374,7 @@ assert(!agentText.includes("build") || agentText.indexOf("explore") < agentText.
 
 // model dimension: tokens/cost summed across the whole tree (same columns as sessions)
 const modelText = (await formatByDimension(fakeApi.client, "s1", "model")).table
-for (const header of ["model", "sessions", "in", "out", "cached", "cost", "share"]) {
+for (const header of ["model", "sess", "in", "out", "cached", "cost", "share"]) {
   assert(modelText.includes(header), `model table has "${header}" column`)
 }
 assert(modelText.includes("anthropic/claude-pro"), "model row: claude-pro")

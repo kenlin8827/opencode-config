@@ -774,7 +774,7 @@ async function collectSessions(client: Client, sessionId: string): Promise<Sessi
 
 // ─── Table rendering ────────────────────────────────────────────────────────
 
-function formatBar(pct: number, width = 10): string {
+function formatBar(pct: number, width = 6): string {
   const filled = Math.max(pct > 0 ? 1 : 0, Math.round((pct / 100) * width))
   return "\u2588".repeat(Math.min(filled, width)) + "\u2591".repeat(Math.max(0, width - Math.min(filled, width)))
 }
@@ -843,13 +843,30 @@ function fmtScaled(v: number): string {
 }
 
 
+/** Display width of a single char — CJK/fullwidth chars and emoji count as 2 so tables align in monospace. */
+function charWidth(ch: string): number {
+  return /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]|[\u{1F300}-\u{1FAFF}\u2B50\u2705\u274C\u2757]/u.test(ch) ? 2 : 1
+}
+
 /** Display width — CJK/fullwidth chars and emoji count as 2 so tables align in monospace. */
 function displayWidth(s: string): number {
   let w = 0
-  for (const ch of s) {
-    w += /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]|[\u{1F300}-\u{1FAFF}\u2B50\u2705\u274C\u2757]/u.test(ch) ? 2 : 1
-  }
+  for (const ch of s) w += charWidth(ch)
   return w
+}
+
+/** Truncate to at most maxW display columns, appending "…" when cut. Keeps
+ *  long agent/model names from blowing up the dialog width tier. */
+function truncateW(s: string, maxW: number): string {
+  if (displayWidth(s) <= maxW) return s
+  let w = 0
+  let out = ""
+  for (const ch of s) {
+    if (w + charWidth(ch) > maxW - 1) break // reserve 1 column for "…"
+    out += ch
+    w += charWidth(ch)
+  }
+  return out + "…"
 }
 
 function padEndW(s: string, w: number): string {
@@ -901,7 +918,7 @@ function tableViewToString(tv: TableView): string {
 function sessionName(s: SessionUsage, currentSessionId: string): string {
   // 🧠 = main (current) agent — the brain, 🦾 = subagent — the arm doing the work
   const icon = s.id === currentSessionId ? "🧠" : "🦾"
-  return s.agent ? `${icon} ${s.agent}` : icon
+  return s.agent ? truncateW(`${icon} ${s.agent}`, 20) : icon
 }
 
 /** One row per session, with a total row. Points column appears when any session is on a coding plan. */
@@ -926,7 +943,7 @@ function renderSessionTable(sessions: SessionUsage[], currentSessionId: string):
       fmtTokens(s.cacheRead),
       String(s.steps),
       fmtCost(s.cost, s.estimatedCost, s.costKnown),
-      fmtCredits(s.creditsKnown ? s.credits : null),
+      ...(showCredits ? [fmtCredits(s.creditsKnown ? s.credits : null)] : []),
       `${pct.toFixed(1)}% ${formatBar(pct)}`,
     ]
   })
@@ -937,7 +954,7 @@ function renderSessionTable(sessions: SessionUsage[], currentSessionId: string):
     fmtTokens(totalCacheRead),
     String(totalSteps),
     fmtCost(totalCost, totalEstimated, totalCostKnown),
-    fmtCredits(showCredits ? totalCredits : null),
+    ...(showCredits ? [fmtCredits(totalCredits)] : []),
     tr("usage.hitCell", { hit: hitRate(totalCacheRead, totalInput), total: fmtTokens(totalAll) }),
   ]
   const headers = [
@@ -991,14 +1008,14 @@ function renderAgentTable(sessions: SessionUsage[]): TableView {
   const rows = [...groups.entries()].sort(([, a], [, b]) => b.input - a.input).map(([agent, g]) => {
     const pct = totalInput > 0 ? (g.input / totalInput) * 100 : 0
     return [
-      agent,
+      truncateW(agent, 16),
       String(g.n),
       fmtTokens(g.input),
       fmtTokens(g.output),
       fmtTokens(g.cacheRead),
       String(g.steps),
       fmtCost(g.cost, g.estimatedCost, g.costKnown),
-      fmtCredits(showCredits ? g.credits : null),
+      ...(showCredits ? [fmtCredits(g.credits)] : []),
       `${pct.toFixed(1)}% ${formatBar(pct)}`,
     ]
   })
@@ -1010,7 +1027,7 @@ function renderAgentTable(sessions: SessionUsage[]): TableView {
     fmtTokens(totalCacheRead),
     String(totalSteps),
     fmtCost(totalCost, totalEstimated, totalCostKnown),
-    fmtCredits(showCredits ? totalCredits : null),
+    ...(showCredits ? [fmtCredits(totalCredits)] : []),
     tr("usage.hitCell", { hit: hitRate(totalCacheRead, totalInput), total: fmtTokens(totalAll) }),
   ]
   const headers = [
@@ -1068,14 +1085,14 @@ function renderModelTable(sessions: SessionUsage[]): TableView {
   const rows = [...models.entries()].sort(([, a], [, b]) => b.input - a.input).map(([model, g]) => {
     const pct = totalInput > 0 ? (g.input / totalInput) * 100 : 0
     return [
-      shortModelName(model),
+      truncateW(shortModelName(model), 16),
       String(g.n),
       fmtTokens(g.input),
       fmtTokens(g.output),
       fmtTokens(g.cacheRead),
       String(g.steps),
       fmtCost(g.cost, g.estimatedCost, g.costKnown),
-      fmtCredits(showCredits ? g.credits : null),
+      ...(showCredits ? [fmtCredits(g.credits)] : []),
       `${pct.toFixed(1)}% ${formatBar(pct)}`,
     ]
   })
@@ -1087,7 +1104,7 @@ function renderModelTable(sessions: SessionUsage[]): TableView {
     fmtTokens(totalCacheRead),
     String(totalSteps),
     fmtCost(totalCost, totalEstimated, totalCostKnown),
-    fmtCredits(showCredits ? totalCredits : null),
+    ...(showCredits ? [fmtCredits(totalCredits)] : []),
     tr("usage.hitCell", { hit: hitRate(totalCacheRead, totalInput), total: fmtTokens(totalAll) }),
   ]
   const headers = [
@@ -1424,9 +1441,11 @@ const tui: TuiPlugin = async (api) => {
       api.ui.toast({ message: view, variant: "info", duration: TOAST_DURATION })
       return
     }
-    // Size from the full view so the width tier never jitters while wide
-    // rows scroll out of (and back into) the visible window.
-    const size = fitDialogSize(flat)
+    // Size from the table only (not the tab strip or context-warning prose —
+    // those wrap naturally inside the dialog, so they must not inflate the
+    // width tier). The full table keeps the tier stable while wide rows
+    // scroll out of (and back into) the visible window.
+    const size = fitDialogSize(rendered.table)
     removeKeyHandler()
     const myGen = ++dialogGen
     dialogOpen = true
