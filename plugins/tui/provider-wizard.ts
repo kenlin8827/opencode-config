@@ -44,7 +44,9 @@ type FormSelectProps = TuiDialogSelectProps<string> & { renderFilter?: boolean }
  *     fetch:      prompts a glob pattern (default *) and imports matching
  *                 models from the live `{baseURL}/models` (openai) or
  *                 `{baseURL}/v1/models` (anthropic) response; additive —
- *                 existing keys are skipped, never overwritten or deleted
+ *                 existing keys are skipped, never overwritten or deleted.
+ *                 The live OpenCode model catalog supplements imported entries
+ *                 with explicitly declared image capabilities when IDs match.
  *     ── Models ──         one list mirroring the config node (natural
  *                          order); click opens the model form, 🗑 removes
  *                          the config entry
@@ -188,6 +190,73 @@ export function allocateModelKey(
     candidate = `${baseKey}-${suffix}`
   }
   return { key: candidate, duplicate: false }
+}
+
+type CatalogModel = {
+  id?: string
+  capabilities?: { input?: string[]; output?: string[] }
+}
+
+/** Decode the SDK's `{ data: { data: ModelV2Info[] } }` response defensively. */
+export function catalogModels(response: unknown): CatalogModel[] {
+  if (!response || typeof response !== "object") return []
+  const outer = (response as { data?: unknown }).data
+  if (!outer || typeof outer !== "object") return []
+  const models = (outer as { data?: unknown }).data
+  if (!Array.isArray(models)) return []
+  return models.flatMap((model): CatalogModel[] => {
+    if (!model || typeof model !== "object" || typeof (model as { id?: unknown }).id !== "string") return []
+    const capabilities = (model as { capabilities?: unknown }).capabilities
+    if (!capabilities || typeof capabilities !== "object") return [{ id: (model as { id: string }).id }]
+    const normalize = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : undefined
+    return [{
+      id: (model as { id: string }).id,
+      capabilities: {
+        input: normalize((capabilities as { input?: unknown }).input),
+        output: normalize((capabilities as { output?: unknown }).output),
+      },
+    }]
+  })
+}
+
+/**
+ * Gets the catalog capabilities for a remotely listed model. The `/models`
+ * APIs do not standardize capability metadata, so only an explicit matching
+ * OpenCode catalog entry can enable attachments. Exact IDs take precedence;
+ * a namespaced-ID fallback is accepted only when it has one unambiguous match.
+ */
+export function catalogCapabilities(
+  remoteID: string,
+  catalog: readonly CatalogModel[],
+): { input: string[]; output: string[] } | undefined {
+  const bareID = deriveModelKey(remoteID)
+  const exact = catalog.find((model) => model.id === remoteID)
+  const matches = exact
+    ? [exact]
+    : catalog.filter((model) => typeof model.id === "string" && deriveModelKey(model.id) === bareID)
+  if (matches.length !== 1) return undefined
+  const match = matches[0]
+  const input = match.capabilities?.input
+  if (!Array.isArray(input) || !input.includes("image")) return undefined
+  return {
+    input: [...input],
+    output: Array.isArray(match.capabilities?.output) ? [...match.capabilities.output] : ["text"],
+  }
+}
+
+/** Build a conservative imported model definition, adding only catalog-proven vision support. */
+export function importedModelDef(
+  remote: { id: string; name: string },
+  key: string,
+  catalog: readonly CatalogModel[],
+): ModelDef {
+  const entry: ModelDef = { name: humanizeModelName(remote.name, key), id: remote.id }
+  const capabilities = catalogCapabilities(remote.id, catalog)
+  if (capabilities) {
+    entry.attachment = true
+    entry.modalities = capabilities
+  }
+  return entry
 }
 
 const NPM_OPENAI = "@ai-sdk/openai-compatible"
@@ -1058,8 +1127,19 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
   }
 
   let remote: Array<{ id: string; name: string }>
+  let catalog: CatalogModel[] = []
   try {
-    remote = await fetchRemoteModels(provider.npm ?? NPM_OPENAI, baseURL, apiKey)
+    // The provider endpoint and OpenCode catalog are independent. Catalog
+    // lookup is best-effort: an unavailable or older host must not prevent imports.
+    const client = api.client as unknown as {
+      model?: { list: () => Promise<unknown> }
+    }
+    const [modelsResult, catalogResult] = await Promise.all([
+      fetchRemoteModels(provider.npm ?? NPM_OPENAI, baseURL, apiKey),
+      client.model?.list().catch(() => undefined),
+    ])
+    remote = modelsResult
+    catalog = catalogModels(catalogResult)
   } catch (err) {
     toast(api, tr("provider.fetchFailed", { err: (err as Error).message }), "error")
     detailMenu(api, id)
@@ -1087,7 +1167,7 @@ async function doFetch(api: TuiPluginApi, id: string, pattern: string): Promise<
       skipped++
       continue
     }
-    models[key] = { name: humanizeModelName(m.name, key), id: m.id }
+    models[key] = importedModelDef(m, key, catalog)
     added++
   }
   // legacy fetch bookkeeping — no longer written
