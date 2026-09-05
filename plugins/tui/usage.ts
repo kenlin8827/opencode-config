@@ -262,7 +262,7 @@ function shortModelName(fullId: string): string {
  *  it's a single BMP glyph (display width = 1). */
 function fmtCost(cost: number, estimatedCost: number, costKnown: boolean): string {
   const value = costKnown ? cost : estimatedCost
-  const skull = costKnown ? "" : "💀"
+  const skull = costKnown ? "" : "💀 "
   return `${skull}$${value.toFixed(4)}`
 }
 
